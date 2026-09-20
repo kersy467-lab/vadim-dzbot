@@ -15,6 +15,7 @@ from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.empire_summary_service import EmpireSummaryService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 
 
 router = APIRouter(prefix="/businesses", tags=["Natbirzha Tycoon V2"])
@@ -24,6 +25,14 @@ company_router = APIRouter(prefix="/company", tags=["Natbirzha Tycoon V2"])
 class OpenBusinessRequest(BaseModel):
     business_type: str = Field(min_length=2, max_length=64)
     custom_name: Optional[str] = Field(default=None, max_length=120)
+
+
+class SupplyPolicyRequest(BaseModel):
+    mode: str = Field(pattern="^(MANUAL|AUTO_NPC)$")
+    min_hours_stock: float = Field(default=0, ge=0, le=168)
+    target_hours_stock: float = Field(default=0, ge=0, le=168)
+    max_unit_price: Optional[float] = Field(default=None, gt=0)
+    allow_state_reserve: bool = False
 
 
 def _require_tycoon_v2() -> None:
@@ -128,6 +137,41 @@ async def upgrade_business(
         response = await BusinessService.start_upgrade(session, company.id, business_id)
         return await IdempotencyService.commit_response(
             session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/{business_id}/supply/{item_id}")
+async def configure_supply_policy(
+    business_id: int,
+    item_id: str,
+    request: SupplyPolicyRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    endpoint = f"/api/natbirzha/businesses/{business_id}/supply/{item_id}"
+    payload = {"business_id": business_id, "item_id": item_id, **request.model_dump()}
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    from sqlalchemy import select
+    from backend.natbirzha.models.business import NatBusiness
+    business = await session.scalar(
+        select(NatBusiness).where(NatBusiness.id == business_id, NatBusiness.company_id == company.id)
+    )
+    if business is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    try:
+        policy = await SupplyPolicyService.configure(session, business_id, item_id, **request.model_dump())
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload,
+            {"success": True, "business_id": business_id, "policy": policy},
         )
     except ValueError as exc:
         await session.rollback()

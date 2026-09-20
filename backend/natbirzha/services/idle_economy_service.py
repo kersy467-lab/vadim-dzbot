@@ -12,6 +12,7 @@ from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.business_rates import cash_business_rates, resource_business_multiplier
+from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 
 
 class IdleEconomyService:
@@ -224,6 +225,7 @@ class IdleEconomyService:
             if spec["mechanic"] == "cash_income":
                 result = cls._settle_business(business, now=current)
             elif spec["mechanic"] == "resource_production":
+                await SupplyPolicyService.auto_procure(session, company, business, spec)
                 result = await cls._settle_resource_business(session, business, spec, now=current)
             else:
                 continue

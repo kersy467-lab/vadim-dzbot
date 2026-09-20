@@ -1,0 +1,265 @@
+"""Automation and scheduled orchestration mixed into the production state machine."""
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.natbirzha.config import get_game_now, normalize_dt
+from backend.natbirzha.models.company import NatCompany, NatFactory
+
+
+class ProductionAutomationMixin:
+    @classmethod
+    async def set_automation(
+        cls,
+        session: AsyncSession,
+        company: NatCompany,
+        factory_id: int,
+        enabled: bool,
+        now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        async with cls._get_lock(factory_id):
+            locked_company = (await session.execute(
+                select(NatCompany).where(NatCompany.id == company.id).with_for_update()
+            )).scalar_one_or_none()
+            if not locked_company:
+                return {"success": False, "reason": "company_not_found"}
+            factory = (await session.execute(
+                select(NatFactory).where(
+                    NatFactory.id == factory_id,
+                    NatFactory.company_id == company.id,
+                ).with_for_update()
+            )).scalar_one_or_none()
+            if not factory:
+                return {"success": False, "reason": "factory_not_found"}
+            if enabled:
+                if factory.automation_level < 1:
+                    return {
+                        "success": False,
+                        "reason": "automation_upgrade_required",
+                        "required_automation_level": 1,
+                    }
+                if locked_company.level < 6:
+                    return {
+                        "success": False,
+                        "reason": "company_level_required",
+                        "required_level": 6,
+                    }
+                current = normalize_dt(now or get_game_now())
+                factory.automation_enabled = True
+                factory.automation_pause_reason = None
+                if factory.cycle_ready_at and current < normalize_dt(factory.cycle_ready_at):
+                    factory.automation_status = "RUNNING"
+                elif factory.cycle_ready_at:
+                    factory.automation_status = "WAITING_COLLECTION"
+                else:
+                    factory.automation_status = "IDLE"
+            else:
+                factory.automation_enabled = False
+                factory.automation_status = "MANUAL"
+                factory.automation_pause_reason = None
+            await session.flush()
+            return {
+                "success": True,
+                "factory_id": factory.id,
+                "automation_enabled": factory.automation_enabled,
+                "automation_level": factory.automation_level,
+                "automation_status": factory.automation_status,
+                "automation_pause_reason": factory.automation_pause_reason,
+            }
+
+    @classmethod
+    async def _advance_automation_locked(
+        cls,
+        session: AsyncSession,
+        company: NatCompany,
+        factory: NatFactory,
+        now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        current = normalize_dt(now or get_game_now())
+        if not factory.automation_enabled:
+            factory.automation_status = "MANUAL"
+            factory.automation_pause_reason = None
+            return {"success": True, "completed": False, "started": False, "status": "MANUAL"}
+
+        if factory.automation_level < 1 or company.level < 6:
+            factory.automation_status = "WAITING_INPUTS"
+            factory.automation_pause_reason = (
+                "automation_upgrade_required" if factory.automation_level < 1 else "company_level_required"
+            )
+            return {
+                "success": False,
+                "completed": False,
+                "started": False,
+                "status": factory.automation_status,
+                "reason": factory.automation_pause_reason,
+            }
+
+        completed = False
+        if factory.cycle_ready_at and factory.current_recipe:
+            ready = normalize_dt(factory.cycle_ready_at)
+            if current < ready:
+                factory.automation_status = "RUNNING"
+                factory.automation_pause_reason = None
+                return {"success": True, "completed": False, "started": False, "status": "RUNNING"}
+
+            completion = await cls._complete_cycle_locked(session, company, factory, current)
+            if not completion.get("success"):
+                reason = completion.get("reason", "automation_completion_failed")
+                if reason == "inventory_overflow":
+                    factory.automation_status = "WAITING_COLLECTION"
+                else:
+                    factory.automation_status = "WAITING_INPUTS"
+                factory.automation_pause_reason = str(reason)
+                await session.flush()
+                return {
+                    "success": False,
+                    "completed": False,
+                    "started": False,
+                    "status": factory.automation_status,
+                    "reason": reason,
+                }
+            completed = True
+
+        start = await cls._start_cycle_locked(session, company, factory, None, current)
+        if start.get("success"):
+            factory.automation_status = "RUNNING"
+            factory.automation_pause_reason = None
+            await session.flush()
+            return {
+                "success": True,
+                "completed": completed,
+                "started": True,
+                "status": "RUNNING",
+                "start": start,
+            }
+
+        reason = start.get("reason", "automation_start_failed")
+        if reason in {"cycle_in_progress", "cycle_ready_to_collect"}:
+            factory.automation_status = "RUNNING" if reason == "cycle_in_progress" else "WAITING_COLLECTION"
+        else:
+            factory.automation_status = "WAITING_INPUTS"
+        factory.automation_pause_reason = None if reason == "cycle_in_progress" else str(reason)
+        await session.flush()
+        return {
+            "success": False,
+            "completed": completed,
+            "started": False,
+            "status": factory.automation_status,
+            "reason": reason,
+        }
+
+    @classmethod
+    async def execute_manual_produce(
+        cls,
+        session: AsyncSession,
+        company_id: int,
+        factory_id: int,
+        recipe_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        company = await session.get(NatCompany, company_id)
+        factory = await session.get(NatFactory, factory_id)
+        if not company or not factory or factory.company_id != company_id:
+            return {"success": False, "reason": "factory_not_found"}
+        now = normalize_dt(get_game_now())
+        if factory.cycle_ready_at:
+            if now >= normalize_dt(factory.cycle_ready_at):
+                return await cls.complete_cycle(session, company, factory, now)
+            return {
+                "success": False,
+                "reason": "cycle_in_progress",
+                "remaining_seconds": max(1, int((normalize_dt(factory.cycle_ready_at) - now).total_seconds())),
+            }
+        return await cls.start_cycle(session, company, factory, recipe_id, now)
+
+    @classmethod
+    async def catch_up_company(
+        cls,
+        session: AsyncSession,
+        company_id: int,
+        now: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """Complete only cycles explicitly started before the player went offline."""
+        company = await session.get(NatCompany, company_id)
+        if not company or company.is_bankrupt:
+            return []
+        current = normalize_dt(now or get_game_now())
+        result = await session.execute(
+            select(NatFactory).where(
+                NatFactory.company_id == company_id,
+                NatFactory.is_active == True,
+            )
+        )
+        completed: List[Dict[str, Any]] = []
+        for factory in result.scalars().all():
+            if not factory.automation_enabled:
+                if factory.cycle_ready_at and current >= normalize_dt(factory.cycle_ready_at):
+                    completion = await cls.complete_cycle(session, company, factory, current)
+                    if completion.get("success"):
+                        completed.append(completion)
+                continue
+            async with cls._get_lock(factory.id):
+                locked_factory = (await session.execute(
+                    select(NatFactory).where(
+                        NatFactory.id == factory.id,
+                        NatFactory.company_id == company_id,
+                    ).with_for_update()
+                )).scalar_one_or_none()
+                if not locked_factory:
+                    continue
+                transition = await cls._advance_automation_locked(
+                    session, company, locked_factory, current
+                )
+                if transition.get("completed"):
+                    completed.append(transition)
+        await session.commit()
+        return completed
+
+    @classmethod
+    async def process_global_scheduled_tick(
+        cls, session: AsyncSession, now: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        current = normalize_dt(now or get_game_now())
+        result = await session.execute(
+            select(NatFactory, NatCompany)
+            .join(NatCompany, NatFactory.company_id == NatCompany.id)
+            .where(NatFactory.is_active == True, NatCompany.is_bankrupt == False)
+        )
+        completed = 0
+        started = 0
+        for factory, company in result.all():
+            if not factory.automation_enabled:
+                if factory.cycle_ready_at and current >= normalize_dt(factory.cycle_ready_at):
+                    cycle_result = await cls.complete_cycle(session, company, factory, current)
+                    completed += int(bool(cycle_result.get("success")))
+                continue
+            async with cls._get_lock(factory.id):
+                locked_factory = (await session.execute(
+                    select(NatFactory).where(
+                        NatFactory.id == factory.id,
+                        NatFactory.company_id == company.id,
+                    ).with_for_update()
+                )).scalar_one_or_none()
+                locked_company = (await session.execute(
+                    select(NatCompany).where(NatCompany.id == company.id).with_for_update()
+                )).scalar_one_or_none()
+                if not locked_factory or not locked_company:
+                    continue
+                transition = await cls._advance_automation_locked(
+                    session, locked_company, locked_factory, current
+                )
+                completed += int(bool(transition.get("completed")))
+                started += int(bool(transition.get("started")))
+        await session.commit()
+        return {
+            "success": True,
+            "ticks_processed": completed + started,
+            "cycles_completed": completed,
+            "cycles_started": started,
+        }
+
+
+
+__all__ = ["ProductionAutomationMixin"]

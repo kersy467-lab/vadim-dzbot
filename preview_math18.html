@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ЕГЭ Математика • Задание 18 (Параметры) — 153 Задачи с решениями</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: '#3b82f6'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Solution sheet responsive image */
+    .solution-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 0.75rem;
+    }
+    .condition-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.75rem;
+      display: block;
+    }
+  </style>
+
+  <!-- Load 153 tasks database -->
+  <script src="math18_data.js"></script>
+</head>
+<body class="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased p-3 sm:p-6 transition-colors selection:bg-blue-500 selection:text-white">
+
+  <div class="max-w-2xl mx-auto space-y-4">
+    
+    <!-- Header Card -->
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white text-xl shadow-md shadow-blue-500/25">
+            📐
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">Задание 18: Параметры</h1>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700">ЕГЭ Профиль</span>
+            </div>
+            <p class="text-xs text-slate-400 font-medium">153 задачи с оригинальными решениями и графиками</p>
+          </div>
+        </div>
+
+        <button onclick="toggleTheme()" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 text-base transition-colors" title="Сменить тему">
+          <span id="theme-icon">🌙</span>
+        </button>
+      </div>
+
+      <!-- Search & Random Button -->
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <input type="text" id="task-search" placeholder="Поиск по номеру (напр. 88) или #ID (напр. 63285)..." 
+                 oninput="onSearchInput()"
+                 class="w-full pl-9 pr-3 py-2.5 text-xs font-semibold rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <span class="absolute left-3 top-3 text-xs text-slate-400">🔍</span>
+        </div>
+        <button onclick="randomTask()" class="px-3.5 py-2.5 rounded-2xl bg-blue-50 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <span>🎲</span> <span class="hidden sm:inline">Случайная</span>
+        </button>
+      </div>
+
+      <!-- Method / Category Filter Pills -->
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs" id="category-pills">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Task Numbers Grid / Carousel -->
+      <div class="pt-1">
+        <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-1.5 px-1">
+          <span>Каталог заданий</span>
+          <span id="filtered-count" class="text-blue-600 dark:text-blue-400">153 задач</span>
+        </div>
+        <div class="flex items-center gap-1 overflow-x-auto pb-1.5 no-scrollbar text-xs" id="task-carousel">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Task Card Container -->
+    <div id="active-task-container" class="space-y-4">
+      <!-- Injected by JS -->
+    </div>
+
+  </div>
+
+  <!-- Image Modal for Fullscreen View -->
+  <div id="img-modal" onclick="closeModal()" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden items-center justify-center p-2 sm:p-4 cursor-zoom-out">
+    <div class="relative max-w-4xl max-h-[95vh] overflow-auto rounded-2xl bg-white dark:bg-slate-900 p-2 shadow-2xl">
+      <img id="modal-img" src="" class="max-w-full h-auto object-contain rounded-xl mx-auto" />
+      <button onclick="closeModal()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-900/80 text-white flex items-center justify-center text-sm font-black hover:bg-slate-900">✕</button>
+    </div>
+  </div>
+
+  <script>
+    const ALL_TASKS = typeof MATH18_TASKS !== 'undefined' ? MATH18_TASKS : [];
+
+    const TOPICS = [
+      "Все",
+      "📊 С графиками",
+      "Графический метод",
+      "Окружности и прямые",
+      "Уголки и модули",
+      "Замена переменной",
+      "Инвариантность и чётность",
+      "Монотонность и оценка",
+      "Тригонометрия",
+      "Квадратный трёхчлен и Виет"
+    ];
+
+    let currentIdx = 0; // index in filtered list
+    let currentTopic = "Все";
+    let searchQuery = "";
+    let showSolution = false; // default hidden so user can solve first
+    let filteredTasks = [...ALL_TASKS];
+
+    function applyFilter() {
+      filteredTasks = ALL_TASKS.filter(t => {
+        let topicMatch = true;
+        if (currentTopic === "📊 С графиками") {
+          topicMatch = t.has_graphics === true;
+        } else if (currentTopic !== "Все") {
+          topicMatch = (t.topic === currentTopic);
+        }
+
+        let searchMatch = true;
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          searchMatch = String(t.num) === q || 
+                        t.id.toLowerCase().includes(q) ||
+                        (t.topic && t.topic.toLowerCase().includes(q));
+        }
+
+        return topicMatch && searchMatch;
+      });
+
+      if (filteredTasks.length > 0 && currentIdx >= filteredTasks.length) {
+        currentIdx = 0;
+      }
+
+      renderPills();
+      renderCarousel();
+      renderActiveTask();
+    }
+
+    function renderPills() {
+      const container = document.getElementById("category-pills");
+      if (!container) return;
+
+      container.innerHTML = TOPICS.map(t => {
+        const isActive = currentTopic === t;
+        return `
+          <button onclick="selectTopic('${t}')" class="px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all text-xs ${
+            isActive
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-blue-300'
+          }">
+            ${t}
+          </button>
+        `;
+      }).join('');
+
+      const countEl = document.getElementById("filtered-count");
+      if (countEl) {
+        countEl.textContent = `${filteredTasks.length} из ${ALL_TASKS.length}`;
+      }
+    }
+
+    function renderCarousel() {
+      const carousel = document.getElementById("task-carousel");
+      if (!carousel) return;
+
+      if (filteredTasks.length === 0) {
+        carousel.innerHTML = `<span class="text-xs text-slate-400 italic px-2">Ничего не найдено</span>`;
+        return;
+      }
+
+      carousel.innerHTML = filteredTasks.map((t, idx) => {
+        const isActive = idx === currentIdx;
+        return `
+          <button onclick="selectTaskByIdx(${idx})" id="pill-task-${idx}"
+                  class="px-2.5 py-1 rounded-xl font-black text-xs whitespace-nowrap transition-all flex items-center gap-1 ${
+                    isActive 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 scale-105' 
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-blue-300'
+                  }">
+            <span>№${t.num}</span>
+            ${t.has_graphics ? '<span class="text-[9px] opacity-75">📊</span>' : ''}
+          </button>
+        `;
+      }).join('');
+
+      // Auto scroll to active button
+      setTimeout(() => {
+        const activeBtn = document.getElementById(`pill-task-${currentIdx}`);
+        if (activeBtn && activeBtn.scrollIntoView) {
+          activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      }, 50);
+    }
+
+    function renderActiveTask() {
+      const container = document.getElementById("active-task-container");
+      if (!container) return;
+
+      if (filteredTasks.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center space-y-2">
+            <span class="text-3xl">🔍</span>
+            <h3 class="font-black text-slate-800 dark:text-slate-100 text-sm">Задачи не найдены</h3>
+            <p class="text-xs text-slate-400">Попробуйте изменить поисковый запрос или выбрать категорию «Все».</p>
+          </div>
+        `;
+        return;
+      }
+
+      const t = filteredTasks[currentIdx];
+      if (!t) return;
+
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4">
+          
+          <!-- Card Top Bar -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-blue-500/20">
+                ${t.num}
+              </span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-black text-slate-900 dark:text-white">Задача №${t.num}</span>
+                  <span class="text-xs font-bold text-blue-600 dark:text-blue-400">#${t.id}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 font-medium">Каталог ЕГЭ • Профиль</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                ${t.topic}
+              </span>
+              ${t.has_graphics ? `
+                <span class="text-[10px] font-extrabold px-2 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-1">
+                  <span>📊</span> С графиком
+                </span>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Problem Condition (Condition Image Clip) -->
+          <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <span>Условие задачи:</span>
+              <span class="text-[10px] font-semibold text-slate-400">Оригинал из кодификатора</span>
+            </div>
+            <div class="bg-white rounded-xl p-2 sm:p-3 overflow-hidden border border-slate-200/60 shadow-sm cursor-zoom-in" onclick="openModal('${t.cond_img}')">
+              <img src="${t.cond_img}" alt="Условие задачи №${t.num}" class="condition-img mx-auto" loading="lazy" />
+            </div>
+          </div>
+
+          <!-- Action Button: Toggle Solution -->
+          <div class="pt-1">
+            <button onclick="toggleSolution()" class="w-full py-3 px-4 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+              showSolution 
+                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25' 
+                : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+            }">
+              <span>${showSolution ? '📖 Скрыть решение' : '📝 Открыть полное пошаговое решение'}</span>
+            </button>
+          </div>
+
+          <!-- Solution Section (Exact chronological flow of text, formulas & diagrams) -->
+          ${showSolution ? `
+            <div class="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              
+              <div class="flex items-center justify-between px-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm">📝</span>
+                  <h4 class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                    Ход решения ${t.has_graphics ? '(с графиками в тексте)' : ''}:
+                  </h4>
+                </div>
+                <span class="text-[11px] font-bold text-slate-400">${t.sol_imgs.length} стр.</span>
+              </div>
+
+              <!-- Continuous solution sheets with diagrams embedded in their natural places -->
+              <div class="space-y-3">
+                ${t.sol_imgs.map((s_img, s_idx) => `
+                  <div class="bg-white dark:bg-slate-900 rounded-2xl p-2 sm:p-3 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1.5">
+                    <div class="flex items-center justify-between px-1.5 text-[10px] font-bold text-slate-400">
+                      <span>Часть ${s_idx + 1} из ${t.sol_imgs.length}</span>
+                      <span class="text-blue-600 dark:text-blue-400 font-semibold cursor-pointer hover:underline" onclick="openModal('${s_img}')">Увеличить 🔍</span>
+                    </div>
+                    <div class="cursor-zoom-in overflow-hidden rounded-xl bg-white p-1" onclick="openModal('${s_img}')">
+                      <img src="${s_img}" alt="Решение задачи №${t.num} (часть ${s_idx+1})" class="solution-img mx-auto" loading="lazy" />
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+            </div>
+          ` : ''}
+
+          <!-- Pagination Footer -->
+          <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <button onclick="prevTask()" ${currentIdx === 0 ? 'disabled class="opacity-40 cursor-not-allowed"' : ''} 
+                    class="px-3.5 py-2 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1">
+              <span>←</span> <span>Предыдущая</span>
+            </button>
+            <span class="text-slate-400 font-bold">${currentIdx + 1} из ${filteredTasks.length}</span>
+            <button onclick="nextTask()" ${currentIdx === filteredTasks.length - 1 ? 'disabled class="opacity-40 cursor-not-allowed"' : ''} 
+                    class="px-3.5 py-2 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1">
+              <span>Следующая</span> <span>→</span>
+            </button>
+          </div>
+
+        </div>
+      `;
+    }
+
+    function selectTopic(topic) {
+      currentTopic = topic;
+      currentIdx = 0;
+      showSolution = false;
+      applyFilter();
+    }
+
+    function onSearchInput() {
+      searchQuery = document.getElementById("task-search").value.trim();
+      currentIdx = 0;
+      showSolution = false;
+      applyFilter();
+    }
+
+    function selectTaskByIdx(idx) {
+      currentIdx = idx;
+      showSolution = false;
+      renderActiveTask();
+      renderCarousel();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextTask() {
+      if (currentIdx < filteredTasks.length - 1) {
+        selectTaskByIdx(currentIdx + 1);
+      }
+    }
+
+    function prevTask() {
+      if (currentIdx > 0) {
+        selectTaskByIdx(currentIdx - 1);
+      }
+    }
+
+    function randomTask() {
+      if (filteredTasks.length === 0) return;
+      const rand = Math.floor(Math.random() * filteredTasks.length);
+      selectTaskByIdx(rand);
+    }
+
+    function toggleSolution() {
+      showSolution = !showSolution;
+      renderActiveTask();
+    }
+
+    function openModal(imgSrc) {
+      const modal = document.getElementById("img-modal");
+      const modalImg = document.getElementById("modal-img");
+      if (modal && modalImg) {
+        modalImg.src = imgSrc;
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      }
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("img-modal");
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+    }
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.key === 'ArrowRight') nextTask();
+      else if (e.key === 'ArrowLeft') prevTask();
+      else if (e.key === 'Escape') closeModal();
+    });
+
+    // Initial render
+    applyFilter();
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+/* Natbirzha - Economic Strategy Styles */
+:root {
+  --primary-accent: #3b82f6;
+  --success-accent: #10b981;
+  --danger-accent: #ef4444;
+  --gold-accent: #f59e0b;
+}
+
+
+html, body {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(244, 114, 182, 0.20), transparent 34%),
+    radial-gradient(circle at 88% 18%, rgba(139, 92, 246, 0.18), transparent 32%),
+    linear-gradient(160deg, #fff7fb 0%, #f7f2ff 48%, #eef6ff 100%);
+  color: #24162f;
+}
+.dark body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(236, 72, 153, 0.18), transparent 32%),
+    radial-gradient(circle at 88% 18%, rgba(124, 58, 237, 0.22), transparent 35%),
+    linear-gradient(160deg, #160d22 0%, #211132 52%, #121426 100%);
+  color: #fff7fb;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+.dark .glass-card {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+/* Glowing Elements */
+.glow-gold {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+}
+.glow-blue {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+}
+.glow-green {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+}
+
+/* Resource Item Pill */
+.resource-pill {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.resource-pill:hover {
+  transform: translateY(-2px);
+}
+
+/* Orderbook Depth Bar */
+.depth-bid {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, transparent 100%);
+}
+.depth-ask {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, transparent 100%);
+}
+
+/* Production Progress Animation */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+.anim-pulse {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+/* Toast Container */
+#toast-container {
+  pointer-events: none;
+}
+.toast-msg {
+  pointer-events: auto;
+  animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Tab Navigation Indicator */
+.nav-tab.active {
+  color: #3b82f6;
+  font-weight: 700;
+}
+.dark .nav-tab.active {
+  color: #60a5fa;
+  font-weight: 700;
+}
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: #3b82f6;
+  border-radius: 9999px;
+}
+
+/* Paged 3×3 factory territory map.  Keep every cell shrinkable on 320px
+   screens so the map never creates a horizontal page scrollbar. */
+.factory-map {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.35), 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+.factory-map-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+.factory-biome-grass { background: linear-gradient(145deg, #c9f4c5, #73c889 55%, #4caa75); }
+.factory-biome-desert { background: linear-gradient(145deg, #f9e4ad, #e8b56d 55%, #c8844d); }
+.factory-biome-snow { background: linear-gradient(145deg, #e0f2fe, #a5c9e8 55%, #789bc3); }
+.factory-slot {
+  min-width: 0;
+  min-height: 5.75rem;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.55rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f172a;
+}
+.dark .factory-slot { background: rgba(15, 23, 42, 0.72); color: #e2e8f0; border-color: rgba(148, 163, 184, 0.32); }
+.factory-slot-empty { align-items: center; justify-content: center; border-style: dashed; background: rgba(255, 255, 255, 0.28); }
+.factory-slot-running { box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.28); }
+.factory-slot-ready { box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.42); }
+.factory-slot-blocked { opacity: 0.78; filter: saturate(0.7); }
+.factory-slot-icon { font-size: 1.55rem; line-height: 1; }
+.factory-slot-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; font-weight: 800; }
+.factory-slot-meta { font-size: 0.58rem; color: #64748b; }
+.dark .factory-slot-meta { color: #94a3b8; }
+.factory-slot-progress { height: 0.24rem; overflow: hidden; border-radius: 9999px; background: rgba(100, 116, 139, 0.2); }
+.factory-slot-progress > span { display: block; height: 100%; border-radius: inherit; background: #3b82f6; transition: width 0.25s linear; }
+.factory-collect-btn { font-size: 0.6rem; font-weight: 800; color: #047857; }
+.factory-build-btn { font-size: 1.35rem; line-height: 1; color: #2563eb; }
+.factory-map-controls { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.factory-map-controls button { min-width: 2rem; min-height: 2rem; border-radius: 0.65rem; }
+.factory-map-controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+.factory-map-dots { min-width: 0; display: flex; justify-content: center; gap: 0.28rem; }
+.factory-map-dot { width: 0.38rem; height: 0.38rem; border-radius: 9999px; background: rgba(100, 116, 139, 0.42); }
+.factory-map-dot.active { width: 1rem; background: #2563eb; }
+
+@media (max-width: 340px) {
+  .factory-map { padding: 0.45rem; }
+  .factory-map-grid { gap: 0.35rem; }
+  .factory-slot { min-height: 5.25rem; padding: 0.4rem; }
+  .factory-slot-icon { font-size: 1.3rem; }
+}

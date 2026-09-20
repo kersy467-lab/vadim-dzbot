@@ -1,0 +1,137 @@
+"""Feature-flagged HTTP API for the NATBIRZHA 2.0 idle business loop."""
+
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.db.session import get_db_session
+from backend.natbirzha.catalogs.businesses import BUSINESS_CATALOG
+from backend.natbirzha.config import nat_settings
+from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.services.auth_service import get_current_company
+from backend.natbirzha.services.business_service import BusinessService
+from backend.natbirzha.services.empire_summary_service import EmpireSummaryService
+from backend.natbirzha.services.idempotency_service import IdempotencyService
+from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+
+
+router = APIRouter(prefix="/businesses", tags=["Natbirzha Tycoon V2"])
+company_router = APIRouter(prefix="/company", tags=["Natbirzha Tycoon V2"])
+
+
+class OpenBusinessRequest(BaseModel):
+    business_type: str = Field(min_length=2, max_length=64)
+    custom_name: Optional[str] = Field(default=None, max_length=120)
+
+
+def _require_tycoon_v2() -> None:
+    if not nat_settings.TYCOON_V2_ENABLED:
+        raise HTTPException(
+            status_code=409,
+            detail="NATBIRZHA 2.0 is not enabled yet. The current season uses the legacy economy.",
+        )
+
+
+def _catalog_item(spec: dict) -> dict:
+    return {
+        "id": spec["id"],
+        "name": spec["name"],
+        "tier": spec["tier"],
+        "mechanic": spec["mechanic"],
+        "specialization": spec["specialization"],
+        "max_stage": spec["max_stage"],
+        "slot_weight": spec["slot_weight"],
+        "open_cost": spec["open_cost"],
+        "base_income_per_hour": spec["base_income_per_hour"],
+        "base_maintenance_per_hour": spec["base_maintenance_per_hour"],
+        "inputs_per_hour": spec["inputs_per_hour"],
+        "outputs_per_hour": spec["outputs_per_hour"],
+        "milestones": spec["milestones"],
+    }
+
+
+@router.get("/catalog")
+async def business_catalog() -> dict:
+    _require_tycoon_v2()
+    return {"items": [_catalog_item(spec) for spec in BUSINESS_CATALOG.values()]}
+
+
+@router.get("")
+async def business_list(
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    settlement = await IdleEconomyService.settle_company(session, company.id)
+    summary = await EmpireSummaryService.build(session, company.id)
+    await session.commit()
+    return {"settlement": settlement, "businesses": summary["businesses"], "slots": summary["slots"]}
+
+
+@company_router.get("/empire-summary")
+async def empire_summary(
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    settlement = await IdleEconomyService.settle_company(session, company.id)
+    summary = await EmpireSummaryService.build(session, company.id)
+    await session.commit()
+    return {"settlement": settlement, **summary}
+
+
+@router.post("/open")
+async def open_business(
+    request: OpenBusinessRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    endpoint = "/api/natbirzha/businesses/open"
+    payload = request.model_dump()
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        response = await BusinessService.open_business(
+            session, company.id, request.business_type, custom_name=request.custom_name
+        )
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{business_id}/upgrade")
+async def upgrade_business(
+    business_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    endpoint = f"/api/natbirzha/businesses/{business_id}/upgrade"
+    payload = {"business_id": business_id}
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        response = await BusinessService.start_upgrade(session, company.id, business_id)
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+__all__ = ["router", "company_router"]

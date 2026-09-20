@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>НАТБИРЖА • 11 «Б»</title>
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: '#3b82f6',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/natbirzha/css/natbirzha.css?v=20260920_reset_v7" />
+  <link rel="stylesheet" href="/static/natbirzha/css/princess-theme.css?v=20260920_reset_v7" />
+
+  <script>
+    function syncTgTheme() {
+      const isDark = window.Telegram?.WebApp?.colorScheme === 'dark' ||
+                     (!window.Telegram?.WebApp?.colorScheme && window.matchMedia?.('(prefers-color-scheme: dark)')?.matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    syncTgTheme();
+    window.Telegram?.WebApp?.onEvent?.('themeChanged', syncTgTheme);
+    window.matchMedia?.('(prefers-color-scheme: dark)')?.addEventListener?.('change', syncTgTheme);
+  </script>
+</head>
+<body class="princess-sky min-h-screen text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-950 antialiased selection:bg-blue-500 selection:text-white flex flex-col justify-between">
+
+  <!-- Top Navigation / App Header -->
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-2.5">
+    <div class="flex items-center justify-between max-w-md mx-auto">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 flex items-center justify-center text-white font-black text-xs shadow-md shadow-indigo-500/20">
+          НБ
+        </div>
+        <div>
+          <div class="text-xs font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+            НАТБИРЖА
+            <span class="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400 text-[10px] font-mono font-bold">11 «Б»</span>
+          </div>
+          <div id="header-ticker" class="text-[10px] font-mono text-slate-400 leading-none">Корпорация</div>
+        </div>
+      </div>
+
+      <!-- Quick Balance Ticker in Header & Creator Button -->
+      <div class="flex items-center gap-3">
+        <button id="creator-nav-btn" class="hidden px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-600 dark:text-amber-400 text-[11px] font-bold flex items-center gap-1 hover:bg-amber-500/30 active:scale-95 transition-all">
+          👑 Государство
+        </button>
+        <div id="header-stats" class="hidden text-right">
+          <div id="header-cash" class="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
+            0 cash
+          </div>
+          <div class="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">Баланс</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Screen Content Container -->
+  <main id="screen-container" class="flex-1 w-full max-w-md mx-auto">
+    <!-- Screen components will render here dynamically -->
+  </main>
+
+  <!-- Fixed Bottom Navigation Bar -->
+  <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-1 hidden">
+    <div class="max-w-md mx-auto flex items-center justify-around overflow-x-auto text-center no-scrollbar">
+      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5 active" data-tab="overview">
+        <span class="text-lg">🏛️</span>
+        <span class="text-[10px] font-medium">Обзор</span>
+      </button>
+
+      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="production">
+        <span class="text-lg">⚙️</span>
+        <span class="text-[10px] font-medium">Заводы</span>
+      </button>
+
+      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="upgrades"><span class="text-lg">🔧</span><span class="text-[10px] font-medium">Прокачка</span></button>
+
+      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="market">
+        <span class="text-lg">📊</span>
+        <span class="text-[10px] font-medium">Биржа</span>
+      </button>
+
+      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="military">
+        <span class="text-lg">⚔️</span>
+        <span class="text-[10px] font-medium">Война</span>
+      </button>
+
+      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="leaderboard">
+        <span class="text-lg">🏆</span>
+        <span class="text-[10px] font-medium">Топ</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Floating Toast Notifications -->
+  <div id="toast-container" class="fixed bottom-16 left-4 right-4 z-50 flex flex-col gap-2 items-center"></div>
+
+  <!-- Entry Script -->
+  <script type="module" src="/static/natbirzha/js/app.js?v=20260920_reset_v9"></script>
+
+</body>
+</html>

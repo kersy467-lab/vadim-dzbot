@@ -1,0 +1,9 @@
+name = "class-bot-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["*/10 * * * *"] # Пинг каждые 10 минут
+
+[vars]
+RENDER_ORIGIN = "https://YOUR-APP-NAME.onrender.com"

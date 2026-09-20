@@ -1,0 +1,114 @@
+:root {
+  --bg-color: var(--tg-theme-bg-color, #f8fafc);
+  --text-color: var(--tg-theme-text-color, #0f172a);
+  --hint-color: var(--tg-theme-hint-color, #64748b);
+  --link-color: var(--tg-theme-link-color, #2563eb);
+  --button-color: var(--tg-theme-button-color, #3b82f6);
+  --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+  --secondary-bg-color: var(--tg-theme-secondary-bg-color, #ffffff);
+  --card-border: rgba(0, 0, 0, 0.06);
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.theme-card {
+  background-color: var(--secondary-bg-color);
+  border: 1px solid var(--card-border);
+}
+
+.badge-sub {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-cancel {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-deadline-urgent {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge-deadline-warning {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.badge-deadline-ok {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hint-color);
+  border-radius: 4px;
+  opacity: 0.3;
+}
+
+/* Tab active state */
+.tab-btn.active {
+  color: var(--button-color);
+  font-weight: 600;
+}
+
+.tab-btn.active svg {
+  stroke: var(--button-color);
+}
+
+/* Более светлый и читаемый текст для названий предметов и текста ДЗ */
+.subject-title {
+  color: #334155;
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+.dark .subject-title {
+  color: #f8fafc !important;
+}
+
+.homework-desc {
+  color: #475569;
+  line-height: 1.6;
+  transition: color 0.2s ease;
+}
+.dark .homework-desc {
+  color: #e2e8f0 !important;
+}
+
+.dark .theme-card {
+  background-color: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Animations and Utilities for EGE & Games */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+.animate-shake {
+  animation: shake 0.35s ease-in-out;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

@@ -29,9 +29,9 @@ async def run_async() -> None:
         direct_creator = await CompanyService.create_company(session, creator.id, "Direct Creator", "miner", commit=False)
         direct_tester = await CompanyService.create_company(session, tester.id, "Direct Tester", "forester", commit=False)
         direct_player = await CompanyService.create_company(session, player.id, "Direct Player", "agrarian", commit=False)
-        assert direct_creator.cash == 500_000 and direct_creator.pvc_balance == 200
-        assert direct_tester.cash == 50_000 and direct_tester.pvc_balance == 200
-        assert direct_player.cash == 50_000 and direct_player.pvc_balance == 0
+        assert direct_creator.cash == 10_000 and direct_creator.pvc_balance == 500
+        assert direct_tester.cash == 10_000 and direct_tester.pvc_balance == 200
+        assert direct_player.cash == 10_000 and direct_player.pvc_balance == 0
         await CompanyService.reset_company_for_user(session, creator.id, commit=False)
         await CompanyService.reset_company_for_user(session, tester.id, commit=False)
         await CompanyService.reset_company_for_user(session, player.id, commit=False)
@@ -53,11 +53,11 @@ async def run_async() -> None:
         companies = (await session.execute(select(NatCompany).order_by(NatCompany.name))).scalars().all()
         assert len(companies) == 3
         by_name = {company.name: company for company in companies}
-        assert by_name["Creator Corp"].cash == 500_000
-        assert by_name["Creator Corp"].pvc_balance == 200
-        assert by_name["Tester Corp"].cash == 50_000
+        assert by_name["Creator Corp"].cash == 10_000
+        assert by_name["Creator Corp"].pvc_balance == 500
+        assert by_name["Tester Corp"].cash == 10_000
         assert by_name["Tester Corp"].pvc_balance == 200
-        assert by_name["Player Corp"].cash == 50_000
+        assert by_name["Player Corp"].cash == 10_000
         assert by_name["Player Corp"].level == 1 and by_name["Player Corp"].territory_tiles == 4
         assert len((await session.execute(select(NatFactory))).scalars().all()) == 3
         replay = await SeasonResetService.execute(

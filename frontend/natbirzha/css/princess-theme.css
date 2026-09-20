@@ -107,7 +107,26 @@ details,
 .dark .market-contrast-surface b,
 .dark .market-contrast-surface strong,
 .dark .market-contrast-surface summary {
-  color: var(--princess-ink) !important;
+  color: #fff7fb !important;
+}
+
+/* Market cards use dark plum surfaces in Telegram dark mode.  Do not leave
+   Tailwind's slate text colors on those surfaces: they are too close to the
+   background and make portfolio headings and balances look disabled. */
+.dark .market-contrast-surface,
+.dark .market-contrast-surface [class*="text-slate-900"],
+.dark .market-contrast-surface [class*="text-slate-800"],
+.dark .market-contrast-surface [class*="text-slate-700"] {
+  color: #fff7fb;
+}
+
+.dark .market-contrast-surface [class*="text-slate-600"],
+.dark .market-contrast-surface [class*="text-slate-500"] {
+  color: #f9d6eb !important;
+}
+
+.dark .market-contrast-surface [class*="text-slate-400"] {
+  color: #f3b9dc !important;
 }
 
 .market-chart {

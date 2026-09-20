@@ -24,7 +24,7 @@ class NatCompany(Base):
     mastery_logistics: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     mastery_doctrine: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     mastery_intelligence: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    cash: Mapped[float] = mapped_column(Float, default=50000.0, nullable=False)
+    cash: Mapped[float] = mapped_column(Float, default=10000.0, nullable=False)
     nat_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     pvc_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     military_rating: Mapped[int] = mapped_column(Integer, default=1000, nullable=False, index=True)

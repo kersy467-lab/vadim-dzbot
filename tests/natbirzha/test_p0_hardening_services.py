@@ -72,10 +72,10 @@ async def run() -> None:
     finally:
         nat_settings.ALLOW_TEST_AUTH = old_test_auth
 
-    # Company: every player company starts with the same 50k cash; state money is separate.
+    # Company: every player company starts with the same 10k cash; state money is separate.
     async with async_session_factory() as session:
         comp = await company(session, 2001)
-        assert comp.cash == nat_settings.STARTING_CASH == 50000.0
+        assert comp.cash == nat_settings.STARTING_CASH == 10000.0
         factory = (await session.execute(
             select(NatFactory).where(NatFactory.company_id == comp.id)
         )).scalar_one()

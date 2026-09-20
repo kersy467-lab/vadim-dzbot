@@ -50,23 +50,6 @@ async def login_user(
         except Exception:
             await session.rollback()
 
-    if company and is_creator:
-        updated = False
-        if float(company.cash or 0.0) < 500000.0:
-            company.cash = 500000.0
-            updated = True
-        if int(company.pvc_balance or 0) < 500:
-            company.pvc_balance = 500
-            updated = True
-        if int(company.nat_balance or 0) < 500:
-            company.nat_balance = 500
-            updated = True
-        if updated:
-            try:
-                await session.commit()
-            except Exception:
-                await session.rollback()
-
     return {
         "authenticated": True,
         "user": {

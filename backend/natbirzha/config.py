@@ -83,10 +83,11 @@ class NatbirzhaSettings(BaseSettings):
     BANKRUPTCY_FEE_RATE: float = 0.30              # 30% of positive daily profit
 
     # Base Economic Constants
-    STARTING_CASH: float = 50000.0
-    # Founder-only cash is intentionally separate: testers receive the normal
-    # economy start plus PVC, never a cash advantage over ordinary players.
-    CREATOR_STARTING_CASH: float = 500000.0
+    # Every newly created company starts from the same small cash grant.  The
+    # creator/admin account is no longer topped up on login; any test funds
+    # must be granted explicitly through the admin tools.
+    STARTING_CASH: float = 10000.0
+    CREATOR_STARTING_CASH: float = 10000.0
     CREATOR_STARTING_PVC: int = 500
     TESTER_STARTING_PVC: int = 200
     STARTING_TERRITORY_TILES: int = 4

@@ -24,6 +24,7 @@ class NatbirzhaSettings(BaseSettings):
         description="Enable the NATBIRZHA 2.0 idle/tycoon UI only after controlled rollout",
     )
     TYCOON_V2_OFFLINE_CASH_CAP_HOURS: int = 24
+    TYCOON_V2_IPO_MIN_LEVEL: int = 18
 
     # Specialization efficiency limits (strict)
     OWN_SPEC_EFFICIENCY: float = 1.00       # 100%

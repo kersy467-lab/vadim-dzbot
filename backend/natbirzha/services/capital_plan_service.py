@@ -9,8 +9,14 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.building_catalog import CANONICAL_BUILDINGS
 
 
-IPO_RECOMMENDATION_LEVEL = 14
 MIN_SELF_FUNDED_BUFFER = 90_000.0
+
+
+def ipo_recommendation_level() -> int:
+    """Keep legacy seasons compatible while V2 makes IPO a midgame decision."""
+    if nat_settings.TYCOON_V2_ENABLED:
+        return int(nat_settings.TYCOON_V2_IPO_MIN_LEVEL)
+    return int(nat_settings.IPO_MIN_LEVEL)
 
 
 def _next_own_project(company: NatCompany) -> dict[str, Any]:
@@ -45,12 +51,14 @@ def capital_plan_for_company(company: NatCompany, *, is_public: bool) -> dict[st
             "message": "Компания публичная: развивайте производство и поддерживайте дивидендную политику.",
         }
 
-    if int(company.level or 1) < IPO_RECOMMENDATION_LEVEL:
+    recommendation_level = ipo_recommendation_level()
+    if int(company.level or 1) < recommendation_level:
         return {
             "state": "grow_first",
             "recommended": False,
             "title": "Сначала укрепите производство",
-            "message": f"IPO станет стратегическим вариантом после уровня {IPO_RECOMMENDATION_LEVEL}.",
+            "message": f"IPO станет стратегическим вариантом после уровня {recommendation_level}.",
+            "ipo_available_from_level": recommendation_level,
         }
 
     project = _next_own_project(company)
@@ -77,6 +85,7 @@ def capital_plan_for_company(company: NatCompany, *, is_public: bool) -> dict[st
         "cash_shortfall": shortfall,
         "project": project,
         "min_dividend_pct": float(nat_settings.IPO_MIN_DIVIDEND_PCT),
+        "ipo_available_from_level": recommendation_level,
         "action": {"tab": "market", "label": "Сравнить IPO"},
         "debt_option": {
             "available_from_level": 14,
@@ -87,4 +96,4 @@ def capital_plan_for_company(company: NatCompany, *, is_public: bool) -> dict[st
     }
 
 
-__all__ = ["capital_plan_for_company"]
+__all__ = ["capital_plan_for_company", "ipo_recommendation_level"]

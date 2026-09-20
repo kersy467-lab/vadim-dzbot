@@ -9,6 +9,7 @@ from backend.natbirzha.models.stocks import NatStock, NatStockHolding, NatStockO
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
 from backend.natbirzha.services.company_service import CompanyService
+from backend.natbirzha.services.capital_plan_service import ipo_recommendation_level
 
 class ValuationStrategy(ABC):
     @abstractmethod
@@ -129,8 +130,9 @@ class StockService:
         strategy: Optional[ValuationStrategy] = None,
         dividend_rate_pct: float = nat_settings.IPO_MIN_DIVIDEND_PCT,
     ) -> NatStock:
-        if company.level < nat_settings.IPO_MIN_LEVEL:
-            raise ValueError(f"Company level must be at least {nat_settings.IPO_MIN_LEVEL} for IPO.")
+        required_level = ipo_recommendation_level()
+        if company.level < required_level:
+            raise ValueError(f"Company level must be at least {required_level} for IPO.")
         if company.is_bankrupt:
             raise ValueError("Bankrupt companies cannot apply for IPO.")
         if not nat_settings.IPO_MIN_DIVIDEND_PCT <= dividend_rate_pct <= nat_settings.IPO_MAX_DIVIDEND_PCT:

@@ -10,7 +10,8 @@ from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import get_game_now, nat_settings, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.services.business_rates import cash_business_rates
+from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.services.business_rates import cash_business_rates, resource_business_multiplier
 
 
 class IdleEconomyService:
@@ -90,6 +91,109 @@ class IdleEconomyService:
             "upgrade_completed": upgrade_completed,
         }
 
+    @staticmethod
+    async def _locked_inventory(
+        session: AsyncSession, company_id: int, item_id: str, *, create: bool = False
+    ) -> NatInventory | None:
+        inventory = await session.scalar(
+            select(NatInventory)
+            .where(NatInventory.company_id == company_id, NatInventory.item_id == item_id)
+            .with_for_update()
+        )
+        if inventory is None and create:
+            inventory = NatInventory(company_id=company_id, item_id=item_id, quantity=0.0)
+            session.add(inventory)
+            await session.flush()
+        return inventory
+
+    @classmethod
+    async def _settle_resource_segment(
+        cls,
+        session: AsyncSession,
+        company_id: int,
+        business: NatBusiness,
+        spec: dict[str, Any],
+        *,
+        hours: float,
+        upgrading: bool,
+    ) -> tuple[float, float, list[str]]:
+        """Consume inputs and create outputs for one continuous resource interval."""
+        if hours <= 0 or business.status in {"PAUSED_MANUAL", "PAUSED_MAINTENANCE", "BANKRUPT", "MERGING"}:
+            return 0.0, 0.0, []
+        multiplier = resource_business_multiplier(business, spec, upgrading=upgrading)
+        if multiplier <= 0:
+            return 0.0, 0.0, []
+        inputs = {
+            item_id: float(rate) * multiplier
+            for item_id, rate in spec["inputs_per_hour"].items()
+            if float(rate) > 0
+        }
+        actual_hours = hours
+        missing: list[str] = []
+        inventories: dict[str, NatInventory | None] = {}
+        for item_id, rate in inputs.items():
+            inventory = await cls._locked_inventory(session, company_id, item_id)
+            inventories[item_id] = inventory
+            available = float(inventory.available_quantity) if inventory else 0.0
+            actual_hours = min(actual_hours, available / rate)
+            if available + 1e-9 < rate * hours:
+                missing.append(item_id)
+        actual_hours = max(0.0, actual_hours)
+        for item_id, rate in inputs.items():
+            inventory = inventories[item_id]
+            if inventory is not None:
+                inventory.quantity = round(max(0.0, float(inventory.quantity) - rate * actual_hours), 6)
+        for item_id, rate in spec["outputs_per_hour"].items():
+            output = await cls._locked_inventory(session, company_id, item_id, create=True)
+            output.quantity = round(float(output.quantity) + float(rate) * multiplier * actual_hours, 6)
+
+        maintenance = float(business.base_maintenance_per_hour) * max(0.0, float(business.efficiency)) * actual_hours
+        if actual_hours + 1e-9 < hours and not upgrading:
+            business.status = "PAUSED_SUPPLY"
+        return round(maintenance, 6), actual_hours, missing
+
+    @classmethod
+    async def _settle_resource_business(
+        cls, session: AsyncSession, business: NatBusiness, spec: dict[str, Any], *, now: datetime
+    ) -> dict[str, Any]:
+        last_settled = normalize_dt(business.last_settled_at)
+        if last_settled is None or now <= last_settled:
+            return {"gross": 0.0, "maintenance": 0.0, "hours": 0.0, "upgrade_completed": False}
+        settle_until = min(
+            now, last_settled + timedelta(hours=int(nat_settings.TYCOON_V2_OFFLINE_CASH_CAP_HOURS))
+        )
+        if business.status == "PAUSED_SUPPLY":
+            business.status = "ACTIVE"
+
+        maintenance = 0.0
+        cursor = last_settled
+        completed = False
+        ready_at = normalize_dt(business.upgrade_ready_at)
+        if business.status == "UPGRADING" and ready_at is not None and ready_at <= cursor:
+            completed = cls._finish_due_upgrade(business, spec)
+            ready_at = None
+        if business.status == "UPGRADING" and ready_at is not None and cursor < ready_at < settle_until:
+            paid, _, _ = await cls._settle_resource_segment(
+                session, business.company_id, business, spec,
+                hours=(ready_at - cursor).total_seconds() / 3600, upgrading=True,
+            )
+            maintenance += paid
+            cursor = ready_at
+            completed = cls._finish_due_upgrade(business, spec)
+        paid, _, _ = await cls._settle_resource_segment(
+            session, business.company_id, business, spec,
+            hours=(settle_until - cursor).total_seconds() / 3600,
+            upgrading=business.status == "UPGRADING",
+        )
+        maintenance += paid
+        business.last_settled_at = settle_until
+        return {
+            "gross": 0.0,
+            "maintenance": maintenance,
+            "hours": (settle_until - last_settled).total_seconds() / 3600,
+            "upgrade_completed": completed,
+        }
+
     @classmethod
     async def settle_company(
         cls, session: AsyncSession, company_id: int, *, now: datetime | None = None
@@ -115,9 +219,14 @@ class IdleEconomyService:
         completed_upgrades: list[int] = []
         for business in businesses:
             spec = get_business_spec(business.business_type)
-            if not spec or spec["mechanic"] != "cash_income":
+            if not spec:
                 continue
-            result = cls._settle_business(business, now=current)
+            if spec["mechanic"] == "cash_income":
+                result = cls._settle_business(business, now=current)
+            elif spec["mechanic"] == "resource_production":
+                result = await cls._settle_resource_business(session, business, spec, now=current)
+            else:
+                continue
             gross += result["gross"]
             maintenance += result["maintenance"]
             settled_hours = max(settled_hours, result["hours"])

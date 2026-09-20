@@ -33,4 +33,23 @@ def cash_business_rates(business: NatBusiness, spec: dict[str, Any], *, upgradin
     )
 
 
-__all__ = ["CashBusinessRates", "cash_business_rates"]
+def resource_business_multiplier(business: NatBusiness, spec: dict[str, Any], *, upgrading: bool) -> float:
+    """Capacity multiplier shared by resource inputs and outputs.
+
+    Scaling both sides preserves the recipe ratio while higher stages increase
+    throughput. A resource enterprise therefore cannot create a free input
+    arbitrage merely because it was upgraded.
+    """
+    stage = max(1, int(business.stage))
+    multiplier = float(spec["income_growth"]) ** (stage - 1)
+    for milestone_stage, milestone in spec.get("milestones", {}).items():
+        if stage >= int(milestone_stage):
+            multiplier *= float(milestone.get("output_multiplier", 1.0))
+    multiplier *= max(0.0, float(business.efficiency or 0.0))
+    multiplier *= min(1.0, max(0.0, float(business.health or 0.0) / 100.0))
+    if upgrading:
+        multiplier *= float(spec["upgrade_downtime_mult"])
+    return round(multiplier, 6)
+
+
+__all__ = ["CashBusinessRates", "cash_business_rates", "resource_business_multiplier"]

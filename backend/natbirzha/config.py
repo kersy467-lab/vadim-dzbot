@@ -19,9 +19,9 @@ class NatbirzhaSettings(BaseSettings):
         description="Explicit production switch for destructive season resets",
     )
     TYCOON_V2_ENABLED: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("NATBIRZHA_TYCOON_V2_ENABLED", "TYCOON_V2_ENABLED"),
-        description="Enable the NATBIRZHA 2.0 idle/tycoon UI only after controlled rollout",
+        description="Enable the NATBIRZHA 2.0 idle/tycoon economy after the season reset",
     )
     TYCOON_V2_OFFLINE_CASH_CAP_HOURS: int = 24
     TYCOON_V2_IPO_MIN_LEVEL: int = 18

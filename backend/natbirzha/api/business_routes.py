@@ -16,6 +16,7 @@ from backend.natbirzha.services.empire_summary_service import EmpireSummaryServi
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
+from backend.natbirzha.services.territory_service import TerritoryService
 
 
 router = APIRouter(prefix="/businesses", tags=["Natbirzha Tycoon V2"])
@@ -89,6 +90,33 @@ async def empire_summary(
     summary = await EmpireSummaryService.build(session, company.id)
     await session.commit()
     return {"settlement": settlement, **summary}
+
+
+@company_router.get("/territory/quote")
+async def territory_quote(company: NatCompany = Depends(get_current_company)) -> dict:
+    _require_tycoon_v2()
+    return TerritoryService.quote(company)
+
+
+@company_router.post("/territory/expand")
+async def expand_tycoon_territory(
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    endpoint = "/api/natbirzha/company/territory/expand-v2"
+    cached = await IdempotencyService.check_or_conflict(session, company.user_id, endpoint, idempotency_key, {})
+    if cached:
+        return cached[1]
+    try:
+        response = await TerritoryService.expand(session, company.id)
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, {}, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/open")

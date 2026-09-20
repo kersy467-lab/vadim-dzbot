@@ -250,6 +250,18 @@ export const NatAPI = {
   borrow: (principal) => request('/api/natbirzha/finance/loans', { method: 'POST', body: JSON.stringify({ principal: Number(principal) }) }),
   repayLoan: (loan_id, amount) => request(`/api/natbirzha/finance/loans/${parseInt(loan_id, 10)}/repay`, { method: 'POST', body: JSON.stringify({ amount: Number(amount) }) }),
 
+  // NATBIRZHA 2.0 idle/tycoon businesses
+  getBusinessCatalog: () => cachedGet('/api/natbirzha/businesses/catalog', 5 * 60 * 1000),
+  getEmpireSummary: () => request('/api/natbirzha/company/empire-summary'),
+  openBusiness: (business_type, custom_name = null) => request('/api/natbirzha/businesses/open', {
+    method: 'POST',
+    body: JSON.stringify({ business_type, custom_name }),
+  }),
+  upgradeBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/upgrade`, { method: 'POST' }),
+  pauseBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/pause`, { method: 'POST' }),
+  resumeBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/resume`, { method: 'POST' }),
+  sellBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/sell`, { method: 'POST' }),
+
   // Production & Buildings
   getProductionStatus: () => request('/api/natbirzha/production/factories'),
   getRecipes: () => cachedGet('/api/natbirzha/production/recipes', 5 * 60 * 1000),

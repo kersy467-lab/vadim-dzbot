@@ -2,7 +2,7 @@ import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v
 import { store } from './state.js';
 import { renderOnboarding } from './screens/onboarding.js?v=20260920_reset_v8';
 import { renderOverview } from './screens/overview.js';
-import { renderProduction } from './screens/production.js';
+import { renderTycoon } from './screens/tycoon.js?v=20260921_tycoon1';
 import { renderUpgrades } from './screens/upgrades.js';
 import { renderMarket } from './screens/market.js?v=20260920_liquidity1';
 import { renderStocks } from './screens/stocks.js';
@@ -185,7 +185,7 @@ async function renderScreenOnce() {
       renderOverview(renderContainer, showToast);
       break;
     case 'production':
-      await renderProduction(renderContainer, showToast);
+      await renderTycoon(renderContainer, showToast);
       break;
     case 'upgrades':
       await renderUpgrades(renderContainer, showToast);

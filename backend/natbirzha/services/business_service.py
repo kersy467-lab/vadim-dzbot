@@ -173,5 +173,63 @@ class BusinessService:
             "remaining_cash": company.cash,
         }
 
+    @classmethod
+    async def _lifecycle_business(
+        cls, session: AsyncSession, company_id: int, business_id: int, *, now: datetime | None
+    ) -> NatBusiness:
+        current = normalize_dt(now or get_game_now())
+        await IdleEconomyService.settle_company(session, company_id, now=current)
+        business = await session.scalar(
+            select(NatBusiness).where(
+                NatBusiness.id == business_id, NatBusiness.company_id == company_id
+            ).with_for_update()
+        )
+        if business is None:
+            raise ValueError("Business not found")
+        return business
+
+    @classmethod
+    async def pause(
+        cls, session: AsyncSession, company_id: int, business_id: int, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        business = await cls._lifecycle_business(session, company_id, business_id, now=now)
+        if business.status == "UPGRADING":
+            raise ValueError("Cannot pause a business while its upgrade is in progress")
+        if business.status in {"BANKRUPT", "MERGING"}:
+            raise ValueError("Business cannot be paused in its current state")
+        business.status = "PAUSED_MANUAL"
+        await session.flush()
+        return {"success": True, "business_id": business.id, "status": business.status}
+
+    @classmethod
+    async def resume(
+        cls, session: AsyncSession, company_id: int, business_id: int, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        business = await cls._lifecycle_business(session, company_id, business_id, now=now)
+        if business.status != "PAUSED_MANUAL":
+            raise ValueError("Only manually paused businesses can be resumed")
+        business.status = "ACTIVE"
+        await session.flush()
+        return {"success": True, "business_id": business.id, "status": business.status}
+
+    @classmethod
+    async def sell(
+        cls, session: AsyncSession, company_id: int, business_id: int, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        business = await cls._lifecycle_business(session, company_id, business_id, now=now)
+        if business.status == "UPGRADING":
+            raise ValueError("Cannot sell a business while its upgrade is in progress")
+        company = await cls._locked_company(session, company_id)
+        refund = round(max(0.0, float(business.capital_invested)) * 0.40, 2)
+        company.cash = round(float(company.cash) + refund, 2)
+        await session.delete(business)
+        await session.flush()
+        return {
+            "success": True,
+            "business_id": business_id,
+            "refund": refund,
+            "remaining_cash": company.cash,
+        }
+
 
 __all__ = ["BusinessService", "UPGRADE_TIME_CURVES"]

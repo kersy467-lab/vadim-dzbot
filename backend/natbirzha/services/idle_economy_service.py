@@ -54,6 +54,16 @@ class IdleEconomyService:
         settle_until = min(now, max_end)
         if settle_until <= last_settled:
             return {"gross": 0.0, "maintenance": 0.0, "hours": 0.0, "upgrade_completed": False}
+        if business.status in {"PAUSED_MANUAL", "PAUSED_SUPPLY", "PAUSED_MAINTENANCE", "BANKRUPT", "MERGING"}:
+            # Advance the cursor while stopped: resuming must never back-pay an
+            # intentionally paused interval.
+            business.last_settled_at = settle_until
+            return {
+                "gross": 0.0,
+                "maintenance": 0.0,
+                "hours": (settle_until - last_settled).total_seconds() / 3600,
+                "upgrade_completed": False,
+            }
 
         gross = 0.0
         maintenance = 0.0

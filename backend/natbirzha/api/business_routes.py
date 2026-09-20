@@ -178,4 +178,62 @@ async def configure_supply_policy(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+async def _business_lifecycle_mutation(
+    action: str,
+    business_id: int,
+    idempotency_key: Optional[str],
+    company: NatCompany,
+    session: AsyncSession,
+) -> dict:
+    endpoint = f"/api/natbirzha/businesses/{business_id}/{action}"
+    payload = {"business_id": business_id, "action": action}
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        operation = getattr(BusinessService, action)
+        response = await operation(session, company.id, business_id)
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{business_id}/pause")
+async def pause_business(
+    business_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    return await _business_lifecycle_mutation("pause", business_id, idempotency_key, company, session)
+
+
+@router.post("/{business_id}/resume")
+async def resume_business(
+    business_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    return await _business_lifecycle_mutation("resume", business_id, idempotency_key, company, session)
+
+
+@router.post("/{business_id}/sell")
+async def sell_business(
+    business_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    return await _business_lifecycle_mutation("sell", business_id, idempotency_key, company, session)
+
+
 __all__ = ["router", "company_router"]

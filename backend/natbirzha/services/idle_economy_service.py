@@ -13,6 +13,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.business_rates import cash_business_rates, resource_business_multiplier
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
+from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
 
 
 class IdleEconomyService:
@@ -242,6 +243,10 @@ class IdleEconomyService:
             gross += result["gross"]
             maintenance += result["maintenance"]
             settled_hours = max(settled_hours, result["hours"])
+            await BusinessIncomeLedgerService.record(
+                session, business.id, current.date(),
+                gross=result["gross"], maintenance=result["maintenance"],
+            )
             if result["upgrade_completed"]:
                 completed_upgrades.append(business.id)
 

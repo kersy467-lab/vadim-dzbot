@@ -1,4 +1,6 @@
 services:
+  # Deploy source is intentionally pinned to main; keep this comment with the
+  # blueprint so a new push also refreshes a stale Render webhook.
   - type: web
     name: class-tg-bot
     env: python

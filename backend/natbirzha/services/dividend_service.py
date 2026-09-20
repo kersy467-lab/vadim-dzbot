@@ -1,11 +1,12 @@
 from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from backend.natbirzha.config import nat_settings, get_game_today, get_game_now
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding, NatDividend, NatDividendPayment
 from backend.natbirzha.models.restructuring import NatDailyFinancials
+from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
 
 class DividendService:
     @classmethod
@@ -44,7 +45,17 @@ class DividendService:
             )
         )
         fin = fin_res.scalar_one_or_none()
-        closed_profit = fin.closed_profit if fin else 0.0
+        v2_profit = await session.scalar(
+            select(func.sum(NatBusinessIncomeDaily.net_profit))
+            .join(NatBusiness, NatBusiness.id == NatBusinessIncomeDaily.business_id)
+            .where(
+                NatBusiness.company_id == stock.company_id,
+                NatBusinessIncomeDaily.date == settlement_date,
+            )
+        )
+        # V2 businesses have their own server-settled profit ledger; legacy
+        # production continues to use NatDailyFinancials during rollout.
+        closed_profit = float(v2_profit) if v2_profit is not None else (fin.closed_profit if fin else 0.0)
 
         issuer_comp = await session.get(NatCompany, stock.company_id)
 

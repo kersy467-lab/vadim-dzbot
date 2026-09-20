@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from backend.natbirzha.config import nat_settings, get_game_now, get_game_today
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding, NatStockOrder, NatStockPriceSnapshot
 from backend.natbirzha.models.restructuring import NatDailyFinancials
+from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
 from backend.natbirzha.services.company_service import CompanyService
 
 class ValuationStrategy(ABC):
@@ -61,13 +62,23 @@ class StockService:
         strategy: Optional[ValuationStrategy] = None,
     ) -> float:
         """Return the current audited valuation used for IPOs and listed shares."""
+        v2_profit_rows = await session.execute(
+            select(NatBusinessIncomeDaily.date, func.sum(NatBusinessIncomeDaily.net_profit))
+            .join(NatBusiness, NatBusiness.id == NatBusinessIncomeDaily.business_id)
+            .where(NatBusiness.company_id == company.id)
+            .group_by(NatBusinessIncomeDaily.date)
+            .order_by(NatBusinessIncomeDaily.date.desc())
+            .limit(3)
+        )
+        profits = [float(value) for _, value in v2_profit_rows.all()]
         fin_res = await session.execute(
             select(NatDailyFinancials)
             .where(NatDailyFinancials.company_id == company.id)
             .order_by(NatDailyFinancials.calendar_date.desc())
             .limit(3)
         )
-        profits = [record.closed_profit for record in fin_res.scalars().all()]
+        if not profits:
+            profits = [record.closed_profit for record in fin_res.scalars().all()]
         if not profits:
             # Keeps a young company tradable before it has closed its first day.
             profits = [company.cash * 0.1]

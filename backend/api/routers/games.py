@@ -172,22 +172,22 @@ async def invite_opponent_to_game(
                     game_url, invite_text, btn_text = get_rpg_invite_details(
                         room, game_type, base_url, separator, opponent_tg_id, escaped_host_name
                     )
-                elif game_type == "chess":
-                    game_url = f"{base_url}{separator}room={room.room_id}&game=chess&tg_user_id={opponent_tg_id}"
+                elif game_type in ["chess", "checkers"]:
+                    is_ch = game_type == "checkers"
+                    g_param = "checkers" if is_ch else "chess"
+                    game_url = f"{base_url}{separator}room={room.room_id}&game={g_param}&tg_user_id={opponent_tg_id}"
                     host_color_actual = getattr(room, "host_color", "white")
-                    if host_color_actual == "black":
-                        color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>"
-                    else:
-                        color_line = "Твой цвет: <b>Черные ⚫</b>"
+                    color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>" if host_color_actual == "black" else "Твой цвет: <b>Черные ⚫</b>"
                     if host_color == "random":
                         color_line += "\n<i>(Цвета определены случайным образом 🎲)</i>"
 
+                    g_title = "Партию в Шашки ⚪⚫" if is_ch else "Шахматную дуэль ♟️"
                     invite_text = (
-                        f"♟️ <b>{escaped_host_name}</b> вызывает тебя на <b>Шахматную дуэль</b>!\n"
+                        f"🎮 <b>{escaped_host_name}</b> вызывает тебя на <b>{g_title}</b>!\n"
                         f"{color_line}\n\n"
                         f"⚡ Готов сыграть партию на перемене?"
                     )
-                    btn_text = "♟️ Принять вызов и играть"
+                    btn_text = "⚪⚫ Принять вызов в Шашки" if is_ch else "♟️ Принять вызов и играть"
                 else:
                     game_url = f"{base_url}{separator}room={room.room_id}&game=tictactoe&tg_user_id={opponent_tg_id}"
                     invite_text = (

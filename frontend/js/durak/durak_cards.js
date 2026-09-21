@@ -1,12 +1,28 @@
 /**
- * durak_cards.js — Карточный рендеринг и стили для игры «Дурак».
- * Экспортирует window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR }
+ * durak_cards.js — Карточный рендеринг, правила старшинства и стили для игры «Дурак».
+ * Экспортирует window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR, cardBeats, RANK_ORDER }
  */
 (function () {
   'use strict';
 
   const SUIT_COLOR = { '♠': '#1a1a2e', '♣': '#16213e', '♥': '#e94560', '♦': '#e94560' };
   const SUIT_NAME_MAP = { '♠': 'spades', '♣': 'clubs', '♥': 'hearts', '♦': 'diamonds' };
+  const RANK_ORDER = { '6': 0, '7': 1, '8': 2, '9': 3, '10': 4, 'J': 5, 'Q': 6, 'K': 7, 'A': 8 };
+
+  function cardBeats(defCard, atkCard, trumpSuit) {
+    if (!defCard || !atkCard) return false;
+    const defRank = RANK_ORDER[defCard.rank];
+    const atkRank = RANK_ORDER[atkCard.rank];
+    if (defRank === undefined || atkRank === undefined) return false;
+
+    if (defCard.suit === atkCard.suit) {
+      return defRank > atkRank;
+    }
+    if (defCard.suit === trumpSuit && atkCard.suit !== trumpSuit) {
+      return true;
+    }
+    return false;
+  }
 
   function cardHTML(card, faceDown = false, selectable = false, selected = false) {
     if (faceDown) {
@@ -21,11 +37,17 @@
     const suitName = SUIT_NAME_MAP[card.suit] || 'spades';
     const sel = selected ? ' dk-card--selected' : '';
     const cls = selectable ? ' dk-card--selectable' : '';
+    const color = SUIT_COLOR[card.suit] || '#111';
     const imgSrc = `/static/img/cards/${card.rank}_${suitName}.png`;
+    const svgSrc = `/static/img/cards/${card.rank}_${suitName}.svg`;
 
     return `
       <div class="dk-card${cls}${sel}" data-suit="${card.suit}" data-rank="${card.rank}">
-        <img src="${imgSrc}" onerror="this.onerror=null;this.src='/static/img/cards/${card.rank}_${suitName}.svg'" class="dk-card__img" alt="${card.rank}${card.suit}" />
+        <img src="${imgSrc}" onerror="this.onerror=null;this.src='${svgSrc}';this.onerror=function(){this.style.display='none';var fb=this.parentNode.querySelector('.dk-card__fallback');if(fb)fb.style.display='flex';};" class="dk-card__img" alt="${card.rank}${card.suit}" />
+        <div class="dk-card__fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;color:${color};font-weight:900;font-size:1.1rem;line-height:1.2;">
+          <span>${card.rank}</span>
+          <span style="font-size:1.3rem;">${card.suit}</span>
+        </div>
       </div>`;
   }
 
@@ -65,16 +87,6 @@
 
       .dk-pot { background:rgba(234, 179, 8, 0.2); border:1px solid #facc15; color:#854d0e; padding:3px 8px; border-radius:8px; font-size:0.8rem; font-weight:800; }
 
-      /* Рейтинг */
-      .dk-leaderboard-box { width:100%; max-width:320px; display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; padding:4px; }
-      .dk-lead-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:0.85rem; }
-      .dk-lead-row--me { background:rgba(37, 99, 235, 0.1); border:1px solid rgba(37, 99, 235, 0.3); }
-      .dk-lead-rank { font-weight:800; width:45px; }
-      .dk-lead-info { display:flex; flex-direction:column; flex:1; text-align:left; }
-      .dk-lead-name { font-weight:700; }
-      .dk-lead-uname { font-size:0.7rem; color:#64748b; }
-      .dk-lead-coins { font-weight:800; color:#b45309; }
-
       /* Игровой экран */
       .dk-game { display:flex; flex-direction:column; height:100%; padding:6px; gap:8px; }
       .dk-header { display:flex; align-items:center; justify-content:space-between; font-size:.9rem; padding:0 4px; }
@@ -95,7 +107,10 @@
       .dk-table { min-height:92px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center;
                   background:rgba(0,120,60,.08); border-radius:14px; padding:10px; border:1px dashed rgba(0,120,60,.25); }
       .dk-table__empty { color:#94a3b8; font-size:.85rem; font-weight:500; }
-      .dk-slot { display:flex; flex-direction:column; align-items:center; gap:3px; }
+      .dk-slot { display:flex; flex-direction:column; align-items:center; gap:3px; padding:4px; border-radius:10px; transition:all 0.15s ease; }
+      .dk-slot--clickable { cursor:pointer; }
+      .dk-slot--clickable:hover { background:rgba(37,99,235,0.08); transform:scale(1.03); }
+      .dk-slot--targeted { outline: 2.5px solid #16a34a; outline-offset: 2px; background: rgba(22, 163, 74, 0.12); }
       .dk-slot__arr { font-size:.7rem; color:#94a3b8; line-height:1; }
       .dk-hand { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; padding:6px 0; min-height:86px; }
       .dk-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding:4px 0; }
@@ -115,21 +130,19 @@
 
       /* Кнопки */
       .dk-btn { padding:10px 18px; border:none; border-radius:10px; cursor:pointer;
-                font-size:.9rem; font-weight:600; transition:opacity .15s, transform .1s; }
+                font-size:.9rem; font-weight:700; transition:opacity .15s, transform .1s; }
       .dk-btn:active { transform:scale(0.98); }
       .dk-btn:disabled { opacity:.4; cursor:not-allowed; }
       .dk-btn--primary { background:#2563eb; color:#fff; width:100%; max-width:280px; }
-      .dk-btn--leaderboard { background:#f59e0b; color:#fff; width:100%; max-width:280px; }
-      .dk-btn--attack { background:#e94560; color:#fff; }
-      .dk-btn--defend { background:#16a34a; color:#fff; }
-      .dk-btn--take { background:#ca8a04; color:#fff; }
-      .dk-btn--pass { background:#6b7280; color:#fff; }
+      .dk-btn--attack { background:#e11d48; color:#fff; }
+      .dk-btn--defend { background:#2563eb; color:#fff; }
+      .dk-btn--take { background:#d97706; color:#fff; }
+      .dk-btn--pass { background:#059669; color:#fff; }
       .dk-btn--new { background:#7c3aed; color:#fff; }
       .dk-btn--exit { background:none; border:1.5px solid #cbd5e1; color:#64748b; padding:6px 12px; font-size:.8rem; border-radius:8px; }
       .dk-input { border:1.5px solid #cbd5e1; border-radius:8px; padding:8px 12px; font-size:.9rem; width:140px; }
       .dk-select { border:1.5px solid #cbd5e1; border-radius:8px; padding:6px 10px; font-size:.9rem; }
       .dk-label { font-size:.9rem; display:flex; align-items:center; gap:8px; }
-      .dk-error { padding:24px; text-align:center; color:#e94560; font-weight:600; }
       .dk-waiting { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px; }
       .dk-waiting__title { font-size:1.4rem; font-weight:700; }
       .dk-waiting__count { color:#888; }
@@ -139,5 +152,5 @@
     document.head.appendChild(style);
   }
 
-  window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR };
+  window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR, cardBeats, RANK_ORDER };
 })();

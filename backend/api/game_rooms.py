@@ -5,6 +5,7 @@ from typing import Dict, Optional, List, Any
 
 from backend.api.rooms_tictactoe import WIN_COMBOS, TicTacToeRoom
 from backend.api.rooms_chess import ChessRoom, chess
+from backend.api.rooms_checkers import CheckersRoom
 from backend.api.rpg_bosses import RAID_BOSSES
 from backend.api.rpg_pvp import RPGPvPRoom
 from backend.api.rpg_coop import RPGCoopBossRoom
@@ -12,7 +13,7 @@ from backend.api.rpg_coop import RPGCoopBossRoom
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "WIN_COMBOS", "TicTacToeRoom", "ChessRoom", "chess",
+    "WIN_COMBOS", "TicTacToeRoom", "ChessRoom", "chess", "CheckersRoom",
     "RAID_BOSSES", "RPGPvPRoom", "RPGCoopBossRoom",
     "GameRoomManager", "game_manager"
 ]
@@ -47,6 +48,18 @@ class GameRoomManager:
             )
             self.rooms[room_id] = room
             return room
+        elif game_type == "checkers":
+            room = CheckersRoom(
+                room_id=room_id,
+                host_tg_id=host_tg_id,
+                host_name=host_name or "Белые",
+                opponent_tg_id=host_tg_id,
+                opponent_name="Черные",
+                host_color="white",
+                is_local=True
+            )
+            self.rooms[room_id] = room
+            return room
         raise ValueError(f"Локальный режим не поддерживается для {game_type}")
 
     def create_room(
@@ -65,6 +78,15 @@ class GameRoomManager:
         room_id = uuid.uuid4().hex[:10]
         if game_type == "chess":
             room = ChessRoom(
+                room_id=room_id,
+                host_tg_id=host_tg_id,
+                host_name=host_name,
+                opponent_tg_id=opponent_tg_id,
+                opponent_name=opponent_name,
+                host_color=host_color
+            )
+        elif game_type == "checkers":
+            room = CheckersRoom(
                 room_id=room_id,
                 host_tg_id=host_tg_id,
                 host_name=host_name,

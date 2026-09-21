@@ -22,16 +22,10 @@
       return true;
     }
     const aliases = [
-      ["алгебра", "матем", "математика"],
-      ["общество", "обществознание"],
-      ["информатика", "инф"],
-      ["литература", "литра"],
-      ["физкультура", "физра"],
-      ["русский", "русскийязык", "рус"],
-      ["английский", "английскийязык", "англ"],
-      ["геометрия", "геом"],
-      ["биология", "био"],
-      ["география", "геогр"],
+      ["алгебра", "матем", "математика"], ["общество", "обществознание"],
+      ["информатика", "инф"], ["литература", "литра"], ["физкультура", "физра"],
+      ["русский", "русскийязык", "рус"], ["английский", "английскийязык", "англ"],
+      ["геометрия", "геом"], ["биология", "био"], ["география", "геогр"],
       ["история", "вис", "всеобщаяистория"]
     ];
     for (const group of aliases) {
@@ -61,31 +55,17 @@
             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-end justify-end p-1">
               <span class="text-[9px] bg-black/60 text-white font-bold px-1 rounded shadow">🔍</span>
             </div>
-          </div>
-        `).join("");
-
-        photoThumbsHtml = `
-          <div class="mt-2 flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-            ${thumbs}
-          </div>
-        `;
+          </div>`).join("");
+        photoThumbsHtml = `<div class="mt-2 flex items-center gap-2 overflow-x-auto pb-1 max-w-full">${thumbs}</div>`;
       }
 
       let docsHtml = "";
       if (docs.length > 0) {
         const docLinks = docs.map(d => `
           <a href="${d.url || '#'}" download="${d.file_name || 'файл'}" target="_blank" class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 hover:bg-blue-100 transition-colors">
-            <span>📄</span>
-            <span class="truncate max-w-[130px]">${d.file_name || 'Документ'}</span>
-            <span>⬇️</span>
-          </a>
-        `).join("");
-
-        docsHtml = `
-          <div class="mt-2 flex items-center gap-1.5 flex-wrap">
-            ${docLinks}
-          </div>
-        `;
+            <span>📄</span><span class="truncate max-w-[130px]">${d.file_name || 'Документ'}</span><span>⬇️</span>
+          </a>`).join("");
+        docsHtml = `<div class="mt-2 flex items-center gap-1.5 flex-wrap">${docLinks}</div>`;
       }
 
       attHtml = photoThumbsHtml + docsHtml;
@@ -94,10 +74,7 @@
     const toggleBtnHtml = isPast ? "" : `
       <button class="toggle-btn w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all shrink-0 mt-0.5 ${
         hw.is_completed ? "bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/30" : "border-slate-300 dark:border-slate-600 hover:border-blue-500"
-      }" data-id="${hw.id}" title="Отметить выполненным">
-        ${hw.is_completed ? "✓" : ""}
-      </button>
-    `;
+      }" data-id="${hw.id}" title="Отметить выполненным">${hw.is_completed ? "✓" : ""}</button>`;
 
     return `
       <div class="hw-item-subcard flex items-start justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-100 dark:border-slate-800/80">
@@ -108,12 +85,52 @@
             <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ДЗ:</span>
             ${titleStr}
           </div>
-          <p class="text-sm leading-relaxed whitespace-pre-line ${descClass}">${hw.description}</p>
+          <p class="hw-desc text-sm leading-relaxed whitespace-pre-line ${descClass}">${hw.description}</p>
           ${attHtml}
         </div>
         ${toggleBtnHtml}
       </div>
     `;
+  }
+
+  function updateHwVisualState(subcard, btn, isDone) {
+    if (btn) {
+      btn.classList.toggle("bg-emerald-500", isDone);
+      btn.classList.toggle("border-emerald-500", isDone);
+      btn.classList.toggle("text-white", isDone);
+      btn.classList.toggle("shadow-sm", isDone);
+      btn.classList.toggle("shadow-emerald-500/30", isDone);
+      btn.classList.toggle("border-slate-300", !isDone);
+      btn.classList.toggle("dark:border-slate-600", !isDone);
+      btn.classList.toggle("hover:border-blue-500", !isDone);
+      btn.textContent = isDone ? "✓" : "";
+    }
+    const desc = subcard ? subcard.querySelector(".hw-desc") : null;
+    if (desc) {
+      desc.classList.toggle("line-through", isDone);
+      desc.classList.toggle("opacity-60", isDone);
+      desc.classList.toggle("text-slate-400", isDone);
+      desc.classList.toggle("text-slate-700", !isDone);
+      desc.classList.toggle("dark:text-slate-200", !isDone);
+    }
+  }
+
+  function updateParentLessonBadge(subcard) {
+    const card = subcard ? subcard.closest(".theme-card") : null;
+    if (!card) return;
+    const badgeBox = card.querySelector(".lesson-badge-container");
+    if (!badgeBox) return;
+    const subcards = card.querySelectorAll(".hw-item-subcard");
+    if (subcards.length === 0) return;
+    const allDone = Array.from(subcards).every(sc => {
+      const b = sc.querySelector(".toggle-btn");
+      return b && b.classList.contains("bg-emerald-500");
+    });
+    if (allDone) {
+      badgeBox.innerHTML = `<span class="lesson-hw-badge inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0">✓ Сделано</span>`;
+    } else {
+      badgeBox.innerHTML = `<span class="lesson-hw-badge inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shrink-0">📝 ДЗ</span>`;
+    }
   }
 
   function bindHomeworkEvents(container, homeworks) {
@@ -134,20 +151,38 @@
     });
 
     container.querySelectorAll(".toggle-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (btn.dataset.loading === "true") return;
+
         const hwId = parseInt(btn.getAttribute("data-id"), 10);
+        const hw = hwMap.get(hwId);
+        const prevCompleted = hw ? !!hw.is_completed : btn.classList.contains("bg-emerald-500");
+        const nextCompleted = !prevCompleted;
+
         if (window.haptic && typeof window.haptic.impact === "function") {
-          window.haptic.impact("medium");
+          window.haptic.impact("light");
         }
+
+        const subcard = btn.closest(".hw-item-subcard");
+        updateHwVisualState(subcard, btn, nextCompleted);
+        if (hw) hw.is_completed = nextCompleted;
+        updateParentLessonBadge(subcard);
+
+        btn.dataset.loading = "true";
         try {
           const res = await window.api.toggleHomework(hwId);
-          const hw = hwMap.get(hwId);
-          if (hw) {
-            hw.is_completed = res.is_completed;
-          }
-          await loadSchedule();
+          const finalCompleted = (res && typeof res.is_completed === "boolean") ? res.is_completed : nextCompleted;
+          if (hw) hw.is_completed = finalCompleted;
+          updateHwVisualState(subcard, btn, finalCompleted);
+          updateParentLessonBadge(subcard);
         } catch (e) {
+          if (hw) hw.is_completed = prevCompleted;
+          updateHwVisualState(subcard, btn, prevCompleted);
+          updateParentLessonBadge(subcard);
           alert("Не удалось изменить статус задания");
+        } finally {
+          delete btn.dataset.loading;
         }
       });
     });
@@ -271,7 +306,7 @@
                 ${commentText}
               </div>
             </div>
-            ${hwBadge}
+            <div class="lesson-badge-container shrink-0">${hwBadge}</div>
           </div>
           ${hwListHtml}
         `;

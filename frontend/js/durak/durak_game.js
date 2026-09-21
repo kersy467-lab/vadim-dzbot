@@ -1,5 +1,5 @@
 /**
- * durak_game.js — Игровой стол, визуализация, целеуказание защиты и синхронизация.
+ * durak_game.js — Игровой стол, веер карт, перетаскивание (Drag-and-Drop) и синхронизация.
  * Экспортирует window.DURAK_GAME = { renderGame, isGameOver, connectWS, disconnectWS }
  */
 (function () {
@@ -20,7 +20,6 @@
     const s = ctx.getState();
     const uid = ctx.getUserId();
     const myHand = (s.hands && s.hands[String(uid)]) || [];
-    const isMyHandArray = Array.isArray(myHand);
 
     const phase = s.phase;
     const isAttacker = s.current_attacker === uid;
@@ -28,15 +27,8 @@
     const canAct = (isAttacker && phase === 'attack') || (isDefender && phase === 'defend');
     const selectedCard = ctx.getSelectedCard();
 
-    // ── Рука игрока
-    let handHTML = '';
-    if (isMyHandArray) {
-      handHTML = myHand.map(c => {
-        const isSelected = selectedCard && window.DURAK_CARDS.cardKey(selectedCard) === window.DURAK_CARDS.cardKey(c);
-        const selectable = canAct && !isGameOver(s);
-        return window.DURAK_CARDS.cardHTML(c, false, selectable, isSelected);
-      }).join('');
-    }
+    // ── Веер карт в руке (вид от первого лица, как в руке игрока)
+    const handHTML = window.DURAK_CARDS.renderFanHand(myHand, selectedCard, canAct, isGameOver(s));
 
     // ── Стол (карты атаки и отбоя)
     let tableHTML = '';
@@ -50,11 +42,11 @@
         const defCard = slot.defend
           ? window.DURAK_CARDS.cardHTML(slot.defend, false)
           : `<div class="dk-card dk-card--empty">${isTargeted ? '🎯' : '?'}</div>`;
-        tableHTML += `<div class="${slotClass}" data-slot-idx="${idx}" title="${canClickSlot ? 'Нажмите, чтобы выбрать эту карту для отбоя' : ''}">${atkCard}<div class="dk-slot__arr">▼</div>${defCard}</div>`;
+        tableHTML += `<div class="${slotClass}" data-slot-idx="${idx}" title="${canClickSlot ? 'Сбросьте сюда карту для отбоя' : ''}">${atkCard}<div class="dk-slot__arr">▼</div>${defCard}</div>`;
       });
     }
 
-    // ── Статус & Банк
+    // ── Статус & Подсказки действий
     let statusText = '';
     if (isGameOver(s)) {
       ctx.refreshUserCoins();
@@ -65,31 +57,28 @@
       else statusText = s.loser ? `🃏 Дурак: игрок ${s.loser}` : '🤝 Партия окончена';
     } else if (isAttacker) {
       statusText = (phase === 'attack')
-        ? ((s.table && s.table.length > 0) ? '➕ Можно подкинуть карту того же ранга или объявить «Бито»' : '⚔️ Ваш ход — выберите карту в руке для атаки')
+        ? ((s.table && s.table.length > 0) ? '➕ Перетащите карту на стол или нажмите «Бито»' : '⚔️ Перетащите карту на стол для атаки')
         : '⏳ Ожидание защиты соперника…';
     } else if (isDefender) {
-      statusText = (phase === 'defend') ? '🛡 Ваш ход — отбейте карту на столе или возьмите карты' : '⏳ Ожидание решения атакующего…';
+      statusText = (phase === 'defend') ? '🛡 Перетащите карту на атакующую, чтобы отбить' : '⏳ Ожидание решения атакующего…';
     } else {
       statusText = `⏳ Ожидание хода игрока ${s.current_attacker}`;
     }
 
-    // ── Кнопки действий
+    // ── Кнопки вспомогательных действий («Бито» / «Взять» / «В меню»)
     let actionsHTML = '';
     if (!isGameOver(s)) {
-      if (isAttacker && phase === 'attack') {
-        const hasTable = Boolean(s.table && s.table.length > 0);
-        actionsHTML += `<button class="dk-btn dk-btn--attack" id="dk-btn-attack" ${!selectedCard ? 'disabled' : ''}>${hasTable ? '➕ Подкинуть' : '⚔️ Атаковать'}</button>`;
-        if (hasTable) actionsHTML += `<button class="dk-btn dk-btn--pass" id="dk-btn-pass">✅ Бито</button>`;
+      if (isAttacker && phase === 'attack' && s.table && s.table.length > 0) {
+        actionsHTML += `<button class="dk-btn dk-btn--pass" id="dk-btn-pass">✅ Бито</button>`;
       }
       if (isDefender && phase === 'defend') {
-        actionsHTML += `<button class="dk-btn dk-btn--defend" id="dk-btn-defend" ${!selectedCard ? 'disabled' : ''}>🛡 Отбить</button>`;
-        actionsHTML += `<button class="dk-btn dk-btn--take" id="dk-btn-take">📥 Взять</button>`;
+        actionsHTML += `<button class="dk-btn dk-btn--take" id="dk-btn-take">📥 Взять карты</button>`;
       }
     } else {
       actionsHTML = `<button class="dk-btn dk-btn--new" id="dk-btn-new">🎮 В меню / Новая игра</button>`;
     }
 
-    // ── Другие игроки (соперники)
+    // ── Соперники
     let opponentsHTML = '';
     if (s.player_ids) {
       for (const pid of s.player_ids) {
@@ -104,7 +93,7 @@
       }
     }
 
-    // ── Блок колоды и козыря
+    // ── Колода и козырь
     let deckClusterHTML = '';
     if (s.trump_card || s.deck_count > 0) {
       const trumpCardView = s.trump_card
@@ -124,42 +113,60 @@
         <div class="dk-opponents">${opponentsHTML}</div>
         ${deckClusterHTML}
         <div class="dk-status">${statusText}</div>
-        <div class="dk-table">${tableHTML || '<span class="dk-table__empty">Стол пуст</span>'}</div>
-        <div class="dk-hand">${handHTML}</div>
+        <div class="dk-table" id="dk-table">${tableHTML || '<span class="dk-table__empty">Стол пуст (перетащите карту сюда)</span>'}</div>
+        <div class="dk-hand-wrap" id="dk-hand-wrap">${handHTML}</div>
         <div class="dk-actions">${actionsHTML}</div>
       </div>`;
 
-    // ── Клики на карты в руке
-    container.querySelectorAll('.dk-card--selectable').forEach(el => {
-      el.addEventListener('click', () => {
-        const { suit, rank } = el.dataset;
-        const cur = ctx.getSelectedCard();
-        ctx.setSelectedCard((cur && cur.suit === suit && cur.rank === rank) ? null : { suit, rank });
-        renderGame(container, ctx);
+    // ── Подключение Drag-and-Drop контроллера
+    if (window.DURAK_DRAG) {
+      window.DURAK_DRAG.attach({
+        container: container,
+        canAct: canAct && !isGameOver(s),
+        isAttacker: isAttacker && phase === 'attack',
+        isDefender: isDefender && phase === 'defend',
+        trumpSuit: s.trump_suit,
+        tableSlots: s.table || [],
+        onAttack: (card) => executeAttack(ctx, container, card),
+        onDefend: (card, targetSlot) => executeDefend(ctx, container, card, targetSlot),
+        onSelectCard: (card) => {
+          const cur = ctx.getSelectedCard();
+          ctx.setSelectedCard((cur && cur.suit === card.suit && cur.rank === card.rank) ? null : card);
+          renderGame(container, ctx);
+        }
       });
-    });
+    }
 
-    // ── Клики на слоты стола для выбора цели отбоя
-    container.querySelectorAll('.dk-slot--clickable').forEach(el => {
-      el.addEventListener('click', () => {
-        const idx = parseInt(el.dataset.slotIdx, 10);
-        _targetedSlotIndex = (_targetedSlotIndex === idx) ? null : idx;
-        renderGame(container, ctx);
+    // ── Дополнительный клик по столу (если карта уже выделена кликом)
+    const tableEl = container.querySelector('#dk-table');
+    if (tableEl && canAct && !isGameOver(s)) {
+      tableEl.addEventListener('click', (e) => {
+        const card = ctx.getSelectedCard();
+        if (!card) return;
+        const slotEl = e.target.closest('.dk-slot--clickable');
+        if (isDefender && phase === 'defend') {
+          if (slotEl) {
+            const idx = parseInt(slotEl.dataset.slotIdx, 10);
+            const sl = (s.table || [])[idx];
+            if (sl && sl.defend === null && window.DURAK_CARDS.cardBeats(card, sl.attack, s.trump_suit)) {
+              executeDefend(ctx, container, card, sl);
+              return;
+            }
+          }
+          const beatable = (s.table || []).filter(sl => sl.defend === null && window.DURAK_CARDS.cardBeats(card, sl.attack, s.trump_suit));
+          if (beatable.length > 0) executeDefend(ctx, container, card, beatable[0]);
+        } else if (isAttacker && phase === 'attack') {
+          executeAttack(ctx, container, card);
+        }
       });
-    });
+    }
 
-    // ── Кнопки действий
-    const btnAttack = container.querySelector('#dk-btn-attack');
-    if (btnAttack) btnAttack.addEventListener('click', () => doAttack(ctx, container));
-
-    const btnDefend = container.querySelector('#dk-btn-defend');
-    if (btnDefend) btnDefend.addEventListener('click', () => doDefend(ctx, container));
-
+    // ── Кнопки «Бито», «Взять», «В меню», «Выход»
     const btnTake = container.querySelector('#dk-btn-take');
-    if (btnTake) btnTake.addEventListener('click', () => doTake(ctx, container));
+    if (btnTake) btnTake.addEventListener('click', () => sendMove(ctx, container, { action: 'take' }));
 
     const btnPass = container.querySelector('#dk-btn-pass');
-    if (btnPass) btnPass.addEventListener('click', () => doPass(ctx, container));
+    if (btnPass) btnPass.addEventListener('click', () => sendMove(ctx, container, { action: 'pass' }));
 
     const btnNew = container.querySelector('#dk-btn-new');
     if (btnNew) btnNew.addEventListener('click', () => ctx.exitToMenu());
@@ -180,12 +187,7 @@
     }
   }
 
-  async function doAttack(ctx, container) {
-    const card = ctx.getSelectedCard();
-    if (!card) {
-      showError(container, ctx, 'Выберите карту для хода');
-      return;
-    }
+  async function executeAttack(ctx, container, card) {
     const s = ctx.getState();
     if (s && s.table && s.table.length > 0) {
       const allowedRanks = new Set();
@@ -201,51 +203,18 @@
     await sendMove(ctx, container, { action: 'attack', card });
   }
 
-  async function doDefend(ctx, container) {
-    const card = ctx.getSelectedCard();
-    if (!card) {
-      showError(container, ctx, 'Выберите карту для отбоя');
-      return;
-    }
+  async function executeDefend(ctx, container, card, targetSlot) {
     const s = ctx.getState();
-    if (!s || !s.table || s.table.length === 0) return;
-
-    let targetSlot = null;
-    if (_targetedSlotIndex !== null && _targetedSlotIndex >= 0 && _targetedSlotIndex < s.table.length) {
-      const sl = s.table[_targetedSlotIndex];
-      if (sl && sl.defend === null && window.DURAK_CARDS.cardBeats(card, sl.attack, s.trump_suit)) {
-        targetSlot = sl;
-      }
-    }
-
-    if (!targetSlot) {
-      const beatable = s.table.filter(sl => sl.defend === null && window.DURAK_CARDS.cardBeats(card, sl.attack, s.trump_suit));
-      if (beatable.length > 0) {
-        targetSlot = beatable[0];
-      }
-    }
-
-    if (!targetSlot) {
-      showError(container, ctx, 'Этой картой нельзя отбить карты на столе');
+    if (!targetSlot || !targetSlot.attack) {
+      showError(container, ctx, 'Выберите атакующую карту для отбоя');
       return;
     }
-
+    if (!window.DURAK_CARDS.cardBeats(card, targetSlot.attack, s.trump_suit)) {
+      showError(container, ctx, 'Этой картой нельзя отбить данную карту');
+      return;
+    }
     _targetedSlotIndex = null;
-    await sendMove(ctx, container, {
-      action: 'defend',
-      attack_card: targetSlot.attack,
-      card: card
-    });
-  }
-
-  async function doTake(ctx, container) {
-    _targetedSlotIndex = null;
-    await sendMove(ctx, container, { action: 'take' });
-  }
-
-  async function doPass(ctx, container) {
-    _targetedSlotIndex = null;
-    await sendMove(ctx, container, { action: 'pass' });
+    await sendMove(ctx, container, { action: 'defend', attack_card: targetSlot.attack, card });
   }
 
   async function sendMove(ctx, container, payload) {
@@ -268,7 +237,6 @@
     }
   }
 
-  // ── WebSocket & Резервный опрос
   function connectWS(roomId, uid, onStateUpdate, onWaitingUpdate, onCanceled, onOpponentLeft) {
     disconnectWS();
     const protocol = (typeof window !== "undefined" && window.location && window.location.protocol === 'https:') ? 'wss:' : 'ws:';
@@ -286,11 +254,9 @@
       _ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'state' && onStateUpdate) {
-            onStateUpdate(data.state);
-          } else if (data.type === 'waiting' && onWaitingUpdate) {
-            onWaitingUpdate(data.players, data.stake);
-          } else if (data.type === 'canceled') {
+          if (data.type === 'state' && onStateUpdate) onStateUpdate(data.state);
+          else if (data.type === 'waiting' && onWaitingUpdate) onWaitingUpdate(data.players, data.stake);
+          else if (data.type === 'canceled') {
             if (typeof alert !== 'undefined' && data.message) alert(data.message);
             if (onCanceled) onCanceled();
           } else if (data.type === 'opponent_left') {
@@ -302,34 +268,25 @@
       };
 
       _ws.onclose = () => {
-        // Авто-переподключение при обрыве соединения
         if (_reconnectTimer) clearTimeout(_reconnectTimer);
         _reconnectTimer = setTimeout(() => {
-          if (!_ws || _ws.readyState === WebSocket.CLOSED) {
-            createWebSocket();
-          }
+          if (!_ws || _ws.readyState === WebSocket.CLOSED) createWebSocket();
         }, 2000);
       };
     }
 
     createWebSocket();
-
     _pingInterval = setInterval(() => {
-      if (_ws && _ws.readyState === WebSocket.OPEN) {
-        _ws.send('ping');
-      }
+      if (_ws && _ws.readyState === WebSocket.OPEN) _ws.send('ping');
     }, 25000);
 
-    // Резервный опрос состояния на случай разрыва сокета в мобильном Telegram
     _pollInterval = setInterval(async () => {
       if (!_ws || _ws.readyState !== WebSocket.OPEN) {
         try {
           const resp = await fetch(`/api/durak/state/${roomId}?user_id=${uid}`);
           if (resp.ok) {
             const data = await resp.json();
-            if (data && data.state && onStateUpdate) {
-              onStateUpdate(data.state);
-            }
+            if (data && data.state && onStateUpdate) onStateUpdate(data.state);
           }
         } catch (e) {}
       }
@@ -337,6 +294,7 @@
   }
 
   function disconnectWS() {
+    if (window.DURAK_DRAG) window.DURAK_DRAG.cleanup();
     if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
     if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
     if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }

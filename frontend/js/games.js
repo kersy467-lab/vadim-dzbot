@@ -313,7 +313,7 @@
     const el = document.getElementById('durak-root');
     if (!el) return;
     if (window.DURAK) return window.DURAK.init(el);
-    const scripts = ['/static/js/durak/durak_cards.js?v=20260911_2', '/static/js/durak/durak_menu.js?v=20260911_2', '/static/js/durak/durak_game.js?v=20260911_2', '/static/js/durak.js?v=20260911_2'];
+    const scripts = ['/static/js/durak/durak_cards.js?v=20260921_drag', '/static/js/durak/durak_drag.js?v=20260921_drag', '/static/js/durak/durak_menu.js?v=20260921_drag', '/static/js/durak/durak_game.js?v=20260921_drag', '/static/js/durak.js?v=20260921_drag'];
     let idx = 0;
     function loadNext() { if (idx >= scripts.length) return window.DURAK?.init(el); loadScript(scripts[idx++], loadNext); }
     loadNext();

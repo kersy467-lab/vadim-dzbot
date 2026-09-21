@@ -1,6 +1,6 @@
 /**
- * durak_cards.js — Карточный рендеринг, правила старшинства и стили для игры «Дурак».
- * Экспортирует window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR, cardBeats, RANK_ORDER }
+ * durak_cards.js — Карточный рендеринг, правила старшинства, веер и стили для игры «Дурак».
+ * Экспортирует window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR, cardBeats, RANK_ORDER, renderFanHand }
  */
 (function () {
   'use strict';
@@ -15,12 +15,8 @@
     const atkRank = RANK_ORDER[atkCard.rank];
     if (defRank === undefined || atkRank === undefined) return false;
 
-    if (defCard.suit === atkCard.suit) {
-      return defRank > atkRank;
-    }
-    if (defCard.suit === trumpSuit && atkCard.suit !== trumpSuit) {
-      return true;
-    }
+    if (defCard.suit === atkCard.suit) return defRank > atkRank;
+    if (defCard.suit === trumpSuit && atkCard.suit !== trumpSuit) return true;
     return false;
   }
 
@@ -56,6 +52,35 @@
     return `${card.suit}${card.rank}`;
   }
 
+  function renderFanHand(cards, selectedCard, canAct, isGameOver) {
+    if (!Array.isArray(cards) || cards.length === 0) {
+      return '<div class="text-xs text-slate-400 py-6 font-bold text-center">Нет карт на руках</div>';
+    }
+    const count = cards.length;
+    const mid = (count - 1) / 2;
+    const maxSpread = Math.min(32, count * 6.5);
+    const stepAngle = count > 1 ? (maxSpread * 2) / (count - 1) : 0;
+    const maxSpacing = Math.min(36, Math.max(16, 250 / Math.max(1, count)));
+
+    return cards.map((c, i) => {
+      const isSel = selectedCard && cardKey(selectedCard) === cardKey(c);
+      const dist = i - mid;
+      const rot = count > 1 ? (-maxSpread + i * stepAngle) : 0;
+      const transX = dist * maxSpacing;
+      const transY = Math.abs(dist) * Math.abs(dist) * (count > 6 ? 1.3 : 1.7);
+      const zIndex = i + 1;
+      const html = cardHTML(c, false, canAct && !isGameOver, isSel);
+      const style = `left:calc(50% - 29px); transform: translateX(${transX.toFixed(1)}px) translateY(${transY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg); z-index:${zIndex};`;
+
+      return `
+        <div class="dk-fan-card${isSel ? ' dk-fan-card--selected' : ''}" style="${style}"
+             data-card-idx="${i}" data-suit="${c.suit}" data-rank="${c.rank}"
+             data-rot="${rot.toFixed(1)}" data-tx="${transX.toFixed(1)}" data-ty="${transY.toFixed(1)}">
+          ${html}
+        </div>`;
+    }).join('');
+  }
+
   function injectCSS() {
     if (document.getElementById('durak-css')) return;
     const style = document.createElement('style');
@@ -65,8 +90,6 @@
       .dk-menu__title { font-size:1.8rem; font-weight:800; }
       .dk-menu__subtitle { color:#888; margin-bottom:4px; font-size:0.85rem; }
       .dk-coins-badge { background:rgba(234, 179, 8, 0.15); border:1px solid rgba(234, 179, 8, 0.4); color:#b45309; padding:6px 14px; border-radius:12px; font-size:0.9rem; font-weight:700; }
-      
-      /* Блок выбора ставки */
       .dk-stake-box { display:flex; flex-direction:column; gap:8px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.06); padding:12px 14px; border-radius:16px; width:100%; max-width:300px; }
       .dk-stake-header { display:flex; justify-content:space-between; align-items:center; }
       .dk-stake-title { font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
@@ -75,7 +98,6 @@
       .dk-stake-opt { padding:6px 10px; border-radius:10px; border:1.5px solid #94a3b8; background:#fff; color:#0f172a; font-size:0.8rem; font-weight:800; cursor:pointer; transition:all 0.15s; }
       .dk-stake-opt:hover:not(.active) { background:#f1f5f9; color:#0f172a; border-color:#64748b; }
       .dk-stake-opt.active { background:#2563eb; color:#ffffff !important; border-color:#2563eb; box-shadow:0 2px 6px rgba(37,99,235,0.3); }
-      
       .dk-custom-stake-wrap { display:flex; gap:6px; align-items:center; margin-top:2px; }
       .dk-input-with-icon { position:relative; flex:1; display:flex; align-items:center; }
       .dk-input-icon { position:absolute; left:10px; font-size:0.9rem; pointer-events:none; }
@@ -84,15 +106,10 @@
       .dk-btn-all-in { padding:7px 10px; border:1.5px solid #f59e0b; background:rgba(245, 158, 11, 0.12); color:#b45309; border-radius:10px; font-size:0.8rem; font-weight:800; cursor:pointer; white-space:nowrap; transition:all 0.15s; }
       .dk-btn-all-in:hover { background:rgba(245, 158, 11, 0.25); }
       .dk-stake-hint { font-size:0.75rem; color:#64748b; text-align:center; }
-
       .dk-pot { background:rgba(234, 179, 8, 0.2); border:1px solid #facc15; color:#854d0e; padding:3px 8px; border-radius:8px; font-size:0.8rem; font-weight:800; }
-
-      /* Игровой экран */
       .dk-game { display:flex; flex-direction:column; height:100%; padding:6px; gap:8px; }
       .dk-header { display:flex; align-items:center; justify-content:space-between; font-size:.9rem; padding:0 4px; }
       .dk-header-info { display:flex; align-items:center; gap:8px; }
-      
-      /* Колода и козырь на столе */
       .dk-deck-cluster { display:flex; align-items:center; justify-content:center; gap:16px; padding:8px; background:rgba(15,23,42,0.04); border-radius:14px; border:1px solid rgba(15,23,42,0.06); }
       .dk-trump-slot { display:flex; flex-direction:column; align-items:center; gap:4px; }
       .dk-trump-slot .dk-card { border:2px solid #facc15; box-shadow:0 0 12px rgba(234,179,8,0.35); }
@@ -100,57 +117,49 @@
       .dk-deck-slot { display:flex; flex-direction:column; align-items:center; gap:4px; position:relative; }
       .dk-deck-badge { position:absolute; bottom:-6px; right:-6px; background:#1e293b; color:#fff; font-size:0.7rem; font-weight:800; padding:2px 6px; border-radius:10px; border:1.5px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.25); }
       .dk-deck-label { font-size:0.65rem; font-weight:700; color:#64748b; }
-
       .dk-opponents { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
       .dk-opponent { font-size:.8rem; background:rgba(0,0,0,.06); border-radius:8px; padding:4px 10px; font-weight:600; }
-      .dk-status { text-align:center; font-size:.9rem; font-weight:600; padding:6px; background:rgba(0,0,0,.05); border-radius:8px; }
-      .dk-table { min-height:92px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center;
-                  background:rgba(0,120,60,.08); border-radius:14px; padding:10px; border:1px dashed rgba(0,120,60,.25); }
+      .dk-status { text-align:center; font-size:.85rem; font-weight:600; padding:6px; background:rgba(0,0,0,.05); border-radius:8px; }
+      .dk-table { min-height:96px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; background:rgba(0,120,60,.08); border-radius:14px; padding:10px; border:2px dashed rgba(0,120,60,.25); transition:all 0.2s ease; }
+      .dk-table--drop-ready { border-color:#2563eb !important; background:rgba(37,99,235,0.12) !important; box-shadow:0 0 16px rgba(37,99,235,0.2) inset; }
       .dk-table__empty { color:#94a3b8; font-size:.85rem; font-weight:500; }
       .dk-slot { display:flex; flex-direction:column; align-items:center; gap:3px; padding:4px; border-radius:10px; transition:all 0.15s ease; }
       .dk-slot--clickable { cursor:pointer; }
       .dk-slot--clickable:hover { background:rgba(37,99,235,0.08); transform:scale(1.03); }
       .dk-slot--targeted { outline: 2.5px solid #16a34a; outline-offset: 2px; background: rgba(22, 163, 74, 0.12); }
+      .dk-slot--drop-ready { outline:2.5px dashed #22c55e !important; outline-offset:3px; background:rgba(34,197,94,0.18) !important; transform:scale(1.06); }
       .dk-slot__arr { font-size:.7rem; color:#94a3b8; line-height:1; }
-      .dk-hand { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; padding:6px 0; min-height:86px; }
-      .dk-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding:4px 0; }
 
-      /* Карта */
-      .dk-card { width:58px; height:82px; border-radius:8px; display:inline-flex;
-                 align-items:center; justify-content:center; user-select:none;
-                 position:relative; transition:transform .15s ease, filter .15s ease; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+      /* Интерактивный веер карт (вид от первого лица, как в руке) */
+      .dk-hand-wrap { position:relative; width:100%; height:110px; margin:4px auto 0; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
+      .dk-fan-card { position:absolute; bottom:0; transform-origin:50% 120%; transition:transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.2s ease; cursor:grab; touch-action:none; }
+      .dk-fan-card:hover { z-index:99 !important; transform:translateY(-22px) rotate(0deg) scale(1.12) !important; box-shadow:0 12px 24px rgba(0,0,0,0.35); }
+      .dk-fan-card--selected { z-index:100 !important; transform:translateY(-26px) rotate(0deg) scale(1.15) !important; box-shadow:0 14px 28px rgba(37,99,235,0.5) !important; }
+      .dk-fan-card.dk-card--dragging { opacity:0.25; pointer-events:none; }
+
+      /* Плавающий аватар при перетаскивании */
+      .dk-drag-avatar { position:fixed; pointer-events:none; z-index:999999; transform:translate(-50%, -50%) scale(1.15); filter:drop-shadow(0 14px 26px rgba(0,0,0,0.4)); will-change:left, top; }
+
+      .dk-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding:4px 0; }
+      .dk-card { width:58px; height:82px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; user-select:none; position:relative; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.14); }
       .dk-card__img { width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:8px; }
       .dk-card--back { width:58px; height:82px; }
-      .dk-card--empty { width:58px; height:82px; background:rgba(0,0,0,.04); border:2px dashed #cbd5e1;
-                        border-radius:8px; color:#94a3b8; font-size:1.5rem; display:flex;
-                        align-items:center; justify-content:center; box-shadow:none; }
-      .dk-card--selectable { cursor:pointer; }
-      .dk-card--selectable:hover { transform:translateY(-6px); filter:drop-shadow(0 6px 14px rgba(0,0,0,.22)); }
-      .dk-card--selected { transform:translateY(-10px); filter:drop-shadow(0 8px 18px rgba(225,29,72,.45)); }
-
-      /* Кнопки */
-      .dk-btn { padding:10px 18px; border:none; border-radius:10px; cursor:pointer;
-                font-size:.9rem; font-weight:700; transition:opacity .15s, transform .1s; }
+      .dk-card--empty { width:58px; height:82px; background:rgba(0,0,0,.04); border:2px dashed #cbd5e1; border-radius:8px; color:#94a3b8; font-size:1.5rem; display:flex; align-items:center; justify-content:center; }
+      .dk-btn { padding:10px 18px; border:none; border-radius:10px; cursor:pointer; font-size:.9rem; font-weight:700; transition:opacity .15s, transform .1s; }
       .dk-btn:active { transform:scale(0.98); }
       .dk-btn:disabled { opacity:.4; cursor:not-allowed; }
       .dk-btn--primary { background:#2563eb; color:#fff; width:100%; max-width:280px; }
-      .dk-btn--attack { background:#e11d48; color:#fff; }
-      .dk-btn--defend { background:#2563eb; color:#fff; }
       .dk-btn--take { background:#d97706; color:#fff; }
       .dk-btn--pass { background:#059669; color:#fff; }
       .dk-btn--new { background:#7c3aed; color:#fff; }
       .dk-btn--exit { background:none; border:1.5px solid #cbd5e1; color:#64748b; padding:6px 12px; font-size:.8rem; border-radius:8px; }
-      .dk-input { border:1.5px solid #cbd5e1; border-radius:8px; padding:8px 12px; font-size:.9rem; width:140px; }
-      .dk-select { border:1.5px solid #cbd5e1; border-radius:8px; padding:6px 10px; font-size:.9rem; }
-      .dk-label { font-size:.9rem; display:flex; align-items:center; gap:8px; }
       .dk-waiting { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px; }
       .dk-waiting__title { font-size:1.4rem; font-weight:700; }
       .dk-waiting__count { color:#888; }
       .dk-waiting__stake { color:#b45309; font-weight:700; font-size:1rem; }
-      .dk-waiting__hint { background:rgba(0,0,0,.05); border-radius:8px; padding:10px 16px; font-size:.85rem; }
     `;
     document.head.appendChild(style);
   }
 
-  window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR, cardBeats, RANK_ORDER };
+  window.DURAK_CARDS = { cardHTML, cardKey, injectCSS, SUIT_COLOR, cardBeats, RANK_ORDER, renderFanHand };
 })();

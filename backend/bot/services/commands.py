@@ -8,7 +8,7 @@ from aiogram.types import (
     MenuButtonWebApp,
     WebAppInfo
 )
-from backend.config import get_natbirzha_webapp_url, settings
+from backend.config import get_main_webapp_url, settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +27,15 @@ async def setup_bot_commands(bot: Bot):
         await bot.set_my_commands(commands=commands, scope=BotCommandScopeAllGroupChats())
         await bot.set_my_commands(commands=commands)
 
-        natbirzha_url = get_natbirzha_webapp_url(settings.WEBAPP_URL)
-        if natbirzha_url.startswith("https://"):
+        main_app_url = get_main_webapp_url(settings.WEBAPP_URL)
+        if main_app_url.startswith("https://"):
             await bot.set_chat_menu_button(
                 menu_button=MenuButtonWebApp(
-                    text="📈 НАТБИРЖА",
-                    web_app=WebAppInfo(url=natbirzha_url)
+                    text="📱 Mini App 11 «Б»",
+                    web_app=WebAppInfo(url=main_app_url)
                 )
             )
-            logger.info("Telegram Menu Button configured for NATBIRZHA: %s", natbirzha_url)
+            logger.info("Telegram Menu Button configured for Main Mini App: %s", main_app_url)
         else:
             await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
             logger.info("Bot commands updated: /start and /fact (💡 Интересный факт) registered.")

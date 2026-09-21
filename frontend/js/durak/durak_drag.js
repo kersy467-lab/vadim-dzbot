@@ -67,9 +67,14 @@
           cardEl.classList.add('dk-card--dragging');
 
           _activeAvatar = document.createElement('div');
-          _activeAvatar.className = 'dk-drag-avatar';
+          _activeAvatar.className = 'dk-drag-avatar dk-drag-avatar--initial';
           _activeAvatar.innerHTML = window.DURAK_CARDS.cardHTML(_draggedCard, false);
+          _activeAvatar.style.left = `${cur.x}px`;
+          _activeAvatar.style.top = `${cur.y}px`;
           document.body.appendChild(_activeAvatar);
+          requestAnimationFrame(() => {
+            if (_activeAvatar) _activeAvatar.classList.remove('dk-drag-avatar--initial');
+          });
 
           if (window.Telegram?.WebApp?.HapticFeedback) {
             window.Telegram.WebApp.HapticFeedback.impactOccurred('light');

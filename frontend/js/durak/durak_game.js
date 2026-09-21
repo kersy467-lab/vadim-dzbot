@@ -30,7 +30,7 @@
     // ── Веер карт в руке (вид от первого лица, как в руке игрока)
     const handHTML = window.DURAK_CARDS.renderFanHand(myHand, selectedCard, canAct, isGameOver(s));
 
-    // ── Стол (карты атаки и отбоя)
+    // ── Стол (карты атаки и отбоя: отбой поверх со смещением, нижняя карта видна)
     let tableHTML = '';
     if (s.table && s.table.length > 0) {
       s.table.forEach((slot, idx) => {
@@ -39,10 +39,13 @@
         const canClickSlot = isDefender && phase === 'defend' && isOpen;
         const slotClass = 'dk-slot' + (isTargeted ? ' dk-slot--targeted' : '') + (canClickSlot ? ' dk-slot--clickable' : '');
         const atkCard = window.DURAK_CARDS.cardHTML(slot.attack, false);
-        const defCard = slot.defend
-          ? window.DURAK_CARDS.cardHTML(slot.defend, false)
-          : `<div class="dk-card dk-card--empty">${isTargeted ? '🎯' : '?'}</div>`;
-        tableHTML += `<div class="${slotClass}" data-slot-idx="${idx}" title="${canClickSlot ? 'Сбросьте сюда карту для отбоя' : ''}">${atkCard}<div class="dk-slot__arr">▼</div>${defCard}</div>`;
+        let defCardHTML = '';
+        if (slot.defend) {
+          defCardHTML = `<div class="dk-slot__def">${window.DURAK_CARDS.cardHTML(slot.defend, false)}</div>`;
+        } else if (isDefender && phase === 'defend') {
+          defCardHTML = `<div class="dk-slot__empty-def">${isTargeted ? '🎯' : '?'}</div>`;
+        }
+        tableHTML += `<div class="${slotClass}" data-slot-idx="${idx}" title="${canClickSlot ? 'Сбросьте сюда карту для отбоя' : ''}"><div class="dk-slot__atk">${atkCard}</div>${defCardHTML}</div>`;
       });
     }
 
@@ -65,20 +68,20 @@
       statusText = `⏳ Ожидание хода игрока ${s.current_attacker}`;
     }
 
-    // ── Кнопки вспомогательных действий («Бито» / «Взять» / «В меню»)
-    let actionsHTML = '';
+    // ── Кнопка действия в боковой панели («Бито» / «Взять» / «Меню»)
+    let actionBtnHTML = '';
     if (!isGameOver(s)) {
       if (isAttacker && phase === 'attack' && s.table && s.table.length > 0) {
-        actionsHTML += `<button class="dk-btn dk-btn--pass" id="dk-btn-pass">✅ Бито</button>`;
+        actionBtnHTML = `<button class="dk-btn dk-btn--pass" id="dk-btn-pass">✅ Бито</button>`;
       }
       if (isDefender && phase === 'defend') {
-        actionsHTML += `<button class="dk-btn dk-btn--take" id="dk-btn-take">📥 Взять карты</button>`;
+        actionBtnHTML = `<button class="dk-btn dk-btn--take" id="dk-btn-take">📥 Взять</button>`;
       }
     } else {
-      actionsHTML = `<button class="dk-btn dk-btn--new" id="dk-btn-new">🎮 В меню / Новая игра</button>`;
+      actionBtnHTML = `<button class="dk-btn dk-btn--new" id="dk-btn-new">🎮 Меню</button>`;
     }
 
-    // ── Соперники
+    // ── Соперники (вверху экрана)
     let opponentsHTML = '';
     if (s.player_ids) {
       for (const pid of s.player_ids) {
@@ -93,16 +96,17 @@
       }
     }
 
-    // ── Колода и козырь
-    let deckClusterHTML = '';
+    // ── Колода и козырь (в правом столбце)
+    let deckColHTML = '';
     if (s.trump_card || s.deck_count > 0) {
       const trumpCardView = s.trump_card
-        ? `<div class="dk-trump-slot" title="Козырь: ${s.trump_card.suit}"><div class="dk-trump-tag">👑 КОЗЫРЬ</div>${window.DURAK_CARDS.cardHTML(s.trump_card, false)}</div>`
+        ? `<div class="dk-trump-under" title="Козырь: ${s.trump_card.suit}">${window.DURAK_CARDS.cardHTML(s.trump_card, false)}</div>`
         : '';
-      const deckView = s.deck_count > 0
-        ? `<div class="dk-deck-slot" title="В колоде: ${s.deck_count}"><div class="dk-card dk-card--back"><img src="/static/img/cards/back.svg" class="dk-card__img" alt="Колода" /><span class="dk-deck-badge">${s.deck_count}</span></div><div class="dk-deck-label">Колода</div></div>`
-        : `<div class="dk-deck-slot" title="Колода пуста"><div class="dk-card dk-card--empty">∅</div><div class="dk-deck-label">Пусто</div></div>`;
-      deckClusterHTML = `<div class="dk-deck-cluster">${trumpCardView}${deckView}</div>`;
+      const deckBadge = s.deck_count > 0 ? `<span class="dk-deck-badge">${s.deck_count}</span>` : '';
+      const deckTop = s.deck_count > 0
+        ? `<div class="dk-deck-top" title="В колоде: ${s.deck_count}"><div class="dk-card dk-card--back"><img src="/static/img/cards/back.svg" class="dk-card__img" alt="Колода" />${deckBadge}</div></div>`
+        : `<div class="dk-deck-top" title="Колода пуста"><div class="dk-card dk-card--empty">∅</div></div>`;
+      deckColHTML = `<div class="dk-deck-col">${trumpCardView}${deckTop}</div>`;
     }
 
     const potBadge = s.stake > 0 ? `<span class="dk-pot">💰 Банк: <b>${s.total_pot || s.stake * 2} 🪙</b></span>` : '';
@@ -111,12 +115,56 @@
       <div class="dk-game">
         <div class="dk-header"><div class="dk-header-info">${potBadge}</div><button class="dk-btn dk-btn--exit" id="dk-btn-exit">✕ Выйти</button></div>
         <div class="dk-opponents">${opponentsHTML}</div>
-        ${deckClusterHTML}
         <div class="dk-status">${statusText}</div>
-        <div class="dk-table" id="dk-table">${tableHTML || '<span class="dk-table__empty">Стол пуст (перетащите карту сюда)</span>'}</div>
-        <div class="dk-hand-wrap" id="dk-hand-wrap">${handHTML}</div>
-        <div class="dk-actions">${actionsHTML}</div>
+        <div class="dk-arena">
+          <div class="dk-table" id="dk-table">${tableHTML || '<span class="dk-table__empty">Стол пуст<br>(перетащите карту сюда)</span>'}</div>
+          <div class="dk-sidebar">
+            ${deckColHTML}
+            <div class="dk-action-col">${actionBtnHTML}</div>
+          </div>
+        </div>
+        <div class="dk-hand-section">
+          <button class="dk-nav-arrow dk-nav-arrow--left" id="dk-arrow-left" title="Предыдущая карта" ${myHand.length === 0 ? 'disabled' : ''}>◀</button>
+          <div class="dk-hand-wrap" id="dk-hand-wrap">${handHTML}</div>
+          <button class="dk-nav-arrow dk-nav-arrow--right" id="dk-arrow-right" title="Следующая карта" ${myHand.length === 0 ? 'disabled' : ''}>▶</button>
+        </div>
       </div>`;
+
+    // ── Листание карт стрелками ◀ и ▶
+    function cycleCard(step) {
+      if (!myHand || myHand.length === 0) return;
+      const cur = ctx.getSelectedCard();
+      let idx = -1;
+      if (cur) {
+        idx = myHand.findIndex(c => c.suit === cur.suit && c.rank === cur.rank);
+      }
+      let nextIdx;
+      if (idx === -1) {
+        nextIdx = step > 0 ? 0 : (myHand.length - 1);
+      } else {
+        nextIdx = (idx + step + myHand.length) % myHand.length;
+      }
+      ctx.setSelectedCard(myHand[nextIdx]);
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.selectionChanged();
+      }
+      renderGame(container, ctx);
+    }
+
+    const arrowLeft = container.querySelector('#dk-arrow-left');
+    if (arrowLeft && myHand.length > 0) {
+      arrowLeft.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleCard(-1);
+      });
+    }
+    const arrowRight = container.querySelector('#dk-arrow-right');
+    if (arrowRight && myHand.length > 0) {
+      arrowRight.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleCard(1);
+      });
+    }
 
     // ── Подключение Drag-and-Drop контроллера
     if (window.DURAK_DRAG) {
@@ -137,7 +185,7 @@
       });
     }
 
-    // ── Дополнительный клик по столу (если карта уже выделена кликом)
+    // ── Дополнительный клик по столу (если карта уже выделена кликом или стрелкой)
     const tableEl = container.querySelector('#dk-table');
     if (tableEl && canAct && !isGameOver(s)) {
       tableEl.addEventListener('click', (e) => {

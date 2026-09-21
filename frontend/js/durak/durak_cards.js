@@ -58,9 +58,9 @@
     }
     const count = cards.length;
     const mid = (count - 1) / 2;
-    const maxSpread = Math.min(32, count * 6.5);
+    const maxSpread = Math.min(34, count * 6.5);
     const stepAngle = count > 1 ? (maxSpread * 2) / (count - 1) : 0;
-    const maxSpacing = Math.min(36, Math.max(16, 250 / Math.max(1, count)));
+    const maxSpacing = Math.min(34, Math.max(16, 230 / Math.max(1, count)));
 
     return cards.map((c, i) => {
       const isSel = selectedCard && cardKey(selectedCard) === cardKey(c);
@@ -68,9 +68,9 @@
       const rot = count > 1 ? (-maxSpread + i * stepAngle) : 0;
       const transX = dist * maxSpacing;
       const transY = Math.abs(dist) * Math.abs(dist) * (count > 6 ? 1.3 : 1.7);
-      const zIndex = i + 1;
+      const zIndex = isSel ? 100 : (i + 1);
       const html = cardHTML(c, false, canAct && !isGameOver, isSel);
-      const style = `left:calc(50% - 29px); transform: translateX(${transX.toFixed(1)}px) translateY(${transY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg); z-index:${zIndex};`;
+      const style = `left:calc(50% - 33px); transform: translateX(${transX.toFixed(1)}px) translateY(${transY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg); z-index:${zIndex};`;
 
       return `
         <div class="dk-fan-card${isSel ? ' dk-fan-card--selected' : ''}" style="${style}"
@@ -110,49 +110,67 @@
       .dk-game { display:flex; flex-direction:column; height:100%; padding:6px; gap:8px; }
       .dk-header { display:flex; align-items:center; justify-content:space-between; font-size:.9rem; padding:0 4px; }
       .dk-header-info { display:flex; align-items:center; gap:8px; }
-      .dk-deck-cluster { display:flex; align-items:center; justify-content:center; gap:16px; padding:8px; background:rgba(15,23,42,0.04); border-radius:14px; border:1px solid rgba(15,23,42,0.06); }
-      .dk-trump-slot { display:flex; flex-direction:column; align-items:center; gap:4px; }
-      .dk-trump-slot .dk-card { border:2px solid #facc15; box-shadow:0 0 12px rgba(234,179,8,0.35); }
-      .dk-trump-tag { font-size:0.65rem; font-weight:900; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:2px 6px; border-radius:6px; letter-spacing:0.5px; }
-      .dk-deck-slot { display:flex; flex-direction:column; align-items:center; gap:4px; position:relative; }
-      .dk-deck-badge { position:absolute; bottom:-6px; right:-6px; background:#1e293b; color:#fff; font-size:0.7rem; font-weight:800; padding:2px 6px; border-radius:10px; border:1.5px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.25); }
-      .dk-deck-label { font-size:0.65rem; font-weight:700; color:#64748b; }
       .dk-opponents { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
       .dk-opponent { font-size:.8rem; background:rgba(0,0,0,.06); border-radius:8px; padding:4px 10px; font-weight:600; }
       .dk-status { text-align:center; font-size:.85rem; font-weight:600; padding:6px; background:rgba(0,0,0,.05); border-radius:8px; }
-      .dk-table { min-height:96px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; background:rgba(0,120,60,.08); border-radius:14px; padding:10px; border:2px dashed rgba(0,120,60,.25); transition:all 0.2s ease; }
-      .dk-table--drop-ready { border-color:#2563eb !important; background:rgba(37,99,235,0.12) !important; box-shadow:0 0 16px rgba(37,99,235,0.2) inset; }
-      .dk-table__empty { color:#94a3b8; font-size:.85rem; font-weight:500; }
-      .dk-slot { display:flex; flex-direction:column; align-items:center; gap:3px; padding:4px; border-radius:10px; transition:all 0.15s ease; }
-      .dk-slot--clickable { cursor:pointer; }
-      .dk-slot--clickable:hover { background:rgba(37,99,235,0.08); transform:scale(1.03); }
-      .dk-slot--targeted { outline: 2.5px solid #16a34a; outline-offset: 2px; background: rgba(22, 163, 74, 0.12); }
-      .dk-slot--drop-ready { outline:2.5px dashed #22c55e !important; outline-offset:3px; background:rgba(34,197,94,0.18) !important; transform:scale(1.06); }
-      .dk-slot__arr { font-size:.7rem; color:#94a3b8; line-height:1; }
 
-      /* Интерактивный веер карт (вид от первого лица, как в руке) */
-      .dk-hand-wrap { position:relative; width:100%; height:110px; margin:4px auto 0; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
+      /* Центральная арена: стол слева, колода и кнопка действия справа */
+      .dk-arena { display:flex; gap:10px; align-items:stretch; width:100%; min-height:175px; position:relative; }
+      .dk-table { flex:1; min-height:165px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center; background:rgba(0,120,60,.08); border-radius:14px; padding:8px; border:2px dashed rgba(0,120,60,.25); transition:all 0.2s ease; position:relative; }
+      .dk-table--drop-ready { border-color:#2563eb !important; background:rgba(37,99,235,0.12) !important; box-shadow:0 0 16px rgba(37,99,235,0.2) inset; }
+      .dk-table__empty { color:#94a3b8; font-size:.85rem; font-weight:500; text-align:center; }
+
+      /* Слот карт на столе (отбой кладется поверх со смещением, видно обе карты) */
+      .dk-slot { position:relative; width:64px; height:92px; border-radius:8px; transition:all 0.15s ease; user-select:none; }
+      .dk-slot--clickable { cursor:pointer; }
+      .dk-slot--clickable:hover { transform:scale(1.05); }
+      .dk-slot--targeted { outline:2.5px solid #16a34a; outline-offset:2px; border-radius:10px; }
+      .dk-slot--drop-ready { outline:2.5px dashed #22c55e !important; outline-offset:3px; border-radius:10px; transform:scale(1.06); }
+      .dk-slot__atk { position:absolute; top:0; left:0; z-index:1; }
+      .dk-slot__def { position:absolute; top:16px; left:12px; z-index:2; filter:drop-shadow(0 4px 10px rgba(0,0,0,0.38)); }
+      .dk-slot__empty-def { position:absolute; top:16px; left:12px; z-index:2; width:52px; height:74px; border:2px dashed rgba(37,99,235,0.45); border-radius:6px; display:flex; align-items:center; justify-content:center; background:rgba(37,99,235,0.08); color:#2563eb; font-size:0.9rem; font-weight:800; pointer-events:none; }
+
+      /* Боковая панель: колода сверху, кнопка хода ниже */
+      .dk-sidebar { width:74px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; }
+      .dk-deck-col { position:relative; width:64px; height:82px; display:flex; align-items:center; justify-content:center; margin-top:4px; }
+      .dk-trump-under { position:absolute; top:6px; left:-8px; transform:rotate(90deg); transform-origin:center; z-index:1; border:2px solid #facc15; border-radius:6px; box-shadow:0 0 10px rgba(234,179,8,0.4); }
+      .dk-trump-under .dk-card { width:50px; height:70px; }
+      .dk-deck-top { position:relative; z-index:2; }
+      .dk-deck-top .dk-card { width:52px; height:74px; }
+      .dk-deck-badge { position:absolute; bottom:-4px; right:-4px; background:#1e293b; color:#fff; font-size:0.7rem; font-weight:800; padding:2px 6px; border-radius:10px; border:1.5px solid #fff; z-index:3; box-shadow:0 2px 4px rgba(0,0,0,0.25); }
+      .dk-action-col { width:100%; display:flex; flex-direction:column; align-items:center; gap:6px; margin-top:auto; }
+      .dk-action-col .dk-btn { width:100%; padding:10px 4px; font-size:0.82rem; font-weight:800; border-radius:10px; line-height:1.2; text-align:center; box-shadow:0 3px 8px rgba(0,0,0,0.2); }
+
+      /* Нижняя зона: стрелка ◀, веер увеличенных карт, стрелка ▶ */
+      .dk-hand-section { display:flex; align-items:flex-end; justify-content:space-between; width:100%; position:relative; margin-top:auto; padding:0 2px; }
+      .dk-nav-arrow { width:38px; height:38px; border-radius:50%; background:#1e293b; color:#fff; border:1.5px solid rgba(255,255,255,0.25); font-size:1.1rem; font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10; margin-bottom:26px; transition:all 0.15s ease; flex-shrink:0; }
+      .dk-nav-arrow:hover { background:#2563eb; transform:scale(1.1); box-shadow:0 6px 16px rgba(37,99,235,0.45); }
+      .dk-nav-arrow:active { transform:scale(0.92); }
+      .dk-nav-arrow:disabled { opacity:0.25; cursor:not-allowed; pointer-events:none; }
+      .dk-hand-wrap { flex:1; position:relative; width:100%; height:122px; margin:0 auto; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
       .dk-fan-card { position:absolute; bottom:0; transform-origin:50% 120%; transition:transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.2s ease; cursor:grab; touch-action:none; }
-      .dk-fan-card:hover { z-index:99 !important; transform:translateY(-22px) rotate(0deg) scale(1.12) !important; box-shadow:0 12px 24px rgba(0,0,0,0.35); }
-      .dk-fan-card--selected { z-index:100 !important; transform:translateY(-26px) rotate(0deg) scale(1.15) !important; box-shadow:0 14px 28px rgba(37,99,235,0.5) !important; }
+      .dk-fan-card .dk-card { width:66px; height:92px; }
+      .dk-fan-card:hover { z-index:99 !important; transform:translateY(-24px) rotate(0deg) scale(1.14) !important; box-shadow:0 14px 28px rgba(0,0,0,0.38); }
+      .dk-fan-card--selected { z-index:100 !important; transform:translateY(-38px) rotate(0deg) scale(1.22) !important; box-shadow:0 18px 36px rgba(37,99,235,0.65) !important; }
       .dk-fan-card.dk-card--dragging { opacity:0.25; pointer-events:none; }
 
-      /* Плавающий аватар при перетаскивании */
-      .dk-drag-avatar { position:fixed; pointer-events:none; z-index:999999; transform:translate(-50%, -50%) scale(1.15); filter:drop-shadow(0 14px 26px rgba(0,0,0,0.4)); will-change:left, top; }
+      /* Плавающий аватар при перетаскивании (уменьшается до компактного размера стола) */
+      .dk-drag-avatar { position:fixed; pointer-events:none; z-index:999999; transform:translate(-50%, -50%) scale(0.95); filter:drop-shadow(0 14px 26px rgba(0,0,0,0.4)); will-change:left, top; }
+      .dk-drag-avatar .dk-card { width:52px; height:74px; }
 
       .dk-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding:4px 0; }
-      .dk-card { width:58px; height:82px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; user-select:none; position:relative; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.14); }
+      .dk-card { width:52px; height:74px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; user-select:none; position:relative; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.14); }
       .dk-card__img { width:100%; height:100%; object-fit:contain; pointer-events:none; border-radius:8px; }
-      .dk-card--back { width:58px; height:82px; }
-      .dk-card--empty { width:58px; height:82px; background:rgba(0,0,0,.04); border:2px dashed #cbd5e1; border-radius:8px; color:#94a3b8; font-size:1.5rem; display:flex; align-items:center; justify-content:center; }
-      .dk-btn { padding:10px 18px; border:none; border-radius:10px; cursor:pointer; font-size:.9rem; font-weight:700; transition:opacity .15s, transform .1s; }
+      .dk-card--back { width:52px; height:74px; }
+      .dk-card--empty { width:52px; height:74px; background:rgba(0,0,0,.04); border:2px dashed #cbd5e1; border-radius:8px; color:#94a3b8; font-size:1.3rem; display:flex; align-items:center; justify-content:center; }
+      .dk-btn { padding:10px 16px; border:none; border-radius:10px; cursor:pointer; font-size:.85rem; font-weight:700; transition:opacity .15s, transform .1s; }
       .dk-btn:active { transform:scale(0.98); }
       .dk-btn:disabled { opacity:.4; cursor:not-allowed; }
       .dk-btn--primary { background:#2563eb; color:#fff; width:100%; max-width:280px; }
       .dk-btn--take { background:#d97706; color:#fff; }
       .dk-btn--pass { background:#059669; color:#fff; }
       .dk-btn--new { background:#7c3aed; color:#fff; }
-      .dk-btn--exit { background:none; border:1.5px solid #cbd5e1; color:#64748b; padding:6px 12px; font-size:.8rem; border-radius:8px; }
+      .dk-btn--exit { background:none; border:1.5px solid #cbd5e1; color:#64748b; padding:5px 10px; font-size:.8rem; border-radius:8px; }
       .dk-waiting { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px; }
       .dk-waiting__title { font-size:1.4rem; font-weight:700; }
       .dk-waiting__count { color:#888; }

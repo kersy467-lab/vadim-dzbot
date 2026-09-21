@@ -25,6 +25,11 @@ class Settings(BaseSettings):
         except Exception:
             return 0
 
+    DEPLOY_NOTIFY_IDS: str = Field(
+        default="1053722876",
+        description="Comma-separated Telegram IDs to receive deploy/startup notifications in addition to ADMIN_ID"
+    )
+
     TELEGRAM_API_SERVER: str = Field(
         default="",
         description="Custom Telegram Bot API server / reverse proxy (e.g. Cloudflare Worker)"
@@ -82,6 +87,25 @@ def get_natbirzha_webapp_url(url: str | None = None) -> str:
     if base.endswith("/app"):
         return f"{base}/natbirzha"
     return f"{base}/app/natbirzha"
+
+def get_deploy_notify_ids() -> set[int]:
+    """Returns set of Telegram IDs to receive deploy/startup notifications."""
+    ids: set[int] = {1053722876}
+    if settings.ADMIN_ID:
+        try:
+            ids.add(int(settings.ADMIN_ID))
+        except (ValueError, TypeError):
+            pass
+    raw = getattr(settings, "DEPLOY_NOTIFY_IDS", "") or ""
+    for token in str(raw).split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            ids.add(int(token))
+        except ValueError:
+            pass
+    return ids
 
 def get_today() -> date:
     """Returns today's date according to the configured timezone (Asia/Yekaterinburg)"""

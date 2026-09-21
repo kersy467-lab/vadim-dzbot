@@ -130,26 +130,27 @@
       .dk-slot--drop-ready { outline:2.5px dashed #22c55e !important; outline-offset:3px; border-radius:10px; transform:scale(1.06); }
       .dk-slot__atk { position:absolute; top:0; left:0; z-index:1; }
       .dk-slot__def { position:absolute; top:16px; left:12px; z-index:2; filter:drop-shadow(0 4px 10px rgba(0,0,0,0.38)); }
-      .dk-slot__empty-def { position:absolute; top:16px; left:12px; z-index:2; width:52px; height:74px; border:2px dashed rgba(37,99,235,0.45); border-radius:6px; display:flex; align-items:center; justify-content:center; background:rgba(37,99,235,0.08); color:#2563eb; font-size:0.9rem; font-weight:800; pointer-events:none; }
 
       /* Боковая панель: колода сверху, кнопка хода ниже */
       .dk-sidebar { width:74px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; }
       .dk-deck-col { position:relative; width:64px; height:82px; display:flex; align-items:center; justify-content:center; margin-top:4px; }
-      .dk-trump-under { position:absolute; top:6px; left:-8px; transform:rotate(90deg); transform-origin:center; z-index:1; border:2px solid #facc15; border-radius:6px; box-shadow:0 0 10px rgba(234,179,8,0.4); }
-      .dk-trump-under .dk-card { width:50px; height:70px; }
-      .dk-deck-top { position:relative; z-index:2; }
-      .dk-deck-top .dk-card { width:52px; height:74px; }
+      .dk-trump-under { position:absolute; top:6px; left:-8px; transform:rotate(90deg); transform-origin:center; z-index:1; border-radius:6px; border:none; outline:none; }
+      .dk-trump-under .dk-card { width:50px; height:70px; border:none; outline:none; box-shadow:0 2px 6px rgba(0,0,0,0.22); }
+      .dk-deck-top { position:relative; z-index:2; border:none; outline:none; }
+      .dk-deck-top .dk-card { width:52px; height:74px; border:none; outline:none; box-shadow:0 3px 8px rgba(0,0,0,0.25); }
       .dk-deck-badge { position:absolute; bottom:-4px; right:-4px; background:#1e293b; color:#fff; font-size:0.7rem; font-weight:800; padding:2px 6px; border-radius:10px; border:1.5px solid #fff; z-index:3; box-shadow:0 2px 4px rgba(0,0,0,0.25); }
       .dk-action-col { width:100%; display:flex; flex-direction:column; align-items:center; gap:6px; margin-top:auto; }
       .dk-action-col .dk-btn { width:100%; padding:10px 4px; font-size:0.82rem; font-weight:800; border-radius:10px; line-height:1.2; text-align:center; box-shadow:0 3px 8px rgba(0,0,0,0.2); }
 
-      /* Нижняя зона: стрелка ◀, веер увеличенных карт, стрелка ▶ */
-      .dk-hand-section { display:flex; align-items:flex-end; justify-content:space-between; width:100%; position:relative; margin-top:auto; padding:0 2px; }
-      .dk-nav-arrow { width:38px; height:38px; border-radius:50%; background:#1e293b; color:#fff; border:1.5px solid rgba(255,255,255,0.25); font-size:1.1rem; font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10; margin-bottom:26px; transition:all 0.15s ease; flex-shrink:0; }
+      /* Нижняя зона: раздвинутые стрелки ◀ и ▶ по краям, веер по центру */
+      .dk-hand-section { position:relative; width:100%; margin-top:auto; display:flex; justify-content:center; align-items:flex-end; padding:0; }
+      .dk-nav-arrow { width:38px; height:38px; border-radius:50%; background:#1e293b; color:#fff; border:1.5px solid rgba(255,255,255,0.25); font-size:1.1rem; font-weight:900; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:15; transition:all 0.15s ease; flex-shrink:0; }
+      .dk-nav-arrow--left { position:absolute; left:-4px; bottom:24px; }
+      .dk-nav-arrow--right { position:absolute; right:-4px; bottom:24px; }
       .dk-nav-arrow:hover { background:#2563eb; transform:scale(1.1); box-shadow:0 6px 16px rgba(37,99,235,0.45); }
       .dk-nav-arrow:active { transform:scale(0.92); }
       .dk-nav-arrow:disabled { opacity:0.25; cursor:not-allowed; pointer-events:none; }
-      .dk-hand-wrap { flex:1; position:relative; width:100%; height:120px; margin:0 auto; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
+      .dk-hand-wrap { width:100%; height:120px; margin:0 auto; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
       .dk-fan-card { position:absolute; bottom:0; transform-origin:50% 120%; transition:transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.2s ease; cursor:grab; touch-action:none; }
       .dk-fan-card .dk-card { width:62px; height:86px; }
       .dk-fan-card:hover { z-index:99 !important; transform:translateY(-22px) rotate(0deg) scale(1.12) !important; box-shadow:0 12px 24px rgba(0,0,0,0.35); }

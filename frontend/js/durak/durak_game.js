@@ -51,8 +51,6 @@
         let defCardHTML = '';
         if (slot.defend) {
           defCardHTML = `<div class="dk-slot__def">${window.DURAK_CARDS.cardHTML(slot.defend, false)}</div>`;
-        } else if (isDefender && phase === 'defend') {
-          defCardHTML = `<div class="dk-slot__empty-def">${isTargeted ? '🎯' : '?'}</div>`;
         }
         tableHTML += `<div class="${slotClass}" data-slot-idx="${idx}" title="${canClickSlot ? 'Сбросьте сюда карту для отбоя' : ''}"><div class="dk-slot__atk">${atkCard}</div>${defCardHTML}</div>`;
       });

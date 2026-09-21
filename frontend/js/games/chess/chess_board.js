@@ -3,7 +3,7 @@
   'use strict';
 
   const CHESS_SYMBOLS = {
-    "P": "♙", "N": "♘", "B": "♗", "R": "♖", "Q": "♕", "K": "♔",
+    "P": "♟", "N": "♞", "B": "♝", "R": "♜", "Q": "♛", "K": "♚",
     "p": "♟", "n": "♞", "b": "♝", "r": "♜", "q": "♛", "k": "♚"
   };
 
@@ -45,14 +45,22 @@
 
   function renderPiece(char) {
     if (!char) return "";
+    const svg = window.CHESS_SVGS ? window.CHESS_SVGS[char] : null;
+    if (svg) {
+      return `
+        <span class="inline-flex items-center justify-center w-full h-full pointer-events-none select-none transition-transform transform group-active:scale-90">
+          ${svg}
+        </span>
+      `;
+    }
     const isWhite = char === char.toUpperCase();
     const glyph = CHESS_SYMBOLS[char] || char;
     return `
       <span class="select-none leading-none inline-block font-black text-2xl sm:text-3xl transition-transform transform group-active:scale-90 ${
         isWhite
-          ? 'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)]'
+          ? 'text-white'
           : 'text-slate-900 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]'
-      }">
+      }" style="${isWhite ? 'color:#fff;-webkit-text-stroke:1.2px #1e293b;paint-order:stroke fill;' : ''}">
         ${glyph}
       </span>
     `;
@@ -100,7 +108,7 @@
             <button
               id="chess-sq-${sq}"
               type="button"
-              onclick="window.GAMES.chessSquareClick('${sq}')"
+              onclick="(window.GAMES_CHESS || window.GAMES).chessSquareClick('${sq}')"
               style="${bgStyle}"
               class="w-full h-full p-0 m-0 relative flex items-center justify-center cursor-pointer transition-colors group">
               

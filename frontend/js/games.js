@@ -352,19 +352,13 @@
     return window.GAMES_TICTACTOE?.openOnlineRoom?.(roomId);
   }
 
-  window.GAMES = {
-    init: initGames,
-    switchGame: switchGame,
-    switchCasinoSubGame: switchCasinoSubGame,
-    render: renderGames,
-    scrollTabs: scrollTabs,
+  window.GAMES = Object.assign(window.GAMES || {}, {
+    init: initGames, switchGame: switchGame, switchCasinoSubGame: switchCasinoSubGame,
+    render: renderGames, scrollTabs: scrollTabs,
     getCurrentGame: () => (currentGame === "casino" ? currentCasinoSubGame : currentGame),
-    getCasinoSubGame: () => currentCasinoSubGame,
-    updateTesterStatus: updateTesterStatus,
-    checkTesterStatus: checkTesterStatus,
-    cleanup: cleanupCurrentGame,
-    initRPG: () => window.RPG?.init?.(),
-    reset2048: () => window.GAMES_2048?.reset?.(),
+    getCasinoSubGame: () => currentCasinoSubGame, updateTesterStatus: updateTesterStatus,
+    checkTesterStatus: checkTesterStatus, cleanup: cleanupCurrentGame,
+    initRPG: () => window.RPG?.init?.(), reset2048: () => window.GAMES_2048?.reset?.(),
     setTTTMode: (m) => window.GAMES_TICTACTOE?.setTTTMode(m), cellClickTTT: (i) => window.GAMES_TICTACTOE?.cellClickTTT(i),
     resetTTT: () => window.GAMES_TICTACTOE?.resetTTT(), openOnlineRoom: openOnlineRoom,
     inviteClassmate: (id, n) => window.GAMES_TICTACTOE?.inviteClassmate(id, n), makeOnlineMove: (i) => window.GAMES_TICTACTOE?.makeOnlineMove(i),
@@ -375,9 +369,11 @@
     startTetrisGame: () => window.GAMES_TETRIS?.startTetrisGame(), toggleTetrisPause: () => window.GAMES_TETRIS?.toggleTetrisPause(),
     tetrisMoveLeft: () => window.GAMES_TETRIS?.tetrisMoveLeft(), tetrisMoveRight: () => window.GAMES_TETRIS?.tetrisMoveRight(),
     tetrisRotate: () => window.GAMES_TETRIS?.tetrisRotate(), tetrisSoftDrop: () => window.GAMES_TETRIS?.tetrisSoftDrop(), tetrisHardDrop: () => window.GAMES_TETRIS?.tetrisHardDrop(),
+    // Chess Methods
+    startBotChessGame: (c) => window.GAMES_CHESS?.startBotChessGame(c),
     startLocalChessGame: () => window.GAMES_CHESS?.startLocalChessGame(), toggleChessAutoRotate: () => window.GAMES_CHESS?.toggleChessAutoRotate(),
     flipChessBoardManual: () => window.GAMES_CHESS?.flipChessBoardManual(), openChessOnlineRoom: (c) => window.GAMES_CHESS?.openChessOnlineRoom(c),
-    inviteChessClassmate: (id, n) => window.GAMES_CHESS?.inviteChessClassmate(id, n), chessSquareClick: (r, c) => window.GAMES_CHESS?.chessSquareClick(r, c),
+    inviteChessClassmate: (id, n) => window.GAMES_CHESS?.inviteChessClassmate(id, n), chessSquareClick: (sq) => window.GAMES_CHESS?.chessSquareClick(sq),
     choosePromotion: (p) => window.GAMES_CHESS?.choosePromotion(p), resignChessGame: () => window.GAMES_CHESS?.resignChessGame(),
     requestChessRematch: () => window.GAMES_CHESS?.requestChessRematch(), cancelChessGame: () => window.GAMES_CHESS?.cancelChessGame(),
     leaveChessGame: () => window.GAMES_CHESS?.leaveChessGame(), backToChessLobby: () => window.GAMES_CHESS?.backToChessLobby(),
@@ -393,5 +389,5 @@
     initBlackjack: () => window.BLACKJACK?.init(), initRoulette: () => window.ROULETTE?.init(),
     initDice: () => window.DICE?.init(), initSlots: () => window.SLOTS?.init(),
     initCoinflip: () => window.COINFLIP?.init(), initCasinoLeaderboard: () => window.CASINO_LEADERBOARD?.init()
-  };
+  });
 })();

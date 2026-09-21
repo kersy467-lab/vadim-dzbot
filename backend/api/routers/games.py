@@ -85,6 +85,49 @@ async def create_local_game(
         raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
 
 
+@router.post("/games/bot")
+async def create_bot_game(
+    request: Request,
+    payload: Optional[Dict[str, Any]] = Body(default=None),
+    user: Optional[User] = Depends(get_optional_webapp_user)
+):
+    """Создает партию против шахматного бота (ИИ) с альфа-бета отсечением на 3 шага."""
+    try:
+        if not payload:
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+
+        if not isinstance(payload, dict):
+            payload = {}
+
+        game_type = str(payload.get("game_type") or "chess").strip().lower()
+        host_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
+        host_name = user.display_name if user else payload.get("host_name", "Игрок")
+        host_color = str(payload.get("host_color") or "white").strip().lower()
+
+        from backend.api.game_rooms import game_manager, chess
+        if game_type == "chess" and chess is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Шахматный режим загружается на сервере. Пожалуйста, подождите минуту!"
+            )
+
+        room = game_manager.create_bot_room(
+            host_tg_id=host_tg_id,
+            host_name=host_name,
+            game_type=game_type,
+            host_color=host_color
+        )
+        return room.to_dict(viewer_tg_id=host_tg_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in create_bot_game: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
+
+
 @router.post("/games/invite")
 async def invite_opponent_to_game(
     request: Request,

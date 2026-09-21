@@ -190,6 +190,15 @@ const api = {
         host_name: hostName
       })
     }),
+  createBotGame: (gameType = "chess", hostColor = "white") =>
+    apiRequest("/api/games/bot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        game_type: gameType,
+        host_color: hostColor
+      })
+    }),
   inviteGame: (opponentTgId, hostName, gameType = "tictactoe", hostColor = "white", opponentName = "", bossId = null, isSolo = false, heroData = null) =>
     apiRequest("/api/games/invite", {
       method: "POST",

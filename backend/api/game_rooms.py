@@ -62,6 +62,30 @@ class GameRoomManager:
             return room
         raise ValueError(f"Локальный режим не поддерживается для {game_type}")
 
+    def create_bot_room(
+        self,
+        host_tg_id: int,
+        host_name: str,
+        game_type: str = "chess",
+        host_color: str = "white"
+    ) -> Any:
+        self.cleanup()
+        room_id = "bot_" + uuid.uuid4().hex[:8]
+        if game_type == "chess":
+            room = ChessRoom(
+                room_id=room_id,
+                host_tg_id=host_tg_id,
+                host_name=host_name or "Игрок",
+                opponent_tg_id=0,
+                opponent_name="🤖 Шахматный Бот (ИИ)",
+                host_color=host_color,
+                is_local=False,
+                is_bot=True
+            )
+            self.rooms[room_id] = room
+            return room
+        raise ValueError(f"Режим игры с ботом не поддерживается для {game_type}")
+
     def create_room(
         self,
         host_tg_id: int,

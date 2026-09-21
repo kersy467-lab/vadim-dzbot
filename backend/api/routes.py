@@ -4,7 +4,7 @@ Decomposed into clean, maintainable modular sub-routers:
 - common: /me, /bells, /subjects, /students, /duty, /facts/today, /media/{file_id}
 - schedule: /schedule, /schedule/week
 - homework: /homework, /homework/{hw_id}/toggle
-- games: /games/classmates, /games/invite, /games/local, /games/room/*
+- games: /games/classmates, /games/invite, /games/local, /games/bot, /games/room/*
 - durak: /durak/new, /durak/join, /durak/state/*, /durak/move, /ws/durak/*
 """
 from fastapi import APIRouter

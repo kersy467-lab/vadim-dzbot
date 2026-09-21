@@ -192,6 +192,10 @@ assert(paneTester.includes('/app/natbirzha'), 'Natbirzha banner must link to /ap
 console.log('window.GAMES module loaded, tester-only RPG & Natbirzha banner restrictions verified!');
 
 console.log('=== [5/5] Testing multiplayer games & online room routing ===');
+['chess_board.js', 'chess_ui.js'].forEach(m => {
+  const p = path.join(__dirname, '../frontend/js/games/chess/', m);
+  if (fs.existsSync(p)) eval(fs.readFileSync(p, 'utf-8'));
+});
 ['game_2048.js', 'game_tictactoe.js', 'game_snake.js', 'game_tetris.js', 'game_chess.js'].forEach(m => {
   const p = path.join(__dirname, '../frontend/js/games/', m);
   if (fs.existsSync(p)) eval(fs.readFileSync(p, 'utf-8'));

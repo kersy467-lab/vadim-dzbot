@@ -185,7 +185,7 @@ async def lifespan(app: FastAPI):
 
         polling_task = asyncio.create_task(init_telegram_bot())
 
-        # Send deploy completion notification to configured recipients (ADMIN_ID and 1053722876)
+        # Send deploy completion notification to configured recipients (ADMIN_ID and DEPLOY_NOTIFY_IDS)
         from backend.bot.services.startup_notify import send_startup_notifications
         asyncio.create_task(send_startup_notifications(bot))
     else:

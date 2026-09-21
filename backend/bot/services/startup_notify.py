@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 async def send_startup_notifications(bot: Bot) -> None:
     """
-    Sends deploy / startup completion notification to all configured admin recipients,
-    including primary ADMIN_ID and co-admin ID 1053722876.
+    Sends deploy / startup completion notification to all configured admin recipients
+    (ADMIN_ID and any IDs specified in DEPLOY_NOTIFY_IDS environment variable).
     """
     target_ids = get_deploy_notify_ids()
     if not target_ids:

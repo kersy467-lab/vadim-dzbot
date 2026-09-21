@@ -10,6 +10,15 @@
   let _pollInterval = null;
   let _reconnectTimer = null;
   let _targetedSlotIndex = null;
+  let _outsideClickListener = null;
+
+  function clearOutsideClickListener() {
+    if (_outsideClickListener) {
+      document.removeEventListener('click', _outsideClickListener);
+      document.removeEventListener('touchend', _outsideClickListener);
+      _outsideClickListener = null;
+    }
+  }
 
   function isGameOver(s) {
     return Boolean(s && s.phase === 'done');
@@ -185,28 +194,26 @@
       });
     }
 
-    // ── Дополнительный клик по столу (если карта уже выделена кликом или стрелкой)
-    const tableEl = container.querySelector('#dk-table');
-    if (tableEl && canAct && !isGameOver(s)) {
-      tableEl.addEventListener('click', (e) => {
-        const card = ctx.getSelectedCard();
-        if (!card) return;
-        const slotEl = e.target.closest('.dk-slot--clickable');
-        if (isDefender && phase === 'defend') {
-          if (slotEl) {
-            const idx = parseInt(slotEl.dataset.slotIdx, 10);
-            const sl = (s.table || [])[idx];
-            if (sl && sl.defend === null && window.DURAK_CARDS.cardBeats(card, sl.attack, s.trump_suit)) {
-              executeDefend(ctx, container, card, sl);
-              return;
-            }
+    // ── Снятие выбора при клике в произвольную точку экрана (вне карт и стрелок)
+    clearOutsideClickListener();
+    if (selectedCard) {
+      setTimeout(() => {
+        if (!ctx.getSelectedCard()) return;
+        _outsideClickListener = (e) => {
+          if (!ctx.getSelectedCard()) {
+            clearOutsideClickListener();
+            return;
           }
-          const beatable = (s.table || []).filter(sl => sl.defend === null && window.DURAK_CARDS.cardBeats(card, sl.attack, s.trump_suit));
-          if (beatable.length > 0) executeDefend(ctx, container, card, beatable[0]);
-        } else if (isAttacker && phase === 'attack') {
-          executeAttack(ctx, container, card);
-        }
-      });
+          if (e.target.closest('.dk-fan-card') || e.target.closest('.dk-nav-arrow') || e.target.closest('.dk-btn')) {
+            return;
+          }
+          clearOutsideClickListener();
+          ctx.setSelectedCard(null);
+          renderGame(container, ctx);
+        };
+        document.addEventListener('click', _outsideClickListener);
+        document.addEventListener('touchend', _outsideClickListener);
+      }, 50);
     }
 
     // ── Кнопки «Бито», «Взять», «В меню», «Выход»
@@ -342,6 +349,7 @@
   }
 
   function disconnectWS() {
+    clearOutsideClickListener();
     if (window.DURAK_DRAG) window.DURAK_DRAG.cleanup();
     if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
     if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }

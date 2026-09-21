@@ -58,19 +58,21 @@
     }
     const count = cards.length;
     const mid = (count - 1) / 2;
-    const maxSpread = Math.min(34, count * 6.5);
+    const maxSpread = Math.min(18, count * 3.0);
     const stepAngle = count > 1 ? (maxSpread * 2) / (count - 1) : 0;
-    const maxSpacing = Math.min(34, Math.max(16, 230 / Math.max(1, count)));
+    const maxSpan = Math.min(175, (count - 1) * 26);
+    const stepSpacing = count > 1 ? maxSpan / (count - 1) : 0;
 
     return cards.map((c, i) => {
       const isSel = selectedCard && cardKey(selectedCard) === cardKey(c);
       const dist = i - mid;
       const rot = count > 1 ? (-maxSpread + i * stepAngle) : 0;
-      const transX = dist * maxSpacing;
-      const transY = Math.abs(dist) * Math.abs(dist) * (count > 6 ? 1.3 : 1.7);
+      const transX = dist * stepSpacing;
+      const normDist = count > 1 ? dist / mid : 0;
+      const transY = Math.abs(normDist) * Math.abs(normDist) * 10;
       const zIndex = isSel ? 100 : (i + 1);
       const html = cardHTML(c, false, canAct && !isGameOver, isSel);
-      const style = `left:calc(50% - 33px); transform: translateX(${transX.toFixed(1)}px) translateY(${transY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg); z-index:${zIndex};`;
+      const style = `left:calc(50% - 31px); transform: translateX(${transX.toFixed(1)}px) translateY(${transY.toFixed(1)}px) rotate(${rot.toFixed(1)}deg); z-index:${zIndex};`;
 
       return `
         <div class="dk-fan-card${isSel ? ' dk-fan-card--selected' : ''}" style="${style}"
@@ -147,11 +149,11 @@
       .dk-nav-arrow:hover { background:#2563eb; transform:scale(1.1); box-shadow:0 6px 16px rgba(37,99,235,0.45); }
       .dk-nav-arrow:active { transform:scale(0.92); }
       .dk-nav-arrow:disabled { opacity:0.25; cursor:not-allowed; pointer-events:none; }
-      .dk-hand-wrap { flex:1; position:relative; width:100%; height:122px; margin:0 auto; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
+      .dk-hand-wrap { flex:1; position:relative; width:100%; height:120px; margin:0 auto; display:flex; justify-content:center; align-items:flex-end; perspective:800px; user-select:none; }
       .dk-fan-card { position:absolute; bottom:0; transform-origin:50% 120%; transition:transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.2s ease; cursor:grab; touch-action:none; }
-      .dk-fan-card .dk-card { width:66px; height:92px; }
-      .dk-fan-card:hover { z-index:99 !important; transform:translateY(-24px) rotate(0deg) scale(1.14) !important; box-shadow:0 14px 28px rgba(0,0,0,0.38); }
-      .dk-fan-card--selected { z-index:100 !important; transform:translateY(-38px) rotate(0deg) scale(1.22) !important; box-shadow:0 18px 36px rgba(37,99,235,0.65) !important; }
+      .dk-fan-card .dk-card { width:62px; height:86px; }
+      .dk-fan-card:hover { z-index:99 !important; transform:translateY(-22px) rotate(0deg) scale(1.12) !important; box-shadow:0 12px 24px rgba(0,0,0,0.35); }
+      .dk-fan-card--selected { z-index:100 !important; transform:translateY(-36px) rotate(0deg) scale(1.18) !important; box-shadow:0 16px 32px rgba(37,99,235,0.65) !important; }
       .dk-fan-card.dk-card--dragging { opacity:0.25; pointer-events:none; }
 
       /* Плавающий аватар при перетаскивании (уменьшается до компактного размера стола) */

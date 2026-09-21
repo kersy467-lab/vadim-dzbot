@@ -367,17 +367,19 @@ async def test_database_and_crud():
         assert chem_dates[0] == date(2026, 9, 21), f"Expected next Monday 21.09, got {chem_dates[0]}"
 
         # 2. Create homework for Chemistry due 2026-09-21, assigned on 2026-09-14
+        # Homework created for next week
+        target_due = today + timedelta(days=7)
+
         hw_active = await create_homework(
             session=session,
             subject_id=chem_id,
-            due_date=date(2026, 9, 21),
-            assigned_date=date(2026, 9, 14),
+            due_date=target_due,
+            assigned_date=today - timedelta(days=2),
             description="Параграф 5, упр. 1-4"
         )
-        assert hw_active.assigned_date == date(2026, 9, 14)
+        assert hw_active.assigned_date == today - timedelta(days=2)
 
         # 3. Create a past homework (due in the past)
-        today = get_today()
         hw_past = await create_homework(
             session=session,
             subject_id=chem_id,
@@ -387,7 +389,7 @@ async def test_database_and_crud():
         )
         past_orig_due = hw_past.due_date
 
-        # 4. Schedule change occurs: Chemistry added earlier on a specific date (earlier than hw_active due_date)
+        # 4. Schedule change occurs: Chemistry added/confirmed on today (earlier than target_due)
         shift_target_date = today
         await set_date_schedule_item(session, shift_target_date, 1, chem_id)
 

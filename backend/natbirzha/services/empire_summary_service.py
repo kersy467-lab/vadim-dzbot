@@ -50,7 +50,7 @@ class EmpireSummaryService:
             "net_per_hour": round(rates.net_per_hour, 2),
             "inputs_per_hour": spec["inputs_per_hour"],
             "outputs_per_hour": spec["outputs_per_hour"],
-            "upgrade_ready_at": business.upgrade_ready_at,
+            "upgrade_ready_at": business.upgrade_ready_at.isoformat() if hasattr(business.upgrade_ready_at, "isoformat") else (str(business.upgrade_ready_at) if business.upgrade_ready_at else None),
             "next_upgrade": next_upgrade,
         }
 
@@ -72,6 +72,7 @@ class EmpireSummaryService:
         )
         gross = sum(item.get("gross_per_hour", 0.0) for item in serialized)
         expenses = sum(item.get("maintenance_per_hour", 0.0) for item in serialized)
+        gen_dt = normalize_dt(now or get_game_now())
         return {
             "company_id": company.id,
             "cash": round(float(company.cash), 2),
@@ -82,7 +83,7 @@ class EmpireSummaryService:
                 level=company.level, territory_tiles=company.territory_tiles, used=used_slots
             ),
             "businesses": serialized,
-            "generated_at": normalize_dt(now or get_game_now()),
+            "generated_at": gen_dt.isoformat() if hasattr(gen_dt, "isoformat") else str(gen_dt),
         }
 
 

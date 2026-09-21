@@ -48,8 +48,8 @@ class BusinessService:
             "stage": business.stage,
             "status": business.status,
             "slot_weight": business.slot_weight,
-            "last_settled_at": business.last_settled_at,
-            "upgrade_ready_at": business.upgrade_ready_at,
+            "last_settled_at": business.last_settled_at.isoformat() if hasattr(business.last_settled_at, "isoformat") else (str(business.last_settled_at) if business.last_settled_at else None),
+            "upgrade_ready_at": business.upgrade_ready_at.isoformat() if hasattr(business.upgrade_ready_at, "isoformat") else (str(business.upgrade_ready_at) if business.upgrade_ready_at else None),
         }
 
     @staticmethod

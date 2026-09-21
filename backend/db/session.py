@@ -1,7 +1,12 @@
+import json
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from backend.config import settings
 from backend.db.models import Base
+
+
+def _json_serializer(obj):
+    return json.dumps(obj, default=str)
 
 
 def validate_database_url(raw_url: str, *, production: bool | None = None) -> None:
@@ -20,7 +25,13 @@ def create_configured_engine():
     validate_database_url(raw_url)
     if raw_url.startswith("sqlite"):
         os.makedirs("./data", exist_ok=True)
-        return create_async_engine(raw_url, echo=False, future=True, pool_pre_ping=True)
+        return create_async_engine(
+            raw_url,
+            echo=False,
+            future=True,
+            pool_pre_ping=True,
+            json_serializer=_json_serializer,
+        )
     
     # Normalize postgres URL for asyncpg
     url = raw_url
@@ -44,7 +55,8 @@ def create_configured_engine():
         pool_recycle=300,
         pool_size=10,
         max_overflow=20,
-        connect_args=connect_args
+        connect_args=connect_args,
+        json_serializer=_json_serializer,
     )
 
 

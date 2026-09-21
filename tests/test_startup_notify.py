@@ -29,6 +29,12 @@ async def test_startup_notify_recipients():
         assert 999111 in sent_chat_ids
         assert 888222 in sent_chat_ids
         assert 777333 in sent_chat_ids
+
+        sent_texts = [call.kwargs.get("text") for call in mock_bot.send_message.call_args_list]
+        for text in sent_texts:
+            assert "🚀 Деплой успешно завершен! Бот запущен." in text
+            assert "📅 Дата: " in text
+            assert "📱Коммит: " in text
     finally:
         settings.DEPLOY_NOTIFY_IDS = old_deploy_ids
         settings.ADMIN_ID = old_admin_id

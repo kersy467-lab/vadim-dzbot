@@ -1,9 +1,48 @@
 import asyncio
+from datetime import datetime
 import logging
+import os
+import subprocess
+import zoneinfo
 from aiogram import Bot
-from backend.config import settings, get_today, get_deploy_notify_ids
+from backend.config import settings, get_deploy_notify_ids
 
 logger = logging.getLogger(__name__)
+
+
+def get_latest_commit_title() -> str:
+    """Retrieves the latest git commit subject / title."""
+    try:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        res = subprocess.run(
+            ["git", "log", "-1", "--pretty=%s"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=3,
+            cwd=project_root,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
+    render_commit = os.environ.get("RENDER_GIT_COMMIT")
+    if render_commit:
+        return render_commit[:7]
+
+    return "Обновление ветки"
+
+
+def get_current_datetime_str() -> str:
+    """Returns current date and time formatted as DD.MM.YYYY HH:MM:SS in configured timezone."""
+    try:
+        tz = zoneinfo.ZoneInfo(settings.TIMEZONE)
+        now = datetime.now(tz)
+    except Exception:
+        now = datetime.now()
+    return now.strftime("%d.%m.%Y %H:%M:%S")
 
 
 async def send_startup_notifications(bot: Bot) -> None:
@@ -17,30 +56,13 @@ async def send_startup_notifications(bot: Bot) -> None:
 
     try:
         await asyncio.sleep(1)
-        today_str = get_today().strftime("%d.%m.%Y")
-        is_dev_db = "sqlite" in settings.DATABASE_URL
-        bot_header = (
-            "🧪 **Тестовый бот (Dev) успешно запущен на localhost!**"
-            if is_dev_db
-            else "🚀 **Деплой успешно завершен! Бот 11 «Б» запущен.**"
-        )
-        db_name = "SQLite (Локальная база dev)" if is_dev_db else "Neon PostgreSQL"
-        webapp_info = (
-            f"📱 **Mini App для телефона:**\n{settings.WEBAPP_URL}\n"
-            if settings.WEBAPP_URL.startswith("https://")
-            else ""
-        )
-        extra_info = (
-            f"🌐 Порт: `{settings.PORT}`\n🔔 Все модули и Mini App готовы к тестам!"
-            if is_dev_db
-            else f"🌐 Порт: `{settings.PORT}`\n🔔 Все модули, расписание, звонки и Mini App готовы к работе!"
-        )
+        dt_str = get_current_datetime_str()
+        commit_title = get_latest_commit_title()
+
         message_text = (
-            f"{bot_header}\n\n"
-            f"📅 **Дата:** `{today_str}`\n"
-            f"⚡ База данных: `{db_name}`\n"
-            f"{extra_info}\n"
-            f"{webapp_info}"
+            "🚀 Деплой успешно завершен! Бот запущен.\n"
+            f"📅 Дата: {dt_str}\n"
+            f"📱Коммит: {commit_title}"
         )
 
         for chat_id in target_ids:
@@ -48,7 +70,6 @@ async def send_startup_notifications(bot: Bot) -> None:
                 await bot.send_message(
                     chat_id=chat_id,
                     text=message_text,
-                    parse_mode="Markdown"
                 )
                 logger.info(f"Deploy notification successfully sent to {chat_id}.")
             except Exception as ex:

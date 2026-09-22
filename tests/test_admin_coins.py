@@ -87,6 +87,50 @@ async def test_admin_coins_flow():
         assert "+350" in msg.answer.call_args[0][0]
         bot.send_message.assert_called_once()
 
+        # 5. Toggle silent mode
+        callback.reset_mock()
+        callback.data = "adm_gc_toggle_111_1"
+        from backend.bot.handlers.admin.coins import cb_admin_give_coins_toggle, cmd_admin_give_coins
+        await cb_admin_give_coins_toggle(callback, db_session, admin_user)
+        callback.message.edit_text.assert_called_once()
+        args, kwargs = callback.message.edit_text.call_args
+        assert "Без уведомления" in args[0]
+        kb_silent = kwargs["reply_markup"]
+        all_silent_cbs = [b.callback_data for row in kb_silent.inline_keyboard for b in row]
+        assert "adm_gc_add_111_100_1" in all_silent_cbs
+        assert "adm_gc_toggle_111_0" in all_silent_cbs
+
+        # 6. Fast add with silent=True -> NO notification to user
+        callback.reset_mock()
+        callback.data = "adm_gc_add_111_100_1"
+        bot.reset_mock()
+        await cb_admin_give_coins_fast(callback, db_session, admin_user, bot)
+        bot.send_message.assert_not_called()
+        callback.message.edit_text.assert_called_once()
+        assert "Не отправлялось" in callback.message.edit_text.call_args[0][0]
+
+        # 7. Custom amount with silent=True -> NO notification to user
+        msg = AsyncMock()
+        msg.from_user.id = 999
+        msg.text = "100"
+        state = AsyncMock()
+        state.get_data = AsyncMock(return_value={"target_tg_id": 111, "silent": True})
+        bot.reset_mock()
+        await msg_admin_give_coins_custom_input(msg, state, db_session, admin_user, bot)
+        bot.send_message.assert_not_called()
+        msg.answer.assert_called_once()
+        assert "Не отправлялось" in msg.answer.call_args[0][0]
+
+        # 8. Command /givecoins 111 200 silent -> NO notification to user
+        cmd_msg = AsyncMock()
+        cmd_msg.from_user.id = 999
+        cmd_msg.text = "/givecoins 111 200 silent"
+        bot.reset_mock()
+        await cmd_admin_give_coins(cmd_msg, admin_user, db_session, bot)
+        bot.send_message.assert_not_called()
+        cmd_msg.answer.assert_called_once()
+        assert "Не отправлялось" in cmd_msg.answer.call_args[0][0]
+
     finally:
         coins_mod.get_active_users = orig_get_users
         coins_mod.get_user_by_tg_id = orig_get_user

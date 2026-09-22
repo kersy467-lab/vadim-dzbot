@@ -15,6 +15,7 @@
   const esc = value => String(value ?? '').replace(/[&<>\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   const myName = () => window.currentUser?.ege_nickname || window.currentUser?.full_name || 'Игрок';
   const rankName = profile => profile?.rank || profile?.medal || 'Рекрут';
+  const rankEmoji = profile => profile?.rank_emoji || profile?.medal_emoji || '🎖️';
   const rankImage = profile => profile?.rank_image || profile?.medal_image || '/static/assets/ranks/recruit.png';
   const ratingText = profile => `${esc(rankName(profile))} · ${Number(profile?.rating || 0)} MMR`;
 
@@ -43,8 +44,12 @@
 
   function renderRankCard(profile) {
     const place = profile?.top_position ? `#${Number(profile.top_position)} в общем топе` : 'Топ обновляется каждые 10 минут';
+    const emoji = rankEmoji(profile);
     return `<div class="theme-card rounded-3xl p-4 flex items-center gap-3">
-      <img src="${esc(rankImage(profile))}" alt="${esc(rankName(profile))}" class="w-20 h-20 object-contain rounded-2xl">
+      <div class="w-20 h-20 relative flex items-center justify-center shrink-0">
+        <img src="${esc(rankImage(profile))}" alt="${esc(rankName(profile))}" class="w-20 h-20 object-contain rounded-2xl" onerror="this.style.display='none';this.nextElementSibling?.classList.remove('hidden')">
+        <span class="hidden text-4xl">${esc(emoji)}</span>
+      </div>
       <div class="min-w-0 text-left"><div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">${esc(myName())}</div>
       <div class="font-black text-lg">${esc(rankName(profile))}</div><div class="text-blue-600 font-black">${Number(profile?.rating || 0)} MMR</div>
       <div class="text-[11px] text-slate-400">${esc(place)}</div></div></div>`;
@@ -53,7 +58,10 @@
   function renderTop() {
     const rows = (leaderboard || []).slice(0, 10).map(p => `<div class="flex items-center gap-2 py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
       <span class="w-7 text-center font-black text-xs">#${Number(p.position)}</span>
-      <img src="${esc(p.rank_image)}" class="w-9 h-9 object-contain" alt="">
+      <div class="w-9 h-9 relative flex items-center justify-center shrink-0">
+        <img src="${esc(p.rank_image)}" class="w-9 h-9 object-contain" alt="" onerror="this.style.display='none';this.nextElementSibling?.classList.remove('hidden')">
+        <span class="hidden text-xl">${esc(p.rank_emoji || '🎖️')}</span>
+      </div>
       <span class="flex-1 min-w-0"><span class="block truncate text-xs font-bold">${esc(p.nickname)}</span><span class="block text-[10px] text-slate-400">${esc(p.rank)}</span></span>
       <span class="text-xs font-black">${Number(p.rating)} MMR</span>
     </div>`).join('');
@@ -62,7 +70,13 @@
 
   function renderLobby() {
     const names = classmates.map(c => `<button onclick="window.EGE.inviteDuel(${Number(c.tg_id)}, '${esc(c.name).replace(/'/g, '')}')" class="w-full flex justify-between items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-left">
-      <span class="flex items-center gap-2 min-w-0"><img src="${esc(rankImage(c))}" class="w-10 h-10 object-contain"><span class="min-w-0"><span class="font-bold text-sm block truncate">${esc(c.name || 'Игрок')}</span><span class="text-[11px] text-slate-400">${ratingText(c)}</span></span></span><span class="text-xs text-blue-600 font-bold">Вызвать ⚔️</span>
+      <span class="flex items-center gap-2 min-w-0">
+        <div class="w-10 h-10 relative flex items-center justify-center shrink-0">
+          <img src="${esc(rankImage(c))}" class="w-10 h-10 object-contain" onerror="this.style.display='none';this.nextElementSibling?.classList.remove('hidden')">
+          <span class="hidden text-2xl">${esc(rankEmoji(c))}</span>
+        </div>
+        <span class="min-w-0"><span class="font-bold text-sm block truncate">${esc(c.name || 'Игрок')}</span><span class="text-[11px] text-slate-400">${ratingText(c)}</span></span>
+      </span><span class="text-xs text-blue-600 font-bold">Вызвать ⚔️</span>
     </button>`).join('') || '<p class="text-xs text-slate-400 text-center py-3">Пока некого вызвать. Другому игроку нужно запустить бота и выбрать ник.</p>';
     return `<div class="space-y-3">
       <div class="text-center"><div class="text-3xl">🎓⚔️</div><h2 class="font-black text-xl">ЕГЭ Арена</h2><p class="text-xs text-slate-500">Рейтинговые дуэли по русскому языку</p></div>
@@ -117,8 +131,8 @@
     const profile = room.your_rating || myRating;
     myRating = profile;
     const suddenNote = isSudden ? ` (Внезапная смерть: ${room.sudden_round} доп. раунд)` : '';
-    const winnerLine = result === 'draw' ? '🤝 Итог: ничья' : `🏆 Победил ${esc(room.winner_name || (result === 'win' ? myName() : rival?.name || 'Соперник'))}${suddenNote}`;
-    return `<div class="theme-card rounded-3xl p-5 text-center space-y-4"><div class="text-5xl">${icon}</div><h3 class="font-black text-xl">${title}</h3><div class="text-sm font-bold">${winnerLine}</div><div class="font-black text-lg">${esc(myName())} ${Number(room.your_score || 0)} : ${Number(room.opponent_score || 0)} ${esc(rival?.name || 'Соперник')}</div><div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>Вы</b><br>✅ ${Number(room.your_score || 0)}<br>❌ ${Number(room.your_errors || 0)} ошибок</div><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>${esc(rival?.name || 'Соперник')}</b><br>✅ ${Number(room.opponent_score || 0)}<br>❌ ${Number(room.opponent_errors || 0)} ошибок</div></div><img src="${esc(rankImage(profile))}" class="w-28 h-28 object-contain mx-auto"><div class="font-black text-blue-600">${ratingText(profile)}</div><div class="text-sm font-black ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-slate-400'}">${change > 0 ? '+' : ''}${change} MMR</div><button onclick="window.EGE.rematchDuel()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Реванш</button><button onclick="window.EGE.leaveDuel()" class="w-full py-2 text-xs text-slate-500 font-bold">Вернуться в лобби</button></div>`;
+    const emoji = rankEmoji(profile);
+    return `<div class="theme-card rounded-3xl p-5 text-center space-y-4"><div class="text-5xl">${icon}</div><h3 class="font-black text-xl">${title}</h3><div class="text-sm font-bold">${winnerLine}</div><div class="font-black text-lg">${esc(myName())} ${Number(room.your_score || 0)} : ${Number(room.opponent_score || 0)} ${esc(rival?.name || 'Соперник')}</div><div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>Вы</b><br>✅ ${Number(room.your_score || 0)}<br>❌ ${Number(room.your_errors || 0)} ошибок</div><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>${esc(rival?.name || 'Соперник')}</b><br>✅ ${Number(room.opponent_score || 0)}<br>❌ ${Number(room.opponent_errors || 0)} ошибок</div></div><div class="w-28 h-28 mx-auto relative flex items-center justify-center shrink-0"><img src="${esc(rankImage(profile))}" class="w-28 h-28 object-contain mx-auto" onerror="this.style.display='none';this.nextElementSibling?.classList.remove('hidden')"><span class="hidden text-6xl">${esc(emoji)}</span></div><div class="font-black text-blue-600">${ratingText(profile)}</div><div class="text-sm font-black ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-slate-400'}">${change > 0 ? '+' : ''}${change} MMR</div><button onclick="window.EGE.rematchDuel()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Реванш</button><button onclick="window.EGE.leaveDuel()" class="w-full py-2 text-xs text-slate-500 font-bold">Вернуться в лобби</button></div>`;
   }
 
   function renderDuelTab() {

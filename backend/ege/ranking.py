@@ -132,6 +132,7 @@ async def get_leaderboard(session: AsyncSession, *, force: bool = False) -> list
                 "draws": int(user.ege_draws or 0),
                 "matches": int(user.ege_wins or 0) + int(user.ege_losses or 0) + int(user.ege_draws or 0),
                 "rank": rank["display_name"],
+                "rank_emoji": rank["emoji"],
                 "rank_image": rank["image_url"],
             })
         _CACHE_ROWS = rows

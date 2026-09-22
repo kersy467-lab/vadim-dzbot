@@ -7,9 +7,15 @@ import asyncio
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test_ege_arena.db"
+os.environ["BOT_TOKEN"] = "1234567890:ABCdefFakeTestToken"
 
-from backend.db.session import async_session_factory
-from backend.db.models import User
+from backend.config import settings
+settings.DATABASE_URL = "sqlite+aiosqlite:///./data/test_ege_arena.db"
+settings.BOT_TOKEN = "1234567890:ABCdefFakeTestToken"
+
+from backend.db.session import async_session_factory, engine
+from backend.db.models import Base, User
 from backend.db.crud.users import get_user_by_tg_id
 from backend.db.crud.ege_users import (
     get_user_by_ege_nickname,
@@ -51,6 +57,10 @@ def _make_answer(room: EGEDuelRoom, tg_id: int, correct: bool):
 
 async def run_all_ege_tests():
     print("=== [ТЗ 61, 62, 63, 64] Duel Logic, Waiting Screen, Winner, Scores, Errors ===")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
     p1, p2 = 800001, 800002
 
     # Seed users in DB

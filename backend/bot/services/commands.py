@@ -5,11 +5,9 @@ from aiogram.types import (
     BotCommandScopeAllPrivateChats,
     BotCommandScopeAllGroupChats,
     BotCommandScopeChat,
+    MenuButtonCommands,
     MenuButtonDefault,
-    MenuButtonWebApp,
-    WebAppInfo
 )
-from backend.config import get_main_webapp_url, settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,30 +34,25 @@ async def set_user_command_scope(bot: Bot, chat_id: int, *, full_access: bool) -
             commands=FULL_COMMANDS if full_access else PUBLIC_COMMANDS,
             scope=BotCommandScopeChat(chat_id=chat_id)
         )
+        await bot.set_chat_menu_button(
+            chat_id=chat_id,
+            menu_button=MenuButtonCommands()
+        )
     except Exception as exc:
         logger.warning("Could not set custom scope for chat %s: %s", chat_id, exc)
 
 
 async def setup_bot_commands(bot: Bot):
     """
-    Настраивает команды бота и кнопку открытия Mini App в интерфейсе Telegram.
+    Настраивает команды бота и кнопку открытия меню команд в интерфейсе Telegram.
     """
     try:
         await bot.set_my_commands(commands=FULL_COMMANDS, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(commands=FULL_COMMANDS, scope=BotCommandScopeAllGroupChats())
         await bot.set_my_commands(commands=FULL_COMMANDS)
 
-        main_app_url = get_main_webapp_url(settings.WEBAPP_URL)
-        if main_app_url.startswith("https://"):
-            await bot.set_chat_menu_button(
-                menu_button=MenuButtonWebApp(
-                    text="📱 Mini App 11 «Б»",
-                    web_app=WebAppInfo(url=main_app_url)
-                )
-            )
-            logger.info("Telegram Menu Button configured for Main Mini App: %s", main_app_url)
-        else:
-            await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
-            logger.info("Bot commands updated.")
+        # Синяя кнопка в строке ввода Telegram должна открывать меню команд (MenuButtonCommands)
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        logger.info("Telegram Menu Button configured for Commands menu (MenuButtonCommands).")
     except Exception as e:
         logger.warning(f"Error configuring bot commands: {e}")

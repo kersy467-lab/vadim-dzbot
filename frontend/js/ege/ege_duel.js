@@ -201,13 +201,23 @@
     const profile = room.your_rating || myRating;
     myRating = profile;
     const suddenNote = isSudden ? ` (Внезапная смерть: ${room.sudden_round} доп. раунд)` : '';
-    const winnerLine = room.winner_name ? `Победитель: ${esc(room.winner_name)}${suddenNote}` : `Ничья${suddenNote}`;
     return `<div class="theme-card rounded-3xl p-5 text-center space-y-4"><div class="text-5xl">${icon}</div><h3 class="font-black text-xl">${title}</h3><div class="text-sm font-bold">${winnerLine}</div><div class="font-black text-lg">${esc(myName())} ${Number(room.your_score || 0)} : ${Number(room.opponent_score || 0)} ${esc(rival?.name || 'Соперник')}</div><div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>Вы</b><br>✅ ${Number(room.your_score || 0)}<br>❌ ${Number(room.your_errors || 0)} ошибок</div><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>${esc(rival?.name || 'Соперник')}</b><br>✅ ${Number(room.opponent_score || 0)}<br>❌ ${Number(room.opponent_errors || 0)} ошибок</div></div><img src="${esc(rankImage(profile))}" class="w-28 h-28 object-contain mx-auto"><div class="font-black text-blue-600">${ratingText(profile)}</div><div class="text-sm font-black ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-slate-400'}">${change > 0 ? '+' : ''}${change} MMR</div><button onclick="window.EGE.rematchDuel()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Реванш</button><button onclick="window.EGE.leaveDuel()" class="w-full py-2 text-xs text-slate-500 font-bold">Вернуться в лобби</button></div>`;
   }
 
   function renderDuelTab() {
     if (!room) { clearTimer(); return renderLobby(); }
-    if (room.status === 'waiting') { clearTimer(); return `<div class="theme-card rounded-3xl p-6 text-center space-y-3"><div class="text-4xl">⏳</div><h3 class="font-black">Ждём соперника</h3><p class="text-xs text-slate-500">Приглашение отправлено. Победитель определяется только после завершения обоих игроков.</p></div>`; }
+    if (room.status === 'waiting') {
+      clearTimer();
+      const oppName = esc(room.opponent?.name || room.opponent_name || 'соперника');
+      return `<div class="theme-card rounded-3xl p-6 text-center space-y-4">
+        <div class="text-4xl">⏳</div>
+        <h3 class="font-black text-lg">Ждём ${oppName}…</h3>
+        <p class="text-xs text-slate-500">Приглашение отправлено. Если соперник не отвечает, вы можете отменить вызов и вернуться в лобби.</p>
+        <button onclick="window.EGE.cancelDuel()" class="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
+          <span>❌ Отменить вызов</span>
+        </button>
+      </div>`;
+    }
     if (room.status === 'finished') return renderFinished();
     return renderBattle();
   }
@@ -218,12 +228,17 @@
   async function refresh() {
     if (!room || sending) return;
     const generation = refreshGeneration;
-    const updated = await window.api.getGameRoom(room.room_id);
-    if (!sending && generation === refreshGeneration) {
-      room = updated;
-      if (room.status === 'finished') clearPoll();
-      redraw();
-    }
+    try {
+      const updated = await window.api.getGameRoom(room.room_id);
+      if (!sending && generation === refreshGeneration) {
+        if (!updated || updated.status === 'canceled' || updated.status === 'rejected') {
+          clearPoll(); clearTimer(); room = null; initLobby(); return;
+        }
+        room = updated;
+        if (room.status === 'finished') clearPoll();
+        redraw();
+      }
+    } catch (_) {}
   }
 
   function startPoll() { clearPoll(); poll = setInterval(() => refresh().catch(() => {}), 3000); }
@@ -285,6 +300,14 @@
     } catch (e) { window.alert(e?.message || 'Не удалось изменить ник'); }
   }
 
+  async function cancelInvite() {
+    const currentRoomId = room?.room_id;
+    leave();
+    if (currentRoomId) {
+      try { await window.api.cancelGame(currentRoomId); } catch (_) {}
+    }
+  }
+
   function leave() { clearPoll(); clearLeaderboardPoll(); clearTimer(); room = null; initLobby(); }
   function cleanup() { clearPoll(); clearLeaderboardPoll(); clearTimer(); sending = false; }
 
@@ -292,7 +315,8 @@
     renderDuelTab, renderArenaHome, initLobby, cleanup,
     duelType: value => { type = value; redraw(); }, invite, inviteDuel: invite,
     answer, duelAnswer: answer, duelCheck: checkVocabulary, open,
-    rematch, rematchDuel: rematch, editArenaNickname: editNickname, leaveDuel: leave,
+    rematch, rematchDuel: rematch, editArenaNickname: editNickname,
+    leaveDuel: leave, cancelDuel: cancelInvite, cancelInvite,
     duelTimeout: () => answer('__timeout__'),
   };
   window.EGE = Object.assign(window.EGE || {}, window.EGE_DUEL);

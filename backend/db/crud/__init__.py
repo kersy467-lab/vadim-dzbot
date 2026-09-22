@@ -135,6 +135,14 @@ from backend.db.crud.rpg import (
     get_rpg_leaderboard_data,
 )
 
+from backend.db.crud.custom_schedule import (
+    get_user_custom_schedules,
+    save_user_custom_schedules,
+    get_due_custom_schedules,
+    mark_schedule_sent,
+    delete_user_custom_schedules,
+)
+
 __all__ = [
     # users & group chats
     "get_user_by_tg_id",
@@ -240,4 +248,16 @@ __all__ = [
     "get_or_create_rpg_character",
     "get_rpg_shop_catalog",
     "get_rpg_leaderboard_data",
+    # ege users
+    "get_user_by_ege_nickname",
+    "set_ege_nickname",
+    "set_user_classmate",
+    "get_ege_players",
+    "has_full_access",
+    # custom schedule
+    "get_user_custom_schedules",
+    "save_user_custom_schedules",
+    "get_due_custom_schedules",
+    "mark_schedule_sent",
+    "delete_user_custom_schedules",
 ]

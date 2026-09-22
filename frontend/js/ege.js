@@ -14,6 +14,7 @@
     window.EGE_CORE || {},
     window.EGE_STRESS || {},
     window.EGE_PARONYMS || {},
+    window.EGE_VOCAB || {},
     window.EGE_MATH18 || {},
     window.EGE_DUEL || {}
   );

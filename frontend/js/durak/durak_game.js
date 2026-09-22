@@ -1,5 +1,5 @@
 /**
- * durak_game.js — Игровой стол, визуализация козыря картой, действия и WebSocket.
+ * durak_game.js — Игровой стол, веер карт, перетаскивание (Drag-and-Drop) и синхронизация.
  * Экспортирует window.DURAK_GAME = { renderGame, isGameOver, connectWS, disconnectWS }
  */
 (function () {
@@ -7,6 +7,18 @@
 
   let _ws = null;
   let _pingInterval = null;
+  let _pollInterval = null;
+  let _reconnectTimer = null;
+  let _targetedSlotIndex = null;
+  let _outsideClickListener = null;
+
+  function clearOutsideClickListener() {
+    if (_outsideClickListener) {
+      document.removeEventListener('click', _outsideClickListener);
+      document.removeEventListener('touchend', _outsideClickListener);
+      _outsideClickListener = null;
+    }
+  }
 
   function isGameOver(s) {
     return Boolean(s && s.phase === 'done');
@@ -17,79 +29,66 @@
     const s = ctx.getState();
     const uid = ctx.getUserId();
     const myHand = (s.hands && s.hands[String(uid)]) || [];
-    const isMyHandArray = Array.isArray(myHand);
 
     const phase = s.phase;
     const isAttacker = s.current_attacker === uid;
     const isDefender = s.current_defender === uid;
-    const myTurn = isAttacker || isDefender;
+    const canAct = (isAttacker && phase === 'attack') || (isDefender && phase === 'defend');
     const selectedCard = ctx.getSelectedCard();
 
-    // ── Рука игрока
-    let handHTML = '';
-    if (isMyHandArray) {
-      handHTML = myHand.map(c => {
-        const isSelected = selectedCard && window.DURAK_CARDS.cardKey(selectedCard) === window.DURAK_CARDS.cardKey(c);
-        const selectable = myTurn && !isGameOver(s);
-        return window.DURAK_CARDS.cardHTML(c, false, selectable, isSelected);
-      }).join('');
-    }
+    // ── Веер карт в руке (вид от первого лица, как в руке игрока)
+    const handHTML = window.DURAK_CARDS.renderFanHand(myHand, selectedCard, canAct, isGameOver(s));
 
-    // ── Стол (карты атаки и отбоя)
+    // ── Стол (карты атаки и отбоя: отбой поверх со смещением, нижняя карта видна)
     let tableHTML = '';
     if (s.table && s.table.length > 0) {
-      for (const slot of s.table) {
+      s.table.forEach((slot, idx) => {
+        const isOpen = slot.defend === null;
+        const isTargeted = isDefender && phase === 'defend' && _targetedSlotIndex === idx;
+        const canClickSlot = isDefender && phase === 'defend' && isOpen;
+        const slotClass = 'dk-slot' + (isTargeted ? ' dk-slot--targeted' : '') + (canClickSlot ? ' dk-slot--clickable' : '');
         const atkCard = window.DURAK_CARDS.cardHTML(slot.attack, false);
-        const defCard = slot.defend
-          ? window.DURAK_CARDS.cardHTML(slot.defend, false)
-          : `<div class="dk-card dk-card--empty">?</div>`;
-        tableHTML += `<div class="dk-slot">${atkCard}<div class="dk-slot__arr">▼</div>${defCard}</div>`;
-      }
+        let defCardHTML = '';
+        if (slot.defend) {
+          defCardHTML = `<div class="dk-slot__def">${window.DURAK_CARDS.cardHTML(slot.defend, false)}</div>`;
+        }
+        tableHTML += `<div class="${slotClass}" data-slot-idx="${idx}" title="${canClickSlot ? 'Сбросьте сюда карту для отбоя' : ''}"><div class="dk-slot__atk">${atkCard}</div>${defCardHTML}</div>`;
+      });
     }
 
-    // ── Статус & Банк
+    // ── Статус & Подсказки действий
     let statusText = '';
     if (isGameOver(s)) {
       ctx.refreshUserCoins();
       const pot = s.total_pot || (s.stake ? s.stake * 2 : 0);
-      if (s.winner === uid) {
-        statusText = s.stake > 0
-          ? `🏆 <b>Вы победили!</b> Выигрыш: <b>+${pot} 🪙</b>`
-          : '🏆 <b>Вы победили!</b>';
-      } else if (s.loser === uid) {
-        statusText = s.stake > 0
-          ? `🃏 <b>Вы — дурак!</b> Потеряно: <b>-${s.stake} 🪙</b>`
-          : '🃏 <b>Вы — дурак!</b>';
-      } else {
-        statusText = s.loser ? `🃏 Дурак: игрок ${s.loser}` : '🤝 Ничья!';
-      }
+      if (s.winner === uid) statusText = s.stake > 0 ? `🏆 <b>Вы победили!</b> Выигрыш: <b>+${pot} 🪙</b>` : '🏆 <b>Вы победили!</b>';
+      else if (s.loser === uid) statusText = s.stake > 0 ? `🃏 <b>Вы — дурак!</b> Потеряно: <b>-${s.stake} 🪙</b>` : '🃏 <b>Вы — дурак!</b>';
+      else if (!s.winner && !s.loser) statusText = '🤝 <b>Ничья!</b> Все карты сброшены одновременно.';
+      else statusText = s.loser ? `🃏 Дурак: игрок ${s.loser}` : '🤝 Партия окончена';
     } else if (isAttacker) {
-      statusText = phase === 'attack' ? '⚔️ Ваш ход — атакуйте' : '✅ Атака принята — можно подкинуть или передать ход';
+      statusText = (phase === 'attack')
+        ? ((s.table && s.table.length > 0) ? '➕ Перетащите карту на стол или нажмите «Бито»' : '⚔️ Перетащите карту на стол для атаки')
+        : '⏳ Ожидание защиты соперника…';
     } else if (isDefender) {
-      statusText = '🛡 Выберите карту для отбоя';
+      statusText = (phase === 'defend') ? '🛡 Перетащите карту на атакующую, чтобы отбить' : '⏳ Ожидание решения атакующего…';
     } else {
-      const whose = isAttacker ? 'вашего' : `игрока ${s.current_attacker}`;
-      statusText = `⏳ Ожидание хода ${whose}`;
+      statusText = `⏳ Ожидание хода игрока ${s.current_attacker}`;
     }
 
-    // ── Кнопки действий
-    let actionsHTML = '';
+    // ── Кнопка действия в боковой панели («Бито» / «Взять» / «Меню»)
+    let actionBtnHTML = '';
     if (!isGameOver(s)) {
-      if (isAttacker && phase === 'attack') {
-        actionsHTML += `<button class="dk-btn dk-btn--attack" id="dk-btn-attack" ${!selectedCard ? 'disabled' : ''}>⚔️ Атаковать</button>`;
-      }
       if (isAttacker && phase === 'attack' && s.table && s.table.length > 0) {
-        actionsHTML += `<button class="dk-btn dk-btn--pass" id="dk-btn-pass">🔄 Передать ход</button>`;
+        actionBtnHTML = `<button class="dk-btn dk-btn--pass" id="dk-btn-pass">✅ Бито</button>`;
       }
       if (isDefender && phase === 'defend') {
-        actionsHTML += `<button class="dk-btn dk-btn--defend" id="dk-btn-defend" ${!selectedCard ? 'disabled' : ''}>🛡 Отбить</button>`;
-        actionsHTML += `<button class="dk-btn dk-btn--take" id="dk-btn-take">📥 Взять</button>`;
+        actionBtnHTML = `<button class="dk-btn dk-btn--take" id="dk-btn-take">📥 Взять</button>`;
       }
     } else {
-      actionsHTML = `<button class="dk-btn dk-btn--new" id="dk-btn-new">🎮 В меню / Новая игра</button>`;
+      actionBtnHTML = `<button class="dk-btn dk-btn--new" id="dk-btn-new">🎮 Меню</button>`;
     }
 
-    // ── Другие игроки (соперники)
+    // ── Соперники (вверху экрана)
     let opponentsHTML = '';
     if (s.player_ids) {
       for (const pid of s.player_ids) {
@@ -104,83 +103,123 @@
       }
     }
 
-    // ── Визуальный блок козыря картой и колоды
-    let deckClusterHTML = '';
+    // ── Колода и козырь (в правом столбце)
+    let deckColHTML = '';
     if (s.trump_card || s.deck_count > 0) {
       const trumpCardView = s.trump_card
-        ? `<div class="dk-trump-slot" title="Козырная масть: ${s.trump_card.suit}">
-             ${window.DURAK_CARDS.cardHTML(s.trump_card, false)}
-             <div class="dk-trump-tag">👑 КОЗЫРЬ</div>
-           </div>`
+        ? `<div class="dk-trump-under" title="Козырь: ${s.trump_card.suit}">${window.DURAK_CARDS.cardHTML(s.trump_card, false)}</div>`
         : '';
-
-      const deckView = s.deck_count > 0
-        ? `<div class="dk-deck-slot" title="Осталось карт: ${s.deck_count}">
-             <div class="dk-card dk-card--back">
-               <img src="/static/img/cards/back.svg" class="dk-card__img" alt="Колода" />
-               <span class="dk-deck-badge">${s.deck_count}</span>
-             </div>
-             <div class="dk-deck-label">Колода</div>
-           </div>`
-        : `<div class="dk-deck-slot" title="Колода пуста">
-             <div class="dk-card dk-card--empty">∅</div>
-             <div class="dk-deck-label">Пусто</div>
-           </div>`;
-
-      deckClusterHTML = `
-        <div class="dk-deck-cluster">
-          ${trumpCardView}
-          ${deckView}
-        </div>`;
+      const deckBadge = s.deck_count > 0 ? `<span class="dk-deck-badge">${s.deck_count}</span>` : '';
+      const deckTop = s.deck_count > 0
+        ? `<div class="dk-deck-top" title="В колоде: ${s.deck_count}"><div class="dk-card dk-card--back"><img src="/static/img/cards/back.svg" class="dk-card__img" alt="Колода" />${deckBadge}</div></div>`
+        : `<div class="dk-deck-top" title="Колода пуста"><div class="dk-card dk-card--empty">∅</div></div>`;
+      deckColHTML = `<div class="dk-deck-col">${trumpCardView}${deckTop}</div>`;
     }
 
-    const potBadge = s.stake > 0
-      ? `<span class="dk-pot">💰 Банк: <b>${s.total_pot || s.stake * 2} 🪙</b></span>`
-      : '';
+    const potBadge = s.stake > 0 ? `<span class="dk-pot">💰 Банк: <b>${s.total_pot || s.stake * 2} 🪙</b></span>` : '';
 
     container.innerHTML = `
       <div class="dk-game">
-        <div class="dk-header">
-          <div class="dk-header-info">
-            ${potBadge}
-          </div>
-          <button class="dk-btn dk-btn--exit" id="dk-btn-exit">✕ Выйти</button>
-        </div>
+        <div class="dk-header"><div class="dk-header-info">${potBadge}</div><button class="dk-btn dk-btn--exit" id="dk-btn-exit">✕ Выйти</button></div>
         <div class="dk-opponents">${opponentsHTML}</div>
-        ${deckClusterHTML}
         <div class="dk-status">${statusText}</div>
-        <div class="dk-table">${tableHTML || '<span class="dk-table__empty">Стол пуст</span>'}</div>
-        <div class="dk-hand">${handHTML}</div>
-        <div class="dk-actions">${actionsHTML}</div>
+        <div class="dk-arena">
+          <div class="dk-table" id="dk-table">${tableHTML || '<span class="dk-table__empty">Стол пуст<br>(перетащите карту сюда)</span>'}</div>
+          <div class="dk-sidebar">
+            ${deckColHTML}
+            <div class="dk-action-col">${actionBtnHTML}</div>
+          </div>
+        </div>
+        <div class="dk-hand-section">
+          <button class="dk-nav-arrow dk-nav-arrow--left" id="dk-arrow-left" title="Предыдущая карта" ${myHand.length === 0 ? 'disabled' : ''}>◀</button>
+          <div class="dk-hand-wrap" id="dk-hand-wrap">${handHTML}</div>
+          <button class="dk-nav-arrow dk-nav-arrow--right" id="dk-arrow-right" title="Следующая карта" ${myHand.length === 0 ? 'disabled' : ''}>▶</button>
+        </div>
       </div>`;
 
-    // ── Обработчики кликов на карты в руке
-    container.querySelectorAll('.dk-card--selectable').forEach(el => {
-      el.addEventListener('click', () => {
-        const suit = el.dataset.suit;
-        const rank = el.dataset.rank;
-        const cur = ctx.getSelectedCard();
-        if (cur && cur.suit === suit && cur.rank === rank) {
-          ctx.setSelectedCard(null);
-        } else {
-          ctx.setSelectedCard({ suit, rank });
-        }
-        renderGame(container, ctx);
+    // ── Листание карт стрелками ◀ и ▶
+    function cycleCard(step) {
+      if (!myHand || myHand.length === 0) return;
+      const cur = ctx.getSelectedCard();
+      let idx = -1;
+      if (cur) {
+        idx = myHand.findIndex(c => c.suit === cur.suit && c.rank === cur.rank);
+      }
+      let nextIdx;
+      if (idx === -1) {
+        nextIdx = step > 0 ? 0 : (myHand.length - 1);
+      } else {
+        nextIdx = (idx + step + myHand.length) % myHand.length;
+      }
+      ctx.setSelectedCard(myHand[nextIdx]);
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.selectionChanged();
+      }
+      renderGame(container, ctx);
+    }
+
+    const arrowLeft = container.querySelector('#dk-arrow-left');
+    if (arrowLeft && myHand.length > 0) {
+      arrowLeft.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleCard(-1);
       });
-    });
+    }
+    const arrowRight = container.querySelector('#dk-arrow-right');
+    if (arrowRight && myHand.length > 0) {
+      arrowRight.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleCard(1);
+      });
+    }
 
-    // ── Обработчики кнопок
-    const btnAttack = container.querySelector('#dk-btn-attack');
-    if (btnAttack) btnAttack.addEventListener('click', () => doAttack(ctx, container));
+    // ── Подключение Drag-and-Drop контроллера
+    if (window.DURAK_DRAG) {
+      window.DURAK_DRAG.attach({
+        container: container,
+        canAct: canAct && !isGameOver(s),
+        isAttacker: isAttacker && phase === 'attack',
+        isDefender: isDefender && phase === 'defend',
+        trumpSuit: s.trump_suit,
+        tableSlots: s.table || [],
+        onAttack: (card) => executeAttack(ctx, container, card),
+        onDefend: (card, targetSlot) => executeDefend(ctx, container, card, targetSlot),
+        onSelectCard: (card) => {
+          const cur = ctx.getSelectedCard();
+          ctx.setSelectedCard((cur && cur.suit === card.suit && cur.rank === card.rank) ? null : card);
+          renderGame(container, ctx);
+        }
+      });
+    }
 
-    const btnDefend = container.querySelector('#dk-btn-defend');
-    if (btnDefend) btnDefend.addEventListener('click', () => doDefend(ctx, container));
+    // ── Снятие выбора при клике в произвольную точку экрана (вне карт и стрелок)
+    clearOutsideClickListener();
+    if (selectedCard) {
+      setTimeout(() => {
+        if (!ctx.getSelectedCard()) return;
+        _outsideClickListener = (e) => {
+          if (!ctx.getSelectedCard()) {
+            clearOutsideClickListener();
+            return;
+          }
+          if (e.target.closest('.dk-fan-card') || e.target.closest('.dk-nav-arrow') || e.target.closest('.dk-btn')) {
+            return;
+          }
+          clearOutsideClickListener();
+          ctx.setSelectedCard(null);
+          renderGame(container, ctx);
+        };
+        document.addEventListener('click', _outsideClickListener);
+        document.addEventListener('touchend', _outsideClickListener);
+      }, 50);
+    }
 
+    // ── Кнопки «Бито», «Взять», «В меню», «Выход»
     const btnTake = container.querySelector('#dk-btn-take');
-    if (btnTake) btnTake.addEventListener('click', () => doTake(ctx, container));
+    if (btnTake) btnTake.addEventListener('click', () => sendMove(ctx, container, { action: 'take' }));
 
     const btnPass = container.querySelector('#dk-btn-pass');
-    if (btnPass) btnPass.addEventListener('click', () => doPass(ctx, container));
+    if (btnPass) btnPass.addEventListener('click', () => sendMove(ctx, container, { action: 'pass' }));
 
     const btnNew = container.querySelector('#dk-btn-new');
     if (btnNew) btnNew.addEventListener('click', () => ctx.exitToMenu());
@@ -188,46 +227,47 @@
     const btnExit = container.querySelector('#dk-btn-exit');
     if (btnExit) {
       btnExit.addEventListener('click', async () => {
-        const s = ctx.getState();
-        if (!isGameOver(s) && s && s.stake > 0) {
-          const isOnline = s.player_ids && (!s.bot_indices || !s.bot_indices.includes(-1)) && s.player_ids.length > 1;
+        const curSt = ctx.getState();
+        if (!isGameOver(curSt) && curSt && curSt.stake > 0) {
+          const isOnline = curSt.player_ids && (!curSt.bot_indices || !curSt.bot_indices.includes(-1)) && curSt.player_ids.length > 1;
           const msg = isOnline
             ? 'Вы уверены, что хотите выйти? Вам будет засчитано поражение, а ставка перейдет сопернику.'
             : 'Вы уверены, что хотите выйти? Ваша ставка будет возвращена.';
-          if (typeof confirm !== 'undefined' && !confirm(msg)) {
-            return;
-          }
+          if (typeof confirm !== 'undefined' && !confirm(msg)) return;
         }
         await ctx.exitToMenu();
       });
     }
   }
 
-  async function doAttack(ctx, container) {
-    const card = ctx.getSelectedCard();
-    if (!card) return;
+  async function executeAttack(ctx, container, card) {
+    const s = ctx.getState();
+    if (s && s.table && s.table.length > 0) {
+      const allowedRanks = new Set();
+      for (const slot of s.table) {
+        allowedRanks.add(String(slot.attack.rank));
+        if (slot.defend) allowedRanks.add(String(slot.defend.rank));
+      }
+      if (!allowedRanks.has(String(card.rank))) {
+        showError(container, ctx, 'Можно подкидывать только карты тех же рангов');
+        return;
+      }
+    }
     await sendMove(ctx, container, { action: 'attack', card });
   }
 
-  async function doDefend(ctx, container) {
-    const card = ctx.getSelectedCard();
-    if (!card) return;
+  async function executeDefend(ctx, container, card, targetSlot) {
     const s = ctx.getState();
-    const openSlot = s && s.table && s.table.find(slot => slot.defend === null);
-    if (!openSlot) return;
-    await sendMove(ctx, container, {
-      action: 'defend',
-      attack_card: openSlot.attack,
-      card: card
-    });
-  }
-
-  async function doTake(ctx, container) {
-    await sendMove(ctx, container, { action: 'take' });
-  }
-
-  async function doPass(ctx, container) {
-    await sendMove(ctx, container, { action: 'pass' });
+    if (!targetSlot || !targetSlot.attack) {
+      showError(container, ctx, 'Выберите атакующую карту для отбоя');
+      return;
+    }
+    if (!window.DURAK_CARDS.cardBeats(card, targetSlot.attack, s.trump_suit)) {
+      showError(container, ctx, 'Этой картой нельзя отбить данную карту');
+      return;
+    }
+    _targetedSlotIndex = null;
+    await sendMove(ctx, container, { action: 'defend', attack_card: targetSlot.attack, card });
   }
 
   async function sendMove(ctx, container, payload) {
@@ -245,68 +285,74 @@
   function showError(container, ctx, msg) {
     const el = container && container.querySelector('.dk-status');
     if (el) {
-      el.innerHTML = `⚠️ <span style="color:#e94560;">${msg}</span>`;
+      el.innerHTML = `⚠️ <span style="color:#e11d48;font-weight:700;">${msg}</span>`;
       setTimeout(() => renderGame(container, ctx), 2200);
     }
   }
 
-  // ── WebSocket
   function connectWS(roomId, uid, onStateUpdate, onWaitingUpdate, onCanceled, onOpponentLeft) {
     disconnectWS();
     const protocol = (typeof window !== "undefined" && window.location && window.location.protocol === 'https:') ? 'wss:' : 'ws:';
     const host = (typeof window !== "undefined" && window.location && window.location.host) ? window.location.host : 'localhost';
     const url = `${protocol}//${host}/api/ws/durak/${roomId}/${uid}`;
 
-    try {
-      _ws = new WebSocket(url);
-    } catch (e) {
-      console.warn('WS connect failed, fallback', e);
-      return;
-    }
-
-    _ws.onmessage = (event) => {
+    function createWebSocket() {
       try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'state' && onStateUpdate) {
-          onStateUpdate(data.state);
-        } else if (data.type === 'waiting' && onWaitingUpdate) {
-          onWaitingUpdate(data.players, data.stake);
-        } else if (data.type === 'canceled') {
-          if (typeof alert !== 'undefined' && data.message) alert(data.message);
-          if (onCanceled) onCanceled();
-        } else if (data.type === 'opponent_left') {
-          if (typeof alert !== 'undefined') alert('Соперник покинул игру. Победа присуждена вам!');
-          if (onOpponentLeft) onOpponentLeft(data);
-          else if (onStateUpdate && data.state) onStateUpdate(data.state);
-        }
-      } catch (e) {}
-    };
-
-    _ws.onclose = () => {
-      // Reconnect if room active
-    };
-
-    _pingInterval = setInterval(() => {
-      if (_ws && _ws.readyState === WebSocket.OPEN) {
-        _ws.send('ping');
-      } else {
-        clearInterval(_pingInterval);
+        _ws = new WebSocket(url);
+      } catch (e) {
+        console.warn('WS connect failed, fallback', e);
+        return;
       }
-    }, 25000);
-    if (_pingInterval && typeof _pingInterval.unref === 'function') {
-      _pingInterval.unref();
+
+      _ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'state' && onStateUpdate) onStateUpdate(data.state);
+          else if (data.type === 'waiting' && onWaitingUpdate) onWaitingUpdate(data.players, data.stake);
+          else if (data.type === 'canceled') {
+            if (typeof alert !== 'undefined' && data.message) alert(data.message);
+            if (onCanceled) onCanceled();
+          } else if (data.type === 'opponent_left') {
+            if (typeof alert !== 'undefined') alert('Соперник покинул игру. Победа присуждена вам!');
+            if (onOpponentLeft) onOpponentLeft(data);
+            else if (onStateUpdate && data.state) onStateUpdate(data.state);
+          }
+        } catch (e) {}
+      };
+
+      _ws.onclose = () => {
+        if (_reconnectTimer) clearTimeout(_reconnectTimer);
+        _reconnectTimer = setTimeout(() => {
+          if (!_ws || _ws.readyState === WebSocket.CLOSED) createWebSocket();
+        }, 2000);
+      };
     }
+
+    createWebSocket();
+    _pingInterval = setInterval(() => {
+      if (_ws && _ws.readyState === WebSocket.OPEN) _ws.send('ping');
+    }, 25000);
+
+    _pollInterval = setInterval(async () => {
+      if (!_ws || _ws.readyState !== WebSocket.OPEN) {
+        try {
+          const resp = await fetch(`/api/durak/state/${roomId}?user_id=${uid}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.state && onStateUpdate) onStateUpdate(data.state);
+          }
+        } catch (e) {}
+      }
+    }, 2500);
   }
 
   function disconnectWS() {
-    if (_pingInterval) {
-      clearInterval(_pingInterval);
-      _pingInterval = null;
-    }
-    if (_ws) {
-      try { _ws.close(); } catch (e) {}
-      _ws = null;
-    }
+    clearOutsideClickListener();
+    if (window.DURAK_DRAG) window.DURAK_DRAG.cleanup();
+    if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
+    if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+    if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
+    if (_ws) { try { _ws.close(); } catch (e) {} _ws = null; }
   }
 
   window.DURAK_GAME = { renderGame, isGameOver, connectWS, disconnectWS };

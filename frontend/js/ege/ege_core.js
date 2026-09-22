@@ -78,6 +78,11 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
         ? (window.EGE_PARONYMS ? window.EGE_PARONYMS.renderParonymsQuizTab() : "")
         : (window.EGE_PARONYMS ? window.EGE_PARONYMS.renderParonymsDictTab() : "");
     }
+    if (currentTask === 9) {
+      return currentSubTab === "quiz"
+        ? (window.EGE_VOCAB ? window.EGE_VOCAB.renderQuizTab() : "")
+        : (window.EGE_VOCAB ? window.EGE_VOCAB.renderDictTab() : "");
+    }
     return currentSubTab === "quiz"
       ? (window.EGE_STRESS ? window.EGE_STRESS.renderQuizTab() : "")
       : (window.EGE_STRESS ? window.EGE_STRESS.renderDictTab() : "");
@@ -170,7 +175,7 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
         window.EGE_MATH18.resetSolution();
       }
     } else if (subjectId === "russian") {
-      if (currentTask !== 4 && currentTask !== 5) currentTask = 4;
+      if (currentTask !== 4 && currentTask !== 5 && currentTask !== 9) currentTask = 4;
     }
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.selectionChanged();

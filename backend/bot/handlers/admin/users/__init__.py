@@ -15,6 +15,8 @@ from backend.bot.handlers.admin.users.roles import (
     router as roles_router,
     cb_toggle_user_role,
     cb_toggle_user_tester,
+    cb_toggle_user_b,
+    cb_toggle_user_plus,
     cb_toggle_user_classmate,
 )
 from backend.bot.handlers.admin.users.delete import (
@@ -39,6 +41,8 @@ __all__ = [
     "msg_admin_rename_save",
     "cb_toggle_user_role",
     "cb_toggle_user_tester",
+    "cb_toggle_user_b",
+    "cb_toggle_user_plus",
     "cb_toggle_user_classmate",
     "cb_admin_delete_user_list",
     "cb_admin_delete_user_ask",

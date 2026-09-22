@@ -34,7 +34,7 @@ from backend.ege.ranking import (
     LOSS_RATING,
 )
 from backend.bot.handlers.ege_arena import _stats_caption
-from fastapi.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 from backend.main import app
 
 
@@ -222,31 +222,31 @@ async def run_all_ege_tests():
         print("[OK] ТЗ 72: Public user has role='public' and has_full_access=False.")
 
     # ТЗ #73: Direct API access restrictions
-    client = TestClient(app)
-    res_direct_hw = client.get(f"/api/homework", params={"user_id": test_pub_id})
-    assert res_direct_hw.status_code == 403, f"Expected 403 for public user on /api/homework, got {res_direct_hw.status_code}"
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        res_direct_hw = await client.get("/api/homework", params={"user_id": test_pub_id})
+        assert res_direct_hw.status_code == 403, f"Expected 403 for public user on /api/homework, got {res_direct_hw.status_code}"
 
-    res_direct_game = client.post(
-        "/api/games/invite",
-        json={"opponent_tg_id": p2, "host_name": "PublicBoy", "game_type": "chess"},
-        params={"user_id": test_pub_id}
-    )
-    assert res_direct_game.status_code == 403, f"Expected 403 on chess invite, got {res_direct_game.status_code}"
-    print("[OK] ТЗ 73: Direct API access to non-EGE endpoints correctly yields 403 Forbidden.")
+        res_direct_game = await client.post(
+            "/api/games/invite",
+            json={"opponent_tg_id": p2, "host_name": "PublicBoy", "game_type": "chess"},
+            params={"user_id": test_pub_id}
+        )
+        assert res_direct_game.status_code == 403, f"Expected 403 on chess invite, got {res_direct_game.status_code}"
+        print("[OK] ТЗ 73: Direct API access to non-EGE endpoints correctly yields 403 Forbidden.")
 
-    # ТЗ #74: Grant Classmate privilege
-    async with async_session_factory() as session:
-        u_granted = await set_user_classmate(session, test_pub_id, True)
-        assert u_granted.is_classmate is True
-        assert has_full_access(u_granted) is True
+        # ТЗ #74: Grant Classmate privilege
+        async with async_session_factory() as session:
+            u_granted = await set_user_classmate(session, test_pub_id, True)
+            assert u_granted.is_classmate is True
+            assert has_full_access(u_granted) is True
 
-    res_granted_game = client.post(
-        "/api/games/invite",
-        json={"opponent_tg_id": p2, "host_name": "PublicBoy", "game_type": "tictactoe"},
-        params={"user_id": test_pub_id}
-    )
-    assert res_granted_game.status_code == 200, f"Expected 200 after classmate privilege, got {res_granted_game.status_code}: {res_granted_game.text}"
-    print("[OK] ТЗ 74: Classmate privilege grants full access to legacy games.")
+        res_granted_game = await client.post(
+            "/api/games/invite",
+            json={"opponent_tg_id": p2, "host_name": "PublicBoy", "game_type": "tictactoe"},
+            params={"user_id": test_pub_id}
+        )
+        assert res_granted_game.status_code == 200, f"Expected 200 after classmate privilege, got {res_granted_game.status_code}: {res_granted_game.text}"
+        print("[OK] ТЗ 74: Classmate privilege grants full access to legacy games.")
 
     # ТЗ #75: Revoke Classmate privilege
     async with async_session_factory() as session:

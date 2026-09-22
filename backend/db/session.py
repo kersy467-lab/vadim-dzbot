@@ -103,6 +103,12 @@ async def init_db():
                     await conn.execute(text("ALTER TABLE users ADD COLUMN coins BIGINT DEFAULT 100;"))
                 if "last_work_date" not in cols_u:
                     await conn.execute(text("ALTER TABLE users ADD COLUMN last_work_date DATE;"))
+                if "flag_b" not in cols_u:
+                    await conn.execute(text("ALTER TABLE users ADD COLUMN flag_b BOOLEAN DEFAULT 1;"))
+                    await conn.execute(text("UPDATE users SET flag_b = 1 WHERE flag_b IS NULL;"))
+                if "flag_plus" not in cols_u:
+                    await conn.execute(text("ALTER TABLE users ADD COLUMN flag_plus BOOLEAN DEFAULT 0;"))
+                    await conn.execute(text("UPDATE users SET flag_plus = 0 WHERE flag_plus IS NULL;"))
 
                 res_dg = await conn.execute(text("PRAGMA table_info(duty_groups);"))
                 cols_dg = [row[1] for row in res_dg.fetchall()]
@@ -163,6 +169,10 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS coins BIGINT DEFAULT 100;"))
                 await conn.execute(text("ALTER TABLE users ALTER COLUMN coins TYPE BIGINT;"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_work_date DATE;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS flag_b BOOLEAN DEFAULT TRUE;"))
+                await conn.execute(text("UPDATE users SET flag_b = TRUE WHERE flag_b IS NULL;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS flag_plus BOOLEAN DEFAULT FALSE;"))
+                await conn.execute(text("UPDATE users SET flag_plus = FALSE WHERE flag_plus IS NULL;"))
                 await conn.execute(text("ALTER TABLE duty_groups ADD COLUMN IF NOT EXISTS member_ids JSONB;"))
                 await conn.execute(text("ALTER TABLE daily_facts ADD COLUMN IF NOT EXISTS hour INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE daily_facts ADD COLUMN IF NOT EXISTS minute INTEGER DEFAULT 0;"))

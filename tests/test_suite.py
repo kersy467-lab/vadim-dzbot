@@ -153,6 +153,16 @@ async def test_database_and_crud():
         student = await update_user_tester_status(session, 111222, False)
         assert student.is_tester is False
 
+        # Test flag_b and flag_plus defaults and toggling
+        assert getattr(student, "flag_b", None) is True
+        assert getattr(student, "flag_plus", None) is False
+        student.flag_b = False
+        student.flag_plus = True
+        await session.commit()
+        await session.refresh(student)
+        assert student.flag_b is False
+        assert student.flag_plus is True
+
         group = await create_or_update_group_chat(session, chat_id=-100999, title="11-Б Класс", added_by=111222, role="pending")
         assert group.role == "pending"
         group = await update_group_chat_role(session, -100999, "approved")
@@ -289,7 +299,7 @@ async def test_database_and_crud():
         from sqlalchemy import delete, select
         from backend.db.models import Schedule
         past_monday = date(2026, 9, 7)
-        future_monday = date(2026, 9, 21)
+        future_monday = date(2026, 9, 28)
         await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
         await session.commit()
         await save_bulk_permanent_schedule(session, 1, [(1, "Алгебра"), (2, "Физика")])
@@ -362,9 +372,9 @@ async def test_database_and_crud():
         chem_id = subj_map["Химия"]
 
         # 1. Upcoming dates for Chemistry (Monday)
-        chem_dates = await find_upcoming_dates_for_subject(session, chem_id, from_date=date(2026, 9, 15), limit=2)
+        chem_dates = await find_upcoming_dates_for_subject(session, chem_id, from_date=date(2026, 9, 22), limit=2)
         assert len(chem_dates) >= 1
-        assert chem_dates[0] == date(2026, 9, 21), f"Expected next Monday 21.09, got {chem_dates[0]}"
+        assert chem_dates[0] == date(2026, 9, 28), f"Expected next Monday 28.09, got {chem_dates[0]}"
 
         # 2. Create homework for Chemistry due in future (next week)
         target_due = today + timedelta(days=7)

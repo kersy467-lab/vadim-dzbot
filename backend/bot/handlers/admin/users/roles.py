@@ -95,3 +95,60 @@ async def cb_toggle_user_tester(callback: CallbackQuery, db_session: AsyncSessio
             await callback.answer("Пользователь не найден", show_alert=True)
         except Exception:
             pass
+
+
+@router.callback_query(F.data.startswith("adm_tog_b_"))
+async def cb_toggle_user_b(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
+    if not is_admin(current_user, callback.from_user.id):
+        return
+
+    parts = callback.data.replace("adm_tog_b_", "").split("_")
+    target_id = int(parts[0])
+    page = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+
+    user = await get_user_by_tg_id(db_session, target_id)
+    if user:
+        new_val = not bool(getattr(user, "flag_b", True))
+        user.flag_b = new_val
+        await db_session.commit()
+        state_str = "включен" if new_val else "выключен"
+        try:
+            await callback.answer(f"Переключатель «Б» {state_str}!", show_alert=False)
+        except Exception:
+            pass
+        from backend.bot.handlers.admin.users.list import cb_view_students
+        await cb_view_students(callback, db_session, page=page)
+    else:
+        try:
+            await callback.answer("Пользователь не найден", show_alert=True)
+        except Exception:
+            pass
+
+
+@router.callback_query(F.data.startswith("adm_tog_plus_"))
+async def cb_toggle_user_plus(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
+    if not is_admin(current_user, callback.from_user.id):
+        return
+
+    parts = callback.data.replace("adm_tog_plus_", "").split("_")
+    target_id = int(parts[0])
+    page = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+
+    user = await get_user_by_tg_id(db_session, target_id)
+    if user:
+        new_val = not bool(getattr(user, "flag_plus", False))
+        user.flag_plus = new_val
+        await db_session.commit()
+        state_str = "включен" if new_val else "выключен"
+        try:
+            await callback.answer(f"Переключатель «+» {state_str}!", show_alert=False)
+        except Exception:
+            pass
+        from backend.bot.handlers.admin.users.list import cb_view_students
+        await cb_view_students(callback, db_session, page=page)
+    else:
+        try:
+            await callback.answer("Пользователь не найден", show_alert=True)
+        except Exception:
+            pass
+

@@ -80,7 +80,7 @@ async def cb_view_pending(callback: CallbackQuery, db_session: AsyncSession):
         pass
 
 
-STUDENTS_PER_PAGE = 8
+STUDENTS_PER_PAGE = 6
 
 
 @router.callback_query(F.data == "noop_page")
@@ -115,26 +115,45 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
 
     start_idx = page * STUDENTS_PER_PAGE + 1
     for i, s in enumerate(page_students, start=start_idx):
-        role_label = "👑 [Админ]" if s.role == "admin" else "👤 [Ученик]"
-        tester_badge = " 🧪 [Тестер]" if getattr(s, "is_tester", False) else ""
         safe_disp = escape_md(s.display_name)
         uname = f" (@{escape_md(s.username)})" if s.username else ""
-        lines.append(f"{i}. {safe_disp}{uname} — {role_label}{tester_badge}")
 
-        tester_icon = "🧪 ✅" if getattr(s, "is_tester", False) else "🧪 ⬜"
-        toggle_role_text = "👑 Снять админа" if s.role == "admin" else "👑 Сделать админом"
-        log_icon = "🔴 Лог" if is_logged(s.tg_id) else "🔍 Лог"
+        badges = []
+        if s.role == "admin":
+            badges.append("👑")
+        if getattr(s, "is_tester", False):
+            badges.append("🧪")
+        if is_logged(s.tg_id):
+            badges.append("🔍")
+        if getattr(s, "flag_b", True):
+            badges.append("Б")
+        if getattr(s, "flag_plus", False):
+            badges.append("➕")
 
-        # 1-й ряд: ник и смена роли (сохраняем текущую страницу пагинации)
+        badge_str = f" [{' '.join(badges)}]" if badges else ""
+        role_label = "Админ" if s.role == "admin" else "Ученик"
+        lines.append(f"{i}. {safe_disp}{uname} — {role_label}{badge_str}")
+
+        # 1-й ряд: ник с карандашом
         buttons.append([
-            InlineKeyboardButton(text=f"✏️ {s.display_name[:12]}", callback_data=f"adm_ren_ask_{s.tg_id}"),
-            InlineKeyboardButton(text=toggle_role_text, callback_data=f"adm_toggle_role_{s.tg_id}_{page}"),
+            InlineKeyboardButton(text=f"✏️ {s.display_name}", callback_data=f"adm_ren_ask_{s.tg_id}")
         ])
-        # 2-й ряд: тестер, удаление, просмотр логов
+
+        # 2-й ряд: 6 кнопок (корона, бутылочка, корзина, лупа, Б, плюс)
+        btn_crown = "🟩👑" if s.role == "admin" else "⬜👑"
+        btn_tester = "🟩🧪" if getattr(s, "is_tester", False) else "⬜🧪"
+        btn_delete = "🗑️"
+        btn_log = "🟩🔍" if is_logged(s.tg_id) else "⬜🔍"
+        btn_b = "🟩Б" if getattr(s, "flag_b", True) else "⬜Б"
+        btn_plus = "🟩➕" if getattr(s, "flag_plus", False) else "⬜➕"
+
         buttons.append([
-            InlineKeyboardButton(text=tester_icon, callback_data=f"adm_tog_test_{s.tg_id}_{page}"),
-            InlineKeyboardButton(text="🗑 Удалить", callback_data=f"adm_del_user_ask_{s.tg_id}"),
-            InlineKeyboardButton(text=log_icon, callback_data=f"adm_log_open_{s.tg_id}")
+            InlineKeyboardButton(text=btn_crown, callback_data=f"adm_toggle_role_{s.tg_id}_{page}"),
+            InlineKeyboardButton(text=btn_tester, callback_data=f"adm_tog_test_{s.tg_id}_{page}"),
+            InlineKeyboardButton(text=btn_delete, callback_data=f"adm_del_user_ask_{s.tg_id}"),
+            InlineKeyboardButton(text=btn_log, callback_data=f"adm_log_open_{s.tg_id}"),
+            InlineKeyboardButton(text=btn_b, callback_data=f"adm_tog_b_{s.tg_id}_{page}"),
+            InlineKeyboardButton(text=btn_plus, callback_data=f"adm_tog_plus_{s.tg_id}_{page}"),
         ])
 
     # Панель пагинации страниц

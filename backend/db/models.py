@@ -22,6 +22,8 @@ class User(Base):
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     canteen_reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     currency_ecosystem_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
+    flag_b: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="1")
+    flag_plus: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     coins: Mapped[int] = mapped_column(BigInteger, default=100, nullable=False, server_default="100")
     last_work_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

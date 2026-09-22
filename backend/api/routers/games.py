@@ -352,6 +352,8 @@ async def make_game_move(
         move_val = payload.get("cell")
     if move_val is None and "action" in payload:
         move_val = payload.get("action")
+    if move_val is None and "answer" in payload:
+        move_val = payload
 
     ok, msg = game_manager.make_move(room_id, viewer_tg_id, move_val)
     if not ok:

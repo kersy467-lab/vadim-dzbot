@@ -2,9 +2,16 @@
   'use strict';
   let words = [], index = 0, total = 10, correct = 0, mistakes = [], answered = false, submitted = '';
   const vowels = /[аеёиоуыэюя]/gi;
-  const shuffle = list => [...list].sort(() => Math.random() - 0.5);
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
   const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  const normal = value => String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+  const normal = value => String(value || '').trim().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, '');
   const masked = word => word.replace(vowels, '_');
 
   function renderQuizTab() { return !words.length ? renderSetup() : (index >= words.length ? renderResult() : renderQuestion()); }
@@ -29,7 +36,23 @@
   function renderResult() { return `<div class="theme-card rounded-3xl p-6 text-center space-y-3"><div class="text-4xl">${correct === words.length ? '🏆' : '📚'}</div><h3 class="font-black">Тренировка завершена</h3><p class="text-sm">${correct} из ${words.length} верно</p>${mistakes.length ? `<p class="text-xs text-rose-500">Ошибки: ${mistakes.map(escape).join(', ')}</p>` : ''}<button onclick="window.EGE.vocabReset()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Новая тренировка</button></div>`; }
   function renderDictTab() { const all = window.EGE_VOCAB_DATA || []; return `<div class="theme-card rounded-2xl p-3"><p class="text-xs text-slate-500 mb-2">Словарные слова ФИПИ: ${all.length}</p><div class="grid grid-cols-2 gap-1.5 max-h-[55vh] overflow-y-auto">${all.map(word => `<div class="rounded-xl bg-slate-50 dark:bg-slate-800 p-2 text-xs font-bold">${escape(word)}</div>`).join('')}</div></div>`; }
   function rerender() { const root = document.getElementById('ege-subtab-container'); if (root) root.innerHTML = renderQuizTab(); }
-  function start() { words = shuffle(window.EGE_VOCAB_DATA || []).slice(0, total); index = correct = 0; mistakes = []; answered = false; submitted = ''; rerender(); }
+  function start() {
+    const seen = new Set();
+    const uniquePool = [];
+    for (const w of (window.EGE_VOCAB_DATA || [])) {
+      const k = normal(w);
+      if (k && !seen.has(k)) {
+        seen.add(k);
+        uniquePool.push(w);
+      }
+    }
+    words = shuffle(uniquePool).slice(0, total);
+    index = correct = 0;
+    mistakes = [];
+    answered = false;
+    submitted = '';
+    rerender();
+  }
   function check() { if (answered) return; submitted = document.getElementById('ege-vocab-input')?.value || ''; answered = true; if (normal(submitted) === normal(words[index])) correct++; else mistakes.push(words[index]); rerender(); }
   function next() { index++; answered = false; submitted = ''; rerender(); }
   function reset() { words = []; rerender(); }

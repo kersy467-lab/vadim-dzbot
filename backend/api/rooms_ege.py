@@ -3,36 +3,29 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import secrets
 import time
 from typing import Any, Optional
 
+from backend.ege.words_stress import (
+    STRESS_WORDS_FIPI as STRESS_WORDS,
+    create_stress_question,
+    pick_unique_stress_questions,
+)
+from backend.ege.words_vocabulary import (
+    VOCABULARY_WORDS_FIPI as VOCABULARY_WORDS,
+    create_vocab_question,
+    pick_unique_vocab_questions,
+)
+
 logger = logging.getLogger(__name__)
 
 VOWELS = "аеёиоуыэюя"
-STRESS_WORDS = (
-    "алфавИт", "бАнты", "баловАть", "бухгАлтеров", "вероисповЕдание",
-    "газопровОд", "диспансЕр", "договорЁнность", "докумЕнт", "жалюзИ",
-    "знАчимость", "каталОг", "квартАл", "красивЕе", "кухОнный",
-    "мЕстностей", "намЕрение", "нАчавший", "облегчИть", "отдАвший",
-    "партЕр", "плодоносИть", "принЯвший", "свЁкла", "созЫв",
-    "срЕдства", "тортЫ", "углубИть", "цемЕнт", "шАрфы",
-)
-VOCABULARY_WORDS = (
-    "абитуриент", "абонемент", "аккомпанемент", "апелляция", "аппетит",
-    "архитектор", "бассейн", "бюллетень", "велосипед", "винегрет",
-    "воображение", "впечатление", "галерея", "гармония", "гипотеза",
-    "декларация", "деликатес", "дирижёр", "дисциплина", "интеллигент",
-    "инициатива", "каникулы", "коллекция", "компетентный", "конференция",
-    "лаборатория", "мероприятие", "механизм", "ориентация", "панорама",
-    "параграф", "привилегия", "прецедент", "реставрация", "сувенир",
-    "территория", "университет", "фестиваль", "характер", "цивилизация",
-    "эксперимент", "электроника", "энциклопедия", "эстакада",
-)
 
 
 class EGEDuelRoom:
-    """Fixed 10-question duel. Finishing first never means winning."""
+    """Fixed 10-question duel. Questions are unique and synchronized per duel."""
 
     def __init__(self, room_id: str, host_tg_id: int, host_name: str,
                  opponent_tg_id: Optional[int] = None,
@@ -59,6 +52,27 @@ class EGEDuelRoom:
         self.settlement_lock = asyncio.Lock()
         self.created_at = self.last_activity = time.time()
 
+        self.deck: list[dict[str, Any]] = []
+        self.used_words: set[str] = set()
+        self._init_deck()
+
+    def _init_deck(self) -> None:
+        self.deck.clear()
+        self.used_words.clear()
+        self._ensure_deck_size(self.round_size)
+
+    def _ensure_deck_size(self, target_size: int) -> None:
+        needed = target_size - len(self.deck)
+        if needed <= 0:
+            return
+        if self.game_type == "ege_vocabulary_duel":
+            new_questions = pick_unique_vocab_questions(needed, exclude_words=self.used_words)
+        else:
+            new_questions = pick_unique_stress_questions(needed, exclude_words=self.used_words)
+        for q in new_questions:
+            self.deck.append(q)
+            self.used_words.add(q["word"].lower())
+
     def set_opponent(self, user_tg_id: int, user_name: Optional[str] = None):
         self.opponent_tg_id = int(user_tg_id)
         self.opponent_name = user_name or self.opponent_name
@@ -79,28 +93,24 @@ class EGEDuelRoom:
         return self._finished(self.host_tg_id) and self._finished(self.opponent_tg_id)
 
     def _new_question(self) -> dict:
+        """Single question fallback generator."""
         if self.game_type == "ege_vocabulary_duel":
-            word = secrets.choice(VOCABULARY_WORDS)
-            return {
-                "id": secrets.token_hex(8), "mode": "vocabulary", "word": word,
-                "masked": "".join("_" if char.lower() in VOWELS else char for char in word),
-                "answer": word,
-            }
-        source = secrets.choice(STRESS_WORDS)
-        target = next(index for index, char in enumerate(source) if char in VOWELS.upper())
-        display = source.lower()
-        return {
-            "id": secrets.token_hex(8), "mode": "stress", "word": display,
-            "vowel_indexes": [index for index, char in enumerate(display) if char in VOWELS],
-            "answer": target,
-        }
+            qs = pick_unique_vocab_questions(1, exclude_words=self.used_words)
+            return qs[0] if qs else create_vocab_question(secrets.choice(VOCABULARY_WORDS))
+        qs = pick_unique_stress_questions(1, exclude_words=self.used_words)
+        return qs[0] if qs else create_stress_question(secrets.choice(STRESS_WORDS))
 
     def _current_question(self, user_tg_id: int) -> Optional[dict]:
-        if self._finished(user_tg_id):
+        uid = int(user_tg_id)
+        if self._finished(uid):
             return None
-        if not self.questions.get(user_tg_id):
-            self.questions[user_tg_id] = self._new_question()
-        return self.questions[user_tg_id]
+        idx = len(self.answers.get(uid, []))
+        self._ensure_deck_size(idx + 1)
+        if idx < len(self.deck):
+            q = self.deck[idx]
+            self.questions[uid] = q
+            return q
+        return None
 
     def question_for(self, user_tg_id: int) -> Optional[dict]:
         question = self._current_question(user_tg_id)
@@ -108,12 +118,16 @@ class EGEDuelRoom:
 
     @staticmethod
     def _normalize_word(value: Any) -> str:
-        return str(value or "").strip().lower().replace("ё", "е")
+        text = str(value or "").strip().lower().replace("ё", "е")
+        return re.sub(r"\s+", "", text)
 
     def _is_correct(self, question: dict, submitted: Any) -> bool:
         if question["mode"] == "vocabulary":
             return self._normalize_word(submitted) == self._normalize_word(question["answer"])
-        return isinstance(submitted, int) and submitted == question["answer"]
+        try:
+            return not isinstance(submitted, bool) and int(submitted) == int(question["answer"])
+        except (ValueError, TypeError):
+            return False
 
     def _finalize_if_ready(self) -> None:
         if not self._both_finished() or self.status == "finished":
@@ -124,6 +138,7 @@ class EGEDuelRoom:
             # Ничьей быть не должно: переходим к внезапной смерти (sudden death)
             self.sudden_round += 1
             self.round_size += 1
+            self._ensure_deck_size(self.round_size)
             self.questions[self.host_tg_id] = None
             if self.opponent_tg_id:
                 self.questions[self.opponent_tg_id] = None
@@ -147,8 +162,14 @@ class EGEDuelRoom:
         self.last_activity = time.time()
         if self.status != "playing" or not self._is_member(user_tg_id):
             return False, "Дуэль сейчас недоступна"
-        if not isinstance(move_data, dict) or "answer" not in move_data:
+        if not isinstance(move_data, dict):
+            if move_data is not None:
+                move_data = {"answer": move_data}
+            else:
+                return False, "Нужен ответ на вопрос"
+        elif "answer" not in move_data:
             return False, "Нужен ответ на вопрос"
+
         answers = self.answers.setdefault(int(user_tg_id), [])
         if len(answers) >= self.round_size:
             return False, "Вы уже закончили — дождитесь соперника"
@@ -184,6 +205,7 @@ class EGEDuelRoom:
             self.rating_snapshots = {}
             self.round_size = 10
             self.sudden_round = 0
+            self._init_deck()
             return True, "Реванш начат"
         self.rematch_requested_by = int(user_tg_id)
         return True, "Запрос на реванш отправлен"

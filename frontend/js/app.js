@@ -158,6 +158,10 @@ async function loadUserData() {
     console.warn("Could not load user data:", e.message);
     userBadge.textContent = "Ученик 11 «Б»";
   }
+
+  if (typeof window.checkPugMode === "function") {
+    window.checkPugMode();
+  }
 }
 
 

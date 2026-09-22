@@ -78,8 +78,17 @@ async def lifespan(app: FastAPI):
             await session.commit()
             logger.info(f"Purged {res_del.rowcount} obsolete schedule records on or before 2026-09-01.")
 
-        # Automatic startup world reset is removed so companies persist across deploys.
-        # Admins can trigger world reset on-demand via the Creator Moderation panel.
+        # Sync pug prank setting from DB so it survives deploys
+        try:
+            from backend.db.crud.duty import get_class_setting, set_class_setting
+            from backend.bot.handlers.admin.pug_prank import set_pug_mode, is_pug_mode_active
+            pug_val = await get_class_setting(session, "pug_prank_active")
+            if pug_val is not None:
+                set_pug_mode(pug_val == "1")
+            else:
+                await set_class_setting(session, "pug_prank_active", "1" if is_pug_mode_active() else "0")
+        except Exception as e_pug:
+            logger.warning(f"Could not sync pug mode setting on startup: {e_pug}")
 
     logger.info("Setting up background scheduler...")
     setup_scheduler(bot)

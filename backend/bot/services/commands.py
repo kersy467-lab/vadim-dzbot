@@ -47,12 +47,12 @@ async def setup_bot_commands(bot: Bot):
     Настраивает команды бота и кнопку открытия меню команд в интерфейсе Telegram.
     """
     try:
+        # Устанавливаем кнопку меню команд в первую очередь
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        logger.info("Telegram Menu Button configured for Commands menu (MenuButtonCommands).")
+
         await bot.set_my_commands(commands=FULL_COMMANDS, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(commands=FULL_COMMANDS, scope=BotCommandScopeAllGroupChats())
         await bot.set_my_commands(commands=FULL_COMMANDS)
-
-        # Синяя кнопка в строке ввода Telegram должна открывать меню команд (MenuButtonCommands)
-        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-        logger.info("Telegram Menu Button configured for Commands menu (MenuButtonCommands).")
     except Exception as e:
         logger.warning(f"Error configuring bot commands: {e}")

@@ -177,7 +177,7 @@ async def lifespan(app: FastAPI):
         async def init_telegram_bot():
             try:
                 logger.info("Registering Telegram command autocomplete hints and menu button...")
-                await asyncio.wait_for(setup_bot_commands(bot), timeout=5.0)
+                await asyncio.wait_for(setup_bot_commands(bot), timeout=20.0)
             except Exception as e:
                 logger.warning(f"Could not setup Telegram commands (offline or timeout): {e}")
             logger.info("Starting Telegram Bot long-polling...")

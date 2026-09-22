@@ -70,6 +70,12 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
     is_user_adm = bool((current_user and current_user.role == "admin") or (settings.ADMIN_ID and user_id == settings.ADMIN_ID))
     is_tester = bool(getattr(current_user, "is_tester", False)) if current_user else False
 
+    try:
+        from aiogram.types import MenuButtonCommands
+        await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=MenuButtonCommands())
+    except Exception:
+        pass
+
     local_app_link = ""
     if not settings.WEBAPP_URL.startswith("https://"):
         local_app_link = f"\n\n💻 **Mini App 11 «Б»:** http://localhost:{settings.PORT}/app?tg_user_id={user_id}"

@@ -12,6 +12,12 @@
   let sendError = '';
   let myRating = { rating: 0, rank: 'Рекрут', medal: 'Рекрут', rank_image: '/static/assets/ranks/recruit.png' };
 
+  let timerTicker = null;
+  let localRemaining = 30.0;
+  let timerLimit = 30.0;
+  let timerMode = 'main';
+  let timerExpiredHandled = false;
+
   const esc = value => String(value ?? '').replace(/[&<>\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   const myName = () => window.currentUser?.ege_nickname || window.currentUser?.full_name || 'Игрок';
   const rankName = profile => profile?.rank || profile?.medal || 'Рекрут';
@@ -26,6 +32,61 @@
   function clearLeaderboardPoll() {
     if (leaderboardPoll) clearInterval(leaderboardPoll);
     leaderboardPoll = null;
+  }
+
+  function clearTimer() {
+    if (timerTicker) clearInterval(timerTicker);
+    timerTicker = null;
+  }
+
+  function syncTimerWithRoom() {
+    if (!room || room.status !== 'playing' || room.your_finished) {
+      clearTimer();
+      return;
+    }
+    const mode = room.timer_mode || (room.is_sudden_death ? 'sudden' : 'main');
+    const limit = Number(room.timer_limit || (mode === 'sudden' ? 5 : 30));
+    const serverRemaining = Number(room.time_remaining !== undefined ? room.time_remaining : limit);
+    if (!timerTicker || timerMode !== mode || Math.abs(localRemaining - serverRemaining) > 1.2) {
+      timerMode = mode;
+      timerLimit = limit;
+      localRemaining = Math.max(0, serverRemaining);
+      timerExpiredHandled = false;
+      startTimer();
+    }
+  }
+
+  function startTimer() {
+    clearTimer();
+    timerTicker = setInterval(() => {
+      if (!room || room.status !== 'playing' || room.your_finished) {
+        clearTimer();
+        return;
+      }
+      localRemaining = Math.max(0, localRemaining - 0.1);
+      updateTimerUI();
+      if (localRemaining <= 0) {
+        clearTimer();
+        if (!timerExpiredHandled && !sending) {
+          timerExpiredHandled = true;
+          answer('__timeout__');
+        }
+      }
+    }, 100);
+  }
+
+  function updateTimerUI() {
+    const valEl = document.getElementById('ege-timer-val');
+    const barEl = document.getElementById('ege-timer-bar');
+    if (!valEl) return;
+    const isDanger = localRemaining <= (timerMode === 'sudden' ? 2.0 : 5.0);
+    valEl.textContent = `${localRemaining.toFixed(1)} с`;
+    valEl.className = `font-mono text-xs font-black transition-colors ${isDanger ? 'text-red-500 animate-pulse' : 'text-blue-600'}`;
+    if (barEl) {
+      const pct = Math.max(0, Math.min(100, (localRemaining / timerLimit) * 100));
+      barEl.style.width = `${pct}%`;
+      barEl.className = `h-full rounded-full transition-all duration-100 ${isDanger ? 'bg-red-500' : 'bg-blue-600'}`;
+    }
   }
 
   function startLeaderboardPoll() {
@@ -74,11 +135,13 @@
   }
 
   function renderBattle() {
+    syncTimerWithRoom();
     const own = Number(room.your_answers || 0), all = Number(room.round_size || 10);
     const isSudden = Boolean(room.is_sudden_death || (room.sudden_round && Number(room.sudden_round) > 0));
     const suddenRound = Number(room.sudden_round || 0);
 
     if (room.your_finished || own >= all) {
+      clearTimer();
       const correct = own - Number(room.your_errors || 0);
       const waitText = isSudden
         ? 'Вы ответили на дополнительный вопрос. Ждём ответ соперника — дуэль идёт до первой ошибки!'
@@ -92,22 +155,43 @@
     if (!q) return `<div class="theme-card rounded-3xl p-6 text-center"><div class="text-4xl">⏳</div><p class="text-xs mt-2">Получаем следующее слово…</p></div>`;
     let task = '';
     if (q.mode === 'stress') {
-      task = `<p class="text-xs text-slate-500">Нажмите ударную гласную</p><div class="flex flex-wrap justify-center gap-2 py-3">${[...q.word].map((letter, i) => q.vowel_indexes.includes(i) ? `<button ${sending ? 'disabled' : ''} onclick="window.EGE.duelAnswer(${i})" class="w-10 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 font-black text-xl">${letter}</button>` : `<span class="w-7 h-12 flex items-center justify-center font-black text-xl">${letter}</span>`).join('')}</div>`;
+      task = `<p class="text-xs text-slate-500">Нажмите ударную гласную</p><div class="flex flex-wrap justify-center gap-2 py-3">${[...q.word].map((letter, i) => q.vowel_indexes.includes(i) ? `<button ${sending ? 'disabled' : ''} onclick="window.EGE.duelAnswer(${i})" class="w-10 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 font-black text-xl hover:scale-105 active:scale-95 transition-transform">${letter}</button>` : `<span class="w-7 h-12 flex items-center justify-center font-black text-xl">${letter}</span>`).join('')}</div>`;
     } else {
-      task = `<p class="text-xs text-slate-500">Впишите словарное слово полностью</p><div class="text-3xl font-black py-3 tracking-[0.18em]">${esc(q.masked)}</div><input id="ege-duel-vocab-input" ${sending ? 'disabled' : ''} onkeydown="if(event.key==='Enter') window.EGE.duelCheck()" placeholder="Напишите слово" class="w-full px-4 py-3 rounded-2xl border text-center font-bold dark:bg-slate-700"><button ${sending ? 'disabled' : ''} onclick="window.EGE.duelCheck()" class="mt-2 w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Проверить</button>`;
+      task = `<p class="text-xs text-slate-500">Впишите словарное слово полностью</p><div class="text-3xl font-black py-3 tracking-[0.18em]">${esc(q.masked)}</div><input id="ege-duel-vocab-input" ${sending ? 'disabled' : ''} onkeydown="if(event.key==='Enter') window.EGE.duelCheck()" placeholder="Напишите слово" class="w-full px-4 py-3 rounded-2xl border text-center font-bold dark:bg-slate-700"><button ${sending ? 'disabled' : ''} onclick="window.EGE.duelCheck()" class="mt-2 w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-98 transition-all">Проверить</button>`;
     }
     const feedback = sending ? '<p class="text-xs text-blue-600 font-bold">Проверяем…</p>' : (sendError ? `<p class="text-xs text-red-600 font-bold">${esc(sendError)}</p>` : '');
     const suddenBanner = isSudden
       ? `<div class="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 font-bold text-xs">⚡ Внезапная смерть! Раунд ${suddenRound} — играем до первой ошибки!</div>`
       : '';
+    const isDanger = localRemaining <= (isSudden ? 2.0 : 5.0);
+    const timerPct = Math.max(0, Math.min(100, (localRemaining / timerLimit) * 100));
+    const timerLabel = isSudden ? '⚡ 5 с на слово' : '⏱️ 30 с на 10 заданий';
+    const timerWidget = `<div class="rounded-2xl p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-left">
+      <div class="flex justify-between items-center text-xs font-black mb-1">
+        <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1">${timerLabel}</span>
+        <span id="ege-timer-val" class="font-mono text-xs font-black transition-colors ${isDanger ? 'text-red-500 animate-pulse' : 'text-blue-600'}">${localRemaining.toFixed(1)} с</span>
+      </div>
+      <div class="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+        <div id="ege-timer-bar" class="h-full rounded-full transition-all duration-100 ${isDanger ? 'bg-red-500' : 'bg-blue-600'}" style="width:${timerPct}%"></div>
+      </div>
+    </div>`;
     const progressText = isSudden
       ? `<span>⚡ Доп. раунд ${suddenRound}</span><span>Ты ${own}/${all} · соперник ${Number(room.opponent_answers || 0)}/${all}</span>`
       : `<span>Слово ${Math.min(own + 1, all)} из ${all}</span><span>Ты ${own}/${all} · соперник ${Number(room.opponent_answers || 0)}/${all}</span>`;
-    return `<div class="theme-card rounded-3xl p-5 text-center space-y-4">${suddenBanner}<div class="grid grid-cols-2 gap-2 text-[11px] font-bold"><span class="rounded-xl bg-blue-50 dark:bg-blue-950/30 px-2 py-1.5">Ты: ${ratingText(room.your_rating || myRating)}</span><span class="rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-1.5">Соперник: ${ratingText(room.rival_rating)}</span></div><div class="flex justify-between text-xs font-bold">${progressText}</div><div class="h-2 rounded-full bg-slate-100"><div class="h-full bg-blue-600 rounded-full" style="width:${Math.min(100, own / all * 100)}%"></div></div>${task}${feedback}</div>`;
+    return `<div class="theme-card rounded-3xl p-5 text-center space-y-3.5">
+      ${suddenBanner}
+      <div class="grid grid-cols-2 gap-2 text-[11px] font-bold"><span class="rounded-xl bg-blue-50 dark:bg-blue-950/30 px-2 py-1.5">Ты: ${ratingText(room.your_rating || myRating)}</span><span class="rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-1.5">Соперник: ${ratingText(room.rival_rating)}</span></div>
+      ${timerWidget}
+      <div class="flex justify-between text-xs font-bold">${progressText}</div>
+      <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div class="h-full bg-blue-600 rounded-full" style="width:${Math.min(100, own / all * 100)}%"></div></div>
+      ${task}
+      ${feedback}
+    </div>`;
   }
 
   function renderFinished() {
     clearPoll();
+    clearTimer();
     const result = room.result || 'draw';
     const isSudden = Boolean(room.is_sudden_death || (room.sudden_round && Number(room.sudden_round) > 0));
     const title = result === 'win' ? 'ПОБЕДА' : result === 'loss' ? 'ПОРАЖЕНИЕ' : 'НИЧЬЯ';
@@ -117,12 +201,13 @@
     const profile = room.your_rating || myRating;
     myRating = profile;
     const suddenNote = isSudden ? ` (Внезапная смерть: ${room.sudden_round} доп. раунд)` : '';
+    const winnerLine = room.winner_name ? `Победитель: ${esc(room.winner_name)}${suddenNote}` : `Ничья${suddenNote}`;
     return `<div class="theme-card rounded-3xl p-5 text-center space-y-4"><div class="text-5xl">${icon}</div><h3 class="font-black text-xl">${title}</h3><div class="text-sm font-bold">${winnerLine}</div><div class="font-black text-lg">${esc(myName())} ${Number(room.your_score || 0)} : ${Number(room.opponent_score || 0)} ${esc(rival?.name || 'Соперник')}</div><div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>Вы</b><br>✅ ${Number(room.your_score || 0)}<br>❌ ${Number(room.your_errors || 0)} ошибок</div><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>${esc(rival?.name || 'Соперник')}</b><br>✅ ${Number(room.opponent_score || 0)}<br>❌ ${Number(room.opponent_errors || 0)} ошибок</div></div><img src="${esc(rankImage(profile))}" class="w-28 h-28 object-contain mx-auto"><div class="font-black text-blue-600">${ratingText(profile)}</div><div class="text-sm font-black ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-slate-400'}">${change > 0 ? '+' : ''}${change} MMR</div><button onclick="window.EGE.rematchDuel()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Реванш</button><button onclick="window.EGE.leaveDuel()" class="w-full py-2 text-xs text-slate-500 font-bold">Вернуться в лобби</button></div>`;
   }
 
   function renderDuelTab() {
-    if (!room) return renderLobby();
-    if (room.status === 'waiting') return `<div class="theme-card rounded-3xl p-6 text-center space-y-3"><div class="text-4xl">⏳</div><h3 class="font-black">Ждём соперника</h3><p class="text-xs text-slate-500">Приглашение отправлено. Победитель определяется только после завершения обоих игроков.</p></div>`;
+    if (!room) { clearTimer(); return renderLobby(); }
+    if (room.status === 'waiting') { clearTimer(); return `<div class="theme-card rounded-3xl p-6 text-center space-y-3"><div class="text-4xl">⏳</div><h3 class="font-black">Ждём соперника</h3><p class="text-xs text-slate-500">Приглашение отправлено. Победитель определяется только после завершения обоих игроков.</p></div>`; }
     if (room.status === 'finished') return renderFinished();
     return renderBattle();
   }
@@ -200,13 +285,15 @@
     } catch (e) { window.alert(e?.message || 'Не удалось изменить ник'); }
   }
 
-  function leave() { clearPoll(); clearLeaderboardPoll(); room = null; initLobby(); }
-  function cleanup() { clearPoll(); clearLeaderboardPoll(); sending = false; }
+  function leave() { clearPoll(); clearLeaderboardPoll(); clearTimer(); room = null; initLobby(); }
+  function cleanup() { clearPoll(); clearLeaderboardPoll(); clearTimer(); sending = false; }
 
   window.EGE_DUEL = {
     renderDuelTab, renderArenaHome, initLobby, cleanup,
     duelType: value => { type = value; redraw(); }, invite, inviteDuel: invite,
     answer, duelAnswer: answer, duelCheck: checkVocabulary, open,
     rematch, rematchDuel: rematch, editArenaNickname: editNickname, leaveDuel: leave,
+    duelTimeout: () => answer('__timeout__'),
   };
+  window.EGE = Object.assign(window.EGE || {}, window.EGE_DUEL);
 })();

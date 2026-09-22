@@ -22,6 +22,9 @@ from backend.ege.words_vocabulary import (
 logger = logging.getLogger(__name__)
 
 VOWELS = "аеёиоуыэюя"
+MAIN_ROUND_TIME_LIMIT = 30.0
+SUDDEN_WORD_TIME_LIMIT = 5.0
+GRACE_PERIOD = 1.0
 
 
 class EGEDuelRoom:
@@ -30,28 +33,21 @@ class EGEDuelRoom:
     def __init__(self, room_id: str, host_tg_id: int, host_name: str,
                  opponent_tg_id: Optional[int] = None,
                  opponent_name: Optional[str] = None, game_type: str = "ege_stress_duel"):
-        self.room_id = room_id
-        self.game_type = game_type
-        self.host_tg_id = int(host_tg_id)
-        self.host_name = host_name
+        self.room_id, self.game_type = room_id, game_type
+        self.host_tg_id, self.host_name = int(host_tg_id), host_name
         self.opponent_tg_id = int(opponent_tg_id) if opponent_tg_id else None
         self.opponent_name = opponent_name or "Соперник"
-        self.status = "waiting"
-        self.round_size = 10
-        self.sudden_round = 0
+        self.status, self.round_size, self.sudden_round = "waiting", 10, 0
         self.answers: dict[int, list[bool]] = {self.host_tg_id: []}
         if self.opponent_tg_id:
             self.answers[self.opponent_tg_id] = []
         self.questions: dict[int, Optional[dict]] = {}
-        self.winner: Optional[int] = None
-        self.finished_at: Optional[float] = None
-        self.rematch_requested_by: Optional[int] = None
-        self.rating_settled = False
-        self.rating_changes: dict[int, int] = {}
-        self.rating_snapshots: dict[int, dict[str, int]] = {}
+        self.winner, self.finished_at, self.rematch_requested_by = None, None, None
+        self.rating_settled, self.rating_changes, self.rating_snapshots = False, {}, {}
         self.settlement_lock = asyncio.Lock()
         self.created_at = self.last_activity = time.time()
-
+        self.player_started_at: dict[int, float] = {}
+        self.sudden_question_started_at: dict[tuple[int, int], float] = {}
         self.deck: list[dict[str, Any]] = []
         self.used_words: set[str] = set()
         self._init_deck()
@@ -113,6 +109,7 @@ class EGEDuelRoom:
         return None
 
     def question_for(self, user_tg_id: int) -> Optional[dict]:
+        self._ensure_timer_started(int(user_tg_id))
         question = self._current_question(user_tg_id)
         return {k: v for k, v in question.items() if k != "answer"} if question else None
 
@@ -128,6 +125,67 @@ class EGEDuelRoom:
             return not isinstance(submitted, bool) and int(submitted) == int(question["answer"])
         except (ValueError, TypeError):
             return False
+
+    def _ensure_timer_started(self, uid: int) -> None:
+        if self.status != "playing" or not uid or not self._is_member(uid):
+            return
+        answers = self.answers.setdefault(int(uid), [])
+        if len(answers) >= self.round_size:
+            return
+        now = time.time()
+        if self.sudden_round == 0:
+            if uid not in self.player_started_at:
+                self.player_started_at[uid] = now
+        else:
+            key = (int(uid), self.sudden_round)
+            if key not in self.sudden_question_started_at:
+                self.sudden_question_started_at[key] = now
+
+    def _check_timeouts(self) -> None:
+        if self.status != "playing":
+            return
+        now = time.time()
+        for uid in (self.host_tg_id, self.opponent_tg_id):
+            if not uid:
+                continue
+            answers = self.answers.setdefault(uid, [])
+            if len(answers) >= self.round_size:
+                continue
+            if self.sudden_round == 0:
+                started = self.player_started_at.get(uid)
+                if started and (now - started) >= (MAIN_ROUND_TIME_LIMIT + GRACE_PERIOD):
+                    while len(answers) < 10:
+                        answers.append(False)
+                    self.questions[uid] = None
+                    logger.info("EGE duel main round timeout room=%s player=%s", self.room_id, uid)
+            else:
+                key = (uid, self.sudden_round)
+                started = self.sudden_question_started_at.get(key)
+                if started and (now - started) >= (SUDDEN_WORD_TIME_LIMIT + GRACE_PERIOD):
+                    answers.append(False)
+                    self.questions[uid] = None
+                    logger.info("EGE duel sudden death timeout room=%s player=%s round=%s", self.room_id, uid, self.sudden_round)
+        self._finalize_if_ready()
+
+    def get_time_remaining(self, uid: Optional[int]) -> float:
+        if not uid or self.status != "playing":
+            return 0.0
+        uid = int(uid)
+        answers = self.answers.get(uid, [])
+        if len(answers) >= self.round_size:
+            return 0.0
+        now = time.time()
+        if self.sudden_round == 0:
+            started = self.player_started_at.get(uid)
+            if not started:
+                return MAIN_ROUND_TIME_LIMIT
+            return max(0.0, round(MAIN_ROUND_TIME_LIMIT - (now - started), 1))
+        else:
+            key = (uid, self.sudden_round)
+            started = self.sudden_question_started_at.get(key)
+            if not started:
+                return SUDDEN_WORD_TIME_LIMIT
+            return max(0.0, round(SUDDEN_WORD_TIME_LIMIT - (now - started), 1))
 
     def _finalize_if_ready(self) -> None:
         if not self._both_finished() or self.status == "finished":
@@ -160,8 +218,17 @@ class EGEDuelRoom:
 
     def make_move(self, user_tg_id: int, move_data: Any) -> tuple[bool, str]:
         self.last_activity = time.time()
-        if self.status != "playing" or not self._is_member(user_tg_id):
+        uid = int(user_tg_id)
+        if self.status != "playing" or not self._is_member(uid):
             return False, "Дуэль сейчас недоступна"
+
+        self._ensure_timer_started(uid)
+        self._check_timeouts()
+
+        answers = self.answers.setdefault(uid, [])
+        if len(answers) >= self.round_size:
+            return False, "Вы уже закончили — дождитесь соперника"
+
         if not isinstance(move_data, dict):
             if move_data is not None:
                 move_data = {"answer": move_data}
@@ -170,25 +237,54 @@ class EGEDuelRoom:
         elif "answer" not in move_data:
             return False, "Нужен ответ на вопрос"
 
-        answers = self.answers.setdefault(int(user_tg_id), [])
-        if len(answers) >= self.round_size:
-            return False, "Вы уже закончили — дождитесь соперника"
-        question = self._current_question(int(user_tg_id))
+        raw_answer = move_data.get("answer")
+
+        if raw_answer == "__timeout__":
+            if self.sudden_round == 0:
+                while len(answers) < 10:
+                    answers.append(False)
+            else:
+                answers.append(False)
+            self.questions[uid] = None
+            self._finalize_if_ready()
+            if self.status == "finished":
+                return True, "Время вышло! Дуэль завершена"
+            return True, "Время вышло!"
+
+        now = time.time()
+        if self.sudden_round == 0:
+            started = self.player_started_at.get(uid, now)
+            if (now - started) > (MAIN_ROUND_TIME_LIMIT + GRACE_PERIOD):
+                while len(answers) < 10:
+                    answers.append(False)
+                self.questions[uid] = None
+                self._finalize_if_ready()
+                return False, "Время раунда вышло!"
+        else:
+            key = (uid, self.sudden_round)
+            started = self.sudden_question_started_at.get(key, now)
+            if (now - started) > (SUDDEN_WORD_TIME_LIMIT + GRACE_PERIOD):
+                answers.append(False)
+                self.questions[uid] = None
+                self._finalize_if_ready()
+                return False, "Время на слово вышло!"
+
+        question = self._current_question(uid)
         if not question:
             return False, "Вопрос недоступен"
-        answers.append(self._is_correct(question, move_data["answer"]))
-        self.questions[int(user_tg_id)] = None
+        answers.append(self._is_correct(question, raw_answer))
+        self.questions[uid] = None
         if len(answers) == self.round_size:
             logger.info(
                 "EGE duel player finished room=%s player=%s errors=%s waiting_for_opponent=%s",
-                self.room_id, int(user_tg_id), self._errors(int(user_tg_id)), not self._both_finished(),
+                self.room_id, uid, self._errors(uid), not self._both_finished(),
             )
         self._finalize_if_ready()
         if self.status == "finished":
             return True, "Дуэль завершена"
         if self.sudden_round > 0 and len(answers) < self.round_size:
             return True, "Внезапная смерть! Дополнительный раунд"
-        if self._finished(user_tg_id):
+        if self._finished(uid):
             return True, "Результат сохранён — ждём соперника"
         return True, "Ответ принят"
 
@@ -198,13 +294,10 @@ class EGEDuelRoom:
         if self.rematch_requested_by and self.rematch_requested_by != int(user_tg_id):
             self.status, self.winner, self.finished_at = "playing", None, None
             self.answers = {self.host_tg_id: [], int(self.opponent_tg_id): []}
-            self.questions = {}
-            self.rematch_requested_by = None
-            self.rating_settled = False
-            self.rating_changes = {}
-            self.rating_snapshots = {}
-            self.round_size = 10
-            self.sudden_round = 0
+            self.questions, self.rematch_requested_by = {}, None
+            self.rating_settled, self.rating_changes, self.rating_snapshots = False, {}, {}
+            self.round_size, self.sudden_round = 10, 0
+            self.player_started_at, self.sudden_question_started_at = {}, {}
             self._init_deck()
             return True, "Реванш начат"
         self.rematch_requested_by = int(user_tg_id)
@@ -212,6 +305,10 @@ class EGEDuelRoom:
 
     def to_dict(self, viewer_tg_id: Optional[int] = None) -> dict:
         viewer = int(viewer_tg_id) if viewer_tg_id else None
+        if viewer:
+            self._ensure_timer_started(viewer)
+        self._check_timeouts()
+
         ids = (self.host_tg_id, self.opponent_tg_id)
         rival = next((uid for uid in ids if uid and uid != viewer), None)
         your_answers, rival_answers = len(self.answers.get(viewer, [])), len(self.answers.get(rival, []))
@@ -222,6 +319,11 @@ class EGEDuelRoom:
         result = None
         if self.status == "finished" and viewer:
             result = "draw" if self.winner is None else ("win" if self.winner == viewer else "loss")
+
+        timer_limit = SUDDEN_WORD_TIME_LIMIT if self.sudden_round > 0 else MAIN_ROUND_TIME_LIMIT
+        time_remaining = self.get_time_remaining(viewer)
+        timer_mode = "sudden" if self.sudden_round > 0 else "main"
+
         return {
             "room_id": self.room_id, "game_type": self.game_type, "status": self.status,
             "host": {"tg_id": self.host_tg_id, "name": self.host_name},
@@ -230,9 +332,9 @@ class EGEDuelRoom:
             "your_errors": your_errors, "opponent_errors": rival_errors,
             "your_score": your_answers - your_errors, "opponent_score": rival_answers - rival_errors,
             "your_finished": self._finished(viewer), "opponent_finished": self._finished(rival),
-            "round_size": self.round_size,
-            "sudden_round": self.sudden_round,
+            "round_size": self.round_size, "sudden_round": self.sudden_round,
             "is_sudden_death": self.sudden_round > 0,
+            "timer_limit": timer_limit, "time_remaining": time_remaining, "timer_mode": timer_mode,
             "winner": self.winner, "winner_name": winner_name, "result": result,
             "rematch_requested_by": self.rematch_requested_by,
             "question": self.question_for(viewer) if self.status == "playing" and viewer else None,

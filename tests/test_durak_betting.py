@@ -6,9 +6,10 @@ import os
 import asyncio
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test_durak_betting.db"
 
 from backend.bot.game_durak import DurakGame, Card
-from backend.db.session import async_session_factory
+from backend.db.session import async_session_factory, engine
 from backend.db.models import User
 from backend.db.crud.users import get_user_by_tg_id, add_user_coins
 from backend.api.routers.durak.state import (
@@ -56,6 +57,10 @@ async def test_durak_game_phase_completion():
 
 
 async def setup_test_users():
+    async with engine.begin() as conn:
+        from backend.db.models import Base
+        await conn.run_sync(Base.metadata.create_all)
+
     async with async_session_factory() as session:
         for tg_id, name in [(777001, "Durak Tester 1"), (777002, "Durak Tester 2")]:
             u = await get_user_by_tg_id(session, tg_id)

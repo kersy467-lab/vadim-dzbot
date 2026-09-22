@@ -85,6 +85,49 @@ async def create_local_game(
         raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
 
 
+@router.post("/games/bot")
+async def create_bot_game(
+    request: Request,
+    payload: Optional[Dict[str, Any]] = Body(default=None),
+    user: Optional[User] = Depends(get_optional_webapp_user)
+):
+    """Создает партию против шахматного бота (ИИ) с альфа-бета отсечением на 3 шага."""
+    try:
+        if not payload:
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+
+        if not isinstance(payload, dict):
+            payload = {}
+
+        game_type = str(payload.get("game_type") or "chess").strip().lower()
+        host_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
+        host_name = user.display_name if user else payload.get("host_name", "Игрок")
+        host_color = str(payload.get("host_color") or "white").strip().lower()
+
+        from backend.api.game_rooms import game_manager, chess
+        if game_type == "chess" and chess is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Шахматный режим загружается на сервере. Пожалуйста, подождите минуту!"
+            )
+
+        room = game_manager.create_bot_room(
+            host_tg_id=host_tg_id,
+            host_name=host_name,
+            game_type=game_type,
+            host_color=host_color
+        )
+        return room.to_dict(viewer_tg_id=host_tg_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in create_bot_game: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
+
+
 @router.post("/games/invite")
 async def invite_opponent_to_game(
     request: Request,
@@ -175,27 +218,24 @@ async def invite_opponent_to_game(
                 elif game_type in ["ege_stress_duel", "ege_vocabulary_duel"]:
                     game_url = f"{base_url}{separator}room={room.room_id}&game={game_type}&tg_user_id={opponent_tg_id}"
                     topic = "ударения" if game_type == "ege_stress_duel" else "словарные слова"
-                    invite_text = (
-                        f"🎓 <b>{escaped_host_name}</b> вызывает тебя на ЕГЭ-дуэль: <b>{topic}</b>!\n\n"
-                        "10 слов, а при 10/10 у обоих — внезапная смерть до первой ошибки."
-                    )
+                    invite_text = f"🎓 <b>{escaped_host_name}</b> вызывает тебя на ЕГЭ-дуэль: <b>{topic}</b>!\n\n10 слов, а при 10/10 у обоих — внезапная смерть до первой ошибки."
                     btn_text = "🎓 Принять ЕГЭ-дуэль"
-                elif game_type == "chess":
-                    game_url = f"{base_url}{separator}room={room.room_id}&game=chess&tg_user_id={opponent_tg_id}"
+                elif game_type in ["chess", "checkers"]:
+                    is_ch = game_type == "checkers"
+                    g_param = "checkers" if is_ch else "chess"
+                    game_url = f"{base_url}{separator}room={room.room_id}&game={g_param}&tg_user_id={opponent_tg_id}"
                     host_color_actual = getattr(room, "host_color", "white")
-                    if host_color_actual == "black":
-                        color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>"
-                    else:
-                        color_line = "Твой цвет: <b>Черные ⚫</b>"
+                    color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>" if host_color_actual == "black" else "Твой цвет: <b>Черные ⚫</b>"
                     if host_color == "random":
                         color_line += "\n<i>(Цвета определены случайным образом 🎲)</i>"
 
+                    g_title = "Партию в Шашки ⚪⚫" if is_ch else "Шахматную дуэль ♟️"
                     invite_text = (
-                        f"♟️ <b>{escaped_host_name}</b> вызывает тебя на <b>Шахматную дуэль</b>!\n"
+                        f"🎮 <b>{escaped_host_name}</b> вызывает тебя на <b>{g_title}</b>!\n"
                         f"{color_line}\n\n"
                         f"⚡ Готов сыграть партию на перемене?"
                     )
-                    btn_text = "♟️ Принять вызов и играть"
+                    btn_text = "⚪⚫ Принять вызов в Шашки" if is_ch else "♟️ Принять вызов и играть"
                 else:
                     game_url = f"{base_url}{separator}room={room.room_id}&game=tictactoe&tg_user_id={opponent_tg_id}"
                     invite_text = (
@@ -317,5 +357,6 @@ async def make_game_move(
         from backend.api.routers.games_rpg_hooks import handle_rpg_room_moved
         await handle_rpg_room_moved(room, session, user, viewer_tg_id)
     return room.to_dict(viewer_tg_id=viewer_tg_id)
+
 
 

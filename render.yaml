@@ -16,6 +16,8 @@ services:
         sync: false
       - key: ADMIN_ID
         sync: false
+      - key: DEPLOY_NOTIFY_IDS
+        sync: false
       - key: WEBAPP_URL
         sync: false
       - key: DATABASE_URL

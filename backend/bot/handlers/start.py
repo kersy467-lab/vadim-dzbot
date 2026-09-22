@@ -283,7 +283,8 @@ async def callback_game_reject(callback: CallbackQuery, bot: Optional[Bot] = Non
     from backend.bot.bot import get_current_bot
     bot = bot or get_current_bot()
     room = game_manager.get_room(room_id)
-    game_name = "Шахматы" if (room and getattr(room, "game_type", "") == "chess") else "Крестики-нолики"
+    gt = getattr(room, "game_type", "") if room else ""
+    game_name = "Шахматы" if gt == "chess" else ("Шашки" if gt == "checkers" else "Крестики-нолики")
     if room:
         game_manager.reject_room(room_id, callback.from_user.id)
         if bot:

@@ -25,6 +25,11 @@ class Settings(BaseSettings):
         except Exception:
             return 0
 
+    DEPLOY_NOTIFY_IDS: str = Field(
+        default="",
+        description="Comma-separated Telegram IDs to receive deploy/startup notifications in addition to ADMIN_ID"
+    )
+
     TELEGRAM_API_SERVER: str = Field(
         default="",
         description="Custom Telegram Bot API server / reverse proxy (e.g. Cloudflare Worker)"
@@ -45,8 +50,8 @@ class Settings(BaseSettings):
         description="Base URL of the server"
     )
     WEBAPP_URL: str = Field(
-        default_factory=lambda: f"{os.environ.get('RENDER_EXTERNAL_URL', 'https://dzbot-6eid.onrender.com').rstrip('/')}/app/natbirzha",
-        description="Public URL for the standalone NATBIRZHA Telegram Mini App"
+        default_factory=lambda: f"{os.environ.get('RENDER_EXTERNAL_URL', 'https://dzbot-6eid.onrender.com').rstrip('/')}/app",
+        description="Public URL for the Telegram Mini App"
     )
     AUTO_TUNNEL: bool = Field(
         default_factory=lambda: not bool(os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_URL")),
@@ -69,19 +74,43 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-def get_natbirzha_webapp_url(url: str | None = None) -> str:
-    """Normalize a public service URL to the dedicated NATBIRZHA Mini App.
-
-    Old Render variables used the parent school app at ``/app``.  Telegram's
-    menu must point straight to the game, otherwise it opens the unrelated
-    timetable Mini App or a route that later resolves to a 404.
-    """
+def get_main_webapp_url(url: str | None = None) -> str:
+    """Normalize a public service URL to the main school/timetable Mini App."""
     base = str(url or settings.WEBAPP_URL or settings.BASE_URL or "").strip().rstrip("/")
+    if base.endswith("/app/natbirzha"):
+        return base[:-len("/natbirzha")]
+    if base.endswith("/app"):
+        return base
+    return f"{base}/app"
+
+
+def get_natbirzha_webapp_url(url: str | None = None) -> str:
+    """Normalize a public service URL to the dedicated NATBIRZHA Mini App."""
+    base = str(url or settings.BASE_URL or settings.WEBAPP_URL or "").strip().rstrip("/")
     if base.endswith("/app/natbirzha"):
         return base
     if base.endswith("/app"):
         return f"{base}/natbirzha"
     return f"{base}/app/natbirzha"
+
+def get_deploy_notify_ids() -> set[int]:
+    """Returns set of Telegram IDs to receive deploy/startup notifications."""
+    ids: set[int] = set()
+    if settings.ADMIN_ID:
+        try:
+            ids.add(int(settings.ADMIN_ID))
+        except (ValueError, TypeError):
+            pass
+    raw = getattr(settings, "DEPLOY_NOTIFY_IDS", "") or ""
+    for token in str(raw).split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            ids.add(int(token))
+        except ValueError:
+            pass
+    return ids
 
 def get_today() -> date:
     """Returns today's date according to the configured timezone (Asia/Yekaterinburg)"""

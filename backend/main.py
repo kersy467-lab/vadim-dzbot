@@ -185,46 +185,9 @@ async def lifespan(app: FastAPI):
 
         polling_task = asyncio.create_task(init_telegram_bot())
 
-        # Send deploy completion notification to admin
-        if settings.ADMIN_ID:
-            async def send_startup_alert():
-                try:
-                    await asyncio.sleep(1)
-                    from backend.config import get_today
-                    today_str = get_today().strftime("%d.%m.%Y")
-                    is_dev_db = "sqlite" in settings.DATABASE_URL
-                    bot_header = (
-                        "🧪 **Тестовый бот (Dev) успешно запущен на localhost!**"
-                        if is_dev_db
-                        else "🚀 **Деплой успешно завершен! Бот 11 «Б» запущен.**"
-                    )
-                    db_name = "SQLite (Локальная база dev)" if is_dev_db else "Neon PostgreSQL"
-                    webapp_info = (
-                        f"📱 **Mini App для телефона:**\n{settings.WEBAPP_URL}\n"
-                        if settings.WEBAPP_URL.startswith("https://")
-                        else ""
-                    )
-                    extra_info = (
-                        f"🌐 Порт: `{settings.PORT}`\n🔔 Все модули и Mini App готовы к тестам!"
-                        if is_dev_db
-                        else f"🌐 Порт: `{settings.PORT}`\n🔔 Все модули, расписание, звонки и Mini App готовы к работе!"
-                    )
-                    await bot.send_message(
-                        chat_id=settings.ADMIN_ID,
-                        text=(
-                            f"{bot_header}\n\n"
-                            f"📅 **Дата:** `{today_str}`\n"
-                            f"⚡ База данных: `{db_name}`\n"
-                            f"{extra_info}\n"
-                            f"{webapp_info}"
-                        ),
-                        parse_mode="Markdown"
-                    )
-                    logger.info("Deploy notification successfully sent to admin.")
-                except Exception as ex:
-                    logger.warning(f"Could not send startup alert to admin: {ex}")
-
-            asyncio.create_task(send_startup_alert())
+        # Send deploy completion notification to configured recipients (ADMIN_ID and DEPLOY_NOTIFY_IDS)
+        from backend.bot.services.startup_notify import send_startup_notifications
+        asyncio.create_task(send_startup_notifications(bot))
     else:
         logger.warning("BOT_TOKEN is not configured or is a placeholder! Telegram bot polling will not start.")
 

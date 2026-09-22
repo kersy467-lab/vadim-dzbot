@@ -7,7 +7,8 @@ from aiogram.client.telegram import TelegramAPIServer
 
 from backend.config import settings
 from backend.bot.middlewares.auth import AuthMiddleware
-from backend.bot.handlers import start, schedule, homework, settings as bot_settings, admin, group, facts, economy, birthdays, polls, now, natbirzha
+from backend.bot.handlers import start, schedule, homework, settings as bot_settings, admin, group, facts, economy, birthdays, polls, now, natbirzha, custom_schedule
+
 
 _current_bot: Bot | None = None
 
@@ -78,10 +79,12 @@ def create_bot_and_dispatcher() -> tuple[Bot, Dispatcher]:
         polls.router,
         now.router,
         bot_settings.router,
+        custom_schedule.router,
         economy.router,
         natbirzha.router,
         admin.router
     ]
+
     for r in routers:
         if r.parent_router is None:
             dp.include_router(r)

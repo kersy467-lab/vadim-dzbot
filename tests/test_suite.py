@@ -366,8 +366,7 @@ async def test_database_and_crud():
         assert len(chem_dates) >= 1
         assert chem_dates[0] == date(2026, 9, 21), f"Expected next Monday 21.09, got {chem_dates[0]}"
 
-        # 2. Create homework for Chemistry due 2026-09-21, assigned on 2026-09-14
-        # Homework created for next week
+        # 2. Create homework for Chemistry due in future (next week)
         target_due = today + timedelta(days=7)
 
         hw_active = await create_homework(
@@ -378,6 +377,7 @@ async def test_database_and_crud():
             description="Параграф 5, упр. 1-4"
         )
         assert hw_active.assigned_date == today - timedelta(days=2)
+
 
         # 3. Create a past homework (due in the past)
         hw_past = await create_homework(
@@ -821,6 +821,9 @@ async def main():
         "tests/natbirzha/test_p2_backend_api.py",
         "tests/natbirzha/test_reference_instruments.py",
         "tests/natbirzha/test_bond_lifecycle.py",
+        "tests/test_durak_gameplay.py",
+        "tests/test_chess_game.py",
+        "tests/test_chess_bot.py",
     )
     child_env = os.environ.copy()
     child_env["PYTHONPATH"] = os.path.abspath(".")

@@ -1,15 +1,19 @@
 import random
 import time
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 logger = logging.getLogger(__name__)
 
 try:
     import chess
+    from backend.api.chess_ai import get_best_bot_move, get_position_key
 except ImportError:
     chess = None
+    get_best_bot_move = None
+    get_position_key = None
     logger.warning("Module 'chess' is not installed. Chess games will be unavailable until installed.")
+
 
 class ChessRoom:
     def __init__(
@@ -20,15 +24,17 @@ class ChessRoom:
         opponent_tg_id: Optional[int] = None,
         opponent_name: Optional[str] = None,
         host_color: str = "white",
-        is_local: bool = False
+        is_local: bool = False,
+        is_bot: bool = False,
+        bot_color: Optional[str] = None
     ):
         self.room_id = room_id
         self.game_type = "chess"
         self.host_tg_id = host_tg_id
         self.host_name = host_name
         self.opponent_tg_id = opponent_tg_id
-        self.opponent_name = opponent_name or "Соперник"
         self.is_local = is_local
+        self.is_bot = is_bot
 
         # Randomize host color if requested
         if host_color == "random":
@@ -39,6 +45,8 @@ class ChessRoom:
             self.color_choice_mode = actual_color
 
         self.host_color = actual_color
+        self.bot_color = bot_color or ("black" if self.host_color == "white" else "white")
+        self.opponent_name = opponent_name or ("🤖 Шахматный Бот (ИИ)" if is_bot else "Соперник")
 
         if self.host_color == "white":
             self.white_tg_id = host_tg_id
@@ -55,13 +63,18 @@ class ChessRoom:
             raise RuntimeError("Библиотека шахмат chess не установлена на сервере. Обратитесь к администратору.")
 
         self.board = chess.Board()
-        self.status = "playing" if is_local else "waiting"
+        self.status = "playing" if (is_local or is_bot) else "waiting"
         self.winner: Optional[str] = None  # "white", "black", "draw", or None
         self.termination_reason: Optional[str] = None  # "checkmate", "stalemate", "resignation", etc.
         self.rematch_requested_by: Optional[str] = None  # "white", "black", or None
 
         self.created_at = time.time()
         self.last_activity = time.time()
+        self.position_history: List[str] = [get_position_key(self.board)] if get_position_key else []
+
+        # If bot plays white, it makes the opening move immediately
+        if self.is_bot and self.bot_color == "white":
+            self._make_bot_move()
 
     def set_opponent(self, user_tg_id: int, user_name: Optional[str] = None):
         self.opponent_tg_id = user_tg_id
@@ -79,6 +92,8 @@ class ChessRoom:
     def get_player_role(self, user_tg_id: int) -> Optional[str]:
         if getattr(self, "is_local", False):
             return self.turn
+        if getattr(self, "is_bot", False):
+            return self.host_color
         if self.white_tg_id and user_tg_id == self.white_tg_id:
             return "white"
         if self.black_tg_id and user_tg_id == self.black_tg_id:
@@ -88,6 +103,40 @@ class ChessRoom:
     @property
     def turn(self) -> str:
         return "white" if self.board.turn == chess.WHITE else "black"
+
+    @property
+    def last_move(self) -> Optional[str]:
+        return self.board.peek().uci() if len(self.board.move_stack) > 0 else None
+
+    def _check_outcome(self):
+        if self.board.is_checkmate():
+            self.status, self.winner, self.termination_reason = "finished", ("white" if self.board.turn == chess.BLACK else "black"), "checkmate"
+        elif self.board.is_stalemate():
+            self.status, self.winner, self.termination_reason = "finished", "draw", "stalemate"
+        elif self.board.is_insufficient_material():
+            self.status, self.winner, self.termination_reason = "finished", "draw", "insufficient_material"
+        elif self.board.can_claim_threefold_repetition():
+            self.status, self.winner, self.termination_reason = "finished", "draw", "repetition"
+        elif self.board.can_claim_fifty_moves():
+            self.status, self.winner, self.termination_reason = "finished", "draw", "fifty_moves"
+
+    def _make_bot_move(self):
+        if not getattr(self, "is_bot", False) or self.status != "playing":
+            return
+        bot_c = chess.WHITE if self.bot_color == "white" else chess.BLACK
+        if self.board.turn != bot_c or not get_best_bot_move:
+            return
+        move = get_best_bot_move(
+            self.board,
+            depth=3,
+            bot_color=bot_c,
+            position_history=self.position_history
+        )
+        if move and move in self.board.legal_moves:
+            self.board.push(move)
+            if get_position_key:
+                self.position_history.append(get_position_key(self.board))
+            self._check_outcome()
 
     def make_move(self, user_tg_id: int, move_data: Any) -> tuple[bool, str]:
         self.last_activity = time.time()
@@ -120,28 +169,13 @@ class ChessRoom:
                 return False, "Недопустимый ход по правилам шахмат"
 
         self.board.push(move)
+        if get_position_key:
+            self.position_history.append(get_position_key(self.board))
+        self._check_outcome()
 
-        # Check outcome
-        if self.board.is_checkmate():
-            self.status = "finished"
-            self.winner = "white" if self.board.turn == chess.BLACK else "black"
-            self.termination_reason = "checkmate"
-        elif self.board.is_stalemate():
-            self.status = "finished"
-            self.winner = "draw"
-            self.termination_reason = "stalemate"
-        elif self.board.is_insufficient_material():
-            self.status = "finished"
-            self.winner = "draw"
-            self.termination_reason = "insufficient_material"
-        elif self.board.can_claim_threefold_repetition():
-            self.status = "finished"
-            self.winner = "draw"
-            self.termination_reason = "repetition"
-        elif self.board.can_claim_fifty_moves():
-            self.status = "finished"
-            self.winner = "draw"
-            self.termination_reason = "fifty_moves"
+        # If playing against bot, bot responds immediately
+        if getattr(self, "is_bot", False) and self.status == "playing":
+            self._make_bot_move()
 
         return True, "Успешно"
 
@@ -154,6 +188,12 @@ class ChessRoom:
             role = self.turn
             self.status = "finished"
             self.winner = "black" if role == "white" else "white"
+            self.termination_reason = "resignation"
+            return True, "Сдача принята"
+
+        if getattr(self, "is_bot", False):
+            self.status = "finished"
+            self.winner = self.bot_color
             self.termination_reason = "resignation"
             return True, "Сдача принята"
 
@@ -173,11 +213,31 @@ class ChessRoom:
 
         if getattr(self, "is_local", False):
             self.board.reset()
+            self.position_history = [get_position_key(self.board)] if get_position_key else []
             self.winner = None
             self.termination_reason = None
             self.rematch_requested_by = None
             self.status = "playing"
             return True, "Новая игра начата"
+
+        if getattr(self, "is_bot", False):
+            self.host_color = "black" if self.host_color == "white" else "white"
+            self.bot_color = "black" if self.host_color == "white" else "white"
+            if self.host_color == "white":
+                self.white_name = self.host_name
+                self.black_name = self.opponent_name
+            else:
+                self.black_name = self.host_name
+                self.white_name = self.opponent_name
+            self.board.reset()
+            self.position_history = [get_position_key(self.board)] if get_position_key else []
+            self.winner = None
+            self.termination_reason = None
+            self.rematch_requested_by = None
+            self.status = "playing"
+            if self.bot_color == "white":
+                self._make_bot_move()
+            return True, "Новая игра с ботом начата со сменой цветов"
 
         role = self.get_player_role(user_tg_id)
         if not role:
@@ -185,12 +245,12 @@ class ChessRoom:
 
         other_role = "black" if role == "white" else "white"
         if self.rematch_requested_by == other_role:
-            # Both agreed: swap colors and restart!
             self.white_tg_id, self.black_tg_id = self.black_tg_id, self.white_tg_id
             self.white_name, self.black_name = self.black_name, self.white_name
             self.host_color = "black" if self.host_color == "white" else "white"
 
             self.board.reset()
+            self.position_history = [get_position_key(self.board)] if get_position_key else []
             self.winner = None
             self.termination_reason = None
             self.rematch_requested_by = None
@@ -229,17 +289,21 @@ class ChessRoom:
 
     def to_dict(self, viewer_tg_id: Optional[int] = None) -> dict:
         is_local = getattr(self, "is_local", False)
-        viewer_role = self.turn if is_local else (self.get_player_role(viewer_tg_id) if viewer_tg_id else None)
+        is_bot = getattr(self, "is_bot", False)
+        bot_color = getattr(self, "bot_color", None)
+        viewer_role = self.turn if is_local else (self.host_color if is_bot else (self.get_player_role(viewer_tg_id) if viewer_tg_id else None))
         last_move = self.board.peek().uci() if len(self.board.move_stack) > 0 else None
         legal_moves = [m.uci() for m in self.board.legal_moves] if self.status == "playing" else []
 
-        host_role = "white" if is_local else self.get_player_role(self.host_tg_id)
-        opp_role = "black" if is_local else (self.get_player_role(self.opponent_tg_id) if self.opponent_tg_id else None)
+        host_role = "white" if is_local else (self.host_color if is_bot else self.get_player_role(self.host_tg_id))
+        opp_role = "black" if is_local else (bot_color if is_bot else (self.get_player_role(self.opponent_tg_id) if self.opponent_tg_id else None))
 
         return {
             "room_id": self.room_id,
             "game_type": "chess",
             "is_local": is_local,
+            "is_bot": is_bot,
+            "bot_color": bot_color,
             "status": self.status,
             "host_color": self.host_color,
             "color_choice_mode": getattr(self, "color_choice_mode", self.host_color),
@@ -252,7 +316,7 @@ class ChessRoom:
                 "tg_id": self.opponent_tg_id,
                 "name": self.opponent_name,
                 "role": opp_role
-            } if self.opponent_tg_id else None,
+            } if (self.opponent_tg_id or is_bot) else None,
             "white": {
                 "tg_id": self.white_tg_id,
                 "name": self.white_name
@@ -260,7 +324,7 @@ class ChessRoom:
             "black": {
                 "tg_id": self.black_tg_id,
                 "name": self.black_name
-            } if self.black_tg_id else None,
+            } if (self.black_tg_id or is_bot) else None,
             "fen": self.board.fen(),
             "turn": self.turn,
             "winner": self.winner,
@@ -275,5 +339,3 @@ class ChessRoom:
             "legal_moves": legal_moves,
             "captured_pieces": self.get_captured_pieces()
         }
-
-

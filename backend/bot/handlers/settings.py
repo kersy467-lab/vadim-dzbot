@@ -30,6 +30,18 @@ def build_settings_keyboard(canteen_on: bool, currency_on: bool) -> InlineKeyboa
                     text=f"🪙 Игровая экосистема: {currency_icon}",
                     callback_data="set_currency_toggle"
                 )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📅 Добавить своё расписание",
+                    callback_data="custom_sched_add"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📋 Моё расписание",
+                    callback_data="custom_sched_view"
+                )
             ]
         ]
     )
@@ -45,8 +57,11 @@ def format_settings_text(canteen_on: bool, currency_on: bool, coins: int) -> str
         "<i>После окончания 5-го урока вам в ЛС придут 3 напоминания, что пора идти обедать.</i>\n\n"
         f"🪙 <b>Внутриигровая экосистема:</b> {currency_status}\n"
         "<i>Разблокирует игры «Дурак», «21 Очко», «Рулетка» и «Кости», команды <code>/cash</code> и <code>/work</code>, ставки на монеты и рейтинг игроков в Mini App.</i>\n\n"
-        "👇 <i>Нажмите на кнопку ниже, чтобы переключить режим:</i>"
+        "📅 <b>Персональное расписание:</b>\n"
+        "<i>Настройте автоматическую отправку личного расписания по дням недели в выбранное вами время.</i>\n\n"
+        "👇 <i>Выберите действие ниже:</i>"
     )
+
 
 
 ECOSYSTEM_GUIDE_TEXT = (

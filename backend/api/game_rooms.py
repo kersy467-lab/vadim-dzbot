@@ -8,12 +8,14 @@ from backend.api.rooms_chess import ChessRoom, chess
 from backend.api.rpg_bosses import RAID_BOSSES
 from backend.api.rpg_pvp import RPGPvPRoom
 from backend.api.rpg_coop import RPGCoopBossRoom
+from backend.api.rooms_ege import EGEDuelRoom
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "WIN_COMBOS", "TicTacToeRoom", "ChessRoom", "chess",
     "RAID_BOSSES", "RPGPvPRoom", "RPGCoopBossRoom",
+    "EGEDuelRoom",
     "GameRoomManager", "game_manager"
 ]
 
@@ -93,6 +95,15 @@ class GameRoomManager:
                 boss_id=boss_id,
                 is_solo=is_solo,
                 hero_data=hero_data
+            )
+        elif game_type in {"ege_stress_duel", "ege_vocabulary_duel"}:
+            room = EGEDuelRoom(
+                room_id=room_id,
+                host_tg_id=host_tg_id,
+                host_name=host_name,
+                opponent_tg_id=opponent_tg_id,
+                opponent_name=opponent_name,
+                game_type=game_type,
             )
         else:
             room = TicTacToeRoom(

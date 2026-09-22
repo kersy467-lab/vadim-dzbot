@@ -172,6 +172,14 @@ async def invite_opponent_to_game(
                     game_url, invite_text, btn_text = get_rpg_invite_details(
                         room, game_type, base_url, separator, opponent_tg_id, escaped_host_name
                     )
+                elif game_type in ["ege_stress_duel", "ege_vocabulary_duel"]:
+                    game_url = f"{base_url}{separator}room={room.room_id}&game={game_type}&tg_user_id={opponent_tg_id}"
+                    topic = "ударения" if game_type == "ege_stress_duel" else "словарные слова"
+                    invite_text = (
+                        f"🎓 <b>{escaped_host_name}</b> вызывает тебя на ЕГЭ-дуэль: <b>{topic}</b>!\n\n"
+                        "10 слов, а при 10/10 у обоих — внезапная смерть до первой ошибки."
+                    )
+                    btn_text = "🎓 Принять ЕГЭ-дуэль"
                 elif game_type == "chess":
                     game_url = f"{base_url}{separator}room={room.room_id}&game=chess&tg_user_id={opponent_tg_id}"
                     host_color_actual = getattr(room, "host_color", "white")
@@ -309,6 +317,5 @@ async def make_game_move(
         from backend.api.routers.games_rpg_hooks import handle_rpg_room_moved
         await handle_rpg_room_moved(room, session, user, viewer_tg_id)
     return room.to_dict(viewer_tg_id=viewer_tg_id)
-
 
 

@@ -343,6 +343,11 @@
       if (window.RPG?.openCoopRoom) window.RPG.openCoopRoom(roomId);
       return;
     }
+    if (target === "ege_stress_duel" || target === "ege_vocabulary_duel") {
+      if (window.switchTab) window.switchTab("ege");
+      if (window.EGE_DUEL?.open) return window.EGE_DUEL.open(roomId, target);
+      return;
+    }
     if (target === "chess") {
       switchGame("chess");
       if (window.GAMES_CHESS?.openChessOnlineRoom) return window.GAMES_CHESS.openChessOnlineRoom(roomId);

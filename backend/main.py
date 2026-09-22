@@ -259,7 +259,8 @@ class NoCacheStaticFiles(StaticFiles):
         response = await super().get_response(path, scope)
         if str(path).replace("\\", "/").startswith("assets/ranks/"):
             response.headers["Cache-Control"] = "public, max-age=86400"
-            response.headers.pop("Pragma", None)
+            if "pragma" in response.headers:
+                del response.headers["pragma"]
         else:
             response.headers["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"

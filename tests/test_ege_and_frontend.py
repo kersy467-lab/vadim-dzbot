@@ -17,6 +17,15 @@ def test_frontend_modules_with_node():
         print(res.stderr, file=sys.stderr)
     assert res.returncode == 0, f"Node test failed with returncode {res.returncode}"
 
+
+def test_duel_frontend_sends_answers_not_a_client_side_verdict():
+    root = os.path.dirname(__file__)
+    with open(os.path.join(root, "../frontend/js/ege/ege_duel.js"), encoding="utf-8") as source_file:
+        source = source_file.read()
+    assert "room.question" in source
+    assert "sendGameMove(room.room_id, { answer" in source
+    assert "{ correct }" not in source
+
 if __name__ == "__main__":
     test_frontend_modules_with_node()
     print("Python test runner: SUCCESS!")

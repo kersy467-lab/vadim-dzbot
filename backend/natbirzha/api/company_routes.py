@@ -14,6 +14,13 @@ from backend.natbirzha.services.progression_service import progress_snapshot
 
 router = APIRouter(prefix="/company", tags=["Natbirzha Company"])
 
+
+@router.get("/industries")
+async def industry_overview(session: AsyncSession = Depends(get_db_session)):
+    """Population pressure shown before a player chooses a specialization."""
+    from backend.natbirzha.services.industry_service import IndustryService
+    return await IndustryService.overview(session)
+
 class CreateCompanyRequest(BaseModel):
     name: str = Field(min_length=2, max_length=64)
     specialization: str
@@ -220,7 +227,7 @@ async def expand_territory(
     )).scalar_one_or_none()
     company = locked or company
     if company.territory_tiles >= company.max_territory:
-        raise HTTPException(status_code=400, detail="Maximum territory limit reached.")
+        raise HTTPException(status_code=400, detail="Достигнут максимальный размер территории.")
 
     # Cost scales with territory, while post-60 logistics gives capped diminishing relief.
     from backend.natbirzha.services.mastery_service import MasteryService
@@ -228,7 +235,7 @@ async def expand_territory(
     logistics_discount = MasteryService.effect(company, "logistics")
     cost = round(base_cost * (1.0 - logistics_discount), 2)
     if company.cash < cost:
-        raise HTTPException(status_code=400, detail=f"Insufficient cash. Needed: {cost}, Available: {company.cash}")
+        raise HTTPException(status_code=400, detail=f"Недостаточно cash: нужно {cost}, доступно {company.cash}")
 
     company.cash = round(company.cash - cost, 2)
     company.territory_tiles += 1
@@ -304,6 +311,6 @@ async def reset_company_route(
     resp = {
         "success": True,
         "reset": ok,
-        "message": "Company successfully reset. You can now choose a new specialization."
+        "message": "Компания полностью сброшена. Теперь можно выбрать новую отрасль."
     }
     return await IdempotencyService.commit_response(session, user.id, endpoint, idempotency_key, {}, resp)

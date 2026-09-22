@@ -8,6 +8,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.stock_service import StockService
+from backend.natbirzha.services.stock_orderbook_service import StockOrderbookService
 from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 
@@ -20,6 +21,12 @@ class BuyStockRequest(BaseModel):
 class SellStockRequest(BaseModel):
     stock_id: int
     shares_count: int = Field(gt=0)
+
+
+class StockLimitOrderRequest(BaseModel):
+    side: str
+    quantity: int = Field(gt=0)
+    price: float = Field(gt=0)
 
 
 class IPOApplyRequest(BaseModel):
@@ -52,9 +59,87 @@ async def get_stocks_market(session: AsyncSession = Depends(get_db_session)):
             "dividend_rate_pct": s.dividend_rate_pct,
             "valuation_updated_at": str(s.valuation_updated_at) if s.valuation_updated_at else None,
             "ipo_date": str(s.ipo_date),
-            "history": await StockService.price_history(session, s.id),
+            "history": await StockService.price_history(session, s.id, limit=120, days=31),
         })
     return {"stocks": stocks}
+
+
+
+
+
+@router.get("/{stock_id}/history")
+async def get_stock_history(
+    stock_id: int,
+    session: AsyncSession = Depends(get_db_session),
+):
+    return {
+        "stock_id": stock_id,
+        "history": await StockService.price_history(session, stock_id, limit=180),
+    }
+
+@router.get("/{stock_id}/orderbook")
+async def get_stock_orderbook(
+    stock_id: int,
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    try:
+        return await StockOrderbookService.orderbook(session, stock_id, company.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/{stock_id}/orders")
+async def place_stock_limit_order(
+    stock_id: int,
+    req: StockLimitOrderRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    endpoint = f"/api/natbirzha/stocks/{stock_id}/orders"
+    payload = req.model_dump()
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        result = await StockOrderbookService.place_limit_order(
+            session, company.id, stock_id, req.side, req.quantity, req.price, commit=False
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await IdempotencyService.commit_response(
+        session, company.user_id, endpoint, idempotency_key, payload, result
+    )
+
+
+@router.delete("/orders/{order_id}")
+async def cancel_stock_limit_order(
+    order_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    endpoint = f"/api/natbirzha/stocks/orders/{order_id}"
+    payload = {"order_id": order_id}
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        result = await StockOrderbookService.cancel_order(
+            session, company.id, order_id, commit=False
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await IdempotencyService.commit_response(
+        session, company.user_id, endpoint, idempotency_key, payload, result
+    )
 
 @router.post("/ipo/apply")
 async def apply_for_ipo(

@@ -4,6 +4,7 @@ from backend.api.routers.schedule import router as schedule_router
 from backend.api.routers.homework import router as homework_router
 from backend.api.routers.games import router as games_router
 from backend.api.routers.games_actions import router as games_actions_router
+from backend.api.routers.ege_arena import router as ege_arena_router
 from backend.api.routers.durak import router as durak_router
 from backend.api.routers.blackjack import blackjack_router
 from backend.api.routers.roulette import roulette_router
@@ -26,6 +27,7 @@ __all__ = [
     "homework_router",
     "games_router",
     "games_actions_router",
+    "ege_arena_router",
     "durak_router",
     "blackjack_router",
     "roulette_router",

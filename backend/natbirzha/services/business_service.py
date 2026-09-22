@@ -1,17 +1,19 @@
-"""Server-authoritative opening and staged upgrading of V2 businesses."""
+"""Server-authoritative opening and staged upgrading of idle businesses."""
 
 from datetime import datetime, timedelta
 from math import ceil
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import get_game_now, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+from backend.natbirzha.services.progression_service import apply_xp
 
 
 UPGRADE_TIME_CURVES: dict[str, tuple[int, int]] = {
@@ -19,6 +21,7 @@ UPGRADE_TIME_CURVES: dict[str, tuple[int, int]] = {
     "industry": (12, 720),
     "service": (8, 480),
     "advanced": (30, 1_440),
+    "career": (3, 1_440),
 }
 
 
@@ -27,17 +30,48 @@ class BusinessService:
     def business_slot_limits(*, level: int, territory_tiles: int, used: int) -> dict[str, int]:
         level_slots = sum(1 for threshold in (6, 12, 20, 30, 45, 60) if int(level) >= threshold)
         territory_slots = min(4, max(0, int(territory_tiles) // 5))
-        maximum = min(16, 3 + level_slots + territory_slots)
+        maximum = min(20, 3 + level_slots + territory_slots)
         return {"used": int(used), "max": maximum, "free": max(0, maximum - int(used))}
+
+    @staticmethod
+    def project_slot_limits(*, level: int, active: int) -> dict[str, int]:
+        """Limit simultaneous milestone projects without throttling ordinary levels."""
+        maximum = 1 + sum(1 for threshold in (12, 25, 40, 60) if int(level) >= threshold)
+        return {"used": int(active), "max": maximum, "free": max(0, maximum - int(active))}
+
+    @staticmethod
+    def _is_milestone_upgrade(business: NatBusiness) -> bool:
+        spec = get_business_spec(business.business_type)
+        target = int(business.upgrade_target_stage or 0)
+        return bool(spec and target in spec.get("milestones", {}))
+
+    @classmethod
+    async def _active_milestone_projects(cls, session: AsyncSession, company_id: int) -> int:
+        rows = (await session.execute(
+            select(NatBusiness).where(
+                NatBusiness.company_id == company_id, NatBusiness.status == "UPGRADING"
+            )
+        )).scalars().all()
+        return sum(1 for business in rows if cls._is_milestone_upgrade(business))
 
     @staticmethod
     def upgrade_quote(spec: dict[str, Any], stage: int) -> dict[str, Any]:
         current_stage = max(1, int(stage))
+        target_stage = current_stage + 1
         base_cost = max(500.0, float(spec["open_cost"]) * 0.25)
-        cost = round(base_cost * (float(spec["upgrade_cost_growth"]) ** (current_stage - 1)), 2)
+        cost = base_cost * (float(spec["upgrade_cost_growth"]) ** (current_stage - 1))
         base_minutes, max_minutes = UPGRADE_TIME_CURVES[spec["upgrade_time_curve"]]
         minutes = min(max_minutes, max(1, ceil(base_minutes * (1.22 ** (current_stage - 1)))))
-        return {"cost": cost, "duration_minutes": minutes, "target_stage": current_stage + 1}
+        milestone = spec.get("milestones", {}).get(target_stage)
+        if milestone:
+            cost *= float(milestone.get("cash_multiplier", 1.0))
+            minutes = min(10_080, ceil(minutes * float(milestone.get("duration_multiplier", 1.0))))
+        return {
+            "cost": round(cost, 2),
+            "duration_minutes": int(minutes),
+            "target_stage": target_stage,
+            "milestone": {"stage": target_stage, **milestone} if milestone else None,
+        }
 
     @staticmethod
     def _serialize_business(business: NatBusiness) -> dict[str, Any]:
@@ -48,8 +82,8 @@ class BusinessService:
             "stage": business.stage,
             "status": business.status,
             "slot_weight": business.slot_weight,
-            "last_settled_at": business.last_settled_at.isoformat() if hasattr(business.last_settled_at, "isoformat") else (str(business.last_settled_at) if business.last_settled_at else None),
-            "upgrade_ready_at": business.upgrade_ready_at.isoformat() if hasattr(business.upgrade_ready_at, "isoformat") else (str(business.upgrade_ready_at) if business.upgrade_ready_at else None),
+            "last_settled_at": business.last_settled_at,
+            "upgrade_ready_at": business.upgrade_ready_at,
         }
 
     @staticmethod
@@ -58,18 +92,83 @@ class BusinessService:
             select(NatCompany).where(NatCompany.id == company_id).with_for_update()
         )
         if company is None:
-            raise ValueError("Company not found")
+            raise ValueError("Компания не найдена")
         return company
 
     @staticmethod
     async def _used_slots(session: AsyncSession, company_id: int) -> int:
-        value = await session.scalar(
-            select(func.coalesce(func.sum(NatBusiness.slot_weight), 0)).where(
-                NatBusiness.company_id == company_id,
-                NatBusiness.status != "BANKRUPT",
+        rows = (await session.execute(
+            select(NatBusiness).where(
+                NatBusiness.company_id == company_id, NatBusiness.status != "BANKRUPT"
             )
+        )).scalars().all()
+        return sum(
+            int(row.slot_weight) for row in rows
+            if not (get_business_spec(row.business_type) or {}).get("legacy_hidden", False)
         )
-        return int(value or 0)
+
+    @staticmethod
+    async def _company_businesses(session: AsyncSession, company_id: int) -> dict[str, NatBusiness]:
+        rows = (await session.execute(
+            select(NatBusiness)
+            .where(NatBusiness.company_id == company_id, NatBusiness.status != "BANKRUPT")
+            .with_for_update()
+        )).scalars().all()
+        return {
+            row.business_type: row for row in rows
+            if not (get_business_spec(row.business_type) or {}).get("legacy_hidden", False)
+        }
+
+    @staticmethod
+    async def _consume_resources(
+        session: AsyncSession, company_id: int, requirements: dict[str, float]
+    ) -> None:
+        locked: dict[str, NatInventory] = {}
+        missing: list[str] = []
+        for item_id, raw_quantity in requirements.items():
+            quantity = max(0.0, float(raw_quantity))
+            if quantity <= 0:
+                continue
+            inventory = await session.scalar(
+                select(NatInventory)
+                .where(NatInventory.company_id == company_id, NatInventory.item_id == item_id)
+                .with_for_update()
+            )
+            if inventory is None or float(inventory.available_quantity) + 1e-9 < quantity:
+                missing.append(item_id)
+            elif inventory is not None:
+                locked[item_id] = inventory
+        if missing:
+            names = [CANONICAL_ITEMS.get(item_id, {}).get("name", "Неизвестный ресурс") for item_id in missing]
+            raise ValueError("Не хватает ресурсов: " + ", ".join(names))
+        for item_id, inventory in locked.items():
+            inventory.quantity = round(
+                max(0.0, float(inventory.quantity) - float(requirements[item_id])), 6
+            )
+
+    @staticmethod
+    def _validate_open_requirements(
+        company: NatCompany,
+        spec: dict[str, Any],
+        existing: dict[str, NatBusiness],
+    ) -> None:
+        if spec.get("legacy_hidden"):
+            raise ValueError("Это предприятие относится к старой версии экономики")
+        if spec.get("unique", True) and spec["id"] in existing:
+            raise ValueError("Это предприятие уже принадлежит вашей компании")
+        if spec["specialization"] != company.specialization:
+            if company.level < 30 or company.licensed_foreign_spec != spec["specialization"]:
+                raise ValueError("Предприятие недоступно для основной отрасли компании")
+        if int(company.level) < int(spec.get("company_level_required", 1)):
+            raise ValueError(f"Требуется уровень компании {spec['company_level_required']}")
+        if int(company.territory_tiles) < int(spec.get("territory_required", 0)):
+            raise ValueError(f"Требуется территория: {spec['territory_required']} ед.")
+        for business_type, stage in spec.get("prerequisites", {}).items():
+            owned = existing.get(business_type)
+            if owned is None or int(owned.stage) < int(stage):
+                prereq = get_business_spec(business_type)
+                name = prereq["name"] if prereq else business_type
+                raise ValueError(f"Сначала развейте «{name}» до уровня {stage}")
 
     @classmethod
     async def open_business(
@@ -83,20 +182,24 @@ class BusinessService:
     ) -> dict[str, Any]:
         spec = get_business_spec(business_type)
         if spec is None:
-            raise ValueError("Unknown business type")
+            raise ValueError("Неизвестный тип предприятия")
         current = normalize_dt(now or get_game_now())
         await IdleEconomyService.settle_company(session, company_id, now=current)
         company = await cls._locked_company(session, company_id)
+        existing = await cls._company_businesses(session, company.id)
+        cls._validate_open_requirements(company, spec, existing)
+
         used_slots = await cls._used_slots(session, company.id)
-        current_slots = cls.business_slot_limits(
+        slots = cls.business_slot_limits(
             level=company.level, territory_tiles=company.territory_tiles, used=used_slots
         )
-        if used_slots + int(spec["slot_weight"]) > current_slots["max"]:
-            raise ValueError("No free business slots")
+        if used_slots + int(spec["slot_weight"]) > slots["max"]:
+            raise ValueError("Нет свободной корпоративной мощности для нового предприятия")
         open_cost = round(float(spec["open_cost"]), 2)
         if float(company.cash) < open_cost:
-            raise ValueError("Insufficient cash to open business")
+            raise ValueError("Недостаточно cash для открытия предприятия")
 
+        await cls._consume_resources(session, company.id, spec.get("open_resources", {}))
         company.cash = round(float(company.cash) - open_cost, 2)
         business = NatBusiness(
             company_id=company.id,
@@ -110,16 +213,22 @@ class BusinessService:
             base_maintenance_per_hour=float(spec["base_maintenance_per_hour"]),
             last_settled_at=current,
             slot_weight=int(spec["slot_weight"]),
+            metadata_json={"sale_mode": "NPC"},
         )
         session.add(business)
         await session.flush()
+        progression = apply_xp(
+            company, 75 + int(spec.get("industry_order", 1)) * 25
+        )
         return {
             "success": True,
             "open_cost": open_cost,
             "remaining_cash": company.cash,
+            "progression": progression,
             "business": cls._serialize_business(business),
             "slots": cls.business_slot_limits(
-                level=company.level, territory_tiles=company.territory_tiles,
+                level=company.level,
+                territory_tiles=company.territory_tiles,
                 used=used_slots + int(spec["slot_weight"]),
             ),
         }
@@ -142,20 +251,29 @@ class BusinessService:
             ).with_for_update()
         )
         if business is None:
-            raise ValueError("Business not found")
+            raise ValueError("Предприятие не найдено")
         spec = get_business_spec(business.business_type)
         if spec is None:
-            raise ValueError("Business catalog entry is missing")
+            raise ValueError("Предприятие отсутствует в игровом каталоге")
         if business.status == "UPGRADING":
-            raise ValueError("Business upgrade is already in progress")
+            raise ValueError("Улучшение уже выполняется")
         if business.status != "ACTIVE":
-            raise ValueError("Business must be active before upgrading")
+            raise ValueError("Перед улучшением предприятие должно работать")
         if business.stage >= int(spec["max_stage"]):
-            raise ValueError("Business is already at maximum stage")
+            raise ValueError("Достигнут максимальный уровень предприятия")
 
         quote = cls.upgrade_quote(spec, business.stage)
+        if quote.get("milestone"):
+            active_projects = await cls._active_milestone_projects(session, company.id)
+            project_slots = cls.project_slot_limits(level=company.level, active=active_projects)
+            if project_slots["free"] <= 0:
+                raise ValueError(
+                    f"Все проектные мощности заняты ({project_slots['used']}/{project_slots['max']})"
+                )
         if float(company.cash) < quote["cost"]:
-            raise ValueError("Insufficient cash to upgrade business")
+            raise ValueError("Недостаточно cash для улучшения")
+        milestone = quote.get("milestone") or {}
+        await cls._consume_resources(session, company.id, milestone.get("resources", {}))
         company.cash = round(float(company.cash) - quote["cost"], 2)
         business.status = "UPGRADING"
         business.upgrade_started_at = current
@@ -169,9 +287,39 @@ class BusinessService:
             "cost": quote["cost"],
             "target_stage": quote["target_stage"],
             "duration_minutes": quote["duration_minutes"],
+            "milestone": quote.get("milestone"),
             "ready_at": business.upgrade_ready_at,
             "remaining_cash": company.cash,
         }
+
+    @classmethod
+    async def configure_sale_mode(
+        cls,
+        session: AsyncSession,
+        company_id: int,
+        business_id: int,
+        mode: str,
+    ) -> dict[str, Any]:
+        normalized = (mode or "").strip().upper()
+        if normalized not in {"NPC", "HOLD"}:
+            raise ValueError("Режим продажи должен быть NPC или HOLD")
+        business = await session.scalar(
+            select(NatBusiness).where(
+                NatBusiness.id == business_id, NatBusiness.company_id == company_id
+            ).with_for_update()
+        )
+        if business is None:
+            raise ValueError("Предприятие не найдено")
+        spec = get_business_spec(business.business_type)
+        if spec is None or spec["mechanic"] != "resource_production":
+            raise ValueError("Для этого предприятия режим реализации не используется")
+        metadata = dict(business.metadata_json or {})
+        metadata["sale_mode"] = normalized
+        business.metadata_json = metadata
+        if business.status == "PAUSED_STORAGE" and normalized == "NPC":
+            business.status = "ACTIVE"
+        await session.flush()
+        return {"success": True, "business_id": business.id, "sale_mode": normalized}
 
     @classmethod
     async def _lifecycle_business(
@@ -185,7 +333,7 @@ class BusinessService:
             ).with_for_update()
         )
         if business is None:
-            raise ValueError("Business not found")
+            raise ValueError("Предприятие не найдено")
         return business
 
     @classmethod
@@ -194,9 +342,9 @@ class BusinessService:
     ) -> dict[str, Any]:
         business = await cls._lifecycle_business(session, company_id, business_id, now=now)
         if business.status == "UPGRADING":
-            raise ValueError("Cannot pause a business while its upgrade is in progress")
+            raise ValueError("Нельзя поставить предприятие на паузу во время улучшения")
         if business.status in {"BANKRUPT", "MERGING"}:
-            raise ValueError("Business cannot be paused in its current state")
+            raise ValueError("Предприятие нельзя поставить на паузу в текущем состоянии")
         business.status = "PAUSED_MANUAL"
         await session.flush()
         return {"success": True, "business_id": business.id, "status": business.status}
@@ -207,7 +355,7 @@ class BusinessService:
     ) -> dict[str, Any]:
         business = await cls._lifecycle_business(session, company_id, business_id, now=now)
         if business.status != "PAUSED_MANUAL":
-            raise ValueError("Only manually paused businesses can be resumed")
+            raise ValueError("Возобновить можно только предприятие на ручной паузе")
         business.status = "ACTIVE"
         await session.flush()
         return {"success": True, "business_id": business.id, "status": business.status}
@@ -218,7 +366,7 @@ class BusinessService:
     ) -> dict[str, Any]:
         business = await cls._lifecycle_business(session, company_id, business_id, now=now)
         if business.status == "UPGRADING":
-            raise ValueError("Cannot sell a business while its upgrade is in progress")
+            raise ValueError("Нельзя продать предприятие во время улучшения")
         company = await cls._locked_company(session, company_id)
         refund = round(max(0.0, float(business.capital_invested)) * 0.40, 2)
         company.cash = round(float(company.cash) + refund, 2)

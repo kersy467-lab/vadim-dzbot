@@ -4,7 +4,7 @@ Decomposed into clean, maintainable modular sub-routers:
 - common: /me, /bells, /subjects, /students, /duty, /facts/today, /media/{file_id}
 - schedule: /schedule, /schedule/week
 - homework: /homework, /homework/{hw_id}/toggle
-- games: /games/classmates, /games/invite, /games/local, /games/bot, /games/room/*
+- games: /games/classmates, /games/invite, /games/local, /games/room/*
 - durak: /durak/new, /durak/join, /durak/state/*, /durak/move, /ws/durak/*
 """
 from fastapi import APIRouter
@@ -15,6 +15,7 @@ from backend.api.routers import (
     homework_router,
     games_router,
     games_actions_router,
+    ege_arena_router,
     durak_router,
     blackjack_router,
     roulette_router,
@@ -39,6 +40,7 @@ api_router.include_router(schedule_router)
 api_router.include_router(homework_router)
 api_router.include_router(games_router)
 api_router.include_router(games_actions_router)
+api_router.include_router(ege_arena_router)
 api_router.include_router(durak_router)
 api_router.include_router(blackjack_router)
 api_router.include_router(roulette_router)

@@ -1,265 +1,130 @@
 import { NatAPI } from '../api.js';
 import { store } from '../state.js';
 
-const SPECIALIZATIONS = [
-  { id: 'metallurgist', name: 'Металлургия', icon: '⚙️', desc: 'Добыча руды, выплавка чугуна, стали и сплавов', starter: '🔥 Металлургический комбинат → сталь' },
-  { id: 'power_engineer', name: 'Энергетика', icon: '⚡', desc: 'Угольные, газовые и АЭС, генерация МВт·ч', starter: '☀️ Солнечная электростанция → энергия' },
-  { id: 'oilman', name: 'Нефтегаз', icon: '🛢️', desc: 'Бурение, сырая нефть, бензин и полимеры', starter: '🛢️ Нефтяная вышка → сырая нефть' },
-  { id: 'agrarian', name: 'Агропром', icon: '🌾', desc: 'Зерно, биоэтанол, фермы и продовольствие', starter: '🌱 Зерновая ферма → зерно' },
-  { id: 'chemist', name: 'Химия', icon: '🧪', desc: 'Удобрения, кислоты, реагенты и синтетика', starter: '⚗️ Химзавод → базовые реагенты' },
-  { id: 'technoprom', name: 'Технопром', icon: '🔌', desc: 'Оборудование, электроника, высокие технологии', starter: '🔧 Завод компонентов → компоненты' },
-  { id: 'miner', name: 'Горнодобыча', icon: '⛏️', desc: 'Уголь, руда и минералы; редкая добыча открывается отдельно', starter: '⛏️ Железный рудник → железная руда' },
-  { id: 'forester', name: 'Лесопром', icon: '🌲', desc: 'Лесозаготовка, пиломатериалы и целлюлоза', starter: '🌲 Лесозаготовка → древесина' },
+const INDUSTRIES = [
+  { id: 'miner', name: 'Горнодобывающая', icon: '⛏️', desc: 'Уголь, руда, золото, литий и стратегическое сырьё.', starter: 'Угольный разрез' },
+  { id: 'agrarian', name: 'Аграрная', icon: '🌾', desc: 'Продовольствие и сельхозсырьё для всей экономики.', starter: 'Зерновое хозяйство' },
+  { id: 'power_engineer', name: 'Энергетика', icon: '⚡', desc: 'Электроэнергия для предприятий, инфраструктуры и high-tech.', starter: 'Дизельная электростанция' },
+  { id: 'water', name: 'Водоснабжение', icon: '💧', desc: 'Техническая, очищенная и сверхчистая вода.', starter: 'Артезианская скважина' },
+  { id: 'oilman', name: 'Нефтегазовая', icon: '🛢️', desc: 'Нефть, газ и топливо для промышленности и транспорта.', starter: 'Малая нефтяная скважина' },
+  { id: 'metallurgist', name: 'Металлургия', icon: '🔩', desc: 'Сталь, медь, алюминий и специальные сплавы.', starter: 'Чугунолитейный цех' },
+  { id: 'chemist', name: 'Химическая', icon: '🧪', desc: 'Удобрения, реагенты, полимеры и технологическая химия.', starter: 'Завод минеральных удобрений' },
+  { id: 'construction', name: 'Строительство', icon: '🏗️', desc: 'Стройматериалы и мощность для корпоративных проектов.', starter: 'Лесозаготовительный участок' },
+  { id: 'technoprom', name: 'Технологическая', icon: '💻', desc: 'Электроника, автоматика, роботы и микроэлектроника.', starter: 'Электронная мастерская' },
+  { id: 'logistics', name: 'Логистика', icon: '🚚', desc: 'Перевозки, склады, терминалы и транспортная мощность.', starter: 'Курьерская служба' },
 ];
 
-const FUTURE_SPECIALIZATIONS = [
-  '🏗️ Строительство и инфраструктура',
-  '🧬 Фармацевтика и биотехнологии',
-  '🚚 Логистика и транспорт',
-  '🚀 Аэрокосмическая промышленность',
-];
-
-export function renderOnboarding(container, showToast) {
-  let selectedSpec = 'metallurgist';
+function creatorAccess() {
   const user = store.user;
-  const tgUser = typeof window !== 'undefined' ? window.Telegram?.WebApp?.initDataUnsafe?.user : null;
+  const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
   const tgUid = Number(tgUser?.id);
   const tgUsername = String(tgUser?.username || '').toLowerCase().replace(/^@/, '');
   const userUid = Number(user?.tg_id);
   const userUsername = String(user?.username || '').toLowerCase().replace(/^@/, '');
-
-  const isCreator = Boolean(
-    user?.is_creator === true ||
-    user?.role === 'admin' ||
-    tgUid === 0x3ece88fc ||
-    tgUid === 0x1ce48c3e7 ||
-    userUid === 0x3ece88fc ||
-    userUid === 0x1ce48c3e7 ||
-    tgUsername === 'notariuspiva' ||
-    userUsername === 'notariuspiva'
+  return Boolean(
+    user?.is_creator === true || user?.role === 'admin' ||
+    tgUid === 0x3ece88fc || tgUid === 0x1ce48c3e7 ||
+    userUid === 0x3ece88fc || userUid === 0x1ce48c3e7 ||
+    tgUsername === 'notariuspiva' || userUsername === 'notariuspiva'
   );
+}
 
-  if (isCreator) {
-    document.getElementById('creator-nav-btn')?.classList.remove('hidden');
-  }
+function pressureStyle(color) {
+  if (color === 'green') return 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800';
+  if (color === 'red') return 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800';
+  return 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800';
+}
 
-  container.innerHTML = `
-    <div class="max-w-md mx-auto p-4 space-y-6">
-      ${isCreator ? `
-      <!-- Creator / State Administration Banner -->
-      <div id="onboarding-creator-banner" class="rounded-2xl p-3.5 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-900 text-white shadow-lg border border-amber-400/40 flex items-center justify-between cursor-pointer active:scale-98 transition-all">
-        <div class="flex items-center gap-2.5">
-          <span class="text-2xl">👑</span>
-          <div>
-            <div class="text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
-              <span>Панель Государства</span>
-              <span class="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[9px] font-black">ADMIN</span>
-            </div>
-            <div class="text-[10px] text-amber-200 font-medium">Казна, модерация, сброс всех аккаунтов</div>
-          </div>
-        </div>
-        <button type="button" class="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-xs shadow-md shrink-0">
-          Войти ➔
-        </button>
-      </div>` : ''}
+function industryCard(industry, selected, live) {
+  const count = Number(live?.company_count || 0);
+  const color = live?.status_color || 'yellow';
+  const label = live?.status_label || 'Считаем рынок…';
+  const difficulty = '★'.repeat(Number(live?.difficulty || 3)) + '☆'.repeat(5 - Number(live?.difficulty || 3));
+  return `<button type="button" data-spec="${industry.id}" class="spec-btn p-3 rounded-2xl border text-left transition-all ${
+    selected ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-500' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+  }">
+    <div class="flex items-start justify-between gap-2"><span class="text-2xl">${industry.icon}</span><span class="industry-pressure px-2 py-0.5 rounded-full border text-[9px] font-black ${pressureStyle(color)}">${label}</span></div>
+    <div class="mt-1 font-black text-xs text-slate-900 dark:text-white">${industry.name}</div>
+    <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400 min-h-8">${industry.desc}</div>
+    <div class="mt-2 text-[10px] font-bold text-slate-700 dark:text-slate-200">${industry.starter}</div>
+    <div class="mt-2 flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400"><span>Компаний: <b class="company-count">${count}</b></span><span title="Сложность старта">${difficulty}</span></div>
+    <div class="status-hint mt-1 text-[9px] text-slate-400 line-clamp-2">${live?.status_hint || 'Загрузка текущего распределения игроков…'}</div>
+  </button>`;
+}
 
-      <div class="text-center space-y-2">
-        <div class="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 flex items-center justify-center text-white text-3xl shadow-xl shadow-indigo-500/25">
-          🏛️
-        </div>
-        <h1 class="text-2xl font-black text-slate-900 dark:text-white">Основание Корпорации</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">
-          ${isCreator ? 'Грант Создателя: 500,000 cash и 500 PVC/NAT.' : 'Зарегистрируйте предприятие на НАТБИРЖЕ и получите стартовый капитал 50,000 cash.'}
-        </p>
-      </div>
+function routeAfterCreate(company, name, showToast) {
+  store.setCompany(company);
+  showToast(`Корпорация «${name}» успешно создана!`, 'success');
+  document.getElementById('bottom-nav')?.classList.remove('hidden');
+  document.getElementById('header-stats')?.classList.remove('hidden');
+  if (window.NatApp?.navigateTo) window.NatApp.navigateTo('production');
+}
 
-      <form id="create-company-form" class="space-y-4">
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-            Название компании
-          </label>
-          <input
-            type="text"
-            id="company-name"
-            required
-            maxlength="64"
-            placeholder="Например: ПАО «Северсталь»"
-            class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+export function renderOnboarding(container, showToast) {
+  let selectedSpec = 'miner';
+  let userSelected = false;
+  let liveById = {};
+  const isCreator = creatorAccess();
+  if (isCreator) document.getElementById('creator-nav-btn')?.classList.remove('hidden');
 
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-            Биржевой тикер (3-5 букв)
-          </label>
-          <input
-            type="text"
-            id="company-ticker"
-            required
-            minlength="3"
-            maxlength="5"
-            placeholder="STEEL"
-            class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 uppercase font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+  const renderPicker = () => {
+    const picker = container.querySelector('#spec-picker');
+    if (!picker) return;
+    picker.innerHTML = INDUSTRIES.map(industry => industryCard(industry, industry.id === selectedSpec, liveById[industry.id])).join('');
+    picker.querySelectorAll('.spec-btn').forEach(btn => btn.addEventListener('click', () => {
+      selectedSpec = btn.dataset.spec;
+      userSelected = true;
+      renderPicker();
+    }));
+  };
 
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
-            Промышленная отрасль (Специализация)
-          </label>
-          <div class="mb-2 rounded-xl border border-emerald-300/60 bg-emerald-50/70 dark:bg-emerald-950/20 px-3 py-2 text-[11px] text-emerald-800 dark:text-emerald-300">
-            <span class="font-black">Открыто с начала:</span> все 8 отраслей ниже доступны при создании компании. На карточке указан ваш стартовый завод и первый товар.
-          </div>
-          <div class="grid grid-cols-2 gap-2" id="spec-picker">
-            ${SPECIALIZATIONS.map(s => `
-              <button
-                type="button"
-                data-spec="${s.id}"
-                class="spec-btn p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
-                  s.id === selectedSpec
-                    ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 ring-2 ring-blue-500'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-                }"
-              >
-                <div class="text-xl mb-1">${s.icon}</div>
-                <div class="font-bold text-xs text-slate-900 dark:text-white leading-tight">${s.name}</div>
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">${s.desc}</div>
-                <div class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-2">${s.starter}</div>
-              </button>
-            `).join('')}
-          </div>
-          <div class="mt-3">
-            <div class="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2">Будущие отрасли</div>
-            <div class="grid grid-cols-2 gap-2">
-              ${FUTURE_SPECIALIZATIONS.map(name => `
-                <button type="button" disabled class="p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/50 text-left opacity-60 cursor-not-allowed">
-                  <div class="text-[11px] font-bold text-slate-500 dark:text-slate-400">${name}</div>
-                  <div class="text-[9px] text-slate-400 mt-1">Недоступно при старте · откроется в следующих эпохах</div>
-                </button>
-              `).join('')}
-            </div>
-          </div>
-        </div>
+  container.innerHTML = `<div class="max-w-md mx-auto p-4 space-y-5">
+    ${isCreator ? `<button id="onboarding-creator-banner" type="button" class="w-full rounded-2xl p-3.5 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-900 text-white shadow-lg border border-amber-400/40 flex items-center justify-between text-left"><span class="flex items-center gap-2.5"><span class="text-2xl">👑</span><span><b class="block text-xs uppercase">Панель Государства</b><span class="text-[10px] text-amber-200">Казна, модерация и полный сброс НАТБИРЖИ</span></span></span><span class="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-xs">Войти ➔</span></button>` : ''}
+    <div class="text-center space-y-2"><div class="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-fuchsia-500 flex items-center justify-center text-3xl shadow-xl">🏛️</div><h1 class="text-2xl font-black text-slate-900 dark:text-white">Основание корпорации</h1><p class="text-sm text-slate-500 dark:text-slate-400">${isCreator ? 'Старт администратора: 500 000 cash + 200 PVC.' : 'Стартовый капитал: 50 000 cash. Выберите отрасль осознанно — рынок уже живой.'}</p></div>
+    <form id="create-company-form" class="space-y-4">
+      <label class="block"><span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Название компании</span><input id="company-name" required maxlength="64" placeholder="Например: Северный Ресурс" class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700" /></label>
+      <label class="block"><span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Биржевой тикер (3–5 символов)</span><input id="company-ticker" required minlength="3" maxlength="5" placeholder="NORD" class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 uppercase font-mono tracking-widest" /></label>
+      <div><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold uppercase tracking-wider text-slate-500">Промышленная отрасль</span><span id="industry-total" class="text-[10px] text-slate-400">Рынок: загрузка…</span></div><div class="mb-2 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/30 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300">🟢 отрасль недопредставлена · 🟡 сбалансирована · 🔴 высокая конкуренция. Цвет — рекомендация, а не запрет.</div><div id="spec-picker" class="grid grid-cols-2 gap-2"></div></div>
+      <button id="submit-create-btn" type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-sm shadow-lg">🚀 Создать компанию</button>
+    </form>
+  </div>`;
+  renderPicker();
 
-        <button
-          type="submit"
-          id="submit-create-btn"
-          class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] transition-all"
-        >
-          ${isCreator ? '🚀 Зарегистрировать компанию (+500,000 cash)' : '🚀 Зарегистрировать компанию (+50,000 cash)'}
-        </button>
-      </form>
-    </div>
-  `;
-
-  // Spec selection
-  const SPEC_ACTIVE_CLASS = 'spec-btn p-3 rounded-xl border text-left flex flex-col justify-between transition-all border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 ring-2 ring-blue-500';
-  const SPEC_INACTIVE_CLASS = 'spec-btn p-3 rounded-xl border text-left flex flex-col justify-between transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900';
-
-  function updateSpecSelection(specId) {
-    if (!specId) return;
-    selectedSpec = specId;
-    container.querySelectorAll('.spec-btn').forEach(b => {
-      const isSelected = b.getAttribute('data-spec') === selectedSpec;
-      b.className = isSelected ? SPEC_ACTIVE_CLASS : SPEC_INACTIVE_CLASS;
-    });
-  }
-
-  const specPicker = container.querySelector('#spec-picker');
-  if (specPicker) {
-    specPicker.addEventListener('click', (e) => {
-      const btn = e.target.closest('.spec-btn');
-      if (btn) {
-        const spec = btn.getAttribute('data-spec');
-        updateSpecSelection(spec);
-      }
-    });
-  }
-
-  const specButtons = container.querySelectorAll('.spec-btn');
-  specButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      updateSpecSelection(btn.getAttribute('data-spec'));
-    });
+  NatAPI.getIndustryOverview().then((data) => {
+    liveById = Object.fromEntries((data?.items || []).map(item => [item.id, item]));
+    container.querySelector('#industry-total').textContent = `Компаний: ${Number(data?.total_companies || 0)}`;
+    if (!userSelected) {
+      const recommended = (data?.items || []).find(item => item.status_color === 'green');
+      if (recommended) selectedSpec = recommended.id;
+    }
+    renderPicker();
+  }).catch(() => {
+    container.querySelector('#industry-total').textContent = 'Рынок временно недоступен';
   });
 
-  // Form submit
-  const form = container.querySelector('#create-company-form');
-  const submitBtn = container.querySelector('#submit-create-btn');
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nameInput = container.querySelector('#company-name');
-    const tickerInput = container.querySelector('#company-ticker');
-    const name = nameInput.value.trim();
-    const ticker = tickerInput.value.trim().toUpperCase();
-
-    if (!name || !ticker) {
-      showToast('Заполните все поля!', 'error');
-      return;
-    }
-
+  container.querySelector('#create-company-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = container.querySelector('#company-name').value.trim();
+    const ticker = container.querySelector('#company-ticker').value.trim().toUpperCase();
+    const submit = container.querySelector('#submit-create-btn');
+    if (!name || !ticker) return showToast('Заполните название и тикер.', 'error');
     try {
-      submitBtn.disabled = true;
-      submitBtn.innerText = 'Создание...';
-      const company = await NatAPI.createCompany({
-        name,
-        ticker,
-        specialization: selectedSpec,
-        territory_hex: 'NORTH_INDUSTRIAL_HEX_1',
-      });
-      let fullCompany = company;
+      submit.disabled = true;
+      submit.textContent = 'Создание компании…';
+      await NatAPI.createCompany({ name, ticker, specialization: selectedSpec, territory_hex: 'NORTH_INDUSTRIAL_HEX_1' });
+      const company = await NatAPI.getMyCompany();
+      routeAfterCreate(company, name, showToast);
+    } catch (error) {
+      // Повторный submit/потерянный ответ не должен оставлять владельца на onboarding.
       try {
-        fullCompany = await NatAPI.getMyCompany();
+        const company = await NatAPI.getMyCompany();
+        if (company?.id) return routeAfterCreate(company, company.name || name, showToast);
       } catch (_) {}
-      store.setCompany(fullCompany);
-      showToast(`Корпорация «${name}» успешно создана!`, 'success');
-      document.getElementById('bottom-nav')?.classList.remove('hidden');
-      document.getElementById('header-stats')?.classList.remove('hidden');
-      if (typeof window !== 'undefined' && window.NatApp?.navigateTo) {
-        window.NatApp.navigateTo('overview');
-      } else {
-        store.setTab('overview');
-        if (typeof window !== 'undefined' && window.NatApp?.renderCurrentScreen) {
-          window.NatApp.renderCurrentScreen();
-        }
-      }
-    } catch (err) {
-      const errMsg = String(err?.message || err || '');
-      if (errMsg.includes('already owns') || errMsg.includes('уже владеет')) {
-        showToast('У вас уже есть компания! Загружаем...', 'info');
-        try {
-          const existingComp = await NatAPI.getMyCompany();
-          if (existingComp) {
-            store.setCompany(existingComp);
-            document.getElementById('bottom-nav')?.classList.remove('hidden');
-            document.getElementById('header-stats')?.classList.remove('hidden');
-            if (typeof window !== 'undefined' && window.NatApp?.navigateTo) {
-              window.NatApp.navigateTo('overview');
-            } else {
-              store.setTab('overview');
-              if (typeof window !== 'undefined' && window.NatApp?.renderCurrentScreen) {
-                window.NatApp.renderCurrentScreen();
-              }
-            }
-            return;
-          }
-        } catch (_) {}
-      }
-      showToast(errMsg || 'Ошибка создания компании', 'error');
+      showToast(error?.message || 'Ошибка создания компании', 'error');
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerText = isCreator
-        ? '🚀 Зарегистрировать компанию (+500,000 cash)'
-        : '🚀 Зарегистрировать компанию (+50,000 cash)';
+      submit.disabled = false;
+      submit.textContent = '🚀 Создать компанию';
     }
   });
-
-  if (isCreator) {
-    container.querySelector('#onboarding-creator-banner')?.addEventListener('click', () => {
-      if (typeof window !== 'undefined' && window.NatApp?.navigateTo) {
-        window.NatApp.navigateTo('creator');
-      }
-    });
-  }
+  container.querySelector('#onboarding-creator-banner')?.addEventListener('click', () => window.NatApp?.navigateTo('creator'));
 }

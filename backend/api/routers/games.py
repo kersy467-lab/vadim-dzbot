@@ -9,6 +9,9 @@ from backend.db.session import get_db_session
 from backend.db.models import User
 from backend.api.auth import get_optional_webapp_user, extract_viewer_tg_id as _extract_viewer_tg_id
 from backend.api.game_rooms import game_manager
+from backend.api.ege_rating import build_ege_room_payload, rating_payload, settle_ege_duel_rating
+from backend.db.crud import get_active_users, get_user_by_tg_id, has_full_access
+from backend.ege.ranking import get_player_profile
 
 logger = logging.getLogger(__name__)
 
@@ -21,21 +24,31 @@ async def get_classmates_for_game(
     user: Optional[User] = Depends(get_optional_webapp_user),
     session: AsyncSession = Depends(get_db_session)
 ):
-    """Возвращает список одноклассников для вызова на онлайн-дуэль."""
-    from backend.db.crud import get_active_users
+    """Legacy full-access classmates list for chess/RPG/other private games."""
     users = await get_active_users(session)
     current_tg_id = _extract_viewer_tg_id(user, request, query_tg_id=tg_user_id) or 0
-
     return [
         {
-            "id": u.id,
-            "tg_id": u.tg_id,
-            "name": u.display_name,
-            "role": u.role
+            "id": u.id, "tg_id": u.tg_id, "name": u.display_name, "role": u.role,
+            **rating_payload(getattr(u, "ege_rating", 0)),
         }
-        for u in users
-        if u.tg_id != current_tg_id and u.tg_id > 0
+        for u in users if int(u.tg_id) != int(current_tg_id) and int(u.tg_id) > 0
     ]
+
+
+@router.get("/games/ege-rating")
+async def get_ege_rating(
+    request: Request,
+    tg_user_id: Optional[int] = Query(None),
+    user: Optional[User] = Depends(get_optional_webapp_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Текущий MMR, статистика, место и медаль пользователя."""
+    viewer_tg_id = _extract_viewer_tg_id(user, request, query_tg_id=tg_user_id) or 0
+    current = user or (await get_user_by_tg_id(session, viewer_tg_id) if viewer_tg_id else None)
+    if not current:
+        raise HTTPException(status_code=401, detail="Сначала запустите бота через /start")
+    return await get_player_profile(session, current)
 
 
 from backend.api.routers.games_rpg_hooks import (
@@ -62,6 +75,8 @@ async def create_local_game(
             payload = {}
 
         game_type = str(payload.get("game_type") or "chess").strip().lower()
+        if not has_full_access(user):
+            raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
         host_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
         host_name = user.display_name if user else payload.get("host_name", "Белые")
 
@@ -85,49 +100,6 @@ async def create_local_game(
         raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
 
 
-@router.post("/games/bot")
-async def create_bot_game(
-    request: Request,
-    payload: Optional[Dict[str, Any]] = Body(default=None),
-    user: Optional[User] = Depends(get_optional_webapp_user)
-):
-    """Создает партию против шахматного бота (ИИ) с альфа-бета отсечением на 3 шага."""
-    try:
-        if not payload:
-            try:
-                payload = await request.json()
-            except Exception:
-                payload = {}
-
-        if not isinstance(payload, dict):
-            payload = {}
-
-        game_type = str(payload.get("game_type") or "chess").strip().lower()
-        host_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
-        host_name = user.display_name if user else payload.get("host_name", "Игрок")
-        host_color = str(payload.get("host_color") or "white").strip().lower()
-
-        from backend.api.game_rooms import game_manager, chess
-        if game_type == "chess" and chess is None:
-            raise HTTPException(
-                status_code=503,
-                detail="Шахматный режим загружается на сервере. Пожалуйста, подождите минуту!"
-            )
-
-        room = game_manager.create_bot_room(
-            host_tg_id=host_tg_id,
-            host_name=host_name,
-            game_type=game_type,
-            host_color=host_color
-        )
-        return room.to_dict(viewer_tg_id=host_tg_id)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in create_bot_game: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(e)}")
-
-
 @router.post("/games/invite")
 async def invite_opponent_to_game(
     request: Request,
@@ -148,6 +120,11 @@ async def invite_opponent_to_game(
             payload = {}
 
         game_type = str(payload.get("game_type") or "tictactoe").strip().lower()
+        is_ege_duel = game_type in {"ege_stress_duel", "ege_vocabulary_duel"}
+        if not has_full_access(user) and not is_ege_duel:
+            raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
+        if is_ege_duel and (not user or not getattr(user, "ege_nickname", None)):
+            raise HTTPException(status_code=401, detail="Сначала запустите бота и установите игровой ник")
         try:
             opponent_tg_id = int(payload.get("opponent_tg_id") or 0)
         except (ValueError, TypeError):
@@ -161,7 +138,9 @@ async def invite_opponent_to_game(
 
         host_color = str(payload.get("host_color") or "white").strip().lower()
         host_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
-        host_name = user.display_name if user else payload.get("host_name", "Одноклассник")
+        if opponent_tg_id and int(opponent_tg_id) == int(host_tg_id):
+            raise HTTPException(status_code=400, detail="Нельзя вызвать на рейтинговую дуэль самого себя")
+        host_name = (user.ege_nickname or user.display_name) if user else payload.get("host_name", "Игрок")
 
         from backend.api.game_rooms import game_manager, chess
         if game_type == "chess" and chess is None:
@@ -170,15 +149,19 @@ async def invite_opponent_to_game(
                 detail="Шахматный режим загружается на сервере. Пожалуйста, подождите минуту или сыграйте в Крестики-нолики!"
             )
 
-        opp_name = payload.get("opponent_name")
-        if not opp_name:
-            try:
-                from backend.db.crud import get_user_by_tg_id
-                opp_user = await get_user_by_tg_id(session, opponent_tg_id)
-                opp_name = opp_user.display_name if opp_user else "Одноклассник"
-            except Exception as ex:
-                logger.warning(f"Could not get opponent user from DB: {ex}")
-                opp_name = "Одноклассник"
+        opp_user = None
+        try:
+            opp_user = await get_user_by_tg_id(session, opponent_tg_id) if opponent_tg_id else None
+        except Exception as ex:
+            logger.warning("Could not get opponent user from DB: %s", ex)
+        if is_ege_duel:
+            if not opp_user or not getattr(opp_user, "ege_nickname", None):
+                raise HTTPException(status_code=404, detail="Игрок ЕГЭ Арены не найден")
+            opp_name = opp_user.ege_nickname
+        else:
+            opp_name = payload.get("opponent_name") or (
+                (opp_user.ege_nickname or opp_user.display_name) if opp_user else "Одноклассник"
+            )
 
         boss_id = str(payload.get("boss_id") or "golem").strip().lower()
         is_solo = bool(payload.get("is_solo", False))
@@ -215,27 +198,31 @@ async def invite_opponent_to_game(
                     game_url, invite_text, btn_text = get_rpg_invite_details(
                         room, game_type, base_url, separator, opponent_tg_id, escaped_host_name
                     )
-                elif game_type in ["ege_stress_duel", "ege_vocabulary_duel"]:
+                elif game_type in {"ege_stress_duel", "ege_vocabulary_duel"}:
+                    label = "ударения" if game_type == "ege_stress_duel" else "словарные слова"
                     game_url = f"{base_url}{separator}room={room.room_id}&game={game_type}&tg_user_id={opponent_tg_id}"
-                    topic = "ударения" if game_type == "ege_stress_duel" else "словарные слова"
-                    invite_text = f"🎓 <b>{escaped_host_name}</b> вызывает тебя на ЕГЭ-дуэль: <b>{topic}</b>!\n\n10 слов, а при 10/10 у обоих — внезапная смерть до первой ошибки."
+                    invite_text = (
+                        f"🎓 <b>{escaped_host_name}</b> вызывает тебя на <b>ЕГЭ-дуэль</b>!\n"
+                        f"Режим: <b>{label}</b>\n\n"
+                        f"⚔️ 10 слов. Победа приносит +30 MMR, поражение — до −25 MMR."
+                    )
                     btn_text = "🎓 Принять ЕГЭ-дуэль"
-                elif game_type in ["chess", "checkers"]:
-                    is_ch = game_type == "checkers"
-                    g_param = "checkers" if is_ch else "chess"
-                    game_url = f"{base_url}{separator}room={room.room_id}&game={g_param}&tg_user_id={opponent_tg_id}"
+                elif game_type == "chess":
+                    game_url = f"{base_url}{separator}room={room.room_id}&game=chess&tg_user_id={opponent_tg_id}"
                     host_color_actual = getattr(room, "host_color", "white")
-                    color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>" if host_color_actual == "black" else "Твой цвет: <b>Черные ⚫</b>"
+                    if host_color_actual == "black":
+                        color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>"
+                    else:
+                        color_line = "Твой цвет: <b>Черные ⚫</b>"
                     if host_color == "random":
                         color_line += "\n<i>(Цвета определены случайным образом 🎲)</i>"
 
-                    g_title = "Партию в Шашки ⚪⚫" if is_ch else "Шахматную дуэль ♟️"
                     invite_text = (
-                        f"🎮 <b>{escaped_host_name}</b> вызывает тебя на <b>{g_title}</b>!\n"
+                        f"♟️ <b>{escaped_host_name}</b> вызывает тебя на <b>Шахматную дуэль</b>!\n"
                         f"{color_line}\n\n"
                         f"⚡ Готов сыграть партию на перемене?"
                     )
-                    btn_text = "⚪⚫ Принять вызов в Шашки" if is_ch else "♟️ Принять вызов и играть"
+                    btn_text = "♟️ Принять вызов и играть"
                 else:
                     game_url = f"{base_url}{separator}room={room.room_id}&game=tictactoe&tg_user_id={opponent_tg_id}"
                     invite_text = (
@@ -275,7 +262,7 @@ async def invite_opponent_to_game(
             except Exception as e:
                 logger.warning(f"Error preparing invite notification: {e}")
 
-        res = room.to_dict(viewer_tg_id=host_tg_id)
+        res = await build_ege_room_payload(session, room, host_tg_id)
         res["bot_notified"] = bot_notified
         return res
     except HTTPException:
@@ -298,13 +285,17 @@ async def get_game_room_state(
     room = game_manager.get_room(room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    if not has_full_access(user) and getattr(room, "game_type", "") not in {"ege_stress_duel", "ege_vocabulary_duel"}:
+        raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
+    if getattr(room, "game_type", "") in {"ege_stress_duel", "ege_vocabulary_duel"} and not user:
+        raise HTTPException(status_code=401, detail="Сначала запустите бота через /start")
 
     viewer_tg_id = _extract_viewer_tg_id(user, request, query_tg_id=tg_user_id)
     if room and getattr(room, "game_type", None) == "rpg_coop" and room.status == "finished" and room.winner == "heroes":
         if not getattr(room, "reward_distributed", False):
             from backend.api.routers.games_rpg_hooks import handle_rpg_room_moved
             await handle_rpg_room_moved(room, session, user, viewer_tg_id)
-    return room.to_dict(viewer_tg_id=viewer_tg_id)
+    return await build_ege_room_payload(session, room, viewer_tg_id)
 
 
 @router.post("/games/room/{room_id}/join")
@@ -317,8 +308,15 @@ async def join_game_room(
 ):
     """Подключение соперника к созданной комнате."""
     from backend.api.game_rooms import game_manager
+    room = game_manager.get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if not has_full_access(user) and getattr(room, "game_type", "") not in {"ege_stress_duel", "ege_vocabulary_duel"}:
+        raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
+    if getattr(room, "game_type", "") in {"ege_stress_duel", "ege_vocabulary_duel"} and (not user or not getattr(user, "ege_nickname", None)):
+        raise HTTPException(status_code=401, detail="Сначала запустите бота и установите игровой ник")
     viewer_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
-    user_name = user.display_name if user else payload.get("user_name", "Игрок")
+    user_name = (user.ege_nickname or user.display_name) if user else payload.get("user_name", "Игрок")
 
     ok, msg = game_manager.join_room(room_id, viewer_tg_id, user_name)
     if not ok:
@@ -328,7 +326,7 @@ async def join_game_room(
     if room:
         from backend.api.routers.games_rpg_hooks import handle_rpg_room_joined
         await handle_rpg_room_joined(room, session, user, user_name)
-    return room.to_dict(viewer_tg_id=viewer_tg_id)
+    return await build_ege_room_payload(session, room, viewer_tg_id)
 
 
 @router.post("/games/room/{room_id}/move")
@@ -341,6 +339,13 @@ async def make_game_move(
 ):
     """Ход в игре (Крестики-нолики, Шахматы или RPG)."""
     from backend.api.game_rooms import game_manager
+    room = game_manager.get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if not has_full_access(user) and getattr(room, "game_type", "") not in {"ege_stress_duel", "ege_vocabulary_duel"}:
+        raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
+    if getattr(room, "game_type", "") in {"ege_stress_duel", "ege_vocabulary_duel"} and not user:
+        raise HTTPException(status_code=401, detail="Сначала запустите бота через /start")
     viewer_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
     move_val = payload.get("move") or payload.get("uci")
     if move_val is None:
@@ -356,7 +361,8 @@ async def make_game_move(
     if room:
         from backend.api.routers.games_rpg_hooks import handle_rpg_room_moved
         await handle_rpg_room_moved(room, session, user, viewer_tg_id)
-    return room.to_dict(viewer_tg_id=viewer_tg_id)
+        await settle_ege_duel_rating(session, room)
+    return await build_ege_room_payload(session, room, viewer_tg_id)
 
 
 

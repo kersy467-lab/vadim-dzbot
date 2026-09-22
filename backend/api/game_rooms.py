@@ -5,18 +5,15 @@ from typing import Dict, Optional, List, Any
 
 from backend.api.rooms_tictactoe import WIN_COMBOS, TicTacToeRoom
 from backend.api.rooms_chess import ChessRoom, chess
-from backend.api.rooms_checkers import CheckersRoom
 from backend.api.rpg_bosses import RAID_BOSSES
 from backend.api.rpg_pvp import RPGPvPRoom
 from backend.api.rpg_coop import RPGCoopBossRoom
-from backend.api.rooms_ege import EGEDuelRoom
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "WIN_COMBOS", "TicTacToeRoom", "ChessRoom", "chess", "CheckersRoom",
+    "WIN_COMBOS", "TicTacToeRoom", "ChessRoom", "chess",
     "RAID_BOSSES", "RPGPvPRoom", "RPGCoopBossRoom",
-    "EGEDuelRoom",
     "GameRoomManager", "game_manager"
 ]
 
@@ -50,43 +47,7 @@ class GameRoomManager:
             )
             self.rooms[room_id] = room
             return room
-        elif game_type == "checkers":
-            room = CheckersRoom(
-                room_id=room_id,
-                host_tg_id=host_tg_id,
-                host_name=host_name or "Белые",
-                opponent_tg_id=host_tg_id,
-                opponent_name="Черные",
-                host_color="white",
-                is_local=True
-            )
-            self.rooms[room_id] = room
-            return room
         raise ValueError(f"Локальный режим не поддерживается для {game_type}")
-
-    def create_bot_room(
-        self,
-        host_tg_id: int,
-        host_name: str,
-        game_type: str = "chess",
-        host_color: str = "white"
-    ) -> Any:
-        self.cleanup()
-        room_id = "bot_" + uuid.uuid4().hex[:8]
-        if game_type == "chess":
-            room = ChessRoom(
-                room_id=room_id,
-                host_tg_id=host_tg_id,
-                host_name=host_name or "Игрок",
-                opponent_tg_id=0,
-                opponent_name="🤖 Шахматный Бот (ИИ)",
-                host_color=host_color,
-                is_local=False,
-                is_bot=True
-            )
-            self.rooms[room_id] = room
-            return room
-        raise ValueError(f"Режим игры с ботом не поддерживается для {game_type}")
 
     def create_room(
         self,
@@ -111,14 +72,15 @@ class GameRoomManager:
                 opponent_name=opponent_name,
                 host_color=host_color
             )
-        elif game_type == "checkers":
-            room = CheckersRoom(
+        elif game_type in {"ege_stress_duel", "ege_vocabulary_duel"}:
+            from backend.api.rooms_ege import EGEDuelRoom
+            room = EGEDuelRoom(
                 room_id=room_id,
                 host_tg_id=host_tg_id,
                 host_name=host_name,
                 opponent_tg_id=opponent_tg_id,
                 opponent_name=opponent_name,
-                host_color=host_color
+                game_type=game_type,
             )
         elif game_type == "rpg_duel":
             from backend.api.rpg_pvp import RPGPvPRoom
@@ -142,15 +104,6 @@ class GameRoomManager:
                 is_solo=is_solo,
                 hero_data=hero_data
             )
-        elif game_type in {"ege_stress_duel", "ege_vocabulary_duel"}:
-            room = EGEDuelRoom(
-                room_id=room_id,
-                host_tg_id=host_tg_id,
-                host_name=host_name,
-                opponent_tg_id=opponent_tg_id,
-                opponent_name=opponent_name,
-                game_type=game_type,
-            )
         else:
             room = TicTacToeRoom(
                 room_id=room_id,
@@ -160,6 +113,11 @@ class GameRoomManager:
                 opponent_name=opponent_name
             )
         self.rooms[room_id] = room
+        if game_type in {"ege_stress_duel", "ege_vocabulary_duel"}:
+            logger.info(
+                "EGE duel room created room=%s type=%s host=%s opponent=%s",
+                room_id, game_type, host_tg_id, opponent_tg_id,
+            )
         return room
 
     def get_room(self, room_id: str) -> Optional[Any]:
@@ -193,6 +151,8 @@ class GameRoomManager:
         if room.status == "waiting":
             room.status = "playing"
         room.last_activity = time.time()
+        if getattr(room, "game_type", "") in {"ege_stress_duel", "ege_vocabulary_duel"}:
+            logger.info("EGE duel player joined room=%s player=%s", room_id, user_tg_id)
         return True, "Успешное подключение"
 
     def add_bot_to_coop(self, room_id: str) -> tuple[bool, str]:

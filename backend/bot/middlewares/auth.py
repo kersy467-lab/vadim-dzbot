@@ -7,7 +7,7 @@ from backend.config import settings
 from backend.db.session import async_session_factory
 from backend.db.crud import (
     get_user_by_tg_id, create_user,
-    get_group_chat_by_id
+    get_group_chat_by_id, has_full_access
 )
 from backend.bot.keyboards.inline import get_admin_approval_keyboard
 
@@ -125,54 +125,45 @@ class AuthMiddleware(BaseMiddleware):
                                 pass
                             return await handler(event, data)
 
-                    # New or pending user in private chat
-                    if not user or user.role == "pending":
-                        if not user:
-                            user = await create_user(
-                                session=session,
-                                tg_id=user_tg.id,
-                                full_name=user_tg.full_name or "Пользователь",
-                                username=user_tg.username,
-                                role="pending"
+                    # Public EGE Arena users no longer require approval.
+                    if not user:
+                        if isinstance(event, Message):
+                            await event.answer("🎓 Сначала отправьте /start, чтобы войти в ЕГЭ Арену.")
+                        elif isinstance(event, CallbackQuery):
+                            await event.answer("Сначала отправьте /start", show_alert=True)
+                        return
+
+                    # Public accounts can use only EGE Arena bot commands and nickname flow.
+                    if not has_full_access(user):
+                        allowed = False
+                        if isinstance(event, Message):
+                            text = (event.text or "").strip()
+                            allowed = (
+                                text.startswith("/stats")
+                                or text.startswith("/nick")
+                                or text in {"📊 Моя статистика", "✏️ Сменить ник"}
                             )
-                            data["current_user"] = user
-
-                            # Notify all admins
-                            if bot:
-                                from backend.bot.services.notifier import notify_all_admins
-                                uname_str = f"@{user_tg.username}" if user_tg.username else "без @username"
-                                admin_text = (
-                                    "🔔 **Новая заявка на доступ к боту!**\n\n"
-                                    f"👤 **Пользователь:** {user_tg.full_name}\n"
-                                    f"🔗 **Telegram:** {uname_str}"
-                                )
-                                await notify_all_admins(
-                                    bot=bot,
-                                    session=session,
-                                    text=admin_text,
-                                    reply_markup=get_admin_approval_keyboard(user_tg.id)
-                                )
-
-                        msg = (
-                            "⏳ **Ваша заявка находится на рассмотрении у администратора.**\n\n"
-                            "Как только доступ будет подтвержден, вам придет уведомление!"
-                        )
-                        if isinstance(event, Message):
-                            await event.answer(msg, parse_mode="Markdown")
+                            state = data.get("state")
+                            if state is not None:
+                                try:
+                                    state_name = await state.get_state()
+                                    allowed = allowed or bool(state_name and state_name.endswith("NicknameSetupStates:entering_nickname"))
+                                except Exception:
+                                    pass
                         elif isinstance(event, CallbackQuery):
-                            await event.answer("⏳ Ваша заявка еще на рассмотрении у администратора", show_alert=True)
-                        return
+                            allowed = (event.data or "").startswith("game_reject:")
 
-                    if user.role == "rejected":
-                        msg = (
-                            "❌ **Доступ к боту класса был отклонен администратором.**\n\n"
-                            "Если вы хотите подать заявку повторно, нажмите /start."
-                        )
-                        if isinstance(event, Message):
-                            await event.answer(msg, parse_mode="Markdown")
-                        elif isinstance(event, CallbackQuery):
-                            await event.answer("❌ Доступ отклонен. Отправьте /start для повторной заявки", show_alert=True)
-                        return
+                        if not allowed:
+                            from backend.bot.keyboards.main_menu import get_arena_keyboard
+                            if isinstance(event, Message):
+                                await event.answer(
+                                    "🎓 Вам доступна <b>ЕГЭ Арена</b>: дуэли, рейтинг и статистика.",
+                                    reply_markup=get_arena_keyboard(user.tg_id),
+                                    parse_mode="HTML",
+                                )
+                            elif isinstance(event, CallbackQuery):
+                                await event.answer("Доступна только ЕГЭ Арена", show_alert=True)
+                            return
 
 
                     # Live-логирование действий пользователя

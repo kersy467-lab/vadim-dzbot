@@ -50,8 +50,8 @@ class Settings(BaseSettings):
         description="Base URL of the server"
     )
     WEBAPP_URL: str = Field(
-        default_factory=lambda: f"{os.environ.get('RENDER_EXTERNAL_URL', 'https://dzbot-6eid.onrender.com').rstrip('/')}/app",
-        description="Public URL for the Telegram Mini App"
+        default_factory=lambda: f"{os.environ.get('RENDER_EXTERNAL_URL', 'https://dzbot-6eid.onrender.com').rstrip('/')}/app/natbirzha",
+        description="Public URL for the standalone NATBIRZHA Telegram Mini App"
     )
     AUTO_TUNNEL: bool = Field(
         default_factory=lambda: not bool(os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_URL")),
@@ -85,8 +85,13 @@ def get_main_webapp_url(url: str | None = None) -> str:
 
 
 def get_natbirzha_webapp_url(url: str | None = None) -> str:
-    """Normalize a public service URL to the dedicated NATBIRZHA Mini App."""
-    base = str(url or settings.BASE_URL or settings.WEBAPP_URL or "").strip().rstrip("/")
+    """Normalize a public service URL to the dedicated NATBIRZHA Mini App.
+
+    Old Render variables used the parent school app at ``/app``.  Telegram's
+    menu must point straight to the game, otherwise it opens the unrelated
+    timetable Mini App or a route that later resolves to a 404.
+    """
+    base = str(url or settings.WEBAPP_URL or settings.BASE_URL or "").strip().rstrip("/")
     if base.endswith("/app/natbirzha"):
         return base
     if base.endswith("/app"):

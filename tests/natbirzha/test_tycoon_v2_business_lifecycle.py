@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
@@ -22,10 +23,17 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
         now = datetime(2026, 9, 20, 12, 0)
 
         async with sessions() as session:
-            company = NatCompany(user_id=9_301, name="Lifecycle Corp", specialization="retail", cash=20_000)
+            company = NatCompany(user_id=9_301, name="Lifecycle Corp", specialization="miner", cash=30_000)
             session.add(company)
+            await session.flush()
+            session.add_all([
+                NatInventory(company_id=company.id, item_id="energy", quantity=8),
+                NatInventory(company_id=company.id, item_id="water", quantity=4),
+                NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=2),
+                NatInventory(company_id=company.id, item_id="food", quantity=1),
+            ])
             await session.commit()
-            opened = await BusinessService.open_business(session, company.id, "retail_chain", now=now)
+            opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)
             business_id = opened["business"]["id"]
 
             paused = await BusinessService.pause(session, company.id, business_id, now=now)
@@ -33,10 +41,10 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
             resumed = await BusinessService.resume(session, company.id, business_id, now=now + timedelta(hours=2))
             assert resumed["status"] == "ACTIVE"
             settled = await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=3))
-            assert settled["net_cash"] == 202.0
+            assert settled["net_cash"] == 1669.25
 
             await BusinessService.start_upgrade(session, company.id, business_id, now=now + timedelta(hours=3))
-            with pytest.raises(ValueError, match="upgrade"):
+            with pytest.raises(ValueError, match="улучшения"):
                 await BusinessService.sell(session, company.id, business_id, now=now)
 
         await engine.dispose()

@@ -21,19 +21,19 @@ def test_empire_summary_exposes_current_business_economy() -> None:
 
         now = datetime(2026, 9, 20, 12, 0)
         async with sessions() as session:
-            company = NatCompany(user_id=9_001, name="Summary Corp", specialization="retail", cash=30_000)
+            company = NatCompany(user_id=9_001, name="Summary Corp", specialization="miner", cash=30_000)
             session.add(company)
             await session.commit()
-            opened = await BusinessService.open_business(session, company.id, "retail_chain", now=now)
+            opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)
 
             summary = await EmpireSummaryService.build(session, company.id, now=now)
-            assert summary["cash"] == 22_000.0
-            assert summary["income_per_hour"] == 220.0
-            assert summary["expenses_per_hour"] == 18.0
-            assert summary["net_cash_per_hour"] == 202.0
+            assert summary["cash"] == 18_000.0
+            assert summary["income_per_hour"] == 1677.65
+            assert summary["expenses_per_hour"] == 8.4
+            assert summary["net_cash_per_hour"] == 1669.25
             assert summary["slots"] == {"used": 1, "max": 3, "free": 2}
             assert summary["businesses"][0]["id"] == opened["business"]["id"]
-            assert summary["businesses"][0]["next_upgrade"]["cost"] == 2_000.0
+            assert summary["businesses"][0]["next_upgrade"]["cost"] == 3_000.0
 
         await engine.dispose()
 

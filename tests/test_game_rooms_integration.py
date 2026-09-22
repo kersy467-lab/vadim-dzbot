@@ -3,12 +3,39 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import asyncio
 from fastapi.testclient import TestClient
 from backend.main import app
+from backend.db.session import async_session_factory
+from backend.db.models import User
+from backend.db.crud.users import get_user_by_tg_id
+
+
+async def _seed_test_users():
+    async with async_session_factory() as session:
+        for uid, name in [(999001, "Player 1"), (999002, "Player 2")]:
+            u = await get_user_by_tg_id(session, uid)
+            if not u:
+                u = User(tg_id=uid, username=f"test_{uid}", full_name=name, role="student", is_classmate=True)
+                session.add(u)
+            else:
+                u.role = "student"
+                u.is_classmate = True
+        await session.commit()
 
 
 def test_game_rooms_all():
+    asyncio.run(_seed_test_users())
     client = TestClient(app)
+
+    print("=== [0/3] Testing Non-Classmate 403 Guard ===")
+    res_unauth = client.post(
+        "/api/games/invite",
+        json={"opponent_tg_id": 999002, "host_name": "Stranger", "game_type": "tictactoe"},
+        params={"user_id": 999099}
+    )
+    assert res_unauth.status_code == 403, f"Expected 403 for non-classmate, got {res_unauth.status_code}"
+    print("[OK] Non-classmates correctly blocked from legacy games.")
     
     print("=== [1/3] Testing TicTacToe and Chess invite link generation ===")
     # 1. TicTacToe invite

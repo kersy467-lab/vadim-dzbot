@@ -108,7 +108,8 @@ async def test_dag_and_specialization():
             await CompanyService.change_specialization(session, comp_respec, "agrarian")
             assert False, "Immediate respec should have failed cooldown!"
         except ValueError as err:
-            assert "cooldown" in str(err).lower()
+            message = str(err).lower()
+            assert "cooldown" in message or "перезаряд" in message
             print(f"[OK] 7-Day cooldown properly rejected second respec: {err}")
 
     print("\n" + "=" * 64)

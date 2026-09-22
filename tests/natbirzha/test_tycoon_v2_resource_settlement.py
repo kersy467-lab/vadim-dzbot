@@ -27,21 +27,23 @@ def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None
             company = NatCompany(user_id=9_101, name="Energy Corp", specialization="power_engineer", cash=40_000)
             session.add_all([
                 company,
-                NatInventory(company_id=1, item_id="coal", quantity=0.7, avg_cost_basis=30),
+                NatInventory(company_id=1, item_id="fuel_diesel", quantity=10, avg_cost_basis=1.2),
+                NatInventory(company_id=1, item_id="water", quantity=2, avg_cost_basis=2),
             ])
             await session.commit()
-            opened = await BusinessService.open_business(session, company.id, "energy_company", now=now)
+            opened = await BusinessService.open_business(session, company.id, "diesel_power_station", now=now)
+            await BusinessService.configure_sale_mode(session, company.id, opened["business"]["id"], "HOLD")
 
             settled = await IdleEconomyService.settle_company(
                 session, company.id, now=now + timedelta(hours=4)
             )
-            coal = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "coal"))
+            fuel = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "fuel_diesel"))
             energy = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "energy"))
             business = await session.get(NatBusiness, opened["business"]["id"])
 
-            assert settled["maintenance_cash"] == 40.0
-            assert coal.quantity == 0.0
-            assert energy.quantity == 16.0
+            assert settled["maintenance_cash"] == 16.0
+            assert fuel.quantity == 0.0
+            assert energy.quantity == 348.25
             assert business.status == "PAUSED_SUPPLY"
 
         await engine.dispose()

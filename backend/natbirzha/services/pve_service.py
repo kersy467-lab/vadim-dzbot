@@ -19,6 +19,7 @@ from backend.natbirzha.models.combat import (
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.army_service import ArmyService
+from backend.natbirzha.services.military_infrastructure_service import MilitaryInfrastructureService
 from backend.natbirzha.services.combat_resolver import ArmySnapshot, PremiumModifiers, resolve_battle
 from backend.natbirzha.services.pve_catalog import PVE_CATALOG_VERSION
 from backend.natbirzha.services.rating_service import RatingService
@@ -211,6 +212,8 @@ class PveService(PveCampaignMixin):
             raise PveWarError("target_not_found", "PvE corporation not found")
         await cls._check_access(session, locked_company, target, now)
         campaign_rank = await cls._campaign_wins(session, company.id, target.id)
+        await MilitaryInfrastructureService.settle_training(session, company.id, now=now)
+        await MilitaryInfrastructureService.recover_readiness(session, company.id, now=now)
         attacker = await ArmyService.snapshot(session, company.id, for_update=True)
         if not any(attacker.units.get(unit_type, 0) > 0 for unit_type in GROUND_UNITS):
             raise PveWarError("insufficient_ground_force", "A surviving ground force is required")
@@ -221,6 +224,12 @@ class PveService(PveCampaignMixin):
                 "insufficient_force_composition",
                 "Army does not meet the combined-arms requirements for this PvE tier",
             )
+        try:
+            operation_supply = await MilitaryInfrastructureService.consume_operation_supply(
+                session, company.id, attacker
+            )
+        except ValueError as exc:
+            raise PveWarError("insufficient_supply", str(exc)) from exc
 
         seed = hashlib.sha256(
             f"{operation_key}:{company.id}:{target.id}:{PVE_CATALOG_VERSION}".encode("utf-8")
@@ -273,6 +282,11 @@ class PveService(PveCampaignMixin):
             ]
         )
         await ArmyService.apply_losses(session, company.id, result.attacker_losses)
+        total_units = max(1, sum(int(value) for value in attacker.units.values()))
+        await MilitaryInfrastructureService.reduce_readiness_after_operation(
+            session, company.id,
+            loss_ratio=sum(int(value) for value in result.attacker_losses.values()) / total_units,
+        )
         won = result.winner == "attacker"
         target_rating = 850 + target.tier * 150
         rating_event = await RatingService.apply_battle_result(
@@ -346,6 +360,7 @@ class PveService(PveCampaignMixin):
             "phases": {name: dict(values) for name, values in result.phases.items()},
             "territory_awarded": territory_awarded,
             "rewards": rewards,
+            "operation_supply": operation_supply,
             "rating_before": rating_event.rating_before,
             "rating_after": rating_event.rating_after,
             "rating_delta": rating_event.delta,

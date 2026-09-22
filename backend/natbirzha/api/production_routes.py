@@ -7,7 +7,7 @@ from sqlalchemy import select
 from backend.db.session import get_db_session
 from backend.natbirzha.config import get_game_now, nat_settings
 from backend.natbirzha.models.company import NatCompany, NatFactory
-from backend.natbirzha.models.inventory import NatInventory, CANONICAL_ITEMS
+from backend.natbirzha.models.inventory import NatInventory, CANONICAL_ITEMS, get_item_name
 from backend.natbirzha.models.premium import NatPremiumLicense
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.recipes import RECIPES
@@ -61,7 +61,7 @@ async def get_inventory(
         "inventory": [
             {
                 "item_id": it.item_id,
-                "name": CANONICAL_ITEMS.get(it.item_id, {}).get("name", it.item_id),
+                "name": get_item_name(it.item_id),
                 "unit": CANONICAL_ITEMS.get(it.item_id, {}).get("unit", "шт."),
                 "quantity": it.quantity,
                 "reserved": it.reserved_quantity,
@@ -256,7 +256,7 @@ async def produce_manual(
         elif reason.startswith("insufficient_"):
             item_id = reason.replace("insufficient_", "")
             item_info = CANONICAL_ITEMS.get(item_id, {})
-            item_name = item_info.get("name", item_id)
+            item_name = item_info.get("name", get_item_name(item_id))
             needed = res.get("needed", 0)
             available = res.get("available", 0)
             unit = item_info.get("unit", "ед.")
@@ -267,7 +267,7 @@ async def produce_manual(
         elif reason == "cycle_ready_to_collect":
             err_msg = "Цикл готов! Нажмите «Забрать продукцию»."
         elif reason == "inventory_overflow":
-            err_msg = f"Склад переполнен для {res.get('item_id')}: лимит {res.get('capacity')}, сейчас {res.get('current')}, поступит {res.get('incoming')}."
+            err_msg = f"Склад переполнен для «{get_item_name(str(res.get('item_id') or ''))}»: лимит {res.get('capacity')}, сейчас {res.get('current')}, поступит {res.get('incoming')}."
         elif reason == "factory_inactive":
             err_msg = "Предприятие отключено."
         elif reason == "company_level_required":

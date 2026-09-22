@@ -30,6 +30,15 @@ from backend.db.crud.users import (
     get_currency_leaderboard,
 )
 
+
+from backend.db.crud.ege_users import (
+    get_user_by_ege_nickname,
+    set_ege_nickname,
+    set_user_classmate,
+    get_ege_players,
+    has_full_access,
+)
+
 from backend.db.crud.subjects import (
     get_all_subjects,
     get_subject_by_id,
@@ -126,16 +135,7 @@ from backend.db.crud.rpg import (
     get_rpg_leaderboard_data,
 )
 
-from backend.db.crud.custom_schedule import (
-    get_user_custom_schedules,
-    save_user_custom_schedules,
-    get_due_custom_schedules,
-    mark_schedule_sent,
-    delete_user_custom_schedules,
-)
-
 __all__ = [
-
     # users & group chats
     "get_user_by_tg_id",
     "create_user",
@@ -149,6 +149,11 @@ __all__ = [
     "toggle_user_notifications",
     "get_all_users",
     "delete_user",
+    "get_user_by_ege_nickname",
+    "set_ege_nickname",
+    "set_user_classmate",
+    "get_ege_players",
+    "has_full_access",
     "get_group_chat_by_id",
     "create_or_update_group_chat",
     "update_group_chat_role",
@@ -235,11 +240,4 @@ __all__ = [
     "get_or_create_rpg_character",
     "get_rpg_shop_catalog",
     "get_rpg_leaderboard_data",
-    # custom schedule
-    "get_user_custom_schedules",
-    "save_user_custom_schedules",
-    "get_due_custom_schedules",
-    "mark_schedule_sent",
-    "delete_user_custom_schedules",
 ]
-

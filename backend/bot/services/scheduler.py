@@ -109,17 +109,6 @@ def setup_scheduler(bot: Bot):
             replace_existing=True
         )
 
-        # Автоматическая отправка персональных расписаний (проверка каждую минуту)
-        from backend.bot.services.custom_schedule import send_due_custom_schedules
-        scheduler.add_job(
-            send_due_custom_schedules,
-            trigger=CronTrigger(minute="*", timezone=settings.TIMEZONE),
-            args=[bot],
-            id="custom_schedule_dispatch_job",
-            replace_existing=True
-        )
-
-
         # Natbirzha: глобальный почасовой тик производства в :00
         async def run_natbirzha_hourly_tick():
             try:

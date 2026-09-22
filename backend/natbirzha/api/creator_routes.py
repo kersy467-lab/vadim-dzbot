@@ -98,9 +98,8 @@ async def reset_self(
     session: AsyncSession = Depends(get_db_session),
 ):
     """Delete only the creator's own company. User record and admin role are preserved.
-    Next login will auto-grant 500k cash + 500 PVC again via auth_routes."""
-    from sqlalchemy import delete
-    from backend.natbirzha.models.company import NatCompany
+    Next company creation uses the standard creator grant: 500k cash + 200 PVC."""
+    from backend.natbirzha.services.company_service import CompanyService
 
     comp_res = await session.execute(
         select(NatCompany).where(NatCompany.user_id == admin.id)
@@ -111,18 +110,15 @@ async def reset_self(
 
     company_name = company.name
     company_id = company.id
-
-    # Delete the company row — cascade will handle related rows
-    await session.execute(delete(NatCompany).where(NatCompany.id == company_id))
     try:
-        await session.commit()
+        await CompanyService.reset_company_for_user(session, admin.id, commit=True)
     except Exception as exc:
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка сброса: {exc}") from exc
 
     return {
         "ok": True,
-        "message": f"Компания «{company_name}» удалена. При следующем входе получишь 500 000 cash + 500 PVC автоматически.",
+        "message": f"Компания «{company_name}» удалена. При новом создании компании старт: 500 000 cash + 200 PVC.",
         "deleted_company": company_name,
         "deleted_company_id": company_id,
     }

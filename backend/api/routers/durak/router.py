@@ -198,18 +198,15 @@ async def durak_move(
     result: dict
     if action == "attack":
         card = payload.get("card")
-        if not card or not isinstance(card, dict):
+        if not card:
             raise HTTPException(status_code=400, detail="Выберите карту для атаки")
-        clean_card = {"suit": str(card.get("suit", "")), "rank": str(card.get("rank", ""))}
-        result = game.attack(viewer_id, clean_card)
+        result = game.attack(viewer_id, card)
     elif action == "defend":
         attack_card = payload.get("attack_card")
         defend_card = payload.get("card")
-        if not attack_card or not defend_card or not isinstance(attack_card, dict) or not isinstance(defend_card, dict):
+        if not attack_card or not defend_card:
             raise HTTPException(status_code=400, detail="Выберите атакующую и защитную карту")
-        clean_attack = {"suit": str(attack_card.get("suit", "")), "rank": str(attack_card.get("rank", ""))}
-        clean_defend = {"suit": str(defend_card.get("suit", "")), "rank": str(defend_card.get("rank", ""))}
-        result = game.defend(viewer_id, clean_attack, clean_defend)
+        result = game.defend(viewer_id, attack_card, defend_card)
     elif action == "take":
         result = game.take(viewer_id)
     elif action == "pass":

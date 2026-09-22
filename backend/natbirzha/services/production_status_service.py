@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from backend.natbirzha.models.company import NatCompany, NatFactory
+from backend.natbirzha.models.inventory import get_item_name
 from backend.natbirzha.services.recipes import get_recipe, get_recipe_for_factory
 
 
@@ -45,7 +46,7 @@ def describe_factory_start_hint(
         needed = round(float(quantity) * input_multiplier, 4)
         available = float(available_inventory.get(item_id, 0))
         if available < needed:
-            return {"reason": "insufficient_input", "message": f"Не хватает сырья «{item_id}»: нужно {needed}, на складе {available}.", "next_action": "open_market", "item_id": item_id, "needed": needed, "available": available}
+            return {"reason": "insufficient_input", "message": f"Не хватает ресурса «{get_item_name(item_id)}»: нужно {needed}, на складе {available}.", "next_action": "open_market", "item_id": item_id, "needed": needed, "available": available}
 
     return {"reason": "ready", "message": "Можно запустить производственный цикл.", "next_action": "start_cycle"}
 

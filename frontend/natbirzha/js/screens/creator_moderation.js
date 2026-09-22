@@ -1,4 +1,5 @@
 import { NatAPI } from '../api.js';
+import { getItemInfo } from '../items.js';
 
 export async function loadCreatorModeration(el, showToast) {
   const [data, resetPreview] = await Promise.all([
@@ -34,7 +35,7 @@ export async function loadCreatorModeration(el, showToast) {
         ${data.restrictions.map(r => `
           <div class="rounded-xl border border-rose-500/30 bg-rose-950/20 p-2 text-[11px] flex justify-between items-center">
             <div>
-              <div class="font-bold text-white">${r.item_id ? r.item_id : 'Все товары'} ${r.company_id ? `(Комп. #${r.company_id})` : '(Весь рынок)'}</div>
+              <div class="font-bold text-white">${r.item_id ? getItemInfo(r.item_id).name : 'Все товары'} ${r.company_id ? `(Комп. #${r.company_id})` : '(Весь рынок)'}</div>
               <div class="text-[10px] text-rose-300">Диапазон: [${r.min_price ?? '—'}, ${r.max_price ?? '—'}] ₽ · ${r.reason}</div>
             </div>
             <button class="remove-restr-btn px-2 py-1 rounded bg-rose-800 hover:bg-rose-700 text-white text-[10px] font-bold" data-id="${r.id}">Снять</button>
@@ -50,8 +51,8 @@ export async function loadCreatorModeration(el, showToast) {
         ${data.orders.map(o => `
           <div class="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2 text-[10px] flex justify-between items-center font-mono">
             <div>
-              <span class="${o.order_type === 'BUY' ? 'text-emerald-400' : 'text-rose-400'} font-bold">${o.order_type}</span>
-              <span class="text-slate-200">#${o.company_id} · ${o.item_id}</span>
+              <span class="${o.order_type === 'BUY' ? 'text-emerald-400' : 'text-rose-400'} font-bold">${o.order_type === 'BUY' ? 'ПОКУПКА' : 'ПРОДАЖА'}</span>
+              <span class="text-slate-200">#${o.company_id} · ${getItemInfo(o.item_id).name}</span>
             </div>
             <div class="text-right">
               <div class="font-bold text-white">${o.price} ₽</div>
@@ -67,7 +68,7 @@ export async function loadCreatorModeration(el, showToast) {
         <div class="text-xs font-black uppercase tracking-wide text-orange-300">🔄 Сбросить только себя</div>
         <div class="mt-1 text-[11px] leading-relaxed text-orange-100/80">
           Удаляет только твою компанию и весь твой игровой прогресс. Остальные игроки <b class="text-white">не затрагиваются</b>.
-          Твой аккаунт (роль admin, tg_id) сохраняется — при следующем входе автоматически получишь <b class="text-white">500 000 cash + 500 PVC</b>.
+          Твой аккаунт (роль admin, tg_id) сохраняется — при следующем входе автоматически получишь <b class="text-white">500 000 cash + 200 PVC</b>.
         </div>
       </div>
       <button id="creator-self-reset-btn" class="w-full rounded-xl bg-orange-600 hover:bg-orange-500 active:scale-95 px-3 py-2.5 text-xs font-black text-white shadow-lg transition-all cursor-pointer">

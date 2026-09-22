@@ -78,6 +78,9 @@ async def lifespan(app: FastAPI):
             await session.commit()
             logger.info(f"Purged {res_del.rowcount} obsolete schedule records on or before 2026-09-01.")
 
+        # Automatic startup world reset is removed so companies persist across deploys.
+        # Admins can trigger world reset on-demand via the Creator Moderation panel.
+
         # Sync pug prank setting from DB so it survives deploys
         try:
             from backend.db.crud.duty import get_class_setting, set_class_setting
@@ -234,6 +237,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Public EGE Arena accounts are blocked from legacy/private API surfaces.
+from backend.api.public_access import enforce_api_access
+app.middleware("http")(enforce_api_access)
+
 # Include API routes
 app.include_router(api_router)
 
@@ -250,8 +257,12 @@ async def favicon():
 class NoCacheStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
+        if str(path).replace("\\", "/").startswith("assets/ranks/"):
+            response.headers["Cache-Control"] = "public, max-age=86400"
+            response.headers.pop("Pragma", None)
+        else:
+            response.headers["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
         return response
 
 # Static files for Telegram Mini App

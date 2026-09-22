@@ -20,6 +20,7 @@ REQUIRED_TABLES = {
     "nat_company_economy_states",
     "nat_military_infrastructure",
     "nat_army_trainings",
+    "nat_tax_daily",
 }
 
 

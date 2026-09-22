@@ -1,12 +1,7 @@
-import json
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from backend.config import settings
 from backend.db.models import Base
-
-
-def _json_serializer(obj):
-    return json.dumps(obj, default=str)
 
 
 def validate_database_url(raw_url: str, *, production: bool | None = None) -> None:
@@ -25,13 +20,7 @@ def create_configured_engine():
     validate_database_url(raw_url)
     if raw_url.startswith("sqlite"):
         os.makedirs("./data", exist_ok=True)
-        return create_async_engine(
-            raw_url,
-            echo=False,
-            future=True,
-            pool_pre_ping=True,
-            json_serializer=_json_serializer,
-        )
+        return create_async_engine(raw_url, echo=False, future=True, pool_pre_ping=True)
     
     # Normalize postgres URL for asyncpg
     url = raw_url
@@ -55,8 +44,7 @@ def create_configured_engine():
         pool_recycle=300,
         pool_size=10,
         max_overflow=20,
-        connect_args=connect_args,
-        json_serializer=_json_serializer,
+        connect_args=connect_args
     )
 
 
@@ -103,12 +91,25 @@ async def init_db():
                     await conn.execute(text("ALTER TABLE users ADD COLUMN coins BIGINT DEFAULT 100;"))
                 if "last_work_date" not in cols_u:
                     await conn.execute(text("ALTER TABLE users ADD COLUMN last_work_date DATE;"))
-                if "flag_b" not in cols_u:
-                    await conn.execute(text("ALTER TABLE users ADD COLUMN flag_b BOOLEAN DEFAULT 1;"))
-                    await conn.execute(text("UPDATE users SET flag_b = 1 WHERE flag_b IS NULL;"))
-                if "flag_plus" not in cols_u:
-                    await conn.execute(text("ALTER TABLE users ADD COLUMN flag_plus BOOLEAN DEFAULT 0;"))
-                    await conn.execute(text("UPDATE users SET flag_plus = 0 WHERE flag_plus IS NULL;"))
+                if "ege_rating" not in cols_u:
+                    await conn.execute(text("ALTER TABLE users ADD COLUMN ege_rating INTEGER DEFAULT 0;"))
+                arena_columns = {
+                    "ege_wins": "INTEGER DEFAULT 0",
+                    "ege_losses": "INTEGER DEFAULT 0",
+                    "ege_draws": "INTEGER DEFAULT 0",
+                    "ege_nickname": "VARCHAR(24)",
+                    "ege_nickname_normalized": "VARCHAR(24)",
+                    "is_classmate": "BOOLEAN DEFAULT 0",
+                }
+                for col, ddl in arena_columns.items():
+                    if col not in cols_u:
+                        await conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {ddl};"))
+                # Existing approved students keep their old full access automatically.
+                await conn.execute(text("UPDATE users SET is_classmate = 1 WHERE role IN ('student', 'admin');"))
+                await conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_ege_nickname_normalized "
+                    "ON users(ege_nickname_normalized) WHERE ege_nickname_normalized IS NOT NULL;"
+                ))
 
                 res_dg = await conn.execute(text("PRAGMA table_info(duty_groups);"))
                 cols_dg = [row[1] for row in res_dg.fetchall()]
@@ -169,10 +170,18 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS coins BIGINT DEFAULT 100;"))
                 await conn.execute(text("ALTER TABLE users ALTER COLUMN coins TYPE BIGINT;"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_work_date DATE;"))
-                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS flag_b BOOLEAN DEFAULT TRUE;"))
-                await conn.execute(text("UPDATE users SET flag_b = TRUE WHERE flag_b IS NULL;"))
-                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS flag_plus BOOLEAN DEFAULT FALSE;"))
-                await conn.execute(text("UPDATE users SET flag_plus = FALSE WHERE flag_plus IS NULL;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ege_rating INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ege_wins INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ege_losses INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ege_draws INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ege_nickname VARCHAR(24);"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ege_nickname_normalized VARCHAR(24);"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_classmate BOOLEAN DEFAULT FALSE;"))
+                await conn.execute(text("UPDATE users SET is_classmate = TRUE WHERE role IN ('student', 'admin');"))
+                await conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_ege_nickname_normalized "
+                    "ON users(ege_nickname_normalized) WHERE ege_nickname_normalized IS NOT NULL;"
+                ))
                 await conn.execute(text("ALTER TABLE duty_groups ADD COLUMN IF NOT EXISTS member_ids JSONB;"))
                 await conn.execute(text("ALTER TABLE daily_facts ADD COLUMN IF NOT EXISTS hour INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE daily_facts ADD COLUMN IF NOT EXISTS minute INTEGER DEFAULT 0;"))

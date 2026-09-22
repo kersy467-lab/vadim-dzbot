@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
 from backend.db.models import User
-from backend.db.crud import get_user_by_tg_id, update_user_role, update_user_tester_status
-from backend.bot.keyboards.main_menu import get_main_keyboard
+from backend.db.crud import get_user_by_tg_id, update_user_role, update_user_tester_status, set_user_classmate
+from backend.bot.keyboards.main_menu import get_main_keyboard, get_arena_keyboard
 from backend.bot.handlers.admin.helpers import is_admin
 
 logger = logging.getLogger(__name__)
@@ -97,58 +97,34 @@ async def cb_toggle_user_tester(callback: CallbackQuery, db_session: AsyncSessio
             pass
 
 
-@router.callback_query(F.data.startswith("adm_tog_b_"))
-async def cb_toggle_user_b(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
+@router.callback_query(F.data.startswith("adm_tog_classmate_"))
+async def cb_toggle_user_classmate(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
     if not is_admin(current_user, callback.from_user.id):
         return
-
-    parts = callback.data.replace("adm_tog_b_", "").split("_")
+    parts = callback.data.replace("adm_tog_classmate_", "").split("_")
     target_id = int(parts[0])
     page = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-
     user = await get_user_by_tg_id(db_session, target_id)
-    if user:
-        new_val = not bool(getattr(user, "flag_b", True))
-        user.flag_b = new_val
-        await db_session.commit()
-        state_str = "включен" if new_val else "выключен"
-        try:
-            await callback.answer(f"Переключатель «Б» {state_str}!", show_alert=False)
-        except Exception:
-            pass
-        from backend.bot.handlers.admin.users.list import cb_view_students
-        await cb_view_students(callback, db_session, page=page)
-    else:
-        try:
-            await callback.answer("Пользователь не найден", show_alert=True)
-        except Exception:
-            pass
-
-
-@router.callback_query(F.data.startswith("adm_tog_plus_"))
-async def cb_toggle_user_plus(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
-    if not is_admin(current_user, callback.from_user.id):
+    if not user or user.role == "admin":
+        await callback.answer("Для администратора полный доступ включён всегда.", show_alert=True)
         return
-
-    parts = callback.data.replace("adm_tog_plus_", "").split("_")
-    target_id = int(parts[0])
-    page = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-
-    user = await get_user_by_tg_id(db_session, target_id)
-    if user:
-        new_val = not bool(getattr(user, "flag_plus", False))
-        user.flag_plus = new_val
+    enabled = not bool(getattr(user, "is_classmate", False) or user.role == "student")
+    if user.role in {"student", "pending", "rejected"}:
+        user.role = "public"
         await db_session.commit()
-        state_str = "включен" if new_val else "выключен"
-        try:
-            await callback.answer(f"Переключатель «+» {state_str}!", show_alert=False)
-        except Exception:
-            pass
-        from backend.bot.handlers.admin.users.list import cb_view_students
-        await cb_view_students(callback, db_session, page=page)
-    else:
-        try:
-            await callback.answer("Пользователь не найден", show_alert=True)
-        except Exception:
-            pass
-
+    user = await set_user_classmate(db_session, target_id, enabled)
+    try:
+        from backend.bot.services.commands import set_user_command_scope
+        await set_user_command_scope(callback.bot, target_id, full_access=enabled)
+        keyboard = get_main_keyboard(is_admin=False, user_id=target_id, is_tester=bool(getattr(user, "is_tester", False))) if enabled else get_arena_keyboard(target_id)
+        text = (
+            "🎓 Вам выдана привилегия <b>Одноклассник</b>. Теперь открыт полный DZBot."
+            if enabled else
+            "ℹ️ Привилегия <b>Одноклассник</b> снята. Теперь доступна только ЕГЭ Арена; рейтинг и статистика сохранены."
+        )
+        await callback.bot.send_message(target_id, text, reply_markup=keyboard, parse_mode="HTML")
+    except Exception as exc:
+        logger.warning("Could not notify classmate privilege change: %s", exc)
+    await callback.answer("Одноклассник: включено" if enabled else "Одноклассник: выключено")
+    from backend.bot.handlers.admin.users.list import cb_view_students
+    await cb_view_students(callback, db_session, page=page)

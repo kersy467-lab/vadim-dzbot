@@ -24,7 +24,16 @@ class NatbirzhaSettings(BaseSettings):
         description="Enable the NATBIRZHA 2.0 idle/tycoon economy after the season reset",
     )
     TYCOON_V2_OFFLINE_CASH_CAP_HOURS: int = 24
+    TYCOON_V2_RESOURCE_TICK_MINUTES: int = 15
+    TYCOON_V2_WORK_XP_PER_HOUR: int = 20
     TYCOON_V2_IPO_MIN_LEVEL: int = 18
+
+    # Mandatory company income tax. A closed game day is taxed on positive
+    # operating profit only. Three unpaid days are tolerated; after that
+    # production is blocked and a non-compounding daily penalty is assessed.
+    TAX_RATE: float = 0.13
+    TAX_GRACE_DAYS: int = 3
+    TAX_DAILY_PENALTY_RATE: float = 0.50
 
     # Specialization efficiency limits (strict)
     OWN_SPEC_EFFICIENCY: float = 1.00       # 100%
@@ -83,12 +92,11 @@ class NatbirzhaSettings(BaseSettings):
     BANKRUPTCY_FEE_RATE: float = 0.30              # 30% of positive daily profit
 
     # Base Economic Constants
-    # Every newly created company starts from the same small cash grant.  The
-    # creator/admin account is no longer topped up on login; any test funds
-    # must be granted explicitly through the admin tools.
-    STARTING_CASH: float = 10000.0
-    CREATOR_STARTING_CASH: float = 10000.0
-    CREATOR_STARTING_PVC: int = 500
+    # Ordinary companies start with 50k; the creator/admin receives the
+    # agreed 500k test grant. Testers additionally keep their PVC grant.
+    STARTING_CASH: float = 50000.0
+    CREATOR_STARTING_CASH: float = 500000.0
+    CREATOR_STARTING_PVC: int = 200
     TESTER_STARTING_PVC: int = 200
     STARTING_TERRITORY_TILES: int = 4
     BASE_MUNICIPAL_ENERGY_TICK: float = 10.0       # Starter utility supply; never creates background production

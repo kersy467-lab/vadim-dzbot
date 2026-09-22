@@ -10,6 +10,7 @@ from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.capital_plan_service import ipo_recommendation_level
+from backend.natbirzha.services.stock_orderbook_service import StockOrderbookService
 
 class ValuationStrategy(ABC):
     @abstractmethod
@@ -35,6 +36,15 @@ current_valuation_strategy: ValuationStrategy = DefaultWeightedValuationStrategy
 
 class StockService:
     @staticmethod
+    def blended_market_price(fair_price: float, previous_price: float, pressure: float) -> float:
+        fair = max(0.01, float(fair_price))
+        previous = max(0.01, float(previous_price or fair))
+        imbalance = max(-1.0, min(1.0, float(pressure)))
+        target = fair * (1.0 + imbalance * 0.10)
+        blended = previous * 0.35 + target * 0.65
+        return round(max(fair * 0.75, min(fair * 1.25, blended)), 2)
+
+    @staticmethod
     async def record_price_snapshot(session: AsyncSession, stock: NatStock, now: datetime | None = None) -> None:
         session.add(NatStockPriceSnapshot(
             stock_id=stock.id,
@@ -44,16 +54,22 @@ class StockService:
         ))
 
     @staticmethod
-    async def price_history(session: AsyncSession, stock_id: int, limit: int = 60) -> list[dict]:
+    async def price_history(
+        session: AsyncSession, stock_id: int, limit: int = 360, days: int | None = None
+    ) -> list[dict]:
+        stmt = select(NatStockPriceSnapshot).where(NatStockPriceSnapshot.stock_id == stock_id)
+        if days is not None:
+            stmt = stmt.where(NatStockPriceSnapshot.captured_at >= get_game_now() - timedelta(days=days))
         rows = (await session.execute(
-            select(NatStockPriceSnapshot)
-            .where(NatStockPriceSnapshot.stock_id == stock_id)
-            .order_by(NatStockPriceSnapshot.captured_at.desc(), NatStockPriceSnapshot.id.desc())
-            .limit(limit)
+            stmt.order_by(NatStockPriceSnapshot.captured_at.asc(), NatStockPriceSnapshot.id.asc())
         )).scalars().all()
+        if len(rows) > limit:
+            # Preserve the first and last real point while evenly sampling the rest.
+            indexes = {round(i * (len(rows) - 1) / (limit - 1)) for i in range(limit)}
+            rows = [row for index, row in enumerate(rows) if index in indexes]
         return [
             {"timestamp": row.captured_at.isoformat(), "price": row.price, "valuation": row.valuation}
-            for row in reversed(rows)
+            for row in rows
         ]
 
     @staticmethod
@@ -111,8 +127,15 @@ class StockService:
         refreshed = 0
         for stock, company in rows.all():
             valuation = await StockService.calculate_company_valuation(session, company)
+            fair_price = valuation / max(1, stock.total_shares)
+            pressure = await StockOrderbookService.market_pressure(session, stock)
+            # Fundamentals remain the anchor; real order-book imbalance can move the quote
+            # by up to roughly 10% around it, while the blend prevents 10-minute jumps.
+            market_price = StockService.blended_market_price(
+                fair_price, float(stock.current_price or fair_price), pressure
+            )
             stock.last_valuation = valuation
-            stock.current_price = round(valuation / max(1, stock.total_shares), 2)
+            stock.current_price = market_price
             stock.valuation_updated_at = current_time
             await StockService.record_price_snapshot(session, stock, current_time)
             refreshed += 1
@@ -202,170 +225,41 @@ class StockService:
 
     @staticmethod
     async def buy_shares(
-        session: AsyncSession,
-        buyer_company: NatCompany,
-        stock_id: int,
-        shares_to_buy: int
+        session: AsyncSession, buyer_company: NatCompany, stock_id: int, shares_to_buy: int
     ) -> Dict[str, Any]:
-        """Buys available float shares from market orderbook."""
+        """Compatibility market-buy: crosses the current best ask using the real order book."""
         if shares_to_buy <= 0:
             raise ValueError("Shares count must be positive.")
-
-        if buyer_company.is_bankrupt:
-            raise ValueError("Bankrupt companies cannot purchase stocks.")
-
         await StockService.refresh_due_valuations(session)
-
-        stock = await session.scalar(
-            select(NatStock).where(
-                NatStock.id == stock_id,
-                NatStock.is_listed == True,
-            ).with_for_update()
-        )
-        if not stock:
-            raise ValueError("Stock is not actively listed.")
-
-        order_res = await session.execute(
-            select(NatStockOrder).where(
-                NatStockOrder.stock_id == stock_id,
-                NatStockOrder.order_type == "SELL",
-                NatStockOrder.status == "ACTIVE",
-                NatStockOrder.remaining_shares > 0
-            )
-            .order_by(NatStockOrder.price.asc(), NatStockOrder.created_at.asc())
-        )
-        order = order_res.scalar_one_or_none()
-        if not order:
+        book = await StockOrderbookService.orderbook(session, stock_id, buyer_company.id)
+        if book["best_ask"] is None:
             raise ValueError("No active sell orders for this stock.")
-
-        executed_shares = min(shares_to_buy, order.remaining_shares)
-        total_cost = round(executed_shares * order.price, 2)
-        if buyer_company.cash < total_cost:
-            raise ValueError(f"Insufficient cash. Required: {total_cost}, Available: {buyer_company.cash}")
-
-        buyer_company.cash -= total_cost
-
-        # Credit proceeds to issuer or seller
-        seller_comp = await session.get(NatCompany, order.trader_company_id)
-        if seller_comp:
-            seller_comp.cash += total_cost
-
-        order.remaining_shares -= executed_shares
-        if order.remaining_shares <= 0:
-            order.status = "FILLED"
-        # float_shares is the currently available free-float shown in quotes,
-        # not the immutable IPO allocation. Keep it synchronized with orders.
-        stock.float_shares = max(0, int(stock.float_shares) - int(executed_shares))
-
-        # Update buyer holding
-        now = get_game_now()
-        hold_res = await session.execute(
-            select(NatStockHolding).where(
-                NatStockHolding.stock_id == stock_id,
-                NatStockHolding.holder_company_id == buyer_company.id
-            )
+        result = await StockOrderbookService.place_limit_order(
+            session, buyer_company.id, stock_id, "BUY", shares_to_buy, book["best_ask"]
         )
-        holding = hold_res.scalar_one_or_none()
-        if not holding:
-            holding = NatStockHolding(
-                stock_id=stock_id,
-                holder_company_id=buyer_company.id,
-                shares_count=executed_shares,
-                avg_price=order.price,
-                updated_at=now
-            )
-            session.add(holding)
-        else:
-            total_s = holding.shares_count + executed_shares
-            if total_s > 0:
-                holding.avg_price = round(((holding.shares_count * holding.avg_price) + total_cost) / total_s, 2)
-            holding.shares_count = total_s
-            holding.updated_at = now
-
-        # Update the last traded price while preserving the locked stock row.
-        stock.current_price = order.price
-        await StockService.record_price_snapshot(session, stock, now)
-
-        await session.commit()
+        spent = round(sum(row["total"] for row in result["trades"]), 2)
         return {
-            "success": True,
-            "shares_bought": executed_shares,
-            "price_per_share": order.price,
-            "total_spent": total_cost,
-            "remaining_cash": buyer_company.cash
+            "success": True, "shares_bought": sum(row["quantity"] for row in result["trades"]),
+            "total_spent": spent, "order_id": result["order_id"],
+            "remaining_order_shares": result["remaining"],
         }
 
     @staticmethod
     async def sell_shares(
-        session: AsyncSession,
-        seller_company: NatCompany,
-        stock_id: int,
-        shares_to_sell: int
+        session: AsyncSession, seller_company: NatCompany, stock_id: int, shares_to_sell: int
     ) -> Dict[str, Any]:
-        """Sells shares held in company portfolio to stock market orderbook."""
+        """Compatibility sell: crosses the best bid or leaves a real ask at the last quote."""
         if shares_to_sell <= 0:
             raise ValueError("Shares count must be positive.")
-
         await StockService.refresh_due_valuations(session)
-
-        hold_res = await session.execute(
-            select(NatStockHolding).where(
-                NatStockHolding.stock_id == stock_id,
-                NatStockHolding.holder_company_id == seller_company.id
-            )
+        book = await StockOrderbookService.orderbook(session, stock_id, seller_company.id)
+        price = book["best_bid"] or book["current_price"]
+        result = await StockOrderbookService.place_limit_order(
+            session, seller_company.id, stock_id, "SELL", shares_to_sell, price
         )
-        holding = hold_res.scalar_one_or_none()
-        if not holding or holding.shares_count < shares_to_sell:
-            avail = holding.shares_count if holding else 0
-            raise ValueError(f"Insufficient shares to sell. Required: {shares_to_sell}, Available: {avail}")
-
-        stock = await session.scalar(
-            select(NatStock).where(
-                NatStock.id == stock_id,
-                NatStock.is_listed == True,
-            ).with_for_update()
-        )
-        if not stock or not stock.is_listed:
-            raise ValueError("Stock is not actively listed.")
-
-        # Sell at current market price
-        total_payout = round(shares_to_sell * stock.current_price, 2)
-        seller_company.cash = round(seller_company.cash + total_payout, 2)
-        holding.shares_count -= shares_to_sell
-        holding.updated_at = get_game_now()
-
-        # Add sold shares back to available market float order
-        order_res = await session.execute(
-            select(NatStockOrder).where(
-                NatStockOrder.stock_id == stock_id,
-                NatStockOrder.order_type == "SELL",
-                NatStockOrder.status == "ACTIVE"
-            ).limit(1)
-        )
-        order = order_res.scalar_one_or_none()
-        if order:
-            order.remaining_shares += shares_to_sell
-        else:
-            new_ord = NatStockOrder(
-                stock_id=stock_id,
-                trader_company_id=seller_company.id,
-                order_type="SELL",
-                shares_count=shares_to_sell,
-                remaining_shares=shares_to_sell,
-                price=stock.current_price,
-                status="ACTIVE",
-                created_at=get_game_now()
-            )
-            session.add(new_ord)
-        stock.float_shares = min(int(stock.total_shares), int(stock.float_shares) + int(shares_to_sell))
-        await StockService.record_price_snapshot(session, stock, get_game_now())
-
-        await session.commit()
+        received = round(sum(row["total"] for row in result["trades"]), 2)
         return {
-            "success": True,
-            "shares_sold": shares_to_sell,
-            "price_per_share": stock.current_price,
-            "total_payout": total_payout,
-            "remaining_shares": holding.shares_count,
-            "new_cash_balance": seller_company.cash
+            "success": True, "shares_sold": sum(row["quantity"] for row in result["trades"]),
+            "total_payout": received, "order_id": result["order_id"],
+            "remaining_order_shares": result["remaining"],
         }

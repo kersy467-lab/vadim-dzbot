@@ -1,5 +1,6 @@
 import { NatAPI } from '../api.js';
 import { store } from '../state.js';
+import { getItemInfo } from '../items.js';
 
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },
@@ -9,6 +10,31 @@ const UNITS = [
   { id: 'aircraft', name: 'Авиация', icon: '✈️', role: 'Удар по бронетехнике и земле', cost: '5 000 cash + материалы' },
   { id: 'air_defense', name: 'ПВО', icon: '🎯', role: 'Контрит авиацию и дорогие системы', cost: '1 500 cash + материалы' },
 ];
+
+const INFRA_NAMES = {
+  command_center: ['Командный центр', '🎖️'], barracks: ['Казармы', '🏕️'],
+  armor_base: ['Бронебаза', '🛡️'], airbase: ['Авиабаза', '✈️'],
+  air_defense: ['Центр ПВО', '🎯'], logistics: ['Военная логистика', '🚛'],
+  intelligence: ['Разведцентр', '🛰️'],
+};
+
+const COMBAT_LABELS = {
+  infantry: 'Пехота', border_guards: 'Пограничники', tanks: 'Бронетехника', drones: 'БПЛА',
+  aircraft: 'Авиация', air_defense: 'ПВО', electronic_warfare: 'РЭБ', readiness: 'Боеготовность',
+};
+
+const TOURNAMENT_LABELS = {
+  AUTO: 'Автоматический', ACTIVE: 'Идёт', SCHEDULED: 'Запланирован', FINISHED: 'Завершён', RESOLVED: 'Завершён',
+};
+
+const PVC_OPERATION_LABELS = {
+  purchase: 'Покупка', spend: 'Списание', grant: 'Начисление', reward: 'Награда', refund: 'Возврат',
+  license_purchase: 'Покупка лицензии', tournament_reward: 'Награда турнира', creator_grant: 'Начисление Государства',
+};
+
+const combatLabel = (value) => COMBAT_LABELS[value] || 'Военная система';
+const tournamentLabel = (value) => TOURNAMENT_LABELS[value] || 'Турнир';
+const pvcOperationLabel = (value) => PVC_OPERATION_LABELS[value] || 'Операция PVC';
 
 const SECTIONS = [
   ['army', 'Армия'],
@@ -138,6 +164,24 @@ export async function renderMilitary(container, showToast) {
           </div>
         </div>
         <div class="glass-card rounded-2xl p-4 space-y-2">
+          <h3 class="text-xs font-bold uppercase text-slate-400">Снабжение одной операции</h3>
+          <p class="text-[9px] text-slate-400">Перед PvE/PvP боем ресурсы списываются со склада. Военная логистика снижает расход.</p>
+          <div class="grid grid-cols-3 gap-2 text-[10px]">${Object.entries(army.operation_supply || {}).map(([itemId, qty]) => `<div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50"><span class="block text-slate-400">${esc(getItemInfo(itemId).name)}</span><b>${number(qty)}</b></div>`).join('') || '<div class="col-span-3 text-slate-400">Армия пока не требует снабжения.</div>'}</div>
+        </div>
+        <div class="glass-card rounded-2xl p-4 space-y-2">
+          <h3 class="text-xs font-bold uppercase text-slate-400">Военная инфраструктура</h3>
+          <p class="text-[9px] text-slate-400">Объекты открывают тяжёлые войска, ускоряют подготовку и снижают расход снабжения.</p>
+          <div class="grid grid-cols-2 gap-2">${Object.entries(INFRA_NAMES).map(([id, meta]) => {
+            const level = Number(army.infrastructure?.levels?.[id] || 0);
+            const quote = army.infrastructure?.upgrade_quotes?.[id];
+            return `<div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50"><div class="text-xs font-bold">${meta[1]} ${meta[0]}</div><div class="text-[9px] text-slate-400">ур. ${level}/10</div><button class="upgrade-infra-btn mt-1 w-full px-2 py-1 rounded-lg bg-indigo-600 text-white text-[9px] font-bold disabled:opacity-50" data-facility="${id}" ${quote ? '' : 'disabled'}>${quote ? `${number(quote.cash)} cash` : 'MAX'}</button></div>`;
+          }).join('')}</div>
+        </div>
+        <div class="glass-card rounded-2xl p-4 space-y-2">
+          <h3 class="text-xs font-bold uppercase text-slate-400">Очередь подготовки</h3>
+          ${(army.infrastructure?.training_queue || []).length ? army.infrastructure.training_queue.map(row => `<div class="flex justify-between gap-2 text-[10px] p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50"><span>${UNITS.find(unit => unit.id === row.unit_type)?.name || esc(row.unit_type)} × ${number(row.quantity)}</span><b>${timeLeft(row.ready_at)}</b></div>`).join('') : '<div class="text-[10px] text-slate-400">Очередь пуста</div>'}
+        </div>
+        <div class="glass-card rounded-2xl p-4 space-y-2">
           <h3 class="text-xs font-bold uppercase text-slate-400">Формирование подразделений</h3>
           ${UNITS.map(unit => `<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
             <div><div class="text-xs font-bold">${unit.icon} ${unit.name}</div><div class="text-[9px] text-slate-400">${unit.cost}</div></div>
@@ -179,7 +223,7 @@ export async function renderMilitary(container, showToast) {
     const isActive = tournament.status === 'ACTIVE';
     return `<div class="space-y-3">
       <div class="glass-card rounded-2xl p-4 border-l-4 border-l-amber-500 space-y-3">
-        <div class="flex justify-between"><div><div class="text-sm font-black">Турнир #${tournament.cycle_number || tournament.id}</div><div class="text-[10px] text-slate-400">${esc(tournament.tournament_type || 'AUTO')} · ${esc(tournament.status)}</div></div><div class="text-right text-[10px]"><div class="text-amber-500 font-bold">${timeLeft(tournament.finish_time)}</div><div>${tournament.is_participant ? 'Вы участвуете' : 'Нет участия'}</div></div></div>
+        <div class="flex justify-between"><div><div class="text-sm font-black">Турнир #${tournament.cycle_number || tournament.id}</div><div class="text-[10px] text-slate-400">${esc(tournamentLabel(tournament.tournament_type || 'AUTO'))} · ${esc(tournamentLabel(tournament.status))}</div></div><div class="text-right text-[10px]"><div class="text-amber-500 font-bold">${timeLeft(tournament.finish_time)}</div><div>${tournament.is_participant ? 'Вы участвуете' : 'Нет участия'}</div></div></div>
         <div class="grid grid-cols-3 gap-2 text-center">${rewards.map((reward, i) => `<div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-2"><div class="text-[9px] text-slate-400">${i + 1} место</div><div class="text-xs font-black text-amber-500">${reward} PVC</div></div>`).join('')}</div>
       </div>
       <div class="glass-card rounded-2xl p-4 space-y-2"><h3 class="text-xs font-bold uppercase text-slate-400">Топ по силе армии</h3>${(tournamentData.participants || []).slice(0, 10).map((row, index) => `<div class="flex justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50"><span><b>#${row.rank || index + 1}</b> ${esc(row.company_name)}</span><span class="font-mono">${number(row.current_strength || row.strength)} · ${row.rating || 1000} р.</span></div>`).join('') || '<div class="text-xs text-slate-400">Нет участников</div>'}</div>
@@ -215,11 +259,12 @@ export async function renderMilitary(container, showToast) {
     }).join('') || '<div class="text-xs text-slate-400">Лицензии пока не настроены.</div>';
     const upgrades = (premiumData.upgradeCatalog.upgrades || []).map(spec => {
       const own = ownedUpgrades.get(spec.code);
-      const cost = Object.entries(spec.resource_cost || {}).map(([item, qty]) => `${item}: ${qty}`).join(' · ');
+      const cost = Object.entries(spec.resource_cost || {}).map(([item, qty]) => `${getItemInfo(item).name}: ${qty}`).join(' · ');
+      const counters = (spec.countered_by || []).map(combatLabel).join(', ');
       const capped = Number(own?.level || 0) >= Number(spec.max_level || 0);
-      return `<div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 space-y-1"><div class="flex justify-between gap-2"><div class="text-xs font-bold">${esc(spec.title)}</div><span class="text-[10px] text-indigo-400">ур. ${own?.level || 0}/${spec.max_level}</span></div><div class="text-[10px] text-slate-400">${esc(spec.description)}</div><div class="text-[9px] text-slate-500">Ресурсы: ${esc(cost)} · контрится: ${esc((spec.countered_by || []).join(', '))}</div><button class="premium-upgrade-btn w-full py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold disabled:opacity-50" data-code="${esc(spec.code)}" ${capped ? 'disabled' : ''}>${capped ? 'Максимальный уровень' : 'Улучшить за ресурсы'}</button></div>`;
+      return `<div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 space-y-1"><div class="flex justify-between gap-2"><div class="text-xs font-bold">${esc(spec.title)}</div><span class="text-[10px] text-indigo-400">ур. ${own?.level || 0}/${spec.max_level}</span></div><div class="text-[10px] text-slate-400">${esc(spec.description)}</div><div class="text-[9px] text-slate-500">Ресурсы: ${esc(cost)} · контрится: ${esc(counters)}</div><button class="premium-upgrade-btn w-full py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold disabled:opacity-50" data-code="${esc(spec.code)}" ${capped ? 'disabled' : ''}>${capped ? 'Максимальный уровень' : 'Улучшить за ресурсы'}</button></div>`;
     }).join('') || '<div class="text-xs text-slate-400">Улучшения пока не настроены.</div>';
-    const entries = (premiumData.ledger.entries || []).slice(0, 6).map(entry => `<div class="flex justify-between gap-2 text-[10px] py-1 border-b border-slate-800"><span class="text-slate-400">${esc(entry.operation_type)}</span><span class="font-mono ${entry.amount > 0 ? 'text-emerald-500' : 'text-rose-400'}">${entry.amount > 0 ? '+' : ''}${entry.amount} PVC</span></div>`).join('') || '<div class="text-[10px] text-slate-500">Операций PVC пока нет.</div>';
+    const entries = (premiumData.ledger.entries || []).slice(0, 6).map(entry => `<div class="flex justify-between gap-2 text-[10px] py-1 border-b border-slate-800"><span class="text-slate-400">${esc(pvcOperationLabel(entry.operation_type))}</span><span class="font-mono ${entry.amount > 0 ? 'text-emerald-500' : 'text-rose-400'}">${entry.amount > 0 ? '+' : ''}${entry.amount} PVC</span></div>`).join('') || '<div class="text-[10px] text-slate-500">Операций PVC пока нет.</div>';
     return `<div class="space-y-3"><div class="glass-card rounded-2xl p-4 border border-amber-500/30 bg-amber-950/20"><div class="text-[10px] uppercase font-bold text-amber-400">Pivocoins · отдельная premium-валюта</div><div class="text-2xl font-black text-white mt-1">${number(premiumData.wallet.balance)} <span class="text-sm text-amber-400">PVC</span></div><p class="text-[10px] text-slate-400 mt-2">PVC не заменяют cash: лицензии открывают редкое производство и отдельную позднюю ветку, а не раннюю армию.</p></div><div class="glass-card rounded-2xl p-4 space-y-2"><h3 class="text-xs font-bold uppercase text-slate-400">Лицензии на 48 часов</h3>${licenses}</div><div class="glass-card rounded-2xl p-4 space-y-2"><h3 class="text-xs font-bold uppercase text-slate-400">Эксклюзивная военная ветка</h3>${upgrades}</div><div class="glass-card rounded-2xl p-4 space-y-1"><h3 class="text-xs font-bold uppercase text-slate-400">Последние операции PVC</h3>${entries}</div></div>`;
   }
 
@@ -260,13 +305,24 @@ export async function renderMilitary(container, showToast) {
       if (!count || count <= 0) return;
       btn.disabled = true;
       try {
-        await NatAPI.recruitUnits(btn.dataset.unitId, count);
+        const training = await NatAPI.recruitUnits(btn.dataset.unitId, count);
         army = await NatAPI.getMilitaryStatus();
         const company = await NatAPI.getMyCompany();
         store.setCompany(company);
-        showToast('Подразделение сформировано', 'success');
+        showToast(`Подготовка начата · ${training.duration_minutes || 1} мин`, 'success');
         renderView();
       } catch (error) { showToast(error.message, 'error'); } finally { btn.disabled = false; }
+    }));
+    container.querySelectorAll('.upgrade-infra-btn').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await NatAPI.upgradeMilitaryInfrastructure(btn.dataset.facility);
+        army = await NatAPI.getMilitaryStatus();
+        const company = await NatAPI.getMyCompany().catch(() => null);
+        if (company) store.setCompany(company);
+        showToast('Военный объект улучшен', 'success');
+        renderView();
+      } catch (error) { showToast(error.message, 'error'); btn.disabled = false; }
     }));
     container.querySelectorAll('.scout-pve-btn').forEach(btn => btn.addEventListener('click', async () => {
       btn.disabled = true;

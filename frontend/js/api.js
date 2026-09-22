@@ -166,6 +166,7 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 const api = {
+  getTelegramUserId: () => getTelegramUserId(),
   getMe: () => apiRequestWithRetry("/api/me"),
   getStudents: () => apiRequest("/api/students"),
   getBells: () => apiRequest("/api/bells"),
@@ -181,6 +182,11 @@ const api = {
   },
   // Multiplayer Games
   getClassmates: () => apiRequest("/api/games/classmates"),
+  getEgeRating: () => apiRequest("/api/games/ege-rating"),
+  getEgeLeaderboard: () => apiRequest("/api/ege/leaderboard"),
+  getEgePlayers: () => apiRequest("/api/ege/players"),
+  getEgeProfile: (nickname = "") => apiRequest(nickname ? `/api/ege/profile/${encodeURIComponent(nickname)}` : "/api/ege/profile"),
+  setEgeNickname: (nickname) => apiRequest("/api/ege/nickname", { method: "POST", body: JSON.stringify({ nickname }) }),
   createLocalGame: (gameType = "chess", hostName = "Игрок 1") =>
     apiRequest("/api/games/local", {
       method: "POST",
@@ -188,15 +194,6 @@ const api = {
       body: JSON.stringify({
         game_type: gameType,
         host_name: hostName
-      })
-    }),
-  createBotGame: (gameType = "chess", hostColor = "white") =>
-    apiRequest("/api/games/bot", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        game_type: gameType,
-        host_color: hostColor
       })
     }),
   inviteGame: (opponentTgId, hostName, gameType = "tictactoe", hostColor = "white", opponentName = "", bossId = null, isSolo = false, heroData = null) =>

@@ -9,15 +9,47 @@ from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.business_assets import NatBusinessSupplyPolicy
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory, get_npc_sell_price
+from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.npc_service import NPCReserveService
+from backend.natbirzha.services.market_procurement_service import MarketProcurementService
 
 
-SUPPLY_POLICY_MODES = frozenset({"MANUAL", "AUTO_NPC"})
+SUPPLY_POLICY_MODES = frozenset({"MANUAL", "AUTO_NPC", "AUTO_MARKET", "AUTO_MARKET_NPC"})
 
 
 class SupplyPolicyService:
+
     @staticmethod
+    def automation_policy_limit(level: int) -> int:
+        """Number of resources the company can keep stocked automatically."""
+        level = max(1, int(level))
+        if level < 15:
+            return 0
+        if level < 25:
+            return 1
+        if level < 35:
+            return 3
+        if level < 50:
+            return 6
+        return 999
+
+    @classmethod
+    async def _active_company_policy_count(
+        cls, session: AsyncSession, company_id: int, *, exclude_policy_id: int | None = None
+    ) -> int:
+        rows = (await session.execute(
+            select(NatBusinessSupplyPolicy)
+            .join(NatBusiness, NatBusiness.id == NatBusinessSupplyPolicy.business_id)
+            .where(
+                NatBusiness.company_id == company_id,
+                NatBusinessSupplyPolicy.mode != "MANUAL",
+            )
+        )).scalars().all()
+        return sum(1 for row in rows if exclude_policy_id is None or row.id != exclude_policy_id)
+
+    @classmethod
     async def configure(
+        cls,
         session: AsyncSession,
         business_id: int,
         item_id: str,
@@ -30,25 +62,39 @@ class SupplyPolicyService:
     ) -> dict[str, Any]:
         normalized_mode = (mode or "").strip().upper()
         if normalized_mode not in SUPPLY_POLICY_MODES:
-            raise ValueError("Unknown supply policy mode")
+            raise ValueError("Неизвестный режим автоснабжения")
         if min_hours_stock < 0 or target_hours_stock < min_hours_stock:
-            raise ValueError("Supply target must be at least the minimum stock")
+            raise ValueError("Целевой запас должен быть не меньше минимального")
         if max_unit_price is not None and max_unit_price <= 0:
-            raise ValueError("Maximum unit price must be positive")
+            raise ValueError("Максимальная цена должна быть положительной")
         business = await session.scalar(
             select(NatBusiness).where(NatBusiness.id == business_id).with_for_update()
         )
         if business is None:
-            raise ValueError("Business not found")
+            raise ValueError("Предприятие не найдено")
         from backend.natbirzha.catalogs.businesses import get_business_spec
         spec = get_business_spec(business.business_type)
         if spec is None or item_id not in spec["inputs_per_hour"]:
-            raise ValueError("This business does not consume the selected resource")
+            raise ValueError("Это предприятие не потребляет выбранный ресурс")
+        company = await session.scalar(
+            select(NatCompany).where(NatCompany.id == business.company_id).with_for_update()
+        )
+        if company is None:
+            raise ValueError("Компания не найдена")
         policy = await session.scalar(
             select(NatBusinessSupplyPolicy)
             .where(NatBusinessSupplyPolicy.business_id == business.id, NatBusinessSupplyPolicy.item_id == item_id)
             .with_for_update()
         )
+        if normalized_mode != "MANUAL":
+            limit = cls.automation_policy_limit(company.level)
+            if limit <= 0:
+                raise ValueError("Автоснабжение откроется на 15 уровне компании")
+            used = await cls._active_company_policy_count(
+                session, company.id, exclude_policy_id=policy.id if policy is not None else None
+            )
+            if used >= limit:
+                raise ValueError(f"Лимит автоснабжения: {limit} ресурс(а/ов). Улучшайте компанию")
         if policy is None:
             policy = NatBusinessSupplyPolicy(business_id=business.id, item_id=item_id)
             session.add(policy)
@@ -79,21 +125,23 @@ class SupplyPolicyService:
         business: NatBusiness,
         spec: dict[str, Any],
     ) -> list[dict[str, Any]]:
-        """Fill only explicit AUTO_NPC policies up to their stock target."""
+        """Keep configured stock targets: player asks first, State reserve only as fallback."""
         policies = list((await session.execute(
             select(NatBusinessSupplyPolicy)
-            .where(NatBusinessSupplyPolicy.business_id == business.id, NatBusinessSupplyPolicy.mode == "AUTO_NPC")
+            .where(
+                NatBusinessSupplyPolicy.business_id == business.id,
+                NatBusinessSupplyPolicy.mode != "MANUAL",
+            )
             .order_by(NatBusinessSupplyPolicy.item_id)
             .with_for_update()
         )).scalars().all())
         results: list[dict[str, Any]] = []
+        rates = resource_business_rates(
+            business, spec, upgrading=business.status == "UPGRADING"
+        )
         for policy in policies:
-            input_rate = float(spec["inputs_per_hour"].get(policy.item_id, 0.0))
-            if input_rate <= 0 or not policy.allow_state_reserve:
-                continue
-            unit_price = get_npc_sell_price(policy.item_id)
-            if policy.max_unit_price is not None and unit_price > float(policy.max_unit_price):
-                results.append({"item_id": policy.item_id, "success": False, "reason": "price_limit"})
+            input_rate = float(spec["inputs_per_hour"].get(policy.item_id, 0.0)) * rates.input_multiplier
+            if input_rate <= 0:
                 continue
             inventory = await session.scalar(
                 select(NatInventory)
@@ -101,17 +149,35 @@ class SupplyPolicyService:
                 .with_for_update()
             )
             available = float(inventory.available_quantity) if inventory else 0.0
-            min_quantity = input_rate * float(policy.min_hours_stock)
-            target_quantity = input_rate * float(policy.target_hours_stock)
-            if available + 1e-9 >= min_quantity:
+            minimum = input_rate * float(policy.min_hours_stock)
+            target = input_rate * float(policy.target_hours_stock)
+            if available + 1e-9 >= minimum:
                 continue
-            quantity = round(max(0.0, target_quantity - available), 6)
-            if quantity <= 0:
+            need = round(max(0.0, target - available), 6)
+            if need <= 0:
                 continue
-            result = await NPCReserveService.execute_npc_trade(
-                session, company, policy.item_id, "BUY", quantity
+
+            market_result = await MarketProcurementService.buy_available(
+                session, company, policy.item_id, need,
+                max_unit_price=policy.max_unit_price,
             )
-            results.append(result)
+            purchased = float(market_result.get("purchased", 0.0))
+            results.append({"source": "MARKET", **market_result})
+            remaining = round(max(0.0, need - purchased), 6)
+            allow_reserve = policy.mode in {"AUTO_NPC", "AUTO_MARKET_NPC"} and policy.allow_state_reserve
+            if remaining <= 0 or not allow_reserve:
+                continue
+            unit_price = get_npc_sell_price(policy.item_id)
+            if policy.max_unit_price is not None and unit_price > float(policy.max_unit_price):
+                results.append({"source": "STATE", "item_id": policy.item_id, "success": False, "reason": "price_limit"})
+                continue
+            try:
+                npc_result = await NPCReserveService.execute_npc_trade(
+                    session, company, policy.item_id, "BUY", remaining
+                )
+                results.append({"source": "STATE", **npc_result})
+            except ValueError as exc:
+                results.append({"source": "STATE", "item_id": policy.item_id, "success": False, "reason": str(exc)})
         return results
 
 

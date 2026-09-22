@@ -7,6 +7,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.military import NatArmy, NatTournament, NatTournamentParticipant
 from backend.natbirzha.models.alliances import NatAlliance, NatAllianceMember
 from backend.natbirzha.services.army_service import ArmyService
+from backend.natbirzha.services.military_infrastructure_service import MilitaryInfrastructureService
 from backend.natbirzha.services.tournament_service import TournamentService
 
 class MilitaryService:
@@ -18,7 +19,9 @@ class MilitaryService:
         count: int,
         commit: bool = True,
     ) -> Dict[str, Any]:
-        result = await ArmyService.recruit(session, company, unit_type, count)
+        result = await MilitaryInfrastructureService.queue_training(
+            session, company, unit_type, count
+        )
         if commit:
             await session.commit()
         return result

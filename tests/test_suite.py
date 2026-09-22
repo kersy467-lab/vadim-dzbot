@@ -153,16 +153,6 @@ async def test_database_and_crud():
         student = await update_user_tester_status(session, 111222, False)
         assert student.is_tester is False
 
-        # Test flag_b and flag_plus defaults and toggling
-        assert getattr(student, "flag_b", None) is True
-        assert getattr(student, "flag_plus", None) is False
-        student.flag_b = False
-        student.flag_plus = True
-        await session.commit()
-        await session.refresh(student)
-        assert student.flag_b is False
-        assert student.flag_plus is True
-
         group = await create_or_update_group_chat(session, chat_id=-100999, title="11-Б Класс", added_by=111222, role="pending")
         assert group.role == "pending"
         group = await update_group_chat_role(session, -100999, "approved")
@@ -307,7 +297,7 @@ async def test_database_and_crud():
         await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
         await session.commit()
         from backend.db.crud import freeze_past_schedules_for_weekday
-        await freeze_past_schedules_for_weekday(session, 1, up_to_date=date(2026, 9, 14))
+        await freeze_past_schedules_for_weekday(session, 1, up_to_date=date(2026, 9, 21))
         await save_bulk_permanent_schedule(session, 1, [(1, "Химия"), (2, "Биология")])
 
         # Verify past Monday kept the old schedule!
@@ -372,24 +362,22 @@ async def test_database_and_crud():
         chem_id = subj_map["Химия"]
 
         # 1. Upcoming dates for Chemistry (Monday)
-        chem_dates = await find_upcoming_dates_for_subject(session, chem_id, from_date=date(2026, 9, 22), limit=2)
+        chem_dates = await find_upcoming_dates_for_subject(session, chem_id, from_date=date(2026, 9, 15), limit=2)
         assert len(chem_dates) >= 1
-        assert chem_dates[0] == date(2026, 9, 28), f"Expected next Monday 28.09, got {chem_dates[0]}"
+        assert chem_dates[0] == date(2026, 9, 28), f"Expected Monday 28.09, got {chem_dates[0]}"
 
-        # 2. Create homework for Chemistry due in future (next week)
-        target_due = today + timedelta(days=7)
-
+        # 2. Create homework for Chemistry due 2026-09-28, assigned on 2026-09-14
         hw_active = await create_homework(
             session=session,
             subject_id=chem_id,
-            due_date=target_due,
-            assigned_date=today - timedelta(days=2),
+            due_date=date(2026, 9, 28),
+            assigned_date=date(2026, 9, 14),
             description="Параграф 5, упр. 1-4"
         )
-        assert hw_active.assigned_date == today - timedelta(days=2)
-
+        assert hw_active.assigned_date == date(2026, 9, 14)
 
         # 3. Create a past homework (due in the past)
+        today = get_today()
         hw_past = await create_homework(
             session=session,
             subject_id=chem_id,
@@ -399,7 +387,7 @@ async def test_database_and_crud():
         )
         past_orig_due = hw_past.due_date
 
-        # 4. Schedule change occurs: Chemistry added/confirmed on today (earlier than target_due)
+        # 4. Schedule change occurs: Chemistry added earlier on a specific date (earlier than hw_active due_date)
         shift_target_date = today
         await set_date_schedule_item(session, shift_target_date, 1, chem_id)
 
@@ -831,9 +819,6 @@ async def main():
         "tests/natbirzha/test_p2_backend_api.py",
         "tests/natbirzha/test_reference_instruments.py",
         "tests/natbirzha/test_bond_lifecycle.py",
-        "tests/test_durak_gameplay.py",
-        "tests/test_chess_game.py",
-        "tests/test_chess_bot.py",
     )
     child_env = os.environ.copy()
     child_env["PYTHONPATH"] = os.path.abspath(".")

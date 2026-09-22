@@ -100,7 +100,7 @@ async def get_optional_webapp_user(
             logger.warning(f"Error querying user by tg_id {tg_id} in get_optional_webapp_user: {e}")
             user = None
 
-        if user and user.role in ["student", "admin"]:
+        if user and user.role != "rejected":
             if tg_user:
                 first_name = tg_user.get("first_name", "")
                 last_name = tg_user.get("last_name", "")

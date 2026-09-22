@@ -143,7 +143,7 @@ assert(err4.includes('Ошибка сервера (500)'), 'empty object must pr
 const requiredMethods = [
   'login', 'getMyCompany', 'expandTerritory', 'createCompany', 'respecCompany',
   'getProductionStatus', 'getRecipes', 'getInventory', 'getFactoryUpgrades', 'buildFactory', 'triggerProduction', 'setFactoryAutomation',
-  'getOrderbook', 'getNpcRates', 'placeOrder', 'cancelOrder', 'npcTrade',
+  'getOrderbook', 'getNpcRates', 'placeOrder', 'cancelOrder', 'npcTrade', 'getTaxStatus', 'payTax',
   'getStocksList', 'issueIPO', 'buyShares', 'getPortfolio',
   'getMilitaryStatus', 'recruitUnits', 'getCurrentTournament', 'joinAlliance',
   'getPveTargets', 'scoutPveTarget', 'attackPveTarget', 'getBattleHistory',
@@ -190,18 +190,34 @@ assert(moderationCode.includes('СБРОСИТЬ НАТБИРЖУ'),
   'world reset UI must require an explicit typed confirmation phrase');
 
 const onboardingCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/onboarding.js'), 'utf-8');
-assert(onboardingCode.includes('Открыто с начала'),
-  'onboarding must explicitly mark the industries available at registration');
-assert(onboardingCode.includes('Будущие отрасли'),
-  'onboarding must separate future/non-selectable industries from starter choices');
-assert(onboardingCode.includes('disabled'),
-  'future industry cards must be visibly non-selectable');
 [
-  'Металлургический комбинат', 'Солнечная электростанция', 'Нефтяная вышка', 'Зерновая ферма',
-  'Химзавод', 'Завод компонентов', 'Железный рудник', 'Лесозаготовка',
-].forEach((starter) => {
-  assert(onboardingCode.includes(starter), `onboarding must show starter factory/output: ${starter}`);
+  'miner', 'agrarian', 'power_engineer', 'water', 'oilman',
+  'metallurgist', 'chemist', 'construction', 'technoprom', 'logistics',
+].forEach((industry) => {
+  assert(onboardingCode.includes(`id: '${industry}'`), `onboarding must expose industry: ${industry}`);
 });
+assert(onboardingCode.includes('getIndustryOverview') && onboardingCode.includes('company_count'),
+  'onboarding must show live company counts for each industry');
+assert(onboardingCode.includes("status_color === 'green'") && onboardingCode.includes('pressureStyle'),
+  'onboarding must implement green/yellow/red industry recommendations');
+assert(onboardingCode.includes('цвет — рекомендация, а не запрет') || onboardingCode.includes('Цвет — рекомендация, а не запрет'),
+  'industry pressure must remain a recommendation rather than a hard ban');
+[
+  'Угольный разрез', 'Зерновое хозяйство', 'Дизельная электростанция', 'Артезианская скважина',
+  'Малая нефтяная скважина', 'Чугунолитейный цех', 'Завод минеральных удобрений',
+  'Лесозаготовительный участок', 'Электронная мастерская', 'Курьерская служба',
+].forEach((starter) => {
+  assert(onboardingCode.includes(starter), `onboarding must show starter enterprise: ${starter}`);
+});
+
+const marketCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
+const marketTaxCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_tax.js'), 'utf-8');
+assert(marketCode.includes('data-section=\"tax\"') && marketCode.includes('renderTaxSection'),
+  'market home must expose the mandatory tax section');
+assert(marketTaxCode.includes('13%') && marketTaxCode.includes('Производство остановлено') && marketTaxCode.includes('Оплатить всё'),
+  'tax screen must explain the rate, production block and payment action');
+assert(marketTaxCode.includes('штраф не начисляется на штраф'),
+  'tax screen must make the non-compounding penalty rule explicit');
 
 const stocksCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/stocks.js'), 'utf-8');
 assert(stocksCode.includes('Доступно с 2 уровня компании') && stocksCode.includes('Сейчас:'),
@@ -264,23 +280,24 @@ assert(startedFactory.is_running === true && startedFactory.current_recipe === '
 assert(startedFactory.cycle_ready_at === startResult.ready_at && startedFactory.remaining_seconds === 54,
   'successful production start must copy the server deadline so the timer starts without tab navigation');
 
-const marketCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
-assert(marketCode.includes('finally'), 'market.js place order must have finally block to re-enable button');
-assert(marketCode.includes('market-resource-tabs'), 'market.js must keep a stable resource selector hook');
-assert(marketCode.includes('selectorScrollLeft'), 'market.js must preserve horizontal resource position across refreshes');
+const marketCoreCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
+const marketFinanceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_finance.js'), 'utf-8');
+assert(marketCoreCode.includes('finally'), 'market.js place order must have finally block to re-enable button');
+assert(marketCoreCode.includes('market-resource-tabs'), 'market.js must keep a stable resource selector hook');
+assert(marketCoreCode.includes('selectorScrollLeft'), 'market.js must preserve horizontal resource position across refreshes');
 
 // Every canonical production output must be selectable in the NPC market.
 // The API is the source of truth; this regression test prevents a hard-coded
 // subset from silently hiding outputs such as natural gas and copper.
-assert(marketCode.includes('mergeNpcRatesIntoMarketItems'),
+assert(marketCoreCode.includes('mergeNpcRatesIntoMarketItems'),
   'market.js must merge every server NPC rate into the resource selector');
-assert(marketCode.includes('getIndustryOutputIds') && marketCode.includes('prioritizeIndustryItems'),
+assert(marketCoreCode.includes('getIndustryOutputIds') && marketCoreCode.includes('prioritizeIndustryItems'),
   'market.js must prioritize products from the company\'s own industry');
-assert(marketCode.includes('market-ipo-open-btn') && marketCode.includes('market-ipo-dividend-rate'),
-  'the only reachable stocks section must expose IPO and its dividend policy');
-assert(marketCode.includes('NatAPI.issueIPO'),
+assert(marketCoreCode.includes('finance.renderStocks') && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),
+  'the reachable stocks section must expose IPO and its dividend policy');
+assert(marketFinanceCode.includes('NatAPI.issueIPO'),
   'the reachable stocks section must submit the IPO request');
-const marketHelperCode = marketCode
+const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
   .replace(/export\s+function\s+mergeNpcRatesIntoMarketItems/, 'function mergeNpcRatesIntoMarketItems')
   .replace(/export\s+function\s+getIndustryOutputIds/, 'function getIndustryOutputIds')
@@ -343,19 +360,19 @@ assert(leaderboardCode.includes('getLeaderboard') && leaderboardCode.includes('m
 const helpCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/help.js'), 'utf-8');
 assert(helpCode.includes('Pivocoins') && helpCode.includes('IPO') && helpCode.includes('Война'), 'help.js must explain core company progression systems');
 
-assert(marketCode.includes('getReferenceInstruments'), 'market.js must load official reference instruments');
-assert(marketCode.includes('tradeReferenceInstrument'), 'market.js must wire reference trades');
-assert(marketCode.includes("from '../market_chart.js'"), 'market.js must use the shared market chart renderer');
-assert(marketCode.includes('item.history') && marketCode.includes('stock.history') && marketCode.includes('bond.history'),
+assert(marketFinanceCode.includes('getReferenceInstruments'), 'market finance module must load official reference instruments');
+assert(marketFinanceCode.includes('tradeReferenceInstrument'), 'market finance module must wire reference trades');
+assert(marketFinanceCode.includes("from '../market_chart.js'") && marketCode.includes("from '../market_chart.js'"), 'market modules must use the shared market chart renderer');
+assert(marketFinanceCode.includes('item.history') && marketFinanceCode.includes('stock.history') && marketFinanceCode.includes('bond.history'),
   'market charts must use server-provided history for currencies, stocks and bonds');
 assert(marketCode.includes('market-contrast-surface'), 'every market surface must use the readable princess contrast layer');
-assert(marketCode.includes('createBondListing'), 'market.js must expose secondary bond listings');
-assert(marketCode.includes('getPortfolio') && marketCode.includes('renderPortfolio'),
-  'market.js must expose a unified portfolio for stocks, bonds, currencies and metals');
-assert(marketCode.includes('dividend_payments') && marketCode.includes('next_dividend_at'),
+assert(marketFinanceCode.includes('createBondListing'), 'market finance module must expose secondary bond listings');
+assert(marketFinanceCode.includes('getPortfolio') && marketFinanceCode.includes('renderPortfolio'),
+  'market finance module must expose a unified portfolio for stocks, bonds, currencies and metals');
+assert(marketFinanceCode.includes('dividend_payments') && marketFinanceCode.includes('next_dividend_at'),
   'portfolio must show dividend history and the next expected payout');
-assert(marketCode.includes('market-section-btn') && marketCode.includes('renderStockDetail') && marketCode.includes('renderBondDetail'),
-  'market.js must expose the agreed vertical market sections and drill-down cards');
+assert(marketCode.includes('market-section-btn') && marketFinanceCode.includes('renderStockDetail') && marketFinanceCode.includes('renderBondDetail'),
+  'market modules must expose the agreed vertical market sections and drill-down cards');
 assert((natHtml.match(/data-tab="stocks"/g) || []).length === 0,
   'stocks must be opened from the single Market tab, not a duplicate bottom tab');
 

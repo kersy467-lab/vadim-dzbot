@@ -8,6 +8,7 @@ from backend.natbirzha.models.inventory import (
     CANONICAL_ITEMS,
     NatInventory,
     get_item_base_price,
+    get_item_name,
     get_npc_buy_price,
     get_npc_sell_price
 )
@@ -62,6 +63,7 @@ from backend.natbirzha.models.military_infrastructure import (
     NatArmyTraining,
     NatMilitaryInfrastructure,
 )
+from backend.natbirzha.models.tax import NatTaxDaily
 
 __all__ = [
     "NatCompany",
@@ -69,6 +71,7 @@ __all__ = [
     "CANONICAL_ITEMS",
     "NatInventory",
     "get_item_base_price",
+    "get_item_name",
     "get_npc_buy_price",
     "get_npc_sell_price",
     "NatMarketOrder",
@@ -123,4 +126,5 @@ __all__ = [
     "NatBusinessProject",
     "NatMilitaryInfrastructure",
     "NatArmyTraining",
+    "NatTaxDaily",
 ]

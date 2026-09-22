@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
 from backend.db.models import User
-from backend.db.crud import get_user_by_tg_id, create_user, update_user_role, update_user_name_and_role
-from backend.bot.keyboards.main_menu import get_main_keyboard
+from backend.db.crud import get_user_by_tg_id, create_user, update_user_role, update_user_name_and_role, has_full_access
+from backend.bot.keyboards.main_menu import get_main_keyboard, get_arena_keyboard
 from backend.bot.keyboards.admin_kb import get_admin_panel_keyboard
 from backend.bot.keyboards.inline import get_admin_approval_keyboard
 from backend.bot.handlers.admin.states import ApproveUserStates
@@ -62,58 +62,68 @@ async def register_pending_user_and_notify_admin(
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, current_user: User | None = None):
+async def cmd_start(
+    message: Message, db_session: AsyncSession, bot: Bot, state: FSMContext, current_user: User | None = None
+):
+    """Open EGE Arena immediately; no user approval request is required."""
+    from backend.bot.handlers.ege_arena import ask_for_nickname
+
     user_id = message.from_user.id
     username = message.from_user.username
-    full_name = message.from_user.full_name or "Ученик"
+    full_name = message.from_user.full_name or "Игрок"
 
-    is_user_adm = bool((current_user and current_user.role == "admin") or (settings.ADMIN_ID and user_id == settings.ADMIN_ID))
-    is_tester = bool(getattr(current_user, "is_tester", False)) if current_user else False
-
-    local_app_link = ""
-    if not settings.WEBAPP_URL.startswith("https://"):
-        local_app_link = f"\n\n💻 **Mini App 11 «Б»:** http://localhost:{settings.PORT}/app?tg_user_id={user_id}"
-        if is_user_adm or is_tester:
-            local_app_link += f"\n📈 **Игра «НАТБИРЖА» (Beta):** http://localhost:{settings.PORT}/app/natbirzha"
-
-    # If user is admin
-    if settings.ADMIN_ID and user_id == settings.ADMIN_ID:
-        await message.answer(
-            f"👋 **Здравствуйте, Администратор ({full_name})!**\n\n"
-            "Вам доступно полное управление ботом класса, расписанием, ДЗ и заявками учеников."
-            f"{local_app_link}",
-            reply_markup=get_main_keyboard(is_admin=True, user_id=user_id, is_tester=True),
-            parse_mode="Markdown"
+    user = current_user or await get_user_by_tg_id(db_session, user_id)
+    if not user:
+        user = await create_user(
+            session=db_session, tg_id=user_id, full_name=full_name, username=username, role="public"
         )
+    else:
+        changed = False
+        if user.role in {"pending", "rejected"}:
+            user.role = "public"
+            changed = True
+        if full_name and user.full_name != full_name and not user.custom_name:
+            user.full_name = full_name
+            changed = True
+        if user.username != username:
+            user.username = username
+            changed = True
+        if settings.ADMIN_ID and user_id == settings.ADMIN_ID and user.role != "admin":
+            user.role = "admin"
+            user.is_classmate = True
+            changed = True
+        if changed:
+            await db_session.commit()
+            await db_session.refresh(user)
+
+    from backend.bot.services.commands import set_user_command_scope
+    full_access = has_full_access(user)
+    await set_user_command_scope(bot, user_id, full_access=full_access)
+
+    if not user.ege_nickname and not full_access:
+        await ask_for_nickname(message, state, first_time=True)
         return
 
-    # If user is already registered and approved
-    if current_user and current_user.role in ["student", "admin"]:
-        role_label = " (Администратор)" if is_user_adm else ""
+    if full_access:
+        is_admin = user.role == "admin" or bool(settings.ADMIN_ID and user_id == settings.ADMIN_ID)
         await message.answer(
-            f"👋 **Привет, {current_user.display_name}!**{role_label}\n\n"
-            "Добро пожаловать в бот класса! Выберите нужный раздел в меню ниже:"
-            f"{local_app_link}",
-            reply_markup=get_main_keyboard(is_admin=is_user_adm, user_id=user_id, is_tester=is_tester),
-            parse_mode="Markdown"
+            f"👋 <b>Привет, {user.display_name}!</b>\n\n"
+            "ЕГЭ Арена доступна всем, а у вас также открыт полный функционал DZBot.",
+            reply_markup=get_main_keyboard(
+                is_admin=is_admin, user_id=user_id,
+                is_tester=bool(getattr(user, "is_tester", False) or is_admin),
+            ),
+            parse_mode="HTML",
         )
+        if not user.ege_nickname:
+            await message.answer("Для рейтинговых дуэлей установите игровой ник командой /nick.")
         return
-
-
-    # If not registered, create pending and notify admin
-    await register_pending_user_and_notify_admin(
-        bot=bot,
-        session=db_session,
-        user_id=user_id,
-        full_name=full_name,
-        username=username
-    )
 
     await message.answer(
-        "👋 **Добро пожаловать в бот 11 «Б»!**\n\n"
-        "⏳ **Ваша заявка отправлена администратору.**\n"
-        "Как только администратор подтвердит ваш доступ, вам откроется меню, расписание и Mini App.",
-        parse_mode="Markdown"
+        f"🎓 <b>ЕГЭ Арена</b>\n\n"
+        f"Привет, <b>{user.ege_nickname}</b>! Здесь доступны рейтинговые дуэли по ударениям и словарным словам.",
+        reply_markup=get_arena_keyboard(user_id),
+        parse_mode="HTML",
     )
 
 
@@ -283,8 +293,7 @@ async def callback_game_reject(callback: CallbackQuery, bot: Optional[Bot] = Non
     from backend.bot.bot import get_current_bot
     bot = bot or get_current_bot()
     room = game_manager.get_room(room_id)
-    gt = getattr(room, "game_type", "") if room else ""
-    game_name = "Шахматы" if gt == "chess" else ("Шашки" if gt == "checkers" else "Крестики-нолики")
+    game_name = "Шахматы" if (room and getattr(room, "game_type", "") == "chess") else "Крестики-нолики"
     if room:
         game_manager.reject_room(room_id, callback.from_user.id)
         if bot:

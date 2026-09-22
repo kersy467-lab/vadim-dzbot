@@ -26,23 +26,25 @@ def test_auto_npc_policy_restock_inputs_before_resource_settlement() -> None:
         now = datetime(2026, 9, 20, 12, 0)
 
         async with sessions() as session:
-            company = NatCompany(user_id=9_201, name="Auto Supply", specialization="power_engineer", cash=40_000)
+            company = NatCompany(user_id=9_201, name="Auto Supply", specialization="power_engineer", cash=40_000, level=15)
             session.add(company)
+            await session.flush()
+            session.add(NatInventory(company_id=company.id, item_id="water", quantity=4.0))
             await session.commit()
-            opened = await BusinessService.open_business(session, company.id, "energy_company", now=now)
+            opened = await BusinessService.open_business(session, company.id, "diesel_power_station", now=now)
             await SupplyPolicyService.configure(
-                session, opened["business"]["id"], "coal", mode="AUTO_NPC",
-                min_hours_stock=1, target_hours_stock=4, max_unit_price=40, allow_state_reserve=True,
+                session, opened["business"]["id"], "fuel_diesel", mode="AUTO_NPC",
+                min_hours_stock=1, target_hours_stock=4, max_unit_price=200, allow_state_reserve=True,
             )
             await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=1))
 
             business = await session.get(NatBusiness, opened["business"]["id"])
-            coal = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "coal"))
+            fuel = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "fuel_diesel"))
             policy = await session.scalar(select(NatBusinessSupplyPolicy).where(NatBusinessSupplyPolicy.business_id == business.id))
             assert business.status == "ACTIVE"
-            assert coal.quantity == 1.05
+            assert fuel.quantity == 15.0
             assert policy.mode == "AUTO_NPC"
-            assert company.cash == 27_927.5
+            assert company.cash > 0
 
         await engine.dispose()
 

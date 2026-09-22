@@ -14,6 +14,8 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "grid_quota": {"name": "Лимит энергосети", "category": "utility", "unit": "МВт·ч", "base_price": 5.0},
     "energy": {"name": "Электроэнергия", "category": "utility", "unit": "МВт·ч", "base_price": 10.0},
     "water": {"name": "Техническая вода", "category": "utility", "unit": "м³", "base_price": 2.0},
+    "clean_water": {"name": "Очищенная вода", "category": "utility", "unit": "м³", "base_price": 4.5},
+    "ultrapure_water": {"name": "Сверхчистая технологическая вода", "category": "utility", "unit": "м³", "base_price": 18.0},
     "well_lease": {"name": "Отвод скважины", "category": "asset", "unit": "шт.", "base_price": 1000.0},
     "forest_fund": {"name": "Квота лесного фонда", "category": "asset", "unit": "га", "base_price": 800.0},
 
@@ -30,6 +32,12 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "rare_earths": {"name": "Редкоземельные металлы", "category": "raw", "unit": "кг", "base_price": 120.0},
     "lithium_raw": {"name": "Неочищенный литий", "category": "raw", "unit": "т", "base_price": 85.0},
     "cobalt_raw": {"name": "Кобальтовый концентрат", "category": "rare", "unit": "кг", "base_price": 170.0},
+    "copper_ore": {"name": "Медная руда", "category": "raw", "unit": "т", "base_price": 48.0},
+    "silver_ore": {"name": "Серебряная руда", "category": "rare", "unit": "кг", "base_price": 140.0},
+    "gold_ore": {"name": "Золотая руда", "category": "rare", "unit": "кг", "base_price": 260.0},
+    "nickel_concentrate": {"name": "Никелевый концентрат", "category": "raw", "unit": "т", "base_price": 95.0},
+    "diamonds": {"name": "Промышленные алмазы", "category": "rare", "unit": "кар.", "base_price": 420.0},
+    "sugar_raw": {"name": "Сахарное сырьё", "category": "raw", "unit": "т", "base_price": 36.0},
     "gallium_raw": {"name": "Галлиевый концентрат", "category": "rare", "unit": "кг", "base_price": 210.0},
     "uranium_raw": {"name": "Урановая руда", "category": "raw", "unit": "т", "base_price": 200.0},
 
@@ -49,6 +57,11 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "copper": {"name": "Медь первичная", "category": "intermediate", "unit": "т", "base_price": 60.0},
     "rolled_metal": {"name": "Прокат металлический", "category": "intermediate", "unit": "т", "base_price": 120.0},
     "metal_structures": {"name": "Металлоконструкции", "category": "finished", "unit": "т", "base_price": 160.0},
+    "brick": {"name": "Строительный кирпич", "category": "intermediate", "unit": "т", "base_price": 38.0},
+    "cement": {"name": "Цемент", "category": "intermediate", "unit": "т", "base_price": 52.0},
+    "concrete": {"name": "Товарный бетон", "category": "intermediate", "unit": "м³", "base_price": 72.0},
+    "construction_capacity": {"name": "Строительная мощность", "category": "service", "unit": "ед.", "base_price": 95.0},
+    "logistics_capacity": {"name": "Логистическая мощность", "category": "service", "unit": "ед.", "base_price": 65.0},
     "gasoline": {"name": "Товарный бензин", "category": "finished", "unit": "л", "base_price": 1.5},
     "jet_fuel": {"name": "Авиакеросин", "category": "finished", "unit": "л", "base_price": 1.8},
     "cardboard": {"name": "Тарный картон", "category": "finished", "unit": "т", "base_price": 45.0},
@@ -77,6 +90,12 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "batteries": {"name": "Тяговые батареи", "category": "finished", "unit": "шт.", "base_price": 350.0},
     "auto_components": {"name": "Автокомпоненты", "category": "finished", "unit": "шт.", "base_price": 280.0},
     "superalloy": {"name": "Жаропрочные спецсплавы", "category": "finished", "unit": "кг", "base_price": 350.0},
+    "nickel_metal": {"name": "Никель первичный", "category": "intermediate", "unit": "т", "base_price": 180.0},
+    "advanced_alloy": {"name": "Высокопрочный сплав", "category": "finished", "unit": "кг", "base_price": 520.0},
+    "titanium_alloy": {"name": "Титановый сплав", "category": "finished", "unit": "кг", "base_price": 780.0},
+    "electrical_equipment": {"name": "Электротехническое оборудование", "category": "finished", "unit": "компл.", "base_price": 360.0},
+    "sensors": {"name": "Промышленные датчики", "category": "finished", "unit": "шт.", "base_price": 280.0},
+    "automation_systems": {"name": "Системы промышленной автоматики", "category": "hightech", "unit": "компл.", "base_price": 750.0},
     "servers": {"name": "Серверные стойки", "category": "finished", "unit": "шт.", "base_price": 850.0},
     "robots": {"name": "Промышленные роботы", "category": "finished", "unit": "шт.", "base_price": 1200.0},
     "ai_accelerator": {"name": "AI-ускорители", "category": "finished", "unit": "шт.", "base_price": 2500.0},
@@ -103,6 +122,12 @@ def get_item_base_price(item_id: str) -> float:
     if not item:
         raise ValueError(f"Unknown canonical item: {item_id}")
     return float(item["base_price"])
+
+
+def get_item_name(item_id: str) -> str:
+    """Return a safe player-facing item name without leaking internal IDs."""
+    item = CANONICAL_ITEMS.get(item_id)
+    return str(item["name"]) if item else "Неизвестный ресурс"
 
 def get_npc_buy_price(item_id: str) -> float:
     return round(get_item_base_price(item_id) * nat_settings.NPC_BUY_FLOOR_MULT, 2)

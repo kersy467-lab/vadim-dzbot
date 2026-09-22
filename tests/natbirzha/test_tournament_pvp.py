@@ -10,6 +10,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.combat import NatArmyUnit, NatPvpCooldown
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.tournament_service import TournamentError, TournamentService
 
 
@@ -34,7 +35,13 @@ async def run_async() -> None:
             [
                 NatArmyUnit(company_id=strong.id, unit_type="infantry", quantity=500),
                 NatArmyUnit(company_id=strong.id, unit_type="tanks", quantity=10),
+                NatInventory(company_id=strong.id, item_id="food", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=strong.id, item_id="fuel_diesel", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=strong.id, item_id="military_gear", quantity=1000.0, reserved_quantity=0.0),
                 NatArmyUnit(company_id=weak.id, unit_type="infantry", quantity=20),
+                NatInventory(company_id=weak.id, item_id="food", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=weak.id, item_id="fuel_diesel", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=weak.id, item_id="military_gear", quantity=1000.0, reserved_quantity=0.0),
             ]
         )
         await session.commit()

@@ -192,10 +192,6 @@ assert(paneTester.includes('/app/natbirzha'), 'Natbirzha banner must link to /ap
 console.log('window.GAMES module loaded, tester-only RPG & Natbirzha banner restrictions verified!');
 
 console.log('=== [5/5] Testing multiplayer games & online room routing ===');
-['chess_svgs.js', 'chess_board.js', 'chess_ui.js'].forEach(m => {
-  const p = path.join(__dirname, '../frontend/js/games/chess/', m);
-  if (fs.existsSync(p)) eval(fs.readFileSync(p, 'utf-8'));
-});
 ['game_2048.js', 'game_tictactoe.js', 'game_snake.js', 'game_tetris.js', 'game_chess.js'].forEach(m => {
   const p = path.join(__dirname, '../frontend/js/games/', m);
   if (fs.existsSync(p)) eval(fs.readFileSync(p, 'utf-8'));
@@ -208,8 +204,6 @@ console.log('=== [5/5] Testing multiplayer games & online room routing ===');
 eval(fs.readFileSync(path.join(__dirname, '../frontend/js/durak.js'), 'utf-8'));
 
 assert(mockWindow.GAMES_CHESS && typeof mockWindow.GAMES_CHESS.openChessOnlineRoom === 'function', 'window.GAMES_CHESS.openChessOnlineRoom must be defined');
-assert(mockWindow.GAMES && typeof mockWindow.GAMES.startBotChessGame === 'function', 'window.GAMES.startBotChessGame must be defined');
-assert(mockWindow.CHESS_SVGS && mockWindow.CHESS_SVGS['P'], 'window.CHESS_SVGS must have white pawn P');
 assert(mockWindow.GAMES_TICTACTOE && typeof mockWindow.GAMES_TICTACTOE.openOnlineRoom === 'function', 'window.GAMES_TICTACTOE.openOnlineRoom must be defined');
 assert(mockWindow.DURAK && typeof mockWindow.DURAK.joinRoom === 'function', 'window.DURAK.joinRoom must be defined');
 

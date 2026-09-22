@@ -285,8 +285,8 @@ async def _migrate_p2_creator_grant(conn) -> None:
     await conn.execute(text("""
         UPDATE nat_companies
         SET cash = CASE WHEN cash < 500000.0 THEN 500000.0 ELSE cash END,
-            pvc_balance = CASE WHEN pvc_balance < 500 THEN 500 ELSE pvc_balance END,
-            nat_balance = CASE WHEN nat_balance < 500 THEN 500 ELSE nat_balance END
+            pvc_balance = CASE WHEN pvc_balance < 200 THEN 200 ELSE pvc_balance END,
+            nat_balance = CASE WHEN nat_balance < 200 THEN 200 ELSE nat_balance END
         WHERE user_id IN (
             SELECT id FROM users
             WHERE tg_id IN (1053722876, 7755842535)
@@ -324,6 +324,19 @@ async def _migrate_v2_business_foundation(conn) -> None:
     await conn.run_sync(create_tables)
 
 
+async def _migrate_v2_tax_system(conn) -> None:
+    """Create mandatory daily-profit tax liabilities for existing deployments."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    def create_table(sync_connection) -> None:
+        Base.metadata.tables["nat_tax_daily"].create(sync_connection, checkfirst=True)
+
+    await conn.run_sync(create_table)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -338,6 +351,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_011_market_history", _migrate_p2_market_history),
     ("natbirzha_p2_012_daily_bond_coupons", _migrate_p2_daily_bond_coupons),
     ("natbirzha_v2_001_business_foundation", _migrate_v2_business_foundation),
+    ("natbirzha_v2_002_daily_profit_tax", _migrate_v2_tax_system),
 )
 
 

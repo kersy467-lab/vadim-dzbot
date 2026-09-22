@@ -4,19 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.natbirzha.config import nat_settings, get_game_now, get_game_today, normalize_dt
 from backend.natbirzha.models.company import NatCompany, NatFactory
+from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
-from backend.natbirzha.models.military import NatArmy
-from backend.natbirzha.models.combat import NatArmyUnit
 from backend.db.models import User
 from backend.natbirzha.services.access_control import is_creator_user, get_creator_tg_ids
-from backend.natbirzha.services.building_catalog import get_building_spec
 
 from backend.natbirzha.services.company_constants import (
     VALID_SPECIALIZATIONS,
     SPECIALIZATION_ALIASES,
     STARTER_FACTORIES,
-    STARTER_INVENTORIES,
 )
+from backend.natbirzha.services.company_bootstrap import bootstrap_company_state
+from backend.natbirzha.services.company_reset_v2 import delete_v2_company_state
 
 
 class CompanyService:
@@ -32,7 +31,7 @@ class CompanyService:
             res = await session.execute(select(User).where(User.tg_id == user_id))
             user = res.scalar_one_or_none()
         if user_id in get_creator_tg_ids() or (user and (is_creator_user(user) or user.tg_id in get_creator_tg_ids())):
-            return float(nat_settings.CREATOR_STARTING_CASH), int(getattr(nat_settings, "CREATOR_STARTING_PVC", 500))
+            return float(nat_settings.CREATOR_STARTING_CASH), int(getattr(nat_settings, "CREATOR_STARTING_PVC", 200))
         if user and bool(user.is_tester):
             return float(nat_settings.STARTING_CASH), int(nat_settings.TESTER_STARTING_PVC)
         return float(nat_settings.STARTING_CASH), 0
@@ -48,17 +47,17 @@ class CompanyService:
     ) -> NatCompany:
         spec = SPECIALIZATION_ALIASES.get(specialization.lower(), specialization)
         if spec not in VALID_SPECIALIZATIONS:
-            raise ValueError(f"Invalid specialization: {specialization}")
+            raise ValueError("Неизвестная отрасль компании")
 
         clean_name = name.strip()
         if len(clean_name) < 2 or len(clean_name) > 64:
-            raise ValueError("Company name must be between 2 and 64 characters.")
+            raise ValueError("Название компании должно содержать от 2 до 64 символов")
 
         clean_ticker = "".join(c for c in (ticker or "").strip() if c.isalnum()).upper()[:5] or None
 
         existing = await session.execute(select(NatCompany).where(NatCompany.user_id == user_id))
         if existing.scalar_one_or_none():
-            raise ValueError("User already owns a company.")
+            raise ValueError("У вас уже есть компания")
 
         now = get_game_now()
         starting_cash, starting_pvc = await CompanyService.get_starting_grant(session, user_id)
@@ -82,58 +81,7 @@ class CompanyService:
         session.add(company)
         await session.flush()
 
-        # Build initial starter factory
-        if spec not in STARTER_FACTORIES:
-            raise ValueError(f"Unknown specialization: {specialization}")
-        b_type = STARTER_FACTORIES[spec]
-        building = get_building_spec(b_type) or {}
-        starter_factory = NatFactory(
-            company_id=company.id,
-            building_type=b_type,
-            specialization=spec,
-            level=1,
-            efficiency=1.0,
-            is_active=True,
-            workers=int(building.get("workers_required", 10)),
-            automation_level=0,
-            technology_level=0,
-            current_recipe=None,
-            cycle_started_at=None,
-            cycle_ready_at=None,
-            last_produced_at=now,
-            created_at=now
-        )
-        session.add(starter_factory)
-
-        # Starter utilities and raw resources keep every specialization playable from minute one.
-        starter_items = STARTER_INVENTORIES.get(spec, {"water": 100.0, "grid_quota": 100.0})
-        for item_id, quantity in starter_items.items():
-            session.add(NatInventory(
-                company_id=company.id, item_id=item_id, quantity=quantity,
-                reserved_quantity=0.0, avg_cost_basis=0.0
-            ))
-
-
-        # Initialize base army garrison
-        army = NatArmy(
-            company_id=company.id,
-            infantry=10,
-            tanks=0,
-            drones=0,
-            air_defense=0,
-            army_strength=100,
-            updated_at=now
-        )
-        session.add(army)
-        session.add(NatArmyUnit(
-            company_id=company.id,
-            unit_type="infantry",
-            quantity=10,
-            level=1,
-            readiness=10000,
-            experience=0,
-            updated_at=now,
-        ))
+        await bootstrap_company_state(session, company, now=now)
 
         if commit:
             await session.commit()
@@ -177,6 +125,19 @@ class CompanyService:
         for f in factories:
             total_nav += f.level * 25000.0
 
+        # Tycoon V2 enterprises are real company assets too. Legacy hidden
+        # aggregate rows are intentionally excluded from the new economy.
+        biz_res = await session.execute(
+            select(NatBusiness).where(
+                NatBusiness.company_id == company.id, NatBusiness.status != "BANKRUPT"
+            )
+        )
+        from backend.natbirzha.catalogs.businesses import get_business_spec
+        for business in biz_res.scalars().all():
+            spec = get_business_spec(business.business_type)
+            if spec and not spec.get("legacy_hidden"):
+                total_nav += max(0.0, float(business.capital_invested)) * 0.70
+
         # Inventory valuation at base price
         inv_res = await session.execute(select(NatInventory).where(NatInventory.company_id == company.id))
         inventory = inv_res.scalars().all()
@@ -198,15 +159,15 @@ class CompanyService:
     ) -> Dict[str, Any]:
         """Respec specialization with 7-day cooldown and 25% NAV fee."""
         if new_specialization not in VALID_SPECIALIZATIONS:
-            raise ValueError("Invalid specialization.")
+            raise ValueError("Неизвестная отрасль")
         locked = (await session.execute(
             select(NatCompany).where(NatCompany.id == company.id).with_for_update()
         )).scalar_one_or_none()
         if not locked:
-            raise ValueError("Company not found.")
+            raise ValueError("Компания не найдена")
         company = locked
         if new_specialization == company.specialization:
-            raise ValueError("Company already has this specialization.")
+            raise ValueError("Эта отрасль уже является основной")
 
         now = normalize_dt(get_game_now())
         if company.last_respec_at:
@@ -214,12 +175,12 @@ class CompanyService:
             elapsed = (now - last_respec).total_seconds() / 86400
             if elapsed < nat_settings.RESPEC_COOLDOWN_DAYS:
                 remaining = round(nat_settings.RESPEC_COOLDOWN_DAYS - elapsed, 1)
-                raise ValueError(f"Respec cooldown active. Wait {remaining} days.")
+                raise ValueError(f"Смена отрасли на перезарядке. Подождите ещё {remaining} дн.")
 
         nav = await CompanyService.calculate_audited_nav(session, company)
         fee = round(nav * nat_settings.RESPEC_COST_PCT, 2)
         if company.cash < fee:
-            raise ValueError(f"Insufficient cash for respec fee. Needed: {fee}, Available: {company.cash}")
+            raise ValueError(f"Недостаточно cash для смены отрасли: нужно {fee}, доступно {company.cash}")
 
         company.cash -= fee
         company.specialization = new_specialization
@@ -248,21 +209,21 @@ class CompanyService:
     ) -> Dict[str, Any]:
         """NAT currency sink: Purchase secondary industry foreign license (up to 12% eff)."""
         if target_spec not in VALID_SPECIALIZATIONS:
-            raise ValueError("Invalid target specialization.")
+            raise ValueError("Неизвестная дополнительная отрасль")
         locked = (await session.execute(
             select(NatCompany).where(NatCompany.id == company.id).with_for_update()
         )).scalar_one_or_none()
         if not locked:
-            raise ValueError("Company not found.")
+            raise ValueError("Компания не найдена")
         company = locked
         if target_spec == company.specialization:
-            raise ValueError("Cannot license own primary specialization.")
+            raise ValueError("Нельзя покупать лицензию на собственную основную отрасль")
         if company.licensed_foreign_spec == target_spec:
-            raise ValueError(f"Company already holds license for {target_spec}.")
+            raise ValueError("Лицензия на эту дополнительную отрасль уже куплена")
 
         cost = nat_settings.FOREIGN_LICENSE_COST_NAT
         if company.nat_balance < cost:
-            raise ValueError(f"Insufficient NAT balance. Required: {cost} NAT, Available: {company.nat_balance} NAT.")
+            raise ValueError(f"Недостаточно PVC: нужно {cost}, доступно {company.nat_balance}")
 
         company.nat_balance -= cost
         company.licensed_foreign_spec = target_spec
@@ -376,6 +337,7 @@ class CompanyService:
             NatAllianceMember.alliance_id.in_(alliance_ids),
         )))
         await session.execute(delete(NatAlliance).where(NatAlliance.id.in_(alliance_ids)))
+        await delete_v2_company_state(session, cid)
         await session.execute(delete(NatFactory).where(NatFactory.company_id == cid))
         await session.execute(delete(NatInventory).where(NatInventory.company_id == cid))
         await session.execute(delete(NatMarketOrder).where(NatMarketOrder.company_id == cid))

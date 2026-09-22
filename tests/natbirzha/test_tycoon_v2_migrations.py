@@ -9,9 +9,11 @@ from backend.natbirzha.config import nat_settings
 from backend.natbirzha.migrations import MIGRATIONS, run_natbirzha_migrations
 
 
-def test_tycoon_v2_is_disabled_until_creator_rollout() -> None:
-    assert nat_settings.TYCOON_V2_ENABLED is False
-    assert "natbirzha_v2_001_business_foundation" in [version for version, _ in MIGRATIONS]
+def test_tycoon_v2_rollout_and_tax_migrations_are_registered() -> None:
+    assert nat_settings.TYCOON_V2_ENABLED is True
+    versions = [version for version, _ in MIGRATIONS]
+    assert "natbirzha_v2_001_business_foundation" in versions
+    assert "natbirzha_v2_002_daily_profit_tax" in versions
 
 
 def test_tycoon_v2_business_foundation_migration_is_repeatable() -> None:
@@ -34,7 +36,7 @@ def test_tycoon_v2_business_foundation_migration_is_repeatable() -> None:
             ))
 
         await engine.dispose()
-        assert {"nat_businesses", "nat_business_supply_policies", "nat_army_trainings"} <= tables
+        assert {"nat_businesses", "nat_business_supply_policies", "nat_army_trainings", "nat_tax_daily"} <= tables
         assert migration_count == 1
 
     asyncio.run(check())

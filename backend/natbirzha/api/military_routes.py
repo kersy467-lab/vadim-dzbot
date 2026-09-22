@@ -11,6 +11,7 @@ from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.military_service import MilitaryService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.army_service import ArmyService
+from backend.natbirzha.services.military_infrastructure_service import MilitaryInfrastructureService
 from backend.natbirzha.services.pve_service import PveService, PveWarError
 from backend.natbirzha.services.tournament_service import TournamentError, TournamentService
 from backend.natbirzha.config import game_dt_iso
@@ -147,9 +148,16 @@ async def get_military_status(
     company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session)
 ):
+    infrastructure = await MilitaryInfrastructureService.status(session, company.id)
     status = await ArmyService.compatibility_status(session, company.id)
+    army_snapshot = await ArmyService.snapshot(session, company.id)
+    status["operation_supply"] = await MilitaryInfrastructureService.operation_supply_quote(
+        session, company.id, army_snapshot
+    )
     status["pvc_balance"] = company.pvc_balance
     status["nat_balance"] = company.nat_balance  # temporary legacy response
+    status["infrastructure"] = infrastructure
+    await session.commit()
     return status
 
 @router.get("/tournaments/current")

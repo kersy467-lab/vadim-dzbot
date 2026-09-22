@@ -20,22 +20,22 @@ def company(level: int, cash: float) -> NatCompany:
 
 
 def run() -> None:
-    early = capital_plan_for_company(company(13, 10_000), is_public=False)
+    early = capital_plan_for_company(company(17, 10_000), is_public=False)
     assert early["recommended"] is False
     assert early["state"] == "grow_first"
 
-    short_on_cash = capital_plan_for_company(company(14, 10_000), is_public=False)
+    short_on_cash = capital_plan_for_company(company(18, 10_000), is_public=False)
     assert short_on_cash["recommended"] is True
     assert short_on_cash["state"] == "ipo_recommended"
     assert short_on_cash["action"]["tab"] == "market"
     assert short_on_cash["min_dividend_pct"] == 5.0
     assert short_on_cash["project"]["cost"] > short_on_cash["cash"]
 
-    self_funded = capital_plan_for_company(company(14, 2_000_000), is_public=False)
+    self_funded = capital_plan_for_company(company(18, 2_000_000), is_public=False)
     assert self_funded["recommended"] is False
     assert self_funded["state"] == "self_funded"
 
-    public = capital_plan_for_company(company(14, 10_000), is_public=True)
+    public = capital_plan_for_company(company(18, 10_000), is_public=True)
     assert public["recommended"] is False
     assert public["state"] == "public"
 

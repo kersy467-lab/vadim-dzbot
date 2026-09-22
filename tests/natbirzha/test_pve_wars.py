@@ -10,6 +10,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.combat import NatArmyUnit, NatBattle, NatPveVictory
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.pve_service import PveService, PveWarError
 from backend.natbirzha.services.pve_catalog import PVE_CORPORATIONS, PVE_FORCE_REQUIREMENTS
 from backend.natbirzha.services.progression_service import xp_required_for_level
@@ -54,9 +55,15 @@ async def run_async() -> None:
                 NatArmyUnit(company_id=strong.id, unit_type="border_guards", quantity=20),
                 NatArmyUnit(company_id=strong.id, unit_type="tanks", quantity=10),
                 NatArmyUnit(company_id=strong.id, unit_type="drones", quantity=10),
+                NatInventory(company_id=strong.id, item_id="food", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=strong.id, item_id="fuel_diesel", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=strong.id, item_id="military_gear", quantity=1000.0, reserved_quantity=0.0),
                 NatArmyUnit(company_id=weak.id, unit_type="infantry", quantity=100),
                 NatArmyUnit(company_id=weak.id, unit_type="border_guards", quantity=20),
                 NatArmyUnit(company_id=weak.id, unit_type="drones", quantity=5),
+                NatInventory(company_id=weak.id, item_id="food", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=weak.id, item_id="fuel_diesel", quantity=1000.0, reserved_quantity=0.0),
+                NatInventory(company_id=weak.id, item_id="military_gear", quantity=1000.0, reserved_quantity=0.0),
                 # 400 infantry cost 20k cash. This used to be enough to brute-force PvE.
                 NatArmyUnit(company_id=infantry_rusher.id, unit_type="infantry", quantity=400),
             ]

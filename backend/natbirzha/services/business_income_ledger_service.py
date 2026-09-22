@@ -1,6 +1,6 @@
-"""Daily business income rows used by valuation, dividends and analytics."""
+"""Daily business income rows used by valuation, dividends, tax and analytics."""
 
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +40,46 @@ class BusinessIncomeLedgerService:
             - float(row.salary or 0.0) - float(row.resource_cost or 0.0), 2
         )
         await session.flush()
+
+    @classmethod
+    async def record_interval(
+        cls,
+        session: AsyncSession,
+        business_id: int,
+        start: datetime,
+        worked_hours: float,
+        *,
+        gross: float,
+        maintenance: float,
+        salary: float = 0.0,
+        resource_cost: float = 0.0,
+    ) -> None:
+        """Split one lazy-settlement result across the actual calendar days worked."""
+        total_seconds = max(0.0, float(worked_hours)) * 3600.0
+        if total_seconds <= 1e-9:
+            return
+        end = start + timedelta(seconds=total_seconds)
+        cursor = start
+        allocated = 0.0
+        while cursor < end:
+            next_day = datetime.combine(cursor.date() + timedelta(days=1), time.min)
+            segment_end = min(end, next_day)
+            seconds = max(0.0, (segment_end - cursor).total_seconds())
+            fraction = seconds / total_seconds
+            allocated += fraction
+            # Give the final segment the rounding remainder so totals stay exact.
+            if segment_end >= end:
+                fraction += max(0.0, 1.0 - allocated)
+            await cls.record(
+                session,
+                business_id,
+                cursor.date(),
+                gross=gross * fraction,
+                maintenance=maintenance * fraction,
+                salary=salary * fraction,
+                resource_cost=resource_cost * fraction,
+            )
+            cursor = segment_end
 
 
 __all__ = ["BusinessIncomeLedgerService"]

@@ -6,7 +6,6 @@ import uuid
 from typing import Optional
 
 from .cards import Card, Deck, SUITS, RANKS, RANK_ORDER
-from .bot import make_bot_move
 
 
 class DurakGame:
@@ -79,13 +78,11 @@ class DurakGame:
                 return nxt
         return self.player_ids[(self.player_ids.index(pid) + 1) % len(self.player_ids)]
 
-    def _refill_hands(self, bout_attacker: Optional[int] = None, bout_defender: Optional[int] = None) -> None:
-        """Дотянуть карты до 6 после каждого хода (сначала нападавший, затем другие, в конце защитник)."""
-        atk = bout_attacker if bout_attacker is not None else self.current_attacker
-        dfn = bout_defender if bout_defender is not None else self.current_defender
-        order = [atk] + [
-            p for p in self.player_ids if p != atk and p != dfn
-        ] + [dfn]
+    def _refill_hands(self) -> None:
+        """Дотянуть карты до 6 после каждого хода (сначала атакующий)."""
+        order = [self.current_attacker] + [
+            p for p in self.player_ids if p != self.current_attacker and p != self.current_defender
+        ] + [self.current_defender]
 
         for pid in order:
             while self.deck and len(self.hands[pid]) < 6:
@@ -130,22 +127,17 @@ class DurakGame:
 
         card = Card.from_dict(card_dict)
 
-        # Проверка: карта есть в руке (с нормализацией типа)
-        found_in_hand = None
-        for cd in self.hands.get(attacker_id, []):
-            if cd.get("suit") == card.suit and str(cd.get("rank")) == card.rank:
-                found_in_hand = cd
-                break
-        if not found_in_hand:
+        # Проверка: карта есть в руке
+        if card_dict not in self.hands[attacker_id]:
             return {"ok": False, "error": "Карты нет в руке"}
 
         # Проверка: первая карта стола — любая; следующие — только того же ранга
         if self.table:
             ranks_on_table = set()
             for slot in self.table:
-                ranks_on_table.add(str(slot["attack"]["rank"]))
+                ranks_on_table.add(slot["attack"]["rank"])
                 if slot.get("defend"):
-                    ranks_on_table.add(str(slot["defend"]["rank"]))
+                    ranks_on_table.add(slot["defend"]["rank"])
             if card.rank not in ranks_on_table:
                 return {"ok": False, "error": "Можно подкидывать только карты тех же рангов"}
 
@@ -154,7 +146,7 @@ class DurakGame:
             return {"ok": False, "error": "Больше карт подкидывать нельзя (максимум 6 на столе)"}
 
         # Защитник должен иметь карты в руке для отбоя
-        defender_hand = self.hands.get(self.current_defender, [])
+        defender_hand = self.hands[self.current_defender]
         if not defender_hand:
             return {"ok": False, "error": "У защитника не осталось карт"}
 
@@ -163,8 +155,8 @@ class DurakGame:
         if unclosed >= len(defender_hand):
             return {"ok": False, "error": "У защитника недостаточно карт для отбоя"}
 
-        self.hands[attacker_id].remove(found_in_hand)
-        self.table.append({"attack": found_in_hand, "defend": None})
+        self.hands[attacker_id].remove(card_dict)
+        self.table.append({"attack": card_dict, "defend": None})
         self.phase = "defend"
         return {"ok": True}
 
@@ -175,41 +167,26 @@ class DurakGame:
         if defender_id != self.current_defender:
             return {"ok": False, "error": "Не ваш ход защищаться"}
 
-        atk_suit = attack_card_dict.get("suit")
-        atk_rank = str(attack_card_dict.get("rank"))
-        def_suit = defend_card_dict.get("suit")
-        def_rank = str(defend_card_dict.get("rank"))
-
-        # Найти незакрытый слот на столе
+        # Найти незакрытый слот
         slot = None
         for s in self.table:
-            if (
-                s.get("defend") is None
-                and s["attack"].get("suit") == atk_suit
-                and str(s["attack"].get("rank")) == atk_rank
-            ):
+            if s["attack"] == attack_card_dict and s["defend"] is None:
                 slot = s
                 break
         if slot is None:
             return {"ok": False, "error": "Карта для отбоя не найдена на столе"}
 
-        # Найти защитную карту в руке
-        found_in_hand = None
-        for cd in self.hands.get(defender_id, []):
-            if cd.get("suit") == def_suit and str(cd.get("rank")) == def_rank:
-                found_in_hand = cd
-                break
-        if not found_in_hand:
+        if defend_card_dict not in self.hands[defender_id]:
             return {"ok": False, "error": "Карты нет в руке"}
 
-        attack_card = Card(atk_suit, atk_rank)
-        defend_card = Card(def_suit, def_rank)
+        attack_card = Card.from_dict(attack_card_dict)
+        defend_card = Card.from_dict(defend_card_dict)
 
         if not defend_card.beats(attack_card, self.trump_suit):
             return {"ok": False, "error": "Этой картой нельзя отбить"}
 
-        self.hands[defender_id].remove(found_in_hand)
-        slot["defend"] = found_in_hand
+        self.hands[defender_id].remove(defend_card_dict)
+        slot["defend"] = defend_card_dict
 
         # Если все карты на столе отбиты → атакующий может подкинуть или завершить ход
         all_closed = all(s["defend"] is not None for s in self.table)
@@ -230,9 +207,6 @@ class DurakGame:
         if not self.table:
             return {"ok": False, "error": "Стол пуст"}
 
-        bout_atk = self.current_attacker
-        bout_dfn = self.current_defender
-
         # Взять все карты стола в руку
         for slot in self.table:
             self.hands[defender_id].append(slot["attack"])
@@ -240,24 +214,19 @@ class DurakGame:
                 self.hands[defender_id].append(slot["defend"])
         self.table = []
 
-        # Сначала добирает карты нападавший, затем защитник
-        self._refill_hands(bout_attacker=bout_atk, bout_defender=bout_dfn)
+        # Ход переходит к следующему после защитника
+        new_attacker = self._next_player(self.current_defender)
+        self.current_defender = self._next_player(new_attacker)
+        self.current_attacker = new_attacker
 
+        self._refill_hands()
         if self._check_game_over():
             return {"ok": True}
-
-        # Ход переходит к следующему игроку после защитника (защитник пропускает ход)
-        new_attacker = self._next_player(bout_dfn)
-        if not self.hands[new_attacker] and not self.deck:
-            new_attacker = self._next_player(new_attacker)
-
-        self.current_attacker = new_attacker
-        self.current_defender = self._next_player(new_attacker)
         self.phase = "attack"
         return {"ok": True}
 
     def pass_attack(self, attacker_id: int) -> dict:
-        """Атакующий завершает ход (больше не подкидывает, «Бито»)."""
+        """Атакующий завершает ход (больше не подкидывает)."""
         if attacker_id != self.current_attacker:
             return {"ok": False, "error": "Не ваш ход"}
 
@@ -266,9 +235,6 @@ class DurakGame:
         if open_slots:
             return {"ok": False, "error": "Не все карты отбиты — сначала подождите ответа защитника"}
 
-        bout_atk = self.current_attacker
-        bout_dfn = self.current_defender
-
         # Отбой — снять карты со стола
         for slot in self.table:
             self.beaten.append(slot["attack"])
@@ -276,19 +242,14 @@ class DurakGame:
                 self.beaten.append(slot["defend"])
         self.table = []
 
-        # Сначала добирает карты нападавший, защитник — последним
-        self._refill_hands(bout_attacker=bout_atk, bout_defender=bout_dfn)
+        # Ход переходит к защитнику
+        new_attacker = self.current_defender
+        self.current_defender = self._next_player(new_attacker)
+        self.current_attacker = new_attacker
 
+        self._refill_hands()
         if self._check_game_over():
             return {"ok": True}
-
-        # Ход переходит к защитнику (если у него остались карты)
-        new_attacker = bout_dfn
-        if not self.hands[new_attacker] and not self.deck:
-            new_attacker = self._next_player(new_attacker)
-
-        self.current_attacker = new_attacker
-        self.current_defender = self._next_player(new_attacker)
         self.phase = "attack"
         return {"ok": True}
 
@@ -299,9 +260,67 @@ class DurakGame:
     def bot_move(self) -> Optional[dict]:
         """
         Выполнить ход за бота. Возвращает описание действия или None.
-        Делегирует исполнение модулю backend.bot.game_durak.bot.
         """
-        return make_bot_move(self)
+        if self.phase == "done":
+            return None
+
+        if self.phase == "attack" and self.current_attacker in self.bot_indices:
+            hand = self.hands[self.current_attacker]
+            if not hand:
+                return self.pass_attack(self.current_attacker)
+
+            if self.table:
+                ranks_on_table = set()
+                for slot in self.table:
+                    ranks_on_table.add(slot["attack"]["rank"])
+                    if slot.get("defend"):
+                        ranks_on_table.add(slot["defend"]["rank"])
+                candidates = [c for c in hand if c["rank"] in ranks_on_table]
+            else:
+                candidates = list(hand)
+
+            if not candidates:
+                return self.pass_attack(self.current_attacker)
+
+            non_trump = [c for c in candidates if c["suit"] != self.trump_suit]
+            result = self.attack(self.current_attacker, choice)
+            if not result.get("ok"):
+                return self.pass_attack(self.current_attacker)
+            return {"action": "attack", "card": choice, "result": result}
+
+        elif self.phase == "defend" and self.current_defender in self.bot_indices:
+            hand = self.hands[self.current_defender]
+            open_slots = [s for s in self.table if s["defend"] is None]
+            if not open_slots:
+                return self.pass_attack(self.current_attacker)
+
+            slot = open_slots[0]
+            atk_card = Card.from_dict(slot["attack"])
+
+            best_def = None
+            best_def_dict = None
+            for cd in hand:
+                c = Card.from_dict(cd)
+                if c.beats(atk_card, self.trump_suit):
+                    if best_def is None:
+                        best_def = c
+                        best_def_dict = cd
+                    else:
+                        if best_def.suit == self.trump_suit and c.suit != self.trump_suit:
+                            best_def = c
+                            best_def_dict = cd
+                        elif best_def.suit == c.suit and RANK_ORDER[c.rank] < RANK_ORDER[best_def.rank]:
+                            best_def = c
+                            best_def_dict = cd
+
+            if best_def_dict:
+                result = self.defend(self.current_defender, slot["attack"], best_def_dict)
+                return {"action": "defend", "card": best_def_dict, "result": result}
+            else:
+                result = self.take(self.current_defender)
+                return {"action": "take", "result": result}
+
+        return None
 
     # ------------------------------------------------------------------
     # Сериализация

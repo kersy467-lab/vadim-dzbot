@@ -63,3 +63,24 @@ def get_main_keyboard(is_admin: bool = False, user_id: int | None = None, is_tes
         resize_keyboard=True,
         input_field_placeholder="11 «Б» Класс • Выберите раздел..."
     )
+
+
+def get_arena_keyboard(user_id: int | None = None) -> ReplyKeyboardMarkup:
+    """Minimal public keyboard: only EGE Arena, stats and nickname."""
+    rows = []
+    url = settings.WEBAPP_URL
+    if url and url.startswith("https://"):
+        sep = "&" if "?" in url else "?"
+        params = ["tab=ege"]
+        if user_id:
+            params.append(f"tg_user_id={user_id}")
+        arena_url = url + sep + "&".join(params)
+        rows.append([KeyboardButton(text="🎓 ЕГЭ Арена", web_app=WebAppInfo(url=arena_url))])
+    else:
+        rows.append([KeyboardButton(text="🎓 ЕГЭ Арена")])
+    rows.append([KeyboardButton(text="📊 Моя статистика"), KeyboardButton(text="✏️ Сменить ник")])
+    return ReplyKeyboardMarkup(
+        keyboard=rows,
+        resize_keyboard=True,
+        input_field_placeholder="ЕГЭ Арена • Дуэли и рейтинг",
+    )

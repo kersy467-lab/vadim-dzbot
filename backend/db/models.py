@@ -17,14 +17,19 @@ class User(Base):
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     custom_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Реальное имя, назначенное админом
-    role: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)  # admin, student, pending, rejected
+    role: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)  # admin, student, public, pending, rejected
     is_tester: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     canteen_reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     currency_ecosystem_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
-    flag_b: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="1")
-    flag_plus: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     coins: Mapped[int] = mapped_column(BigInteger, default=100, nullable=False, server_default="100")
+    ege_rating: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    ege_wins: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    ege_losses: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    ege_draws: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    ege_nickname: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    ege_nickname_normalized: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, index=True)
+    is_classmate: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     last_work_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -290,26 +295,3 @@ class ClassPollVote(Base):
 
     poll: Mapped["ClassPoll"] = relationship("ClassPoll", back_populates="votes")
     option: Mapped["ClassPollOption"] = relationship("ClassPollOption", back_populates="votes")
-
-
-class UserCustomSchedule(Base):
-    __tablename__ = "user_custom_schedules"
-    __table_args__ = (
-        UniqueConstraint("user_tg_id", "day_of_week", name="uq_user_custom_schedule_day"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-    user_tg_id: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)
-    day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 = Mon .. 7 = Sun
-    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    content_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # 'photo' | 'text'
-    file_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    text_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    notification_time: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # 'HH:MM'
-    last_sent_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    user: Mapped[Optional["User"]] = relationship("User")
-

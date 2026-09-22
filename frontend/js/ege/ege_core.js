@@ -16,7 +16,7 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
 
   let currentSubject = "russian";
   let currentTask = 4; // 4 (Ударения) или 5 (Паронимы)
-  let currentSubTab = "quiz"; // quiz, dict, duel
+  let currentSubTab = "quiz"; // 'quiz' or 'dict'
 
   function initEge() {
     const container = document.getElementById("pane-ege");
@@ -27,6 +27,12 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
   function renderEge() {
     const container = document.getElementById("pane-ege");
     if (!container) return;
+
+    if (window.currentUser && !window.currentUser.has_full_access) {
+      container.innerHTML = `<div id="ege-subtab-container">${window.EGE_DUEL ? window.EGE_DUEL.renderArenaHome() : ''}</div>`;
+      if (window.EGE_DUEL?.initLobby) window.EGE_DUEL.initLobby();
+      return;
+    }
 
     container.innerHTML = `
       <!-- Subject Header & Selector -->
@@ -61,6 +67,20 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
         ${renderSubjectContent()}
       </div>
     `;
+  }
+
+  function renderSubTabBody() {
+    if (currentSubTab === "duel") {
+      return window.EGE_DUEL ? window.EGE_DUEL.renderDuelTab() : "";
+    }
+    if (currentTask === 5) {
+      return currentSubTab === "quiz"
+        ? (window.EGE_PARONYMS ? window.EGE_PARONYMS.renderParonymsQuizTab() : "")
+        : (window.EGE_PARONYMS ? window.EGE_PARONYMS.renderParonymsDictTab() : "");
+    }
+    return currentSubTab === "quiz"
+      ? (window.EGE_STRESS ? window.EGE_STRESS.renderQuizTab() : "")
+      : (window.EGE_STRESS ? window.EGE_STRESS.renderDictTab() : "");
   }
 
   function renderSubjectContent() {
@@ -116,31 +136,26 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
         ${currentSubject === "math" && currentTask === 18
           ? (window.EGE_MATH18 ? window.EGE_MATH18.renderMathTask18() : '')
           : `
-            <!-- Sub-tabs: Quiz vs Dictionary -->
+            <!-- Sub-tabs: Quiz, Dictionary, Duel -->
             <div class="flex items-center p-1 rounded-2xl bg-slate-200/70 dark:bg-slate-800/90 text-xs font-bold">
-              <button id="ege-subtab-btn-quiz" onclick="window.EGE.setSubTab('quiz')" class="flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              <button id="ege-subtab-btn-quiz" onclick="window.EGE.setSubTab('quiz')" class="flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
                 currentSubTab === 'quiz'
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-              }">
-                <span>🎯</span>
-                <span>Тренажёр</span>
-              </button>
-              <button id="ege-subtab-btn-dict" onclick="window.EGE.setSubTab('dict')" class="flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              }"><span>🎯</span><span>Тренажёр</span></button>
+              <button id="ege-subtab-btn-dict" onclick="window.EGE.setSubTab('dict')" class="flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
                 currentSubTab === 'dict'
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-              }">
-                <span>📖</span>
-                <span>${currentTask === 5 ? 'Словарь паронимов' : 'Словарь ФИПИ'}</span>
-              </button>
-              ${currentTask === 4 || currentTask === 9 ? `<button onclick="window.EGE.setSubTab('duel')" class="flex-1 py-2 rounded-xl transition-all ${currentSubTab === 'duel' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500'}">⚔️ Дуэль</button>` : ''}
+              }"><span>📖</span><span>Словарь</span></button>
+              <button id="ege-subtab-btn-duel" onclick="window.EGE.setSubTab('duel')" class="flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
+                currentSubTab === 'duel'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+              }"><span>⚔️</span><span>Дуэль</span></button>
             </div>
 
-            <!-- Tab Body -->
-            <div id="ege-subtab-container">
-              ${renderActiveRussianSubtab()}
-            </div>
+            <div id="ege-subtab-container">${renderSubTabBody()}</div>
           `
         }
       </div>
@@ -155,7 +170,7 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
         window.EGE_MATH18.resetSolution();
       }
     } else if (subjectId === "russian") {
-      if (currentTask !== 4 && currentTask !== 5 && currentTask !== 9) currentTask = 4;
+      if (currentTask !== 4 && currentTask !== 5) currentTask = 4;
     }
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.selectionChanged();
@@ -174,28 +189,27 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
   }
 
   function updateSubTabNavDOM() {
-    const btnQuiz = document.getElementById("ege-subtab-btn-quiz");
-    const btnDict = document.getElementById("ege-subtab-btn-dict");
-    if (!btnQuiz || !btnDict) return;
-
+    const buttons = {
+      quiz: document.getElementById("ege-subtab-btn-quiz"),
+      dict: document.getElementById("ege-subtab-btn-dict"),
+      duel: document.getElementById("ege-subtab-btn-duel"),
+    };
     const activeClasses = ["bg-white", "dark:bg-slate-700", "text-blue-600", "dark:text-blue-400", "shadow-sm"];
     const inactiveClasses = ["text-slate-500", "dark:text-slate-400", "hover:text-slate-700"];
-
-    if (currentSubTab === "quiz") {
-      btnQuiz.classList.add(...activeClasses);
-      btnQuiz.classList.remove(...inactiveClasses);
-      btnDict.classList.remove(...activeClasses);
-      btnDict.classList.add(...inactiveClasses);
-    } else {
-      btnDict.classList.add(...activeClasses);
-      btnDict.classList.remove(...inactiveClasses);
-      btnQuiz.classList.remove(...activeClasses);
-      btnQuiz.classList.add(...inactiveClasses);
-    }
+    Object.entries(buttons).forEach(([name, button]) => {
+      if (!button) return;
+      if (name === currentSubTab) {
+        button.classList.add(...activeClasses);
+        button.classList.remove(...inactiveClasses);
+      } else {
+        button.classList.remove(...activeClasses);
+        button.classList.add(...inactiveClasses);
+      }
+    });
   }
 
   function setSubTab(tab) {
-    currentSubTab = tab;
+    currentSubTab = ["quiz", "dict", "duel"].includes(tab) ? tab : "quiz";
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.selectionChanged();
     }
@@ -205,15 +219,10 @@ const RUSSIAN_VOWELS = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
       return;
     }
     updateSubTabNavDOM();
-    subContainer.innerHTML = renderActiveRussianSubtab();
-    if (currentSubTab === 'duel') window.EGE_DUEL?.initLobby?.();
-  }
-
-  function renderActiveRussianSubtab() {
-    if (currentSubTab === 'duel') return window.EGE_DUEL?.renderDuelTab?.() || '';
-    if (currentTask === 5) return currentSubTab === 'quiz' ? (window.EGE_PARONYMS?.renderParonymsQuizTab?.() || '') : (window.EGE_PARONYMS?.renderParonymsDictTab?.() || '');
-    if (currentTask === 9) return currentSubTab === 'quiz' ? (window.EGE_VOCAB?.renderQuizTab?.() || '') : (window.EGE_VOCAB?.renderDictTab?.() || '');
-    return currentSubTab === 'quiz' ? (window.EGE_STRESS?.renderQuizTab?.() || '') : (window.EGE_STRESS?.renderDictTab?.() || '');
+    subContainer.innerHTML = renderSubTabBody();
+    if (currentSubTab === "duel" && window.EGE_DUEL?.initLobby) {
+      window.EGE_DUEL.initLobby();
+    }
   }
 
   // ==============================================================================

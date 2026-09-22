@@ -44,21 +44,6 @@
     return "regular";
   }
 
-  function getCurrentSelectedDate() {
-    if (window.selectedDateStr) return window.selectedDateStr;
-    if (typeof selectedDateStr !== "undefined" && selectedDateStr) return selectedDateStr;
-    const today = formatDateISO(new Date());
-    window.selectedDateStr = today;
-    return today;
-  }
-
-  function setCurrentSelectedDate(iso) {
-    window.selectedDateStr = iso;
-    if (typeof selectedDateStr !== "undefined") {
-      try { selectedDateStr = iso; } catch (_) {}
-    }
-  }
-
 // --- INTERACTIVE CALENDAR MODAL ---
 function initCalendarModal() {
   const openBtn = document.getElementById("open-calendar-btn");
@@ -70,9 +55,8 @@ function initCalendarModal() {
 
   if (openBtn) {
     openBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.impact === "function") window.haptic.impact("light");
-      const cur = getCurrentSelectedDate();
-      const [y, m, d] = cur.split("-").map(Number);
+      haptic.impact("light");
+      const [y, m, d] = selectedDateStr.split("-").map(Number);
       calViewDate = new Date(y, m - 1, 1);
       renderCalendarGrid();
       modal.classList.remove("hidden");
@@ -81,14 +65,14 @@ function initCalendarModal() {
 
   if (closeBtn) {
     closeBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.selection === "function") window.haptic.selection();
+      haptic.selection();
       modal.classList.add("hidden");
     });
   }
 
   if (prevBtn) {
     prevBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.selection === "function") window.haptic.selection();
+      haptic.selection();
       calViewDate.setMonth(calViewDate.getMonth() - 1);
       renderCalendarGrid();
     });
@@ -96,7 +80,7 @@ function initCalendarModal() {
 
   if (nextBtn) {
     nextBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.selection === "function") window.haptic.selection();
+      haptic.selection();
       calViewDate.setMonth(calViewDate.getMonth() + 1);
       renderCalendarGrid();
     });
@@ -104,21 +88,15 @@ function initCalendarModal() {
 
   if (todayBtn) {
     todayBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.impact === "function") window.haptic.impact("medium");
+      haptic.impact("medium");
       const today = new Date();
-      const todayIso = formatDateISO(today);
-      setCurrentSelectedDate(todayIso);
+      selectedDateStr = formatDateISO(today);
       isCalendarPicked = false;
       modal.classList.add("hidden");
       renderDateSelector();
-      if (typeof window.loadSchedule === "function") {
-        window.loadSchedule(todayIso);
-      } else if (typeof loadTabContent === "function") {
-        loadTabContent(typeof activeTab !== "undefined" ? activeTab : "schedule");
-      }
+      loadTabContent(activeTab);
     });
   }
-  initWeekNavigation();
 }
 
 function renderCalendarGrid() {
@@ -149,14 +127,12 @@ function renderCalendarGrid() {
 
   const todayIso = formatDateISO(new Date());
 
-  const curSelected = getCurrentSelectedDate();
-
   for (let day = 1; day <= totalDays; day++) {
     const dObj = new Date(year, month, day);
     const iso = formatDateISO(dObj);
     const dayOfWeek = dObj.getDay();
     const dayType = getDayType(iso, dayOfWeek);
-    const isSelected = (iso === curSelected);
+    const isSelected = (iso === selectedDateStr);
     const isToday = (iso === todayIso);
 
     const btn = document.createElement("button");
@@ -180,16 +156,12 @@ function renderCalendarGrid() {
     `;
 
     btn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.impact === "function") window.haptic.impact("light");
-      setCurrentSelectedDate(iso);
+      haptic.impact("light");
+      selectedDateStr = iso;
       isCalendarPicked = true;
       document.getElementById("calendar-modal").classList.add("hidden");
       renderDateSelector();
-      if (typeof window.loadSchedule === "function") {
-        window.loadSchedule(iso);
-      } else if (typeof loadTabContent === "function") {
-        loadTabContent(typeof activeTab !== "undefined" ? activeTab : "schedule");
-      }
+      loadTabContent(activeTab);
     });
 
     daysGrid.appendChild(btn);
@@ -202,15 +174,8 @@ function renderDateSelector() {
   if (!container) return;
 
   container.innerHTML = "";
-  const curSelected = getCurrentSelectedDate();
-  const [y, m, d] = curSelected.split("-").map(Number);
+  const [y, m, d] = selectedDateStr.split("-").map(Number);
   const baseDate = new Date(y, m - 1, d);
-
-  const monthTitle = document.getElementById("week-month-title");
-  if (monthTitle) {
-    const monthName = MONTHS_RU[baseDate.getMonth()];
-    monthTitle.textContent = `${monthName} • Дни недели`;
-  }
 
   const dayOfWeek = baseDate.getDay();
   const diff = baseDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday
@@ -221,13 +186,13 @@ function renderDateSelector() {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
     const iso = formatDateISO(d);
-    const isSelected = (iso === curSelected);
+    const isSelected = (iso === selectedDateStr);
     const dayType = getDayType(iso, d.getDay());
 
     const btn = document.createElement("button");
-    btn.className = `flex flex-col items-center justify-center py-2 px-1 sm:px-2 rounded-xl text-xs transition-all ${
+    btn.className = `flex flex-col items-center justify-center py-2 px-3 rounded-2xl text-xs transition-all ${
       isSelected
-        ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20 scale-105 z-10 relative"
+        ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20 scale-105"
         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
     }`;
 
@@ -240,70 +205,26 @@ function renderDateSelector() {
     `;
 
     btn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.impact === "function") window.haptic.impact("light");
-      setCurrentSelectedDate(iso);
+      haptic.impact("light");
+      selectedDateStr = iso;
       isCalendarPicked = false;
       renderDateSelector();
-      if (typeof window.loadSchedule === "function") {
-        window.loadSchedule(iso);
-      } else if (typeof loadSchedule === "function") {
-        loadSchedule(iso);
-      }
+      if (activeTab === "schedule") loadSchedule();
+      if (activeTab === "homework") loadHomework();
     });
 
     container.appendChild(btn);
   }
-
-  initWeekNavigation();
 }
 
-function shiftSelectedWeek(offsetDays) {
-  const cur = getCurrentSelectedDate();
-  const [y, m, d] = cur.split("-").map(Number);
-  const target = new Date(y, m - 1, d);
-  target.setDate(target.getDate() + offsetDays);
-  const newIso = formatDateISO(target);
-  setCurrentSelectedDate(newIso);
-  isCalendarPicked = false;
-  renderDateSelector();
-  if (typeof window.loadSchedule === "function") {
-    window.loadSchedule(newIso);
-  } else if (typeof loadSchedule === "function") {
-    loadSchedule(newIso);
-  }
-}
 
-function initWeekNavigation() {
-  const prevBtn = document.getElementById("prev-week-btn");
-  const nextBtn = document.getElementById("next-week-btn");
-
-  if (prevBtn && !prevBtn._hasWeekNavListener) {
-    prevBtn._hasWeekNavListener = true;
-    prevBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.impact === "function") window.haptic.impact("light");
-      shiftSelectedWeek(-7);
-    });
-  }
-
-  if (nextBtn && !nextBtn._hasWeekNavListener) {
-    nextBtn._hasWeekNavListener = true;
-    nextBtn.addEventListener("click", () => {
-      if (window.haptic && typeof window.haptic.impact === "function") window.haptic.impact("light");
-      shiftSelectedWeek(7);
-    });
-  }
-}
 
   // Export to window
   window.formatDateISO = formatDateISO;
   window.getDayType = getDayType;
   window.initCalendarModal = initCalendarModal;
-  window.initWeekNavigation = initWeekNavigation;
-  window.shiftSelectedWeek = shiftSelectedWeek;
   window.renderCalendarGrid = renderCalendarGrid;
   window.renderDateSelector = renderDateSelector;
-  window.getCurrentSelectedDate = getCurrentSelectedDate;
-  window.setCurrentSelectedDate = setCurrentSelectedDate;
   window.VACATIONS = VACATIONS;
   window.WORKING_SATURDAYS = WORKING_SATURDAYS;
   window.MONTHS_RU = MONTHS_RU;

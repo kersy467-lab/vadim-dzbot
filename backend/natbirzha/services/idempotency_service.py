@@ -43,15 +43,6 @@ class IdempotencyService:
             return record.status_code, record.response_body
         raise HTTPException(status_code=409, detail="Idempotency key reused with different payload.")
 
-    @staticmethod
-    def _sanitize_response_body(response_body: Any) -> Any:
-        if response_body is None:
-            return {}
-        try:
-            return json.loads(json.dumps(response_body, default=str))
-        except Exception:
-            return response_body
-
     @classmethod
     async def save_record(
         cls,
@@ -75,7 +66,7 @@ class IdempotencyService:
                 idempotency_key=idempotency_key,
                 request_hash=cls.compute_payload_hash(payload),
                 status_code=status_code,
-                response_body=cls._sanitize_response_body(response_body),
+                response_body=response_body,
             )
         )
         if commit:
@@ -111,7 +102,7 @@ class IdempotencyService:
                 idempotency_key=idempotency_key,
                 request_hash=cls.compute_payload_hash(payload),
                 status_code=status_code,
-                response_body=cls._sanitize_response_body(response_body),
+                response_body=response_body,
             )
         )
         try:

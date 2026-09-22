@@ -1,4 +1,4 @@
-"""Lazy settlement rules for the first cash-only NATBIRZHA 2.0 business."""
+"""Lazy settlement rules for career NATBIRZHA 2.0 businesses."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -7,23 +7,38 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
+from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import NatInventory, get_npc_buy_price
+from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
 
-async def create_cash_business(session, *, cash: float = 1_000.0, last_settled_at: datetime) -> tuple[NatCompany, NatBusiness]:
-    company = NatCompany(user_id=8_001, name="Idle Corp", specialization="retail", cash=cash)
+async def create_mining_business(session, *, cash: float = 100_000.0, last_settled_at: datetime) -> tuple[NatCompany, NatBusiness]:
+    spec = get_business_spec("coal_open_pit")
+    company = NatCompany(user_id=8_001, name="Idle Corp", specialization="miner", cash=cash)
     session.add(company)
     await session.flush()
+    # Enough stock to make supply irrelevant to the settlement-clock tests.
+    session.add_all([
+        NatInventory(company_id=company.id, item_id="energy", quantity=2_000),
+        NatInventory(company_id=company.id, item_id="water", quantity=1_000),
+        NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=500),
+        NatInventory(company_id=company.id, item_id="food", quantity=250),
+    ])
     business = NatBusiness(
         company_id=company.id,
-        business_type="retail_chain",
+        business_type=spec["id"],
+        specialization="miner",
         stage=1,
         status="ACTIVE",
-        capital_invested=8_000,
-        base_income_per_hour=220,
-        base_maintenance_per_hour=18,
+        capital_invested=spec["open_cost"],
+        base_income_per_hour=spec["base_income_per_hour"],
+        base_maintenance_per_hour=spec["base_maintenance_per_hour"],
+        health=100.0,
+        efficiency=1.0,
+        metadata_json={"sale_mode": "NPC"},
         last_settled_at=last_settled_at,
     )
     session.add(business)
@@ -31,7 +46,14 @@ async def create_cash_business(session, *, cash: float = 1_000.0, last_settled_a
     return company, business
 
 
-def test_idle_settlement_applies_one_hour_once_and_caps_offline_cash() -> None:
+def expected_cash_per_hour(business: NatBusiness, *, upgrading: bool) -> float:
+    spec = get_business_spec(business.business_type)
+    rates = resource_business_rates(business, spec, upgrading=upgrading)
+    gross = sum(float(qty) * rates.output_multiplier * get_npc_buy_price(item_id) for item_id, qty in spec["outputs_per_hour"].items())
+    return round(gross - rates.maintenance_per_hour, 2)
+
+
+def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -40,27 +62,29 @@ def test_idle_settlement_applies_one_hour_once_and_caps_offline_cash() -> None:
         start = datetime(2026, 9, 20, 12, 0)
 
         async with sessions() as session:
-            company, business = await create_cash_business(session, last_settled_at=start)
+            company, business = await create_mining_business(session, last_settled_at=start)
+            hourly = expected_cash_per_hour(business, upgrading=False)
             first = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
-            assert first["net_cash"] == 202.0
-            assert company.cash == 1_202.0
+            assert first["net_cash"] == hourly
+            assert company.cash == round(100_000.0 + hourly, 2)
             assert business.last_settled_at == start + timedelta(hours=1)
 
             repeated = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
             assert repeated["net_cash"] == 0.0
-            assert company.cash == 1_202.0
 
-            capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=73))
+            # 49 hours are requested from the cursor; only the 24-hour offline cap may settle.
+            capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=50))
             assert capped["settled_hours"] == 24.0
-            assert capped["net_cash"] == 4_848.0
-            assert company.cash == 6_050.0
+            assert capped["skipped_offline_hours"] == 25.0
+            assert abs(capped["net_cash"] - round(hourly * 24, 2)) <= 0.02
+            assert business.last_settled_at == start + timedelta(hours=50)
 
         await engine.dispose()
 
     asyncio.run(check())
 
 
-def test_idle_settlement_completes_upgrade_in_the_middle_of_offline_time() -> None:
+def test_idle_settlement_completes_upgrade_mid_window() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -69,17 +93,24 @@ def test_idle_settlement_completes_upgrade_in_the_middle_of_offline_time() -> No
         start = datetime(2026, 9, 20, 12, 0)
 
         async with sessions() as session:
-            company, business = await create_cash_business(session, last_settled_at=start)
+            company, business = await create_mining_business(session, last_settled_at=start)
             business.status = "UPGRADING"
             business.upgrade_target_stage = 2
             business.upgrade_started_at = start
             business.upgrade_ready_at = start + timedelta(minutes=30)
+            before = expected_cash_per_hour(business, upgrading=True)
             await session.commit()
 
+            # Compute stage-2 active rate on a detached-like copy of the same row.
+            business.stage = 2
+            business.status = "ACTIVE"
+            after = expected_cash_per_hour(business, upgrading=False)
+            business.stage = 1
+            business.status = "UPGRADING"
+            await session.flush()
+
             settlement = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
-            # Stage 1 nets 202/hour for 30 minutes; stage 2 nets 236.1/hour for 30 minutes.
-            assert settlement["net_cash"] == 219.05
-            assert company.cash == 1_219.05
+            assert settlement["net_cash"] == round((before + after) / 2, 2)
             assert business.stage == 2
             assert business.status == "ACTIVE"
             assert business.upgrade_ready_at is None
@@ -98,10 +129,10 @@ def test_idle_settlement_never_moves_a_business_clock_backwards() -> None:
         start = datetime(2026, 9, 20, 12, 0)
 
         async with sessions() as session:
-            company, business = await create_cash_business(session, last_settled_at=start)
+            company, business = await create_mining_business(session, last_settled_at=start)
             settlement = await IdleEconomyService.settle_company(session, company.id, now=start - timedelta(minutes=5))
             assert settlement["settled_hours"] == 0.0
-            assert company.cash == 1_000.0
+            assert company.cash == 100_000.0
             assert business.last_settled_at == start
 
         await engine.dispose()

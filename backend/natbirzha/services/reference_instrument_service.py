@@ -6,7 +6,7 @@ from typing import Dict, Tuple
 from xml.etree import ElementTree
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import get_game_now
@@ -24,7 +24,10 @@ class StaleReferenceRate(ValueError):
 
 class ReferenceInstrumentService:
     CURRENCY_URL = "https://www.cbr.ru/scripts/XML_daily.asp"
+    CURRENCY_DYNAMIC_URL = "https://www.cbr.ru/scripts/XML_dynamic.asp"
     METALS_URL = "https://www.cbr.ru/scripts/xml_metall.asp"
+    CURRENCY_IDS = {"USD": "R01235", "EUR": "R01239"}
+    HISTORY_DAYS = 370
     SUPPORTED = ("USD", "EUR", "GOLD", "SILVER")
     METAL_CODES = {"1": "GOLD", "2": "SILVER"}
     MAX_RATE_AGE = timedelta(hours=72)
@@ -56,6 +59,36 @@ class ReferenceInstrumentService:
         return result
 
     @classmethod
+    def parse_currency_history_xml(cls, payload: bytes, code: str) -> list[Tuple[float, datetime]]:
+        root = ElementTree.fromstring(payload)
+        rows: list[Tuple[float, datetime]] = []
+        for row in root.findall(".//Record"):
+            quoted_at = cls._date(row.attrib["Date"])
+            nominal = cls._decimal(row.findtext("Nominal") or "1")
+            value_text = row.findtext("VunitRate")
+            value = cls._decimal(value_text) if value_text else cls._decimal(row.findtext("Value") or "0") / nominal
+            if value > 0:
+                rows.append((round(value, 6), quoted_at))
+        if not rows:
+            raise ValueError(f"CBR currency history is empty for {code}.")
+        return rows
+
+    @classmethod
+    def parse_metals_history_xml(cls, payload: bytes) -> Dict[str, list[Tuple[float, datetime]]]:
+        root = ElementTree.fromstring(payload)
+        history: Dict[str, list[Tuple[float, datetime]]] = {"GOLD": [], "SILVER": []}
+        for row in root.findall(".//Record"):
+            code = cls.METAL_CODES.get(row.attrib.get("Code", ""))
+            if code not in history:
+                continue
+            values = [cls._decimal(v) for v in (row.findtext("Buy"), row.findtext("Sell")) if v not in (None, "")]
+            if values:
+                history[code].append((round(sum(values) / len(values), 6), cls._date(row.attrib["Date"])))
+        if not all(history.values()):
+            raise ValueError("CBR metals history is missing gold or silver.")
+        return history
+
+    @classmethod
     def parse_metals_xml(cls, payload: bytes) -> Dict[str, Tuple[float, datetime]]:
         root = ElementTree.fromstring(payload)
         latest: Dict[str, Tuple[float, datetime]] = {}
@@ -76,6 +109,29 @@ class ReferenceInstrumentService:
         if set(latest) != {"GOLD", "SILVER"}:
             raise ValueError("CBR metals response is missing gold or silver.")
         return latest
+
+    @classmethod
+    async def fetch_official_history(
+        cls, now: datetime | None = None, days: int | None = None
+    ) -> Dict[str, list[Tuple[float, datetime]]]:
+        now = now or get_game_now()
+        days = max(7, min(int(days or cls.HISTORY_DAYS), cls.HISTORY_DAYS))
+        date_from = (now - timedelta(days=days)).strftime("%d/%m/%Y")
+        date_to = now.strftime("%d/%m/%Y")
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            usd, eur, metals = await asyncio.gather(
+                client.get(cls.CURRENCY_DYNAMIC_URL, params={"date_req1": date_from, "date_req2": date_to, "VAL_NM_RQ": cls.CURRENCY_IDS["USD"]}),
+                client.get(cls.CURRENCY_DYNAMIC_URL, params={"date_req1": date_from, "date_req2": date_to, "VAL_NM_RQ": cls.CURRENCY_IDS["EUR"]}),
+                client.get(cls.METALS_URL, params={"date_req1": date_from, "date_req2": date_to}),
+            )
+        for response in (usd, eur, metals):
+            response.raise_for_status()
+        metal_history = cls.parse_metals_history_xml(metals.content)
+        return {
+            "USD": cls.parse_currency_history_xml(usd.content, "USD"),
+            "EUR": cls.parse_currency_history_xml(eur.content, "EUR"),
+            **metal_history,
+        }
 
     @classmethod
     async def fetch_official_rates(cls, now: datetime | None = None) -> Dict[str, Tuple[float, datetime]]:
@@ -131,8 +187,33 @@ class ReferenceInstrumentService:
 
     @classmethod
     async def refresh(cls, session: AsyncSession, now: datetime | None = None) -> list[NatReferenceRateSnapshot]:
+        """Cache official CBR history and return the latest stored point per instrument."""
         now = now or get_game_now()
-        return await cls.store_rates(session, await cls.fetch_official_rates(now), fetched_at=now)
+        existing_count = await session.scalar(select(func.count(NatReferenceRateSnapshot.id)))
+        history_days = cls.HISTORY_DAYS if int(existing_count or 0) < 30 else 14
+        history = await cls.fetch_official_history(now, days=history_days)
+        latest: list[NatReferenceRateSnapshot] = []
+        for code, points in history.items():
+            source_url = cls.CURRENCY_DYNAMIC_URL if code in cls.CURRENCY_IDS else cls.METALS_URL
+            last_row = None
+            for value, quoted_at in points:
+                existing = await session.scalar(select(NatReferenceRateSnapshot).where(
+                    NatReferenceRateSnapshot.instrument_code == code,
+                    NatReferenceRateSnapshot.quoted_at == quoted_at,
+                    NatReferenceRateSnapshot.source_id == "cbr",
+                ))
+                if existing:
+                    last_row = existing
+                    continue
+                last_row = NatReferenceRateSnapshot(
+                    instrument_code=code, value_rub=value, nominal=1.0, source_id="cbr",
+                    source_url=source_url, quoted_at=quoted_at, fetched_at=now,
+                )
+                session.add(last_row)
+            if last_row is not None:
+                latest.append(last_row)
+        await session.flush()
+        return latest
 
     @classmethod
     async def latest_rate(cls, session: AsyncSession, code: str) -> NatReferenceRateSnapshot | None:
@@ -259,7 +340,7 @@ class ReferenceInstrumentService:
                 select(NatReferenceRateSnapshot)
                 .where(NatReferenceRateSnapshot.instrument_code == code)
                 .order_by(NatReferenceRateSnapshot.quoted_at.desc(), NatReferenceRateSnapshot.id.desc())
-                .limit(48)
+                .limit(420)
             )).scalars().all()
             result.append({
                 "code": code,

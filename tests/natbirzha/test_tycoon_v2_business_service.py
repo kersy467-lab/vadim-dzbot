@@ -21,23 +21,23 @@ def test_business_open_and_upgrade_are_server_priced_and_timed() -> None:
         now = datetime(2026, 9, 20, 12, 0)
 
         async with sessions() as session:
-            company = NatCompany(user_id=8_101, name="Tycoon Corp", specialization="retail", cash=50_000)
+            company = NatCompany(user_id=8_101, name="Tycoon Corp", specialization="miner", cash=50_000)
             session.add(company)
             await session.commit()
 
-            opened = await BusinessService.open_business(session, company.id, "retail_chain", now=now)
-            assert opened["open_cost"] == 8_000.0
-            assert opened["remaining_cash"] == 42_000.0
+            opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)
+            assert opened["open_cost"] == 12_000.0
+            assert opened["remaining_cash"] == 38_000.0
             assert opened["business"]["stage"] == 1
             assert opened["slots"] == {"used": 1, "max": 3, "free": 2}
 
             upgrade = await BusinessService.start_upgrade(session, company.id, opened["business"]["id"], now=now)
-            assert upgrade["cost"] == 2_000.0
+            assert upgrade["cost"] == 3_000.0
             assert upgrade["target_stage"] == 2
             assert upgrade["ready_at"] == now + timedelta(minutes=3)
-            assert upgrade["remaining_cash"] == 40_000.0
+            assert upgrade["remaining_cash"] == 35_000.0
 
-            with pytest.raises(ValueError, match="already in progress"):
+            with pytest.raises(ValueError, match="уже выполняется"):
                 await BusinessService.start_upgrade(session, company.id, opened["business"]["id"], now=now)
 
         await engine.dispose()

@@ -167,6 +167,7 @@ function parseErrorMessage(data, status) {
         'empty_army': 'Сначала сформируйте армию',
         'target_empty_army': 'У цели не осталось армии',
         'insufficient_ground_force': 'Для захвата нужна выжившая наземная армия',
+        'insufficient_supply': 'Недостаточно продовольствия, топлива или военного снаряжения для операции',
         'already_conquered': 'Эта PvE-корпорация уже захвачена',
         'prerequisite': 'Сначала захватите предыдущую PvE-корпорацию',
         'company_level': 'Уровень компании слишком низкий для этой цели',
@@ -250,6 +251,8 @@ export const NatAPI = {
   borrow: (principal) => request('/api/natbirzha/finance/loans', { method: 'POST', body: JSON.stringify({ principal: Number(principal) }) }),
   repayLoan: (loan_id, amount) => request(`/api/natbirzha/finance/loans/${parseInt(loan_id, 10)}/repay`, { method: 'POST', body: JSON.stringify({ amount: Number(amount) }) }),
 
+  getIndustryOverview: () => cachedGet('/api/natbirzha/company/industries', 30 * 1000),
+
   // NATBIRZHA 2.0 idle/tycoon businesses
   getBusinessCatalog: () => cachedGet('/api/natbirzha/businesses/catalog', 5 * 60 * 1000),
   getEmpireSummary: () => request('/api/natbirzha/company/empire-summary'),
@@ -261,6 +264,14 @@ export const NatAPI = {
   pauseBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/pause`, { method: 'POST' }),
   resumeBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/resume`, { method: 'POST' }),
   sellBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/sell`, { method: 'POST' }),
+  setBusinessSaleMode: (business_id, mode) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/sale-mode`, { method: 'PUT', body: JSON.stringify({ mode }) }),
+  setBusinessSupplyPolicy: (business_id, item_id, policy) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/supply/${encodeURIComponent(item_id)}`, { method: 'PUT', body: JSON.stringify(policy) }),
+  getBusinessAssetCatalog: () => cachedGet('/api/natbirzha/business-assets/catalog', 5 * 60 * 1000),
+  purchaseBusinessVehicle: (business_id, vehicle_type) => request('/api/natbirzha/business-assets/vehicles', { method: 'POST', body: JSON.stringify({ business_id: parseInt(business_id, 10), vehicle_type }) }),
+  repairBusinessVehicle: (vehicle_id) => request(`/api/natbirzha/business-assets/vehicles/${parseInt(vehicle_id, 10)}/repair`, { method: 'POST' }),
+  hireBusinessEmployee: (business_id, role) => request('/api/natbirzha/business-assets/employees', { method: 'POST', body: JSON.stringify({ business_id: parseInt(business_id, 10), role }) }),
+  fireBusinessEmployee: (employee_id) => request(`/api/natbirzha/business-assets/employees/${parseInt(employee_id, 10)}`, { method: 'DELETE' }),
+  startBusinessProject: (business_id, project_type) => request('/api/natbirzha/business-assets/projects', { method: 'POST', body: JSON.stringify({ business_id: parseInt(business_id, 10), project_type }) }),
 
   // Production & Buildings
   getProductionStatus: () => request('/api/natbirzha/production/factories'),
@@ -294,6 +305,8 @@ export const NatAPI = {
   placeOrder: (payload) => request('/api/natbirzha/market/order/place', { method: 'POST', body: JSON.stringify(payload) }),
   cancelOrder: (order_id) => request('/api/natbirzha/market/order/cancel', { method: 'POST', body: JSON.stringify({ order_id: parseInt(order_id, 10) }) }),
   npcTrade: (payload) => request('/api/natbirzha/market/npc/trade', { method: 'POST', body: JSON.stringify(payload) }),
+  getTaxStatus: () => request('/api/natbirzha/tax'),
+  payTax: (amount = null) => request('/api/natbirzha/tax/pay', { method: 'POST', body: JSON.stringify({ amount }) }),
 
   // Stocks & IPO
   getStocksList: () => request('/api/natbirzha/stocks/market'),
@@ -302,10 +315,15 @@ export const NatAPI = {
   sellShares: (stock_id, shares_count) => request('/api/natbirzha/stocks/sell', { method: 'POST', body: JSON.stringify({ stock_id: parseInt(stock_id, 10), shares_count: parseInt(shares_count, 10) }) }),
   getPortfolio: () => request('/api/natbirzha/portfolio'),
   getStockPortfolio: () => request('/api/natbirzha/stocks/portfolio'),
+  getStockHistory: (stock_id) => request(`/api/natbirzha/stocks/${parseInt(stock_id, 10)}/history`),
+  getStockOrderbook: (stock_id) => request(`/api/natbirzha/stocks/${parseInt(stock_id, 10)}/orderbook`),
+  placeStockOrder: (stock_id, side, quantity, price) => request(`/api/natbirzha/stocks/${parseInt(stock_id, 10)}/orders`, { method: 'POST', body: JSON.stringify({ side, quantity: parseInt(quantity, 10), price: parseFloat(price) }) }),
+  cancelStockOrder: (order_id) => request(`/api/natbirzha/stocks/orders/${parseInt(order_id, 10)}`, { method: 'DELETE' }),
 
   // Military, Alliances & Tournaments
   getMilitaryStatus: () => request('/api/natbirzha/military/status'),
   recruitUnits: (unit_type, count) => request('/api/natbirzha/military/recruit', { method: 'POST', body: JSON.stringify({ unit_type, count: parseInt(count, 10) }) }),
+  upgradeMilitaryInfrastructure: (facility) => request(`/api/natbirzha/military/infrastructure/${encodeURIComponent(facility)}/upgrade`, { method: 'POST' }),
   getCurrentTournament: () => request('/api/natbirzha/military/tournaments/current'),
   getPveTargets: () => request('/api/natbirzha/military/pve/targets'),
   scoutPveTarget: (target_code) => request(`/api/natbirzha/military/pve/targets/${encodeURIComponent(target_code)}/scout`, { method: 'POST' }),

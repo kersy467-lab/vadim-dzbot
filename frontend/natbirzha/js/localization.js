@@ -4,14 +4,17 @@
  */
 
 export const SPECIALIZATIONS = {
-  agrarian: 'Сельское хозяйство',
-  miner: 'Горнодобыча',
+  agrarian: 'Аграрная промышленность',
+  miner: 'Горнодобывающая промышленность',
   metallurgist: 'Металлургия',
-  oilman: 'Нефтегаз',
+  oilman: 'Нефтегазовая промышленность',
   power_engineer: 'Энергетика',
   forester: 'Лесозаготовка',
-  chemist: 'Химия',
-  technoprom: 'Машиностроение',
+  chemist: 'Химическая промышленность',
+  technoprom: 'Технологическая промышленность',
+  water: 'Водоснабжение',
+  construction: 'Строительство',
+  logistics: 'Логистика',
 };
 
 export const BUILDINGS = {
@@ -123,7 +126,7 @@ export const BUILDINGS = {
 export function getSpecializationName(spec) {
   if (!spec) return '';
   const key = String(spec).toLowerCase().trim();
-  return SPECIALIZATIONS[key] || spec.replace(/_/g, ' ');
+  return SPECIALIZATIONS[key] || 'Неизвестная отрасль';
 }
 
 /**
@@ -134,5 +137,5 @@ export function getSpecializationName(spec) {
 export function getBuildingName(bType) {
   if (!bType) return '';
   const key = String(bType).toLowerCase().trim();
-  return BUILDINGS[key] || bType.replace(/_/g, ' ');
+  return BUILDINGS[key] || '🏢 Неизвестное предприятие';
 }

@@ -8,6 +8,8 @@ export const ITEMS = {
   grid_quota: { name: 'Квота энергосети', icon: '⚡', unit: 'МВт·ч' },
   energy: { name: 'Электроэнергия', icon: '💡', unit: 'МВт·ч' },
   water: { name: 'Техническая вода', icon: '💧', unit: 'м³' },
+  clean_water: { name: 'Очищенная вода', icon: '🚰', unit: 'м³' },
+  ultrapure_water: { name: 'Сверхчистая технологическая вода', icon: '🔬', unit: 'м³' },
   well_lease: { name: 'Отвод скважины', icon: '📜', unit: 'шт.' },
   forest_fund: { name: 'Квота лесного фонда', icon: '🌲', unit: 'га' },
 
@@ -23,7 +25,15 @@ export const ITEMS = {
   gas_natural: { name: 'Природный газ', icon: '🔥', unit: 'тыс. м³' },
   rare_earths: { name: 'Редкоземельные металлы', icon: '✨', unit: 'кг' },
   lithium_raw: { name: 'Неочищенный литий', icon: '🔋', unit: 'т' },
+  cobalt_raw: { name: 'Кобальтовый концентрат', icon: '🔷', unit: 'кг' },
+  gallium_raw: { name: 'Галлиевый концентрат', icon: '🧫', unit: 'кг' },
   uranium_raw: { name: 'Урановая руда', icon: '☢️', unit: 'т' },
+  copper_ore: { name: 'Медная руда', icon: '🟠', unit: 'т' },
+  silver_ore: { name: 'Серебряная руда', icon: '🥈', unit: 'кг' },
+  gold_ore: { name: 'Золотая руда', icon: '🥇', unit: 'кг' },
+  nickel_concentrate: { name: 'Никелевый концентрат', icon: '⚙️', unit: 'т' },
+  diamonds: { name: 'Промышленные алмазы', icon: '💎', unit: 'кар.' },
+  sugar_raw: { name: 'Сахарное сырьё', icon: '🍬', unit: 'т' },
 
   // Tier 2: Intermediate Processing
   steel: { name: 'Конструкционная сталь', icon: '🔩', unit: 'т' },
@@ -31,6 +41,11 @@ export const ITEMS = {
   copper: { name: 'Медь первичная', icon: '🟠', unit: 'т' },
   rolled_metal: { name: 'Прокат металлический', icon: '🏗️', unit: 'т' },
   metal_structures: { name: 'Металлоконструкции', icon: '🔩', unit: 'т' },
+  brick: { name: 'Строительный кирпич', icon: '🧱', unit: 'т' },
+  cement: { name: 'Цемент', icon: '🏗️', unit: 'т' },
+  concrete: { name: 'Товарный бетон', icon: '🏢', unit: 'м³' },
+  construction_capacity: { name: 'Строительная мощность', icon: '👷', unit: 'ед.' },
+  logistics_capacity: { name: 'Логистическая мощность', icon: '🚚', unit: 'ед.' },
   lumber: { name: 'Пиломатериалы', icon: '🪵', unit: 'м³' },
   cellulose: { name: 'Целлюлоза', icon: '📄', unit: 'т' },
   food: { name: 'Продовольственные пайки', icon: '🥫', unit: 'ящ.' },
@@ -67,6 +82,12 @@ export const ITEMS = {
   machinery: { name: 'Механические узлы', icon: '⚙️', unit: 'шт.' },
   auto_components: { name: 'Автокомпоненты', icon: '🚗', unit: 'шт.' },
   superalloy: { name: 'Жаропрочные спецсплавы', icon: '🧪', unit: 'кг' },
+  nickel_metal: { name: 'Никель первичный', icon: '⚙️', unit: 'т' },
+  advanced_alloy: { name: 'Высокопрочный сплав', icon: '🛡️', unit: 'кг' },
+  titanium_alloy: { name: 'Титановый сплав', icon: '🛰️', unit: 'кг' },
+  electrical_equipment: { name: 'Электротехническое оборудование', icon: '⚡', unit: 'компл.' },
+  sensors: { name: 'Промышленные датчики', icon: '📡', unit: 'шт.' },
+  automation_systems: { name: 'Системы промышленной автоматики', icon: '🤖', unit: 'компл.' },
   electronics: { name: 'Электронные чипы', icon: '💻', unit: 'шт.' },
   batteries: { name: 'Тяговые батареи', icon: '🔋', unit: 'шт.' },
   servers: { name: 'Серверные стойки', icon: '🖥️', unit: 'шт.' },
@@ -118,7 +139,7 @@ export function getItemInfo(itemId) {
   let key = String(itemId).toLowerCase().trim();
   if (ITEM_ALIASES[key]) key = ITEM_ALIASES[key];
   return ITEMS[key] || {
-    name: key.replace(/_/g, ' '),
+    name: 'Неизвестный ресурс',
     icon: '📦',
     unit: 'шт.'
   };

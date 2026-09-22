@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.session import get_db_session
 from backend.db.models import User
 from backend.api.auth import get_optional_webapp_user
+from backend.db.crud import has_full_access
 from backend.db.crud import (
     get_bell_schedule, get_bell_schedule_for_date,
     get_all_subjects, get_current_duty_info, get_active_users
@@ -36,6 +37,9 @@ async def get_me(user: Optional[User] = Depends(get_optional_webapp_user)):
             "full_name": user.display_name,
             "custom_name": user.custom_name,
             "role": effective_role,
+            "is_classmate": bool(getattr(user, "is_classmate", False)),
+            "has_full_access": bool(effective_role == "admin" or has_full_access(user)),
+            "ege_nickname": getattr(user, "ege_nickname", None),
             "is_tester": effective_tester,
             "canteen_reminder_enabled": bool(getattr(user, "canteen_reminder_enabled", False)),
             "currency_ecosystem_enabled": bool(getattr(user, "currency_ecosystem_enabled", False)),
@@ -48,7 +52,10 @@ async def get_me(user: Optional[User] = Depends(get_optional_webapp_user)):
         "id": 0,
         "tg_id": 0,
         "full_name": "",
-        "role": "student",
+        "role": "public",
+        "is_classmate": False,
+        "has_full_access": False,
+        "ege_nickname": None,
         "is_tester": False,
         "canteen_reminder_enabled": False,
         "currency_ecosystem_enabled": False,

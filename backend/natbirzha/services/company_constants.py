@@ -10,6 +10,7 @@ VALID_SPECIALIZATIONS: Dict[str, str] = {
     "water": "Водоснабжение",
     "oilman": "Нефтегазовая промышленность",
     "metallurgist": "Металлургия",
+    "forester": "Лесопромышленность",
     "chemist": "Химическая промышленность",
     "construction": "Строительство",
     "technoprom": "Технологическая промышленность",
@@ -24,7 +25,7 @@ SPECIALIZATION_ALIASES: Dict[str, str] = {
     "oil_gas": "oilman", "oilman": "oilman",
     "metallurgy": "metallurgist", "metallurgist": "metallurgist",
     "chemicals": "chemist", "chemist": "chemist",
-    "construction": "construction", "forester": "construction", "forestry": "construction",
+    "construction": "construction", "forester": "forester", "forestry": "forester",
     "technoprom": "technoprom", "electronics": "technoprom", "it_telecom": "technoprom",
     "logistics": "logistics",
 }
@@ -37,8 +38,8 @@ STARTER_FACTORIES: Dict[str, str] = {
     "metallurgist": "steel_mill",
     "oilman": "oil_rig",
     "power_engineer": "solar_plant",
+    "forester": "logging_camp",
     "chemist": "chemical_plant",
-    "construction": "logging_camp",
     "technoprom": "component_factory",
 }
 

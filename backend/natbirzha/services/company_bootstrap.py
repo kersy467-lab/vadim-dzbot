@@ -3,7 +3,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.catalogs.businesses import starter_business_spec
-from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.combat import NatArmyUnit
 from backend.natbirzha.models.company import NatCompany, NatFactory
@@ -39,10 +38,9 @@ async def bootstrap_company_state(
         metadata_json={"starter_grant": True, "sale_mode": "NPC"},
     ))
 
-    # V1 factories are created only when the legacy economy is active. Creating
-    # both systems at once would double production and confuse the UI.
-    if not nat_settings.TYCOON_V2_ENABLED:
-        await _create_legacy_factory(session, company, now=now)
+    # Keep the recipe-based factory layer available across V2 resets. V2
+    # businesses do not replace the player's timed, inventory-backed factory.
+    await _create_legacy_factory(session, company, now=now)
 
     await _create_starter_inventory(session, company, starter_spec)
     _create_starter_army(session, company, now=now)

@@ -1,13 +1,17 @@
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
+from backend.natbirzha.config import get_game_now
+from backend.natbirzha.services.building_catalog import CANONICAL_BUILDINGS
 from backend.natbirzha.models.company import NatCompany, NatFactory
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.building_service import BuildingService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
+from backend.natbirzha.services.premium_service import PremiumService
 
 router = APIRouter(tags=["Natbirzha Buildings"])
 
@@ -20,11 +24,39 @@ class UpgradeRequest(BaseModel):
 
 @router.get("/buildings/catalog")
 async def get_buildings_catalog(
-    company: Optional[NatCompany] = Depends(get_current_company)
+    company: Optional[NatCompany] = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
 ):
-    """Returns the full 48-enterprise catalog annotated with player availability and efficiency."""
-    catalog = BuildingService.get_catalog_for_company(company)
-    return {"catalog": catalog, "total": len(catalog)}
+    """Return the canonical factory catalog with server-priced build guidance."""
+    if company is None:
+        catalog = BuildingService.get_catalog_for_company(None)
+        return {"catalog": catalog, "total": len(catalog)}
+
+    count = await session.scalar(
+        select(func.count(NatFactory.id)).where(NatFactory.company_id == company.id)
+    ) or 0
+    license_codes = {
+        str(spec["required_license"])
+        for spec in CANONICAL_BUILDINGS.values()
+        if spec.get("required_license")
+    }
+    active_licenses = {
+        code for code in license_codes
+        if await PremiumService.is_license_active(
+            session, company.id, code, now=get_game_now()
+        )
+    }
+    catalog = BuildingService.get_catalog_for_company(
+        company,
+        existing_count=int(count),
+        active_licenses=active_licenses,
+    )
+    return {
+        "catalog": catalog,
+        "total": len(catalog),
+        "factory_slots": BuildingService.slot_limits(company, int(count)),
+        "profitability_basis": "npc_price_corridor",
+    }
 
 @router.get("/buildings/{factory_id}")
 async def get_building_details(

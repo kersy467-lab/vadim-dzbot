@@ -337,6 +337,13 @@ async def _migrate_v2_tax_system(conn) -> None:
     await conn.run_sync(create_table)
 
 
+async def _migrate_restore_factory_starters(conn) -> None:
+    """Restore recipe-based starter factories missing after Tycoon resets."""
+    from backend.natbirzha.factory_migrations import backfill_missing_starter_factories
+
+    await backfill_missing_starter_factories(conn)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -352,6 +359,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_012_daily_bond_coupons", _migrate_p2_daily_bond_coupons),
     ("natbirzha_v2_001_business_foundation", _migrate_v2_business_foundation),
     ("natbirzha_v2_002_daily_profit_tax", _migrate_v2_tax_system),
+    ("natbirzha_factory_001_restore_starters", _migrate_restore_factory_starters),
 )
 
 

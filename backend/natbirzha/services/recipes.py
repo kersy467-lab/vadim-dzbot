@@ -63,11 +63,13 @@ def resolve_recipe_id(recipe_id: Optional[str]) -> Optional[str]:
 
 
 def get_recipe(recipe_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    validate_recipe_graph()
     canonical_id = resolve_recipe_id(recipe_id)
     return RECIPES.get(canonical_id) if canonical_id else None
 
 
 def get_recipe_for_factory(factory_type: str) -> Optional[Dict[str, Any]]:
+    validate_recipe_graph()
     return next((r for r in RECIPES.values() if r["factory_type"] == factory_type), None)
 
 
@@ -99,6 +101,15 @@ def validate_recipe_dag() -> bool:
     return True
 
 
+def validate_recipe_graph() -> bool:
+    """Validate canonical item links and reject production cycles."""
+    return validate_recipe_dag()
+
+
+# Fail at application import/deploy time if canonical production data is invalid.
+validate_recipe_graph()
+
+
 __all__ = [
     "RECIPES",
     "LEGACY_RECIPE_ALIASES",
@@ -106,4 +117,5 @@ __all__ = [
     "get_recipe",
     "get_recipe_for_factory",
     "validate_recipe_dag",
+    "validate_recipe_graph",
 ]

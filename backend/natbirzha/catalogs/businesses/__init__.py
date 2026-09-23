@@ -6,6 +6,7 @@ from .agriculture import AGRICULTURE_BUSINESSES
 from .chemistry import CHEMISTRY_BUSINESSES
 from .construction import CONSTRUCTION_BUSINESSES
 from .energy import ENERGY_BUSINESSES
+from .forestry import FORESTRY_BUSINESSES
 from .industry import INDUSTRY_BUSINESSES as LEGACY_INDUSTRY_BUSINESSES
 from .industry_meta import INDUSTRIES
 from .logistics import LOGISTICS_BUSINESSES
@@ -31,6 +32,7 @@ CAREER_BUSINESSES: dict[str, dict[str, Any]] = {
     **MINING_BUSINESSES,
     **AGRICULTURE_BUSINESSES,
     **ENERGY_BUSINESSES,
+    **FORESTRY_BUSINESSES,
     **WATER_BUSINESSES,
     **OIL_GAS_BUSINESSES,
     **METALLURGY_BUSINESSES,

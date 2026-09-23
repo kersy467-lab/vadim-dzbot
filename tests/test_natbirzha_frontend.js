@@ -410,6 +410,16 @@ assert(productionCode.includes('factory-detail-card') && productionCode.includes
 
 const catalogCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/catalog.js'), 'utf-8');
 assert(catalogCode.includes('data-cat="unavailable"'), 'catalog.js must expose unavailable filter');
+assert(catalogCode.includes('data-cat="recommended"') && catalogCode.includes('b.recommended_for_specialization'),
+  'catalog.js must let players filter server-ranked factories in their industry');
+assert(catalogCode.includes('res?.total') && !catalogCode.includes('Каталог предприятий (48)'),
+  'catalog.js must show the actual server catalog size instead of a stale hard-coded count');
+assert(catalogCode.includes('b.can_build') && !catalogCode.includes('compCash >= b.build_cost'),
+  'catalog.js must render the server build decision without reproducing affordability logic');
+assert(catalogCode.includes('b.profitability') && catalogCode.includes('b.build_cost'),
+  'catalog.js must render server profitability estimates and mastery-adjusted build cost');
+assert(catalogCode.includes('Списано ${paid}'),
+  'successful construction must show the amount the server actually charged');
 assert(catalogCode.includes('flex-wrap'), 'catalog filters must wrap instead of hiding actions beyond a narrow mobile viewport');
 
 const appCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8');

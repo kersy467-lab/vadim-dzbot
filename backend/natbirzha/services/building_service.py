@@ -15,12 +15,78 @@ from backend.natbirzha.services.upgrade_service import UpgradeService
 from backend.natbirzha.services.premium_service import PremiumService
 from backend.natbirzha.services.mastery_service import MasteryService
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
+from backend.natbirzha.services.building_economics import estimate_building_economics
 
 
 class BuildingService:
     @staticmethod
-    def get_catalog_for_company(company: Optional[NatCompany]) -> List[Dict[str, Any]]:
-        return list_catalog_for_company(company)
+    def get_catalog_for_company(
+        company: Optional[NatCompany],
+        *,
+        existing_count: int = 0,
+        active_licenses: Optional[set[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        catalog = list_catalog_for_company(company)
+        if company is None:
+            return catalog
+
+        slots = BuildingService.slot_limits(company, existing_count)
+        industry_discount = MasteryService.effect(company, "industry")
+        licensed = active_licenses or set()
+        for item in catalog:
+            base_cost = float(item["build_cost"])
+            cost = max(1.0, round(base_cost * (1.0 - industry_discount), 2))
+            is_own = item["specialization"] == company.specialization
+            is_licensed_foreign = (
+                not is_own
+                and company.licensed_foreign_spec == item["specialization"]
+            )
+            efficiency = 1.0 if is_own else (0.12 if is_licensed_foreign else 0.10)
+            has_required_license = (
+                not item.get("required_license")
+                or item["required_license"] in licensed
+            )
+            unlocked = int(company.level) >= int(item["level_required"])
+            can_afford = float(company.cash) >= cost
+            has_slot = slots["free"] > 0
+            can_build = unlocked and can_afford and has_slot and has_required_license
+            item.update({
+                "base_build_cost": base_cost,
+                "build_cost": cost,
+                "is_own_specialization": is_own,
+                "is_licensed_foreign": is_licensed_foreign,
+                "efficiency": efficiency,
+                "required_license_active": has_required_license,
+                "can_afford": can_afford,
+                "has_construction_slot": has_slot,
+                "can_build": can_build,
+                "status": (
+                    "need_level" if not unlocked else
+                    "need_license" if not has_required_license else
+                    "no_slots" if not has_slot else
+                    "need_cash" if not can_afford else
+                    "available"
+                ),
+            })
+            item["profitability"] = estimate_building_economics(
+                item, efficiency=efficiency, build_cost=cost
+            )
+            item["profitability_basis"] = "npc_price_corridor"
+            item["recommended_for_specialization"] = False
+            item["recommendation_rank"] = None
+
+        candidates = [
+            item for item in catalog
+            if item["specialization"] == company.specialization
+            and item["profitability"]["payback_hours"] is not None
+        ]
+        candidates.sort(key=lambda item: (
+            item["profitability"]["payback_hours"], item["id"]
+        ))
+        for rank, item in enumerate(candidates[:3], start=1):
+            item["recommended_for_specialization"] = True
+            item["recommendation_rank"] = rank
+        return catalog
 
     @staticmethod
     def slot_limits(company: NatCompany, used: int = 0) -> Dict[str, int]:
@@ -66,6 +132,7 @@ class BuildingService:
             "current_recipe": factory.current_recipe,
             "efficiency": ProductionTickEngine.get_effective_efficiency(company, factory),
             "level": factory.level,
+            "upgrade_level": factory.level,
             "automation_level": factory.automation_level,
             "technology_level": factory.technology_level,
             "workers": factory.workers,

@@ -22,7 +22,7 @@ from backend.ege.words_vocabulary import (
 logger = logging.getLogger(__name__)
 
 VOWELS = "аеёиоуыэюя"
-MAIN_ROUND_TIME_LIMIT = 30.0
+MAIN_ROUND_TIME_LIMIT = 35.0
 SUDDEN_WORD_TIME_LIMIT = 5.0
 GRACE_PERIOD = 1.0
 
@@ -141,10 +141,25 @@ class EGEDuelRoom:
             if key not in self.sudden_question_started_at:
                 self.sudden_question_started_at[key] = now
 
+    def _finish_timeout_forfeit(self, uid: int) -> None:
+        """Finish the duel immediately when a player runs out of answer time."""
+        answers = self.answers.setdefault(uid, [])
+        while len(answers) < self.round_size:
+            answers.append(False)
+        self.questions[uid] = None
+        self.winner = self.opponent_tg_id if uid == self.host_tg_id else self.host_tg_id
+        self.status = "finished"
+        self.finished_at = time.time()
+        logger.info(
+            "EGE duel timeout forfeit room=%s player=%s winner=%s round=%s",
+            self.room_id, uid, self.winner, self.sudden_round,
+        )
+
     def _check_timeouts(self) -> None:
         if self.status != "playing":
             return
         now = time.time()
+        timed_out: list[int] = []
         for uid in (self.host_tg_id, self.opponent_tg_id):
             if not uid:
                 continue
@@ -157,6 +172,7 @@ class EGEDuelRoom:
                     while len(answers) < 10:
                         answers.append(False)
                     self.questions[uid] = None
+                    timed_out.append(uid)
                     logger.info("EGE duel main round timeout room=%s player=%s", self.room_id, uid)
             else:
                 key = (uid, self.sudden_round)
@@ -164,8 +180,12 @@ class EGEDuelRoom:
                 if started and (now - started) >= (SUDDEN_WORD_TIME_LIMIT + GRACE_PERIOD):
                     answers.append(False)
                     self.questions[uid] = None
+                    timed_out.append(uid)
                     logger.info("EGE duel sudden death timeout room=%s player=%s round=%s", self.room_id, uid, self.sudden_round)
-        self._finalize_if_ready()
+        if len(timed_out) == 1:
+            self._finish_timeout_forfeit(timed_out[0])
+        else:
+            self._finalize_if_ready()
 
     def get_time_remaining(self, uid: Optional[int]) -> float:
         if not uid or self.status != "playing":
@@ -224,6 +244,8 @@ class EGEDuelRoom:
 
         self._ensure_timer_started(uid)
         self._check_timeouts()
+        if self.status == "finished":
+            return True, "Время вышло! Дуэль завершена"
 
         answers = self.answers.setdefault(uid, [])
         if len(answers) >= self.round_size:
@@ -240,34 +262,21 @@ class EGEDuelRoom:
         raw_answer = move_data.get("answer")
 
         if raw_answer == "__timeout__":
-            if self.sudden_round == 0:
-                while len(answers) < 10:
-                    answers.append(False)
-            else:
-                answers.append(False)
-            self.questions[uid] = None
-            self._finalize_if_ready()
-            if self.status == "finished":
-                return True, "Время вышло! Дуэль завершена"
-            return True, "Время вышло!"
+            self._finish_timeout_forfeit(uid)
+            return True, "Время вышло! Дуэль завершена"
 
         now = time.time()
         if self.sudden_round == 0:
             started = self.player_started_at.get(uid, now)
             if (now - started) > (MAIN_ROUND_TIME_LIMIT + GRACE_PERIOD):
-                while len(answers) < 10:
-                    answers.append(False)
-                self.questions[uid] = None
-                self._finalize_if_ready()
-                return False, "Время раунда вышло!"
+                self._finish_timeout_forfeit(uid)
+                return True, "Время раунда вышло! Дуэль завершена"
         else:
             key = (uid, self.sudden_round)
             started = self.sudden_question_started_at.get(key, now)
             if (now - started) > (SUDDEN_WORD_TIME_LIMIT + GRACE_PERIOD):
-                answers.append(False)
-                self.questions[uid] = None
-                self._finalize_if_ready()
-                return False, "Время на слово вышло!"
+                self._finish_timeout_forfeit(uid)
+                return True, "Время на слово вышло! Дуэль завершена"
 
         question = self._current_question(uid)
         if not question:

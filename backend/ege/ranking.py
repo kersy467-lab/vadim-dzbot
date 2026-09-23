@@ -214,6 +214,8 @@ async def build_room_payload(session: AsyncSession, room: Any, viewer_tg_id: int
     state = room.to_dict(viewer_tg_id=viewer_tg_id)
     if getattr(room, "game_type", "") not in {"ege_stress_duel", "ege_vocabulary_duel"}:
         return state
+    if state.get("status") == "finished":
+        await settle_duel(session, room)
     host_id, opponent_id = getattr(room, "host_tg_id", None), getattr(room, "opponent_tg_id", None)
     users = await _users_by_tg_ids(session, [host_id, opponent_id])
 

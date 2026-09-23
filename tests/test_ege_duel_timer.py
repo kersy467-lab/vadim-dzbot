@@ -1,4 +1,4 @@
-"""Unit tests for EGEDuelRoom timers (30s main round, 5s sudden death)."""
+"""Unit tests for EGEDuelRoom timers (35s main round, 5s sudden death)."""
 import os
 import sys
 import time
@@ -31,9 +31,9 @@ def test_ege_duel_timer_start_and_countdown():
 
     # Host views room
     d_host = room.to_dict(1001)
-    assert d_host["timer_limit"] == 30.0
+    assert d_host["timer_limit"] == 35.0
     assert d_host["timer_mode"] == "main"
-    assert 29.0 <= d_host["time_remaining"] <= 30.0
+    assert 34.0 <= d_host["time_remaining"] <= 35.0
     assert 1001 in room.player_started_at
 
     # Opponent hasn't viewed yet, not in player_started_at
@@ -42,7 +42,7 @@ def test_ege_duel_timer_start_and_countdown():
     # Opponent views room
     d_opp = room.to_dict(1002)
     assert 1002 in room.player_started_at
-    assert 29.0 <= d_opp["time_remaining"] <= 30.0
+    assert 34.0 <= d_opp["time_remaining"] <= 35.0
 
 
 def test_ege_duel_main_round_timeout():
@@ -61,12 +61,14 @@ def test_ege_duel_main_round_timeout():
 
     assert len(room.answers[1001]) == 2
 
-    # Simulate 32 seconds elapsed for host
-    room.player_started_at[1001] = time.time() - 32.0
+    # Simulate 37 seconds elapsed for host (35-second limit plus server grace)
+    room.player_started_at[1001] = time.time() - 37.0
 
     # Check timeout via to_dict
     d = room.to_dict(1001)
     assert d["your_finished"] is True
+    assert room.status == "finished"
+    assert room.winner == 1002
     assert len(room.answers[1001]) == 10
     # 2 answered, 8 timed out as False
     assert room.answers[1001] == [True, True, False, False, False, False, False, False, False, False]

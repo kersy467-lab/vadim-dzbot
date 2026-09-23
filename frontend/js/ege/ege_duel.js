@@ -13,8 +13,8 @@
   let myRating = { rating: 0, rank: 'Рекрут', medal: 'Рекрут', rank_image: '/static/assets/ranks/recruit.png' };
 
   let timerTicker = null;
-  let localRemaining = 30.0;
-  let timerLimit = 30.0;
+  let localRemaining = 35.0;
+  let timerLimit = 35.0;
   let timerMode = 'main';
   let timerExpiredHandled = false;
 
@@ -45,7 +45,7 @@
       return;
     }
     const mode = room.timer_mode || (room.is_sudden_death ? 'sudden' : 'main');
-    const limit = Number(room.timer_limit || (mode === 'sudden' ? 5 : 30));
+    const limit = Number(room.timer_limit || (mode === 'sudden' ? 5 : 35));
     const serverRemaining = Number(room.time_remaining !== undefined ? room.time_remaining : limit);
     if (!timerTicker || timerMode !== mode || Math.abs(localRemaining - serverRemaining) > 1.2) {
       timerMode = mode;
@@ -165,7 +165,7 @@
       : '';
     const isDanger = localRemaining <= (isSudden ? 2.0 : 5.0);
     const timerPct = Math.max(0, Math.min(100, (localRemaining / timerLimit) * 100));
-    const timerLabel = isSudden ? '⚡ 5 с на слово' : '⏱️ 30 с на 10 заданий';
+    const timerLabel = isSudden ? '⚡ 5 с на слово' : '⏱️ 35 с на 10 заданий';
     const timerWidget = `<div class="rounded-2xl p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-left">
       <div class="flex justify-between items-center text-xs font-black mb-1">
         <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1">${timerLabel}</span>

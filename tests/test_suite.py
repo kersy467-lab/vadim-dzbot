@@ -600,8 +600,9 @@ async def test_database_and_crud():
         hw_bio = await create_homework(session, subject_id=subj_bio.id, due_date=tom, description="Параграф 10")
         hw_geo = await create_homework(session, subject_id=subj_geo.id, due_date=tom, description="Карта мира")
 
-        user_alice = await create_user(session, tg_id=111001, full_name="Алиса", role="student")
-        user_bob = await create_user(session, tg_id=111002, full_name="Боб", role="student")
+        user_alice = await create_user(session, tg_id=111001, full_name="Алиса", role="student", flag_b=True)
+        user_bob = await create_user(session, tg_id=111002, full_name="Боб", role="student", flag_b=True)
+        user_no_b = await create_user(session, tg_id=111003, full_name="БезФлагаБ", role="student", flag_b=False)
 
         # Alice completes Biology in checklist
         await toggle_homework_completion(session, user_alice.id, hw_bio.id)
@@ -622,6 +623,7 @@ async def test_database_and_crud():
 
         assert 111001 in digest_bot.messages, "Alice must receive evening digest in PM!"
         assert 111002 in digest_bot.messages, "Bob must receive evening digest in PM!"
+        assert 111003 not in digest_bot.messages, "User without flag_b must NOT receive evening digest in PM!"
 
         alice_text = digest_bot.messages[111001][0]
         bob_text = digest_bot.messages[111002][0]

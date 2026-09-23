@@ -23,7 +23,7 @@ def get_natbirzha_app_url(tg_user_id: int | None = None) -> str:
 
 
 @router.message(Command("natbirzha"))
-@router.message(F.text.in_({"📈 НАТБИРЖА (Beta)", "📈 НАТБИРЖА", "📈 Натбиржа", "📈 НатБиржа", "натбиржа", "Натбиржа"}))
+@router.message(F.text == "📈 НАТБИРЖА (Beta)")
 async def cmd_natbirzha(message: Message, db_session: AsyncSession, current_user: User | None = None):
     if not message.from_user:
         return

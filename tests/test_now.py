@@ -199,6 +199,37 @@ async def run_now_test_suite():
         mock_cb.answer.assert_called_with("Расписание на сегодня уже открыто 📅")
         print("[OK] cb_sched_today handled identical content cleanly without error!")
 
+    print("\n=== [7/7] Testing flag_b Access Control on /now ===")
+    from backend.bot.handlers.now import cmd_now
+    from backend.db.models import User
+
+    user_without_b = User(id=9991, tg_id=9991, full_name="No B User", role="student", flag_b=False)
+    user_with_b = User(id=9992, tg_id=9992, full_name="With B User", role="student", flag_b=True)
+
+    mock_msg_denied = MagicMock()
+    mock_msg_denied.from_user.id = 9991
+    mock_msg_denied.answer = AsyncMock()
+
+    async with async_session_factory() as session:
+        await cmd_now(mock_msg_denied, session, current_user=user_without_b)
+        mock_msg_denied.answer.assert_called_once()
+        denied_text = mock_msg_denied.answer.call_args[0][0] if mock_msg_denied.answer.call_args[0] else mock_msg_denied.answer.call_args[1].get("text", "")
+        assert "🔒" in denied_text and "закрыт" in denied_text
+        print("[OK] User without flag_b correctly denied access to /now.")
+
+    mock_msg_allowed = MagicMock()
+    mock_msg_allowed.from_user.id = 9992
+    mock_msg_allowed.answer = AsyncMock()
+
+    async with async_session_factory() as session:
+        await cmd_now(mock_msg_allowed, session, current_user=user_with_b)
+        mock_msg_allowed.answer.assert_called_once()
+        call_kwargs = mock_msg_allowed.answer.call_args[1]
+        allowed_text = call_kwargs.get("text", "")
+        assert "🔒" not in allowed_text
+        assert "reply_markup" in call_kwargs
+        print("[OK] User with flag_b correctly granted access to /now.")
+
     print("\n" + "=" * 60)
     print(">>> ALL /NOW TESTS PASSED FLAWLESSLY! ZERO ERRORS! <<<")
     print("=" * 60 + "\n")

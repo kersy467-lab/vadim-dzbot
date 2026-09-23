@@ -70,6 +70,9 @@ async def send_evening_digest(bot: Bot, target_date: Optional[date] = None, forc
         students = await get_notifiable_users(session)
         if not students:
             return 0
+        students = [u for u in students if getattr(u, "flag_b", False) or getattr(u, "role", "") == "admin"]
+        if not students:
+            return 0
 
         bells = {b.lesson_number: b for b in await get_bell_schedule_for_date(session, tomorrow)}
         tomorrow_homeworks = await get_homework_for_date(session, tomorrow)

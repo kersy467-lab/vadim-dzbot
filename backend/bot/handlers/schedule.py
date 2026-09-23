@@ -102,9 +102,12 @@ async def format_day_schedule(session: AsyncSession, target_date: date) -> str:
 
 @router.message(F.text == "📅 Расписание")
 async def show_schedule_menu(message: Message, db_session: AsyncSession, current_user: Optional[User] = None):
+    is_adm = is_admin_user(current_user, message.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await message.answer("🔒 Доступ к расписанию 11 «Б» закрыт. Обратитесь к администратору для включения доступа.")
+        return
     today = date.today()
     schedule_text = await format_day_schedule(db_session, today)
-    is_adm = is_admin_user(current_user, message.from_user.id) if current_user else False
     await message.answer(
         schedule_text,
         reply_markup=get_schedule_keyboard(is_admin=is_adm),
@@ -148,15 +151,21 @@ async def safe_edit_schedule_message(
 
 @router.callback_query(F.data == "sched_today")
 async def cb_sched_today(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
-    text = await format_day_schedule(db_session, get_today())
     is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
+        return
+    text = await format_day_schedule(db_session, get_today())
     await safe_edit_schedule_message(callback, text, reply_markup=get_schedule_keyboard(is_admin=is_adm), same_message_alert="Расписание на сегодня уже открыто 📅")
 
 @router.callback_query(F.data == "sched_tomorrow")
 async def cb_sched_tomorrow(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
+    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
+        return
     tomorrow = get_today() + timedelta(days=1)
     text = await format_day_schedule(db_session, tomorrow)
-    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
     await safe_edit_schedule_message(callback, text, reply_markup=get_schedule_keyboard(is_admin=is_adm), same_message_alert="Расписание на завтра уже открыто 📅")
 
 @router.callback_query(F.data == "sched_bells")
@@ -203,6 +212,10 @@ async def cb_cal_nav_sched(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("cal_act_sched_"))
 async def cb_cal_act_sched(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
+    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
+        return
     parts = callback.data.split("_")
     year = int(parts[3])
     month = int(parts[4])
@@ -210,7 +223,6 @@ async def cb_cal_act_sched(callback: CallbackQuery, db_session: AsyncSession, cu
     target_date = date(year, month, day)
 
     text = await format_day_schedule(db_session, target_date)
-    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
     await safe_edit_schedule_message(callback, text, reply_markup=get_schedule_keyboard(is_admin=is_adm))
 
 @router.callback_query(F.data == "sched_pick_day")
@@ -223,6 +235,10 @@ async def cb_sched_pick_day(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("sched_day_"))
 async def cb_sched_day_selected(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
+    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
+        return
     day_num = int(callback.data.replace("sched_day_", ""))
     today = get_today()
     current_day = today.isoweekday()
@@ -230,11 +246,14 @@ async def cb_sched_day_selected(callback: CallbackQuery, db_session: AsyncSessio
     target_date = today + timedelta(days=delta_days)
 
     text = await format_day_schedule(db_session, target_date)
-    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
     await safe_edit_schedule_message(callback, text, reply_markup=get_schedule_keyboard(is_admin=is_adm))
 
 @router.callback_query(F.data == "sched_week")
 async def cb_sched_week(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
+    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
+        return
     week_schedule = await get_full_week_schedule(db_session)
     bells = {b.lesson_number: b for b in await get_bell_schedule(db_session)}
 
@@ -258,13 +277,15 @@ async def cb_sched_week(callback: CallbackQuery, db_session: AsyncSession, curre
         text_parts.append("")
 
     full_text = "\n".join(text_parts) if len(text_parts) > 1 else "Расписание на неделю пока не заполнено."
-    is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
     await safe_edit_schedule_message(callback, full_text, reply_markup=get_schedule_keyboard(is_admin=is_adm), same_message_alert="Расписание на неделю уже открыто 📅")
 
 @router.callback_query(F.data == "sched_menu")
 async def cb_sched_menu(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
-    text = await format_day_schedule(db_session, get_today())
     is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
+    if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
+        await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
+        return
+    text = await format_day_schedule(db_session, get_today())
     await safe_edit_schedule_message(callback, text, reply_markup=get_schedule_keyboard(is_admin=is_adm))
 
 
@@ -325,8 +346,3 @@ async def show_duty_roster(message: Message, db_session: AsyncSession):
 
     text_lines.append("\n_Дежурство меняется автоматически каждую неделю_")
     await message.answer("\n".join(text_lines), parse_mode="Markdown")
-
-
-
-
-

@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import List
+from typing import List, Optional
 from aiogram import Router, F, Bot
 from aiogram.types import (
     Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
@@ -219,7 +219,10 @@ async def send_homework_card(
 
 
 @router.message(F.text == "📚 Домашка")
-async def show_homework_menu(message: Message):
+async def show_homework_menu(message: Message, current_user: Optional[User] = None):
+    if current_user is not None and current_user.role != "admin" and not getattr(current_user, "flag_b", False):
+        await message.answer("🔒 Доступ к домашним заданиям 11 «Б» закрыт. Обратитесь к администратору для включения доступа.")
+        return
 
     await message.answer(
         "📚 **Раздел Домашнего Задания:**\n\n"

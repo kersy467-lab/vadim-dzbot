@@ -11,29 +11,10 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-def is_fact_request(message: Message) -> bool:
-    if not message.text:
-        return False
-    t = message.text.strip().casefold()
-    return (
-        t in [
-            "💡 интересный факт", "интересный факт",
-            "💡 факт часа", "факт часа",
-            "💡 факт дня", "факт дня",
-            "факт", "💡", "/fact"
-        ]
-        or "факт" in t
-        or "💡" in t
-    )
-
 @router.message(Command("fact"))
 @router.message(Command("interesting_fact"))
 @router.message(Command("fact_day"))
 @router.message(F.text == "💡 Интересный факт")
-@router.message(F.text == "Интересный факт")
-@router.message(F.text == "💡 Факт часа")
-@router.message(F.text == "💡 Факт дня")
-@router.message(is_fact_request)
 async def show_daily_fact(message: Message, db_session: AsyncSession):
     try:
         fact = await get_or_generate_daily_fact(db_session)

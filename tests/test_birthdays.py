@@ -146,7 +146,7 @@ async def run_birthdays_test_suite():
             print("[OK] Isaykin special 3-message greeting with cakes & fireworks verified.")
 
     print("\n=== [4/4] Testing Main Menu Keyboard Integration ===")
-    kb = get_main_keyboard(is_admin=True)
+    kb = get_main_keyboard(is_admin=True, flag_b=True)
     all_buttons = [b.text for row in kb.keyboard for b in row]
     assert "🎂 Дни рождения" in all_buttons, "Button '🎂 Дни рождения' must be present in main menu keyboard"
     print("[OK] '🎂 Дни рождения' button verified in main keyboard.")

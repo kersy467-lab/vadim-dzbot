@@ -125,7 +125,7 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
             badges.append("🧪")
         if is_logged(s.tg_id):
             badges.append("🔍")
-        if getattr(s, "flag_b", True):
+        if getattr(s, "flag_b", False):
             badges.append("Б")
         if getattr(s, "flag_plus", False):
             badges.append("➕")
@@ -144,7 +144,7 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
         btn_tester = "🟩🧪" if getattr(s, "is_tester", False) else "⬜🧪"
         btn_delete = "🗑️"
         btn_log = "🟩🔍" if is_logged(s.tg_id) else "⬜🔍"
-        btn_b = "🟩Б" if getattr(s, "flag_b", True) else "⬜Б"
+        btn_b = "🟩Б" if getattr(s, "flag_b", False) else "⬜Б"
         btn_plus = "🟩➕" if getattr(s, "flag_plus", False) else "⬜➕"
 
         buttons.append([

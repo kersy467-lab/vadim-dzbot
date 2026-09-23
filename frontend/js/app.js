@@ -52,12 +52,36 @@ window.persistTelegramInitData = persistTelegramInitDataForChildApps;
 window.persistTelegramInitDataForChildApps = persistTelegramInitDataForChildApps;
 window.prepareNatbirzhaNavigation = prepareNatbirzhaNavigation;
 
+function applyFlagBVisibility(hasFlagB) {
+  const schedBtn = document.querySelector('.tab-btn[data-tab="schedule"]');
+  const navContainer = schedBtn ? schedBtn.parentElement : null;
+  if (!hasFlagB) {
+    if (schedBtn) schedBtn.classList.add("hidden");
+    if (navContainer) {
+      navContainer.classList.remove("grid-cols-4");
+      navContainer.classList.add("grid-cols-3");
+    }
+    if (activeTab === "schedule") {
+      switchTab("bells");
+    }
+  } else {
+    if (schedBtn) schedBtn.classList.remove("hidden");
+    if (navContainer) {
+      navContainer.classList.remove("grid-cols-3");
+      navContainer.classList.add("grid-cols-4");
+    }
+  }
+}
+window.applyFlagBVisibility = applyFlagBVisibility;
+
 async function initApp() {
   persistTelegramInitDataForChildApps();
   initTabs();
   initCalendarModal();
   initPhotoViewer();
   renderDateSelector();
+
+  await loadUserData();
 
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get("room");
@@ -72,57 +96,64 @@ async function initApp() {
     switchTab("games");
   } else if (tabParam) {
     switchTab(tabParam);
+  } else if (window.currentUser && window.currentUser.flag_b === false) {
+    switchTab("bells");
   } else {
     loadTabContent(activeTab);
   }
 
-  // Load user data and secondary widgets in parallel in background
-  loadUserData();
   loadDutyWidget();
   loadDailyFactWidget();
 }
 
 function switchTab(tab) {
   if (tab === "homework") tab = "schedule";
-  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-  if (btn) {
-    btn.click();
-  } else {
-    if (activeTab === "games" && tab !== "games") {
-      if (window.GAMES && typeof window.GAMES.cleanup === "function") {
-        window.GAMES.cleanup();
-      }
-    }
-    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".tab-pane").forEach((p) => p.classList.add("hidden"));
-    const targetPane = document.getElementById(`pane-${tab}`);
-    if (targetPane) targetPane.classList.remove("hidden");
-
-    const dateWrapper = document.getElementById("date-selector-wrapper");
-    const dutyWidget = document.getElementById("duty-widget");
-    const factWidget = document.getElementById("daily-fact-widget");
-    if (tab === "bells" || tab === "ege" || tab === "games") {
-      if (dateWrapper) dateWrapper.classList.add("hidden");
-      if (dutyWidget) dutyWidget.classList.add("hidden");
-    } else {
-      if (dateWrapper) dateWrapper.classList.remove("hidden");
-      if (dutyWidget) dutyWidget.classList.remove("hidden");
-    }
-
-    if (factWidget) {
-      if (tab === "schedule") {
-        const content = document.getElementById("fact-content");
-        if (content && content.textContent && content.textContent.trim()) {
-          factWidget.classList.remove("hidden");
-        }
-      } else {
-        factWidget.classList.add("hidden");
-      }
-    }
-
-    activeTab = tab;
-    loadTabContent(tab);
+  if (window.currentUser && window.currentUser.flag_b === false && tab === "schedule") {
+    tab = "bells";
   }
+  if (activeTab === "games" && tab !== "games") {
+    if (window.GAMES && typeof window.GAMES.cleanup === "function") {
+      window.GAMES.cleanup();
+    }
+  }
+  if (typeof haptic !== "undefined" && haptic.selection) {
+    try { haptic.selection(); } catch (_) {}
+  }
+  document.querySelectorAll(".tab-btn").forEach((b) => {
+    if (b.dataset.tab === tab) {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
+  document.querySelectorAll(".tab-pane").forEach((p) => p.classList.add("hidden"));
+  const targetPane = document.getElementById(`pane-${tab}`);
+  if (targetPane) targetPane.classList.remove("hidden");
+
+  const dateWrapper = document.getElementById("date-selector-wrapper");
+  const dutyWidget = document.getElementById("duty-widget");
+  const factWidget = document.getElementById("daily-fact-widget");
+  if (tab === "bells" || tab === "ege" || tab === "games") {
+    if (dateWrapper) dateWrapper.classList.add("hidden");
+    if (dutyWidget) dutyWidget.classList.add("hidden");
+  } else {
+    if (dateWrapper) dateWrapper.classList.remove("hidden");
+    if (dutyWidget) dutyWidget.classList.remove("hidden");
+  }
+
+  if (factWidget) {
+    if (tab === "schedule") {
+      const content = document.getElementById("fact-content");
+      if (content && content.textContent && content.textContent.trim()) {
+        factWidget.classList.remove("hidden");
+      }
+    } else {
+      factWidget.classList.add("hidden");
+    }
+  }
+
+  activeTab = tab;
+  loadTabContent(tab);
 }
 window.switchTab = switchTab;
 
@@ -145,6 +176,7 @@ async function loadUserData() {
   try {
     const me = await api.getMe();
     window.currentUser = me;
+    applyFlagBVisibility(Boolean(me && me.flag_b));
     if (window.GAMES && typeof window.GAMES.updateTesterStatus === "function") {
       // ADMIN_ID is an effective server-side tester grant even when the
       // legacy users row has not yet been migrated to role="admin".
@@ -159,16 +191,13 @@ async function loadUserData() {
   } catch (e) {
     console.warn("Could not load user data:", e.message);
     userBadge.textContent = "Ученик 11 «Б»";
+    applyFlagBVisibility(false);
   }
 
   if (typeof window.checkPugMode === "function") {
     window.checkPugMode();
   }
 }
-
-
-
-
 
 async function loadDutyWidget() {
   const badge = document.getElementById("duty-badge");
@@ -213,55 +242,14 @@ async function loadDailyFactWidget() {
   }
 }
 
-
-
 // Tab navigation
 function initTabs() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.dataset.tab;
-      if (tab === activeTab) return;
-
-      if (activeTab === "games" && tab !== "games") {
-        if (window.GAMES && typeof window.GAMES.cleanup === "function") {
-          window.GAMES.cleanup();
-        }
+      if (tab !== activeTab) {
+        switchTab(tab);
       }
-
-      haptic.selection();
-      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      document.querySelectorAll(".tab-pane").forEach((p) => p.classList.add("hidden"));
-      const targetPane = document.getElementById(`pane-${tab}`);
-      if (targetPane) targetPane.classList.remove("hidden");
-
-      // Hide date selector and duty widget on bells, ege, and games tabs
-      const dateWrapper = document.getElementById("date-selector-wrapper");
-      const dutyWidget = document.getElementById("duty-widget");
-      if (tab === "bells" || tab === "ege" || tab === "games") {
-        if (dateWrapper) dateWrapper.classList.add("hidden");
-        if (dutyWidget) dutyWidget.classList.add("hidden");
-      } else {
-        if (dateWrapper) dateWrapper.classList.remove("hidden");
-        if (dutyWidget) dutyWidget.classList.remove("hidden");
-      }
-
-      // Interesting fact widget is strictly visible ONLY on the "schedule" (Уроки) tab
-      const factWidget = document.getElementById("daily-fact-widget");
-      if (factWidget) {
-        if (tab === "schedule") {
-          const content = document.getElementById("fact-content");
-          if (content && content.textContent && content.textContent.trim()) {
-            factWidget.classList.remove("hidden");
-          }
-        } else {
-          factWidget.classList.add("hidden");
-        }
-      }
-
-      activeTab = tab;
-      loadTabContent(tab);
     });
   });
 }

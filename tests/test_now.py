@@ -84,11 +84,11 @@ async def run_now_test_suite():
 
     print("\n=== [3/5] Testing Lesson Timing States on School Day ===")
     async with async_session_factory() as session:
-        # Tuesday, 15 September 2026 (day_of_week = 2)
-        test_tuesday = date(2026, 9, 15)
+        # Future Tuesday: 29 September 2026 (day_of_week = 2)
+        test_tuesday = date(2026, 9, 29)
 
         # State A: Morning before school (07:45)
-        dt_morning = datetime(2026, 9, 15, 7, 45)
+        dt_morning = datetime(2026, 9, 29, 7, 45)
         res_morning = await get_now_lesson_status(session, dt_morning)
         assert "Уроки ещё не начались" in res_morning
         assert "До 1-го урока" in res_morning
@@ -99,7 +99,7 @@ async def run_now_test_suite():
         print("[OK] Morning before lessons verified (strictly without room).")
 
         # State B: During Lesson 1 (08:45)
-        dt_lesson1 = datetime(2026, 9, 15, 8, 45)
+        dt_lesson1 = datetime(2026, 9, 29, 8, 45)
         res_lesson1 = await get_now_lesson_status(session, dt_lesson1)
         assert "Сейчас (1-й урок):" in res_lesson1
         assert "Русский язык" in res_lesson1
@@ -110,7 +110,7 @@ async def run_now_test_suite():
         print("[OK] During lesson 1 verified.")
 
         # State C: During Break between Lesson 1 and Lesson 2 (09:15)
-        dt_break1 = datetime(2026, 9, 15, 9, 15)
+        dt_break1 = datetime(2026, 9, 29, 9, 15)
         res_break1 = await get_now_lesson_status(session, dt_break1)
         assert "Сейчас перемена!" in res_break1
         assert "5 минут" in res_break1
@@ -121,7 +121,7 @@ async def run_now_test_suite():
         print("[OK] During break verified.")
 
         # State D: During Last Lesson (11:30, Lesson 4)
-        dt_last_lesson = datetime(2026, 9, 15, 11, 30)
+        dt_last_lesson = datetime(2026, 9, 29, 11, 30)
         res_last = await get_now_lesson_status(session, dt_last_lesson)
         assert "Сейчас (4-й урок):" in res_last
         assert "Химия" in res_last
@@ -131,7 +131,7 @@ async def run_now_test_suite():
         print("[OK] Last lesson verified.")
 
         # State E: Evening after lessons (15:00)
-        dt_evening = datetime(2026, 9, 15, 15, 0)
+        dt_evening = datetime(2026, 9, 29, 15, 0)
         res_evening = await get_now_lesson_status(session, dt_evening)
         assert "Уроки на сегодня всё!" in res_evening
         # Explicit user requirement: "без Свобода!"
@@ -143,17 +143,17 @@ async def run_now_test_suite():
 
     print("\n=== [4/5] Testing Weekend & Substitution Handling ===")
     async with async_session_factory() as session:
-        # Weekend: Sunday, 20 September 2026
-        dt_sunday = datetime(2026, 9, 20, 12, 0)
+        # Weekend: Sunday, 27 September 2026
+        dt_sunday = datetime(2026, 9, 27, 12, 0)
         res_sunday = await get_now_lesson_status(session, dt_sunday)
         assert "Сегодня выходной" in res_sunday or "На сегодня уроков" in res_sunday
         print("[OK] Weekend state verified.")
 
-        # Substitution on Tuesday 22 September:
+        # Substitution on Tuesday 6 October 2026:
         # Lesson 2 (Algebra) replaced with History
         s_hist = await create_subject(session, "История")
         sub = Substitution(
-            date=date(2026, 9, 22),
+            date=date(2026, 10, 6),
             lesson_number=2,
             new_subject_id=s_hist.id,
             is_cancelled=False
@@ -161,14 +161,14 @@ async def run_now_test_suite():
         session.add(sub)
         await session.commit()
 
-        dt_sub = datetime(2026, 9, 22, 9, 30)
+        dt_sub = datetime(2026, 10, 6, 9, 30)
         res_sub = await get_now_lesson_status(session, dt_sub)
         assert "Сейчас (2-й урок):" in res_sub
         assert "История" in res_sub
         print("[OK] Substitution reflected in /now correctly without room.")
 
     print("\n=== [5/5] Testing Keyboards & Command Registration ===")
-    main_kb = get_main_keyboard()
+    main_kb = get_main_keyboard(flag_b=True)
     all_buttons = [b.text for row in main_kb.keyboard for b in row]
     assert "⏳ Сейчас" in all_buttons
     assert "☀️ До лета осталось" in all_buttons

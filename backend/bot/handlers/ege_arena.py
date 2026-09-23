@@ -50,6 +50,7 @@ async def save_nickname(message: Message, state: FSMContext, db_session: AsyncSe
         is_admin=current_user.role == "admin",
         user_id=current_user.tg_id,
         is_tester=bool(getattr(current_user, "is_tester", False)),
+        flag_b=bool(getattr(current_user, "flag_b", False)),
     ) if full else get_arena_keyboard(current_user.tg_id)
     await message.answer(
         f"✅ Ник установлен: <b>{html.escape(result)}</b>\n\n"

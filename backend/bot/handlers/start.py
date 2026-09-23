@@ -97,7 +97,7 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
             f"👋 **Здравствуйте, Администратор ({full_name})!**\n\n"
             "Вам доступно полное управление ботом класса, расписанием, ДЗ и заявками учеников."
             f"{local_app_link}",
-            reply_markup=get_main_keyboard(is_admin=True, user_id=user_id, is_tester=True),
+            reply_markup=get_main_keyboard(is_admin=True, user_id=user_id, is_tester=True, flag_b=bool(getattr(current_user, "flag_b", False))),
             parse_mode="Markdown"
         )
         return
@@ -109,7 +109,7 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
             f"👋 **Привет, {current_user.display_name}!**{role_label}\n\n"
             "Добро пожаловать в бот класса! Выберите нужный раздел в меню ниже:"
             f"{local_app_link}",
-            reply_markup=get_main_keyboard(is_admin=is_user_adm, user_id=user_id, is_tester=is_tester),
+            reply_markup=get_main_keyboard(is_admin=is_user_adm, user_id=user_id, is_tester=is_tester, flag_b=bool(getattr(current_user, "flag_b", False))),
             parse_mode="Markdown"
         )
         return
@@ -213,7 +213,8 @@ async def callback_admin_approve_keep(callback: CallbackQuery, state: FSMContext
             reply_markup=get_main_keyboard(
                 is_admin=False,
                 user_id=target_tg_id,
-                is_tester=bool(getattr(user, "is_tester", False))
+                is_tester=bool(getattr(user, "is_tester", False)),
+                flag_b=bool(getattr(user, "flag_b", False))
             ),
             parse_mode="Markdown"
         )
@@ -265,7 +266,8 @@ async def msg_admin_approve_custom_name(message: Message, state: FSMContext, db_
             reply_markup=get_main_keyboard(
                 is_admin=False,
                 user_id=target_tg_id,
-                is_tester=bool(getattr(user, "is_tester", False))
+                is_tester=bool(getattr(user, "is_tester", False)),
+                flag_b=bool(getattr(user, "flag_b", False))
             ),
             parse_mode="Markdown"
         )

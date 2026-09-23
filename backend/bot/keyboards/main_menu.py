@@ -1,7 +1,12 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from backend.config import settings
 
-def get_main_keyboard(is_admin: bool = False, user_id: int | None = None, is_tester: bool = False) -> ReplyKeyboardMarkup:
+def get_main_keyboard(
+    is_admin: bool = False,
+    user_id: int | None = None,
+    is_tester: bool = False,
+    flag_b: bool = False
+) -> ReplyKeyboardMarkup:
     kb = []
     
     # Buttons to open Telegram Mini App with explicit user ID attachment (Telegram requires HTTPS for WebAppInfo)
@@ -35,6 +40,25 @@ def get_main_keyboard(is_admin: bool = False, user_id: int | None = None, is_tes
 
     if app_buttons:
         kb.append(app_buttons)
+
+    if not flag_b:
+        # Limited menu for users without flag_b:
+        # Mini App, natbirzha (if tester), bells, interesting fact, summer, settings
+        kb.append([
+            KeyboardButton(text="🔔 Звонки"),
+            KeyboardButton(text="💡 Интересный факт")
+        ])
+        kb.append([
+            KeyboardButton(text="☀️ До лета осталось"),
+            KeyboardButton(text="⚙️ Настройки")
+        ])
+        if is_admin:
+            kb.append([KeyboardButton(text="👑 Панель управления")])
+        return ReplyKeyboardMarkup(
+            keyboard=kb,
+            resize_keyboard=True,
+            input_field_placeholder="11 «Б» Класс • Выберите раздел..."
+        )
 
     kb.extend([
         [

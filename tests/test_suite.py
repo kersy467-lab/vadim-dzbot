@@ -659,14 +659,23 @@ async def test_database_and_crud():
 
 def test_keyboards_and_fastapi():
     print("--- [4/4] Testing Keyboards & FastAPI Endpoints ---")
-    main_kb = get_main_keyboard(is_admin=True)
+    # Limited keyboard for users without flag_b
+    main_kb = get_main_keyboard(is_admin=True, flag_b=False)
     btn_texts = [b.text for row in main_kb.keyboard for b in row]
-    
-    assert "🧹 График дежурств" in btn_texts
+    assert "🧹 График дежурств" not in btn_texts
+    assert "🔔 Звонки" in btn_texts
     assert "☀️ До лета осталось" in btn_texts
     assert "💡 Интересный факт" in btn_texts
-    assert "⚙️ Настройки" in btn_texts, "Settings button should be present"
-    print("[OK] Main keyboard buttons verified (Duty, Summer, Interesting Fact, and Settings present).")
+    assert "⚙️ Настройки" in btn_texts
+    assert "👑 Панель управления" in btn_texts
+
+    # Full keyboard for users with flag_b
+    full_kb = get_main_keyboard(is_admin=True, flag_b=True)
+    full_btn_texts = [b.text for row in full_kb.keyboard for b in row]
+    assert "🧹 График дежурств" in full_btn_texts
+    assert "📅 Расписание" in full_btn_texts
+    assert "📚 Домашка" in full_btn_texts
+    print("[OK] Main keyboard buttons verified (both limited flag_b=False and full flag_b=True).")
 
     adm_kb = get_admin_panel_keyboard()
     adm_cb = [b.callback_data for row in adm_kb.inline_keyboard for b in row]

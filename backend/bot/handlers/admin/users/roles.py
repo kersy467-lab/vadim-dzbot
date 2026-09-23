@@ -59,7 +59,12 @@ async def cb_toggle_user_role(callback: CallbackQuery, db_session: AsyncSession,
                         "Вам открыт доступ к **«👑 Панель управления»** (появилась в кнопках внизу чата). "
                         "Вы можете редактировать расписание уроков, звонков и домашние задания."
                     ),
-                    reply_markup=get_main_keyboard(is_admin=True, user_id=target_id),
+                    reply_markup=get_main_keyboard(
+                        is_admin=True,
+                        user_id=target_id,
+                        is_tester=bool(getattr(user, "is_tester", False)),
+                        flag_b=bool(getattr(user, "flag_b", False))
+                    ),
                     parse_mode="Markdown"
                 )
             except Exception as e:
@@ -69,7 +74,12 @@ async def cb_toggle_user_role(callback: CallbackQuery, db_session: AsyncSession,
                 await callback.bot.send_message(
                     chat_id=target_id,
                     text="ℹ️ Ваши права администратора были отозваны. Панель управления закрыта.",
-                    reply_markup=get_main_keyboard(is_admin=False, user_id=target_id),
+                    reply_markup=get_main_keyboard(
+                        is_admin=False,
+                        user_id=target_id,
+                        is_tester=bool(getattr(user, "is_tester", False)),
+                        flag_b=bool(getattr(user, "flag_b", False))
+                    ),
                     parse_mode="Markdown"
                 )
             except Exception as e:
@@ -131,12 +141,26 @@ async def cb_toggle_user_b(callback: CallbackQuery, db_session: AsyncSession, cu
 
     user = await get_user_by_tg_id(db_session, target_id)
     if user:
-        new_val = not bool(getattr(user, "flag_b", True))
+        new_val = not bool(getattr(user, "flag_b", False))
         user.flag_b = new_val
         await db_session.commit()
         state_str = "включен" if new_val else "выключен"
         try:
             await callback.answer(f"Переключатель «Б» {state_str}!", show_alert=False)
+        except Exception:
+            pass
+        try:
+            from backend.bot.keyboards.main_menu import get_main_keyboard
+            await callback.bot.send_message(
+                chat_id=target_id,
+                text=f"ℹ️ Флаг «Б» был {state_str} администратором.",
+                reply_markup=get_main_keyboard(
+                    is_admin=bool(user.role == "admin"),
+                    user_id=target_id,
+                    is_tester=bool(getattr(user, "is_tester", False)),
+                    flag_b=new_val
+                )
+            )
         except Exception:
             pass
         from backend.bot.handlers.admin.users.list import cb_view_students

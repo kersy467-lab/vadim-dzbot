@@ -83,6 +83,8 @@ async def init_db():
                     await conn.execute(text("ALTER TABLE users ADD COLUMN custom_name VARCHAR(255);"))
                 if "is_tester" not in cols_u:
                     await conn.execute(text("ALTER TABLE users ADD COLUMN is_tester BOOLEAN DEFAULT 0;"))
+                if "flag_b" not in cols_u:
+                    await conn.execute(text("ALTER TABLE users ADD COLUMN flag_b BOOLEAN DEFAULT 0;"))
                 if "canteen_reminder_enabled" not in cols_u:
                     await conn.execute(text("ALTER TABLE users ADD COLUMN canteen_reminder_enabled BOOLEAN DEFAULT 0;"))
                 if "currency_ecosystem_enabled" not in cols_u:
@@ -165,6 +167,7 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE homeworks ADD COLUMN IF NOT EXISTS assigned_date DATE;"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_name VARCHAR(255);"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_tester BOOLEAN DEFAULT FALSE;"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS flag_b BOOLEAN DEFAULT FALSE;"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS canteen_reminder_enabled BOOLEAN DEFAULT FALSE;"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS currency_ecosystem_enabled BOOLEAN DEFAULT FALSE;"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS coins BIGINT DEFAULT 100;"))

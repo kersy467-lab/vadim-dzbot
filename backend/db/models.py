@@ -22,7 +22,7 @@ class User(Base):
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     canteen_reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     currency_ecosystem_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
-    flag_b: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="1")
+    flag_b: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     flag_plus: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     coins: Mapped[int] = mapped_column(BigInteger, default=100, nullable=False, server_default="100")
     ege_rating: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")

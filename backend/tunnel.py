@@ -180,15 +180,60 @@ async def _watchdog_loop(port: int):
             fail_count = 0
 
 
+async def _start_cloudflared(port: int, timeout: float = 20.0) -> Optional[str]:
+    """Starts cloudflared quick tunnel to localhost:{port} and extracts https://*.trycloudflare.com URL."""
+    global _cf_proc
+    cf_path = shutil.which("cloudflared") or r"C:\Program Files (x86)\cloudflared\cloudflared.exe"
+    if not os.path.exists(cf_path) and not shutil.which("cloudflared"):
+        return None
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            cf_path, "tunnel", "--url", f"http://127.0.0.1:{port}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        _cf_proc = proc
+        start_time = asyncio.get_event_loop().time()
+        url = None
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            line = await proc.stderr.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", errors="replace")
+            m = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", text)
+            if m:
+                url = m.group(0)
+                break
+        async def _drain(stream):
+            try:
+                while True:
+                    chunk = await stream.read(8192)
+                    if not chunk:
+                        break
+            except Exception:
+                pass
+
+        if url:
+            asyncio.create_task(_drain(proc.stderr))
+            asyncio.create_task(_drain(proc.stdout))
+            logger.info(f"🌐 Cloudflared quick tunnel established: {url}")
+            return url
+    except Exception as e:
+        logger.warning(f"Could not start cloudflared tunnel: {e}")
+    return None
+
+
 async def start_tunnel(port: int, timeout: float = 20.0) -> Optional[str]:
     """
     Launches an HTTPS tunnel pointing to localhost:{port}.
-    Uses pure-Python localtunnel engine with health verification and watchdog.
+    Tries native localtunnel first, falls back to cloudflared.
     """
     global _active_url, _watchdog_task, _stopping
     _stopping = False
 
     url = await _start_localtunnel(port, timeout=timeout)
+    if not url:
+        url = await _start_cloudflared(port, timeout=timeout)
     if url:
         _active_url = url
         if not _watchdog_task or _watchdog_task.done():

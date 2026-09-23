@@ -60,6 +60,7 @@ def _calibrate_outputs(
 
 
 MILESTONE_STAGES = (10, 20, 30, 40, 50)
+_MILESTONE_OUTPUT_MULTIPLIERS = (1.13, 1.195, 1.26, 1.325, 1.39)
 
 
 _EVENT_RESOURCE_PROFILES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -114,7 +115,7 @@ def milestone_chain(
     result: dict[int, dict[str, Any]] = {}
     descriptions = descriptions or ()
     for index, stage in enumerate(MILESTONE_STAGES):
-        factor = max(1.0, scale) * (index + 1) ** 1.55
+        factor = 0.5 * max(1.0, scale) * (index + 1) ** 1.55
         resources = _event_resources(
             titles[index], resource_pool, factor=factor, index=index
         )
@@ -124,7 +125,7 @@ def milestone_chain(
             "resources": resources,
             "cash_multiplier": round(1.25 + index * 0.35, 2),
             "duration_multiplier": round(1.0 + index * 0.45, 2),
-            "output_multiplier": round(1.04 + index * 0.02, 3),
+            "output_multiplier": _MILESTONE_OUTPUT_MULTIPLIERS[index],
             "input_multiplier": round(0.99 - index * 0.0125, 3),
         }
     return result

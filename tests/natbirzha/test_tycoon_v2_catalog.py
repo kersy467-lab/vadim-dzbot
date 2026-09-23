@@ -107,11 +107,20 @@ def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() 
 
     for spec in CAREER_BUSINESSES.values():
         first_profit = _career_profit_per_hour(spec, 1)
-        stage_two_profit = _career_profit_per_hour(spec, 2)
-        opening_upgrade = BusinessService.upgrade_quote(spec, 1)
-        upgrade_payback = opening_upgrade["cost"] / (stage_two_profit - first_profit)
-        assert stage_two_profit > first_profit, spec["id"]
-        assert upgrade_payback <= float(spec["target_open_roi_hours"]), spec["id"]
+        target_roi = float(spec["target_open_roi_hours"])
+        for stage in range(1, int(spec["max_stage"])):
+            current_profit = _career_profit_per_hour(spec, stage)
+            next_profit = _career_profit_per_hour(spec, stage + 1)
+            quote = BusinessService.upgrade_quote(spec, stage)
+            milestone_cost = sum(
+                float(quantity) * get_npc_sell_price(item_id)
+                for item_id, quantity in (quote.get("milestone") or {}).get("resources", {}).items()
+            )
+            all_in_cost = float(quote["cost"]) + milestone_cost
+            marginal_profit = next_profit - current_profit
+            payback = all_in_cost / marginal_profit if marginal_profit > 0 else float("inf")
+            assert marginal_profit > 0, (spec["id"], stage)
+            assert payback <= target_roi, (spec["id"], stage, payback, target_roi)
         assert _career_profit_per_hour(spec, 10) >= first_profit * 2, spec["id"]
 
 

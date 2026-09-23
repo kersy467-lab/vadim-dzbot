@@ -188,6 +188,152 @@
     });
   }
 
+  const _scheduleCache = new Map();
+
+  function getCachedSchedule(dateStr) {
+    if (_scheduleCache.has(dateStr)) return _scheduleCache.get(dateStr);
+    try {
+      const stored = sessionStorage.getItem("sch_" + dateStr);
+      if (stored) {
+        const item = JSON.parse(stored);
+        _scheduleCache.set(dateStr, item);
+        return item;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function setCachedSchedule(dateStr, data, hwItems) {
+    const item = { data, hwItems, hash: JSON.stringify({ d: data, h: hwItems }) };
+    _scheduleCache.set(dateStr, item);
+    try {
+      sessionStorage.setItem("sch_" + dateStr, JSON.stringify(item));
+    } catch (_) {}
+  }
+
+  function renderHwSection(homeworks, isPast) {
+    if (!homeworks.length) return "";
+    return `
+      <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Задания на эту дату:</h4>
+        ${homeworks.map(hw => renderHomeworkSubcard(hw, isPast, true)).join("")}
+      </div>
+    `;
+  }
+
+  function renderScheduleDOM(list, dateStr, isPast, data, homeworks) {
+    const lessons = data.lessons || [];
+
+    if (data.day_status === "vacation") {
+      list.innerHTML = `
+        <div class="text-center py-10 theme-card rounded-2xl p-6 border-2 border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
+          <span class="text-5xl">🌴</span>
+          <h3 class="mt-3 text-base font-bold text-amber-600 dark:text-amber-400">🎉 ${data.status_text || "Каникулы"}!</h3>
+          <p class="mt-1 text-xs text-slate-500">Каникулы — уроков нет, отдыхаем!</p>
+        </div>
+        ${renderHwSection(homeworks, isPast)}
+      `;
+      bindHomeworkEvents(list, homeworks);
+      return;
+    }
+
+    if (lessons.length === 0) {
+      const isWeekend = data.day_status === "weekend";
+      list.innerHTML = `
+        <div class="text-center py-10 theme-card rounded-2xl p-6">
+          <span class="text-5xl">${isWeekend ? "🏖" : "📅"}</span>
+          <h3 class="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">${isWeekend ? (data.status_text || "Выходной") : "Уроков нет"}</h3>
+          <p class="mt-1 text-xs text-slate-500">${isWeekend ? "Выходной день — уроков нет!" : "Расписание на этот день еще не заполнено."}</p>
+        </div>
+        ${renderHwSection(homeworks, isPast)}
+      `;
+      bindHomeworkEvents(list, homeworks);
+      return;
+    }
+
+    list.innerHTML = "";
+    const matchedHwIds = new Set();
+
+    lessons.forEach((l) => {
+      const card = document.createElement("div");
+      card.className = "theme-card rounded-2xl p-4 shadow-sm transition-all border border-slate-200/50 dark:border-slate-800/80 space-y-3";
+
+      const subjectStyle = l.is_cancelled ? "line-through opacity-50" : "font-semibold";
+      const commentText = l.comment ? `<p class="text-xs text-amber-600 dark:text-amber-400 mt-0.5 italic">${l.comment}</p>` : "";
+
+      const matchedHws = homeworks.filter(hw => {
+        if (isSubjectMatch(hw.subject_name, l.subject_name)) {
+          matchedHwIds.add(hw.id);
+          return true;
+        }
+        return false;
+      });
+
+      let hwBadge = "";
+      if (matchedHws.length > 0) {
+        const allCompleted = matchedHws.every(h => h.is_completed);
+        if (allCompleted) {
+          hwBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0">✓ Сделано</span>`;
+        } else {
+          hwBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shrink-0">📝 ДЗ</span>`;
+        }
+      }
+
+      let hwListHtml = "";
+      if (matchedHws.length > 0) {
+        hwListHtml = `
+          <div class="space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
+            ${matchedHws.map(hw => renderHomeworkSubcard(hw, isPast)).join("")}
+          </div>
+        `;
+      }
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-sm shrink-0">
+              ${l.lesson_number}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="${subjectStyle} text-sm subject-title text-slate-800 dark:text-slate-100">${l.subject_name}</h3>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">${l.start_time} - ${l.end_time}</p>
+              ${commentText}
+            </div>
+          </div>
+          <div class="lesson-badge-container shrink-0">${hwBadge}</div>
+        </div>
+        ${hwListHtml}
+      `;
+
+      list.appendChild(card);
+    });
+
+    const unmatchedHws = homeworks.filter(hw => !matchedHwIds.has(hw.id));
+    if (unmatchedHws.length > 0) {
+      const extraCard = document.createElement("div");
+      extraCard.className = "mt-4 pt-2 space-y-2.5";
+      extraCard.innerHTML = `
+        <div class="flex items-center gap-1.5 px-1">
+          <span class="text-xs">📌</span>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Дополнительные задания:</h4>
+        </div>
+        <div class="space-y-2.5">
+          ${unmatchedHws.map(hw => `
+            <div class="theme-card rounded-2xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-800/80">
+              <div class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">${hw.subject_name}</div>
+              ${renderHomeworkSubcard(hw, isPast)}
+            </div>
+          `).join("")}
+        </div>
+      `;
+      list.appendChild(extraCard);
+    }
+
+    bindHomeworkEvents(list, homeworks);
+  }
+
   async function loadSchedule(targetDate) {
     const list = document.getElementById("schedule-list");
     if (!list) return;
@@ -199,7 +345,24 @@
     const dateStr = targetDate || window.selectedDateStr || todayStr;
     const isPast = dateStr < todayStr;
 
-    list.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm animate-pulse">Загрузка уроков и заданий...</div>`;
+    const cached = getCachedSchedule(dateStr);
+    if (cached) {
+      renderScheduleDOM(list, dateStr, isPast, cached.data, cached.hwItems);
+    } else {
+      list.innerHTML = `
+        <div class="space-y-3 animate-pulse">
+          ${[1, 2, 3, 4, 5].map(i => `
+            <div class="theme-card rounded-2xl p-4 border border-slate-200/50 dark:border-slate-800/80 flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div>
+              <div class="space-y-1.5 flex-1">
+                <div class="h-3.5 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
+                <div class="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-1/4"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
 
     try {
       const [data, hwItems] = await Promise.all([
@@ -207,139 +370,17 @@
         window.api.getHomework(dateStr).catch(() => [])
       ]);
 
-      const lessons = data.lessons || [];
       const homeworks = Array.isArray(hwItems) ? hwItems : [];
+      const newHash = JSON.stringify({ d: data, h: homeworks });
 
-      if (data.day_status === "vacation") {
-        let hwHtml = "";
-        if (homeworks.length > 0) {
-          hwHtml = `
-            <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Задания на эту дату:</h4>
-              ${homeworks.map(hw => renderHomeworkSubcard(hw, isPast, true)).join("")}
-            </div>
-          `;
-        }
-        list.innerHTML = `
-          <div class="text-center py-10 theme-card rounded-2xl p-6 border-2 border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
-            <span class="text-5xl">🌴</span>
-            <h3 class="mt-3 text-base font-bold text-amber-600 dark:text-amber-400">🎉 ${data.status_text || "Каникулы"}!</h3>
-            <p class="mt-1 text-xs text-slate-500">Каникулы — уроков нет, отдыхаем!</p>
-          </div>
-          ${hwHtml}
-        `;
-        bindHomeworkEvents(list, homeworks);
-        return;
+      if (!cached || cached.hash !== newHash) {
+        renderScheduleDOM(list, dateStr, isPast, data, homeworks);
+        setCachedSchedule(dateStr, data, homeworks);
       }
-
-      if (lessons.length === 0) {
-        const isWeekend = data.day_status === "weekend";
-        let hwHtml = "";
-        if (homeworks.length > 0) {
-          hwHtml = `
-            <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Задания на эту дату:</h4>
-              ${homeworks.map(hw => renderHomeworkSubcard(hw, isPast, true)).join("")}
-            </div>
-          `;
-        }
-        list.innerHTML = `
-          <div class="text-center py-10 theme-card rounded-2xl p-6">
-            <span class="text-5xl">${isWeekend ? "🏖" : "📅"}</span>
-            <h3 class="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">${isWeekend ? (data.status_text || "Выходной") : "Уроков нет"}</h3>
-            <p class="mt-1 text-xs text-slate-500">${isWeekend ? "Выходной день — уроков нет!" : "Расписание на этот день еще не заполнено."}</p>
-          </div>
-          ${hwHtml}
-        `;
-        bindHomeworkEvents(list, homeworks);
-        return;
-      }
-
-      list.innerHTML = "";
-      const matchedHwIds = new Set();
-
-      lessons.forEach((l) => {
-        const card = document.createElement("div");
-        card.className = "theme-card rounded-2xl p-4 shadow-sm transition-all border border-slate-200/50 dark:border-slate-800/80 space-y-3";
-
-        const subjectStyle = l.is_cancelled ? "line-through opacity-50" : "font-semibold";
-        const commentText = l.comment ? `<p class="text-xs text-amber-600 dark:text-amber-400 mt-0.5 italic">${l.comment}</p>` : "";
-
-        const matchedHws = homeworks.filter(hw => {
-          if (isSubjectMatch(hw.subject_name, l.subject_name)) {
-            matchedHwIds.add(hw.id);
-            return true;
-          }
-          return false;
-        });
-
-        let hwBadge = "";
-        if (matchedHws.length > 0) {
-          const allCompleted = matchedHws.every(h => h.is_completed);
-          if (allCompleted) {
-            hwBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0">✓ Сделано</span>`;
-          } else {
-            hwBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shrink-0">📝 ДЗ</span>`;
-          }
-        }
-
-        let hwListHtml = "";
-        if (matchedHws.length > 0) {
-          hwListHtml = `
-            <div class="space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
-              ${matchedHws.map(hw => renderHomeworkSubcard(hw, isPast)).join("")}
-            </div>
-          `;
-        }
-
-        card.innerHTML = `
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-sm shrink-0">
-                ${l.lesson_number}
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="${subjectStyle} text-sm subject-title text-slate-800 dark:text-slate-100">${l.subject_name}</h3>
-                </div>
-                <p class="text-xs text-slate-400 mt-0.5">${l.start_time} - ${l.end_time}</p>
-                ${commentText}
-              </div>
-            </div>
-            <div class="lesson-badge-container shrink-0">${hwBadge}</div>
-          </div>
-          ${hwListHtml}
-        `;
-
-        list.appendChild(card);
-      });
-
-      const unmatchedHws = homeworks.filter(hw => !matchedHwIds.has(hw.id));
-      if (unmatchedHws.length > 0) {
-        const extraCard = document.createElement("div");
-        extraCard.className = "mt-4 pt-2 space-y-2.5";
-        extraCard.innerHTML = `
-          <div class="flex items-center gap-1.5 px-1">
-            <span class="text-xs">📌</span>
-            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Дополнительные задания:</h4>
-          </div>
-          <div class="space-y-2.5">
-            ${unmatchedHws.map(hw => {
-              return `
-                <div class="theme-card rounded-2xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-800/80">
-                  <div class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">${hw.subject_name}</div>
-                  ${renderHomeworkSubcard(hw, isPast)}
-                </div>
-              `;
-            }).join("")}
-          </div>
-        `;
-        list.appendChild(extraCard);
-      }
-
-      bindHomeworkEvents(list, homeworks);
     } catch (err) {
-      list.innerHTML = `<div class="text-center py-6 text-red-500 text-sm">Ошибка: ${err.message}</div>`;
+      if (!cached) {
+        list.innerHTML = `<div class="text-center py-6 text-red-500 text-sm">Ошибка: ${err.message}</div>`;
+      }
     }
   }
 

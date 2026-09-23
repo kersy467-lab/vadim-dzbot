@@ -22,6 +22,16 @@ _PUBLIC_EXACT = {
 }
 _PUBLIC_PREFIXES = ("/api/ege/profile/", "/api/games/room/")
 
+_ACCESS_CACHE: dict[int, tuple[float, bool]] = {}
+_ACCESS_CACHE_TTL = 60.0
+
+
+def invalidate_access_cache(tg_id: int | None = None) -> None:
+    if tg_id:
+        _ACCESS_CACHE.pop(tg_id, None)
+    else:
+        _ACCESS_CACHE.clear()
+
 
 def _tg_id_from_request(request: Request) -> int | None:
     raw = request.headers.get("x-telegram-user-id") or request.query_params.get("tg_user_id") \
@@ -93,6 +103,15 @@ async def enforce_api_access(request: Request, call_next):
     if tg_id < 0 and path.startswith("/api/natbirzha/"):
         return await call_next(request)
 
+    import time
+    now = time.monotonic()
+    if tg_id in _ACCESS_CACHE:
+        c_time, is_allowed = _ACCESS_CACHE[tg_id]
+        if now - c_time < _ACCESS_CACHE_TTL:
+            if not is_allowed:
+                return JSONResponse(status_code=403, content={"detail": "Доступно только пользователям с привилегией «Одноклассник»."})
+            return await call_next(request)
+
     from backend.config import settings
     from backend.db.session import async_session_factory
     async with async_session_factory() as session:
@@ -112,6 +131,8 @@ async def enforce_api_access(request: Request, call_next):
                 is_tester=True,
                 is_classmate=True
             )
-        if not has_full_access(user):
+        allowed = has_full_access(user)
+        _ACCESS_CACHE[tg_id] = (now, allowed)
+        if not allowed:
             return JSONResponse(status_code=403, content={"detail": "Доступно только пользователям с привилегией «Одноклассник»."})
     return await call_next(request)

@@ -58,9 +58,6 @@ async function initApp() {
   initCalendarModal();
   initPhotoViewer();
   renderDateSelector();
-  await loadUserData();
-  loadDutyWidget();
-  loadDailyFactWidget();
 
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get("room");
@@ -78,6 +75,11 @@ async function initApp() {
   } else {
     loadTabContent(activeTab);
   }
+
+  // Load user data and secondary widgets in parallel in background
+  loadUserData();
+  loadDutyWidget();
+  loadDailyFactWidget();
 }
 
 function switchTab(tab) {

@@ -1,5 +1,6 @@
+import time
 from datetime import date
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,13 @@ from backend.config import get_today
 
 router = APIRouter(tags=["schedule"])
 
+_SCHEDULE_CACHE: Dict[str, Tuple[float, dict]] = {}
+_SCHEDULE_CACHE_TTL = 30.0
+
+
+def invalidate_schedule_cache() -> None:
+    _SCHEDULE_CACHE.clear()
+
 
 @router.get("/schedule")
 async def get_schedule(
@@ -23,6 +31,13 @@ async def get_schedule(
         query_date = date.fromisoformat(target_date)
     else:
         query_date = get_today()
+
+    cache_key = query_date.isoformat()
+    now = time.monotonic()
+    if cache_key in _SCHEDULE_CACHE:
+        c_time, c_val = _SCHEDULE_CACHE[cache_key]
+        if now - c_time < _SCHEDULE_CACHE_TTL:
+            return c_val
 
     day_of_week = query_date.isoweekday()
     schedules = await get_schedule_for_date(session, query_date)
@@ -73,7 +88,7 @@ async def get_schedule(
     from backend.bot.services.academic_calendar import get_day_special_status
     day_status, status_text = get_day_special_status(query_date)
 
-    return {
+    result_payload = {
         "date": query_date.isoformat(),
         "day_of_week": day_of_week,
         "class_name": "11 «Б»",
@@ -81,6 +96,8 @@ async def get_schedule(
         "status_text": status_text,
         "lessons": lessons
     }
+    _SCHEDULE_CACHE[cache_key] = (now, result_payload)
+    return result_payload
 
 
 @router.get("/schedule/week")

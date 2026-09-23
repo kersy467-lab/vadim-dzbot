@@ -27,12 +27,22 @@ async def get_homework(
         query_date = get_today()
 
     homeworks = await get_homework_for_date(session, query_date)
+    hw_ids = [hw.id for hw in homeworks]
+    statuses_map: Dict[int, bool] = {}
+    if user and hw_ids:
+        from sqlalchemy import select
+        from backend.db.models import UserHomeworkStatus
+        res_statuses = await session.execute(
+            select(UserHomeworkStatus.homework_id, UserHomeworkStatus.is_completed).where(
+                UserHomeworkStatus.user_id == user.id,
+                UserHomeworkStatus.homework_id.in_(hw_ids)
+            )
+        )
+        for h_id, is_comp in res_statuses.all():
+            statuses_map[h_id] = bool(is_comp)
 
     result = []
     for hw in homeworks:
-        status = None
-        if user:
-            status = await get_user_homework_status(session, user.id, hw.id)
         enriched_atts = []
         for a in (hw.attachments or []):
             item = dict(a)
@@ -47,7 +57,7 @@ async def get_homework(
             "title": hw.title,
             "description": hw.description,
             "attachments": enriched_atts,
-            "is_completed": status.is_completed if status else False
+            "is_completed": statuses_map.get(hw.id, False)
         })
     return result
 

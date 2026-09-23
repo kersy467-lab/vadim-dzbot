@@ -157,10 +157,10 @@ Run targeted Python integration scripts, `python tests/test_suite.py`, Python co
 
 Check repeated-business opening and unique-business rejection, prerequisite selection, slot growth, cash/resource payback, 40% refund, creator-only issuance, idempotent purchase/sale, treasury balance conservation, share portfolio output, and escaped UI output.
 
-- [ ] **Step 3: Commit, fetch/rebase, and push the approved branch**
+- [x] **Step 3: Commit, fetch/rebase, and push the approved branch**
 
 Commit the finished change on `codex/business-empire-economy`, fetch `origin`, rebase onto the latest `origin/main` if needed, rerun verification after rebase, and push the branch to `https://github.com/k11298379-sudo/dzbot`. Do not deploy.
 
-**Verification record:** After the final UI trade-serialization fix, 17 focused state-share/backend tests passed; `python tests/test_suite.py` passed all 11 bot test groups; the dedicated state-share frontend contract and JavaScript syntax checks passed. The focused tycoon tests had passed earlier. `node tests/test_natbirzha_frontend.js` remains blocked by its pre-existing CommonJS harness trying to parse the ES-module `import` in `api.js`; the relevant new state-share frontend contract passed independently. Static review approved backend share behavior and UI race handling; backend race coverage uses configured PostgreSQL READ COMMITTED assumptions and simulated recovery rather than a two-connection PostgreSQL race.
+**Verification record:** After rebasing onto the latest `origin/main`, 17 focused state-share/backend tests passed; `python tests/test_suite.py` passed all 11 bot test groups; the state-share and repeatable-business frontend contracts, JavaScript syntax checks, and Python compilation passed. The focused tycoon pytest checks had passed earlier. `node tests/test_natbirzha_frontend.js` remains blocked by its pre-existing CommonJS harness trying to parse the ES-module `import` in `api.js`; the dedicated contracts passed independently. Static review approved backend share behavior and UI race handling; backend race coverage uses configured PostgreSQL READ COMMITTED assumptions and simulated recovery rather than a two-connection PostgreSQL race. The verified branch was pushed to GitHub and points to `28babafb` before this final documentation update. No deployment was run.
 
 ---

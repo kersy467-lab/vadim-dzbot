@@ -201,6 +201,10 @@
     const profile = room.your_rating || myRating;
     myRating = profile;
     const suddenNote = isSudden ? ` (Внезапная смерть: ${room.sudden_round} доп. раунд)` : '';
+    const winnerName = room.winner_name || (result === 'win' ? myName() : rival?.name || 'Соперник');
+    const winnerLine = result === 'draw'
+      ? `Ничья${suddenNote}`
+      : `Победитель: ${esc(winnerName)}${suddenNote}`;
     return `<div class="theme-card rounded-3xl p-5 text-center space-y-4"><div class="text-5xl">${icon}</div><h3 class="font-black text-xl">${title}</h3><div class="text-sm font-bold">${winnerLine}</div><div class="font-black text-lg">${esc(myName())} ${Number(room.your_score || 0)} : ${Number(room.opponent_score || 0)} ${esc(rival?.name || 'Соперник')}</div><div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>Вы</b><br>✅ ${Number(room.your_score || 0)}<br>❌ ${Number(room.your_errors || 0)} ошибок</div><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>${esc(rival?.name || 'Соперник')}</b><br>✅ ${Number(room.opponent_score || 0)}<br>❌ ${Number(room.opponent_errors || 0)} ошибок</div></div><img src="${esc(rankImage(profile))}" class="w-28 h-28 object-contain mx-auto"><div class="font-black text-blue-600">${ratingText(profile)}</div><div class="text-sm font-black ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-slate-400'}">${change > 0 ? '+' : ''}${change} MMR</div><button onclick="window.EGE.rematchDuel()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Реванш</button><button onclick="window.EGE.leaveDuel()" class="w-full py-2 text-xs text-slate-500 font-bold">Вернуться в лобби</button></div>`;
   }
 

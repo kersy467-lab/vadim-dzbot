@@ -39,6 +39,7 @@ class EGEDuelRoom:
         self.opponent_name = opponent_name or "Соперник"
         self.matchmaking_search = False
         self.matchmaking_recipient_count = 0
+        self.matchmaking_messages: list[tuple[int, int]] = []
         self.status, self.round_size, self.sudden_round = "waiting", 10, 0
         self.answers: dict[int, list[bool]] = {self.host_tg_id: []}
         if self.opponent_tg_id:

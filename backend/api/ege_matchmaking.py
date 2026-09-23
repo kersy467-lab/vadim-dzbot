@@ -50,6 +50,9 @@ async def send_matchmaking_notifications(bot, room, recipient_ids: list[int], ba
     separator = "&" if "?" in base_url else "?"
     sent_count = 0
 
+    if not hasattr(room, "matchmaking_messages"):
+        room.matchmaking_messages = []
+
     for recipient_id in recipient_ids:
         if room.status != "waiting" or room.opponent_tg_id is not None:
             break
@@ -64,7 +67,7 @@ async def send_matchmaking_notifications(bot, room, recipient_ids: list[int], ba
         )
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[button]])
         try:
-            await asyncio.wait_for(
+            sent_msg = await asyncio.wait_for(
                 bot.send_message(
                     chat_id=recipient_id,
                     text=(
@@ -77,8 +80,59 @@ async def send_matchmaking_notifications(bot, room, recipient_ids: list[int], ba
                 ),
                 timeout=8.0,
             )
+            # If an opponent joined while send_message was in flight, delete immediately
+            if room.status != "waiting" or room.opponent_tg_id is not None:
+                msg_id = getattr(sent_msg, "message_id", None) or getattr(sent_msg, "id", None)
+                if msg_id and hasattr(bot, "delete_message"):
+                    try:
+                        await bot.delete_message(chat_id=recipient_id, message_id=msg_id)
+                    except Exception:
+                        pass
+                break
+
+            msg_id = getattr(sent_msg, "message_id", None) or getattr(sent_msg, "id", None) or 1
+            room.matchmaking_messages.append((recipient_id, msg_id))
             sent_count += 1
             room.matchmaking_recipient_count = sent_count
         except Exception:
             logger.warning("Could not send EGE matchmaking invite to %s", recipient_id, exc_info=True)
         await asyncio.sleep(0.05)
+
+    if room.status != "waiting" or room.opponent_tg_id is not None:
+        await delete_matchmaking_messages(bot, room)
+
+
+async def delete_matchmaking_messages(bot, room) -> int:
+    """Delete all matchmaking invite messages sent in Telegram for this room."""
+    if not bot or not getattr(room, "matchmaking_messages", None):
+        return 0
+    messages = list(room.matchmaking_messages)
+    room.matchmaking_messages.clear()
+    deleted = 0
+    for chat_id, message_id in messages:
+        if hasattr(bot, "delete_message"):
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=message_id)
+                deleted += 1
+            except Exception:
+                logger.debug("Failed to delete matchmaking message %s in chat %s", message_id, chat_id)
+    if deleted:
+        logger.info("Deleted %s matchmaking messages for room %s", deleted, getattr(room, "room_id", ""))
+    return deleted
+
+
+def on_opponent_joined_matchmaking(room) -> None:
+    """Trigger deletion of all matchmaking messages when opponent joins or room cancelled."""
+    if not getattr(room, "matchmaking_search", False):
+        return
+    try:
+        from backend.bot.bot import get_current_bot
+        bot = get_current_bot()
+        if bot:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(delete_matchmaking_messages(bot, room))
+            except RuntimeError:
+                asyncio.run(delete_matchmaking_messages(bot, room))
+    except Exception:
+        logger.debug("Could not schedule matchmaking message deletion", exc_info=True)

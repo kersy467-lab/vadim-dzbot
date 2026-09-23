@@ -210,6 +210,12 @@ class GameRoomManager:
         room.last_activity = time.time()
         if getattr(room, "game_type", "") in {"ege_stress_duel", "ege_vocabulary_duel"}:
             logger.info("EGE duel player joined room=%s player=%s", room_id, user_tg_id)
+        if getattr(room, "matchmaking_search", False):
+            try:
+                from backend.api.ege_matchmaking import on_opponent_joined_matchmaking
+                on_opponent_joined_matchmaking(room)
+            except Exception:
+                pass
         return True, "Успешное подключение"
 
     def add_bot_to_coop(self, room_id: str) -> tuple[bool, str]:

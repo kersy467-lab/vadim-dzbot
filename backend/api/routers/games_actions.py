@@ -128,11 +128,13 @@ async def cancel_game_room(
 
     from backend.bot.bot import get_current_bot
     from backend.api.routers.games_rpg_hooks import update_canceled_invite_message
+    from backend.api.ege_matchmaking import on_opponent_joined_matchmaking
     bot = get_current_bot()
     if bot:
         try:
             await update_canceled_invite_message(bot, room)
         except Exception:
             pass
+    on_opponent_joined_matchmaking(room)
     return {"status": "canceled"}
 

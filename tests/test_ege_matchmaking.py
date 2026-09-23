@@ -80,6 +80,33 @@ def test_only_first_invited_player_can_join_matchmaking_room():
     assert room.status == "playing"
 
 
+def test_matchmaking_messages_deleted_when_opponent_joins():
+    from backend.api.ege_matchmaking import delete_matchmaking_messages
+    manager = GameRoomManager()
+    room = manager.create_room(
+        host_tg_id=101,
+        host_name="Ищущий",
+        game_type="ege_stress_duel",
+    )
+    room.matchmaking_search = True
+    deleted = []
+
+    class FakeBot:
+        async def send_message(self, **kwargs):
+            return SimpleNamespace(message_id=777)
+        async def delete_message(self, chat_id, message_id):
+            deleted.append((chat_id, message_id))
+
+    asyncio.run(send_matchmaking_notifications(FakeBot(), room, [202, 303], "https://example.test/app"))
+    assert len(room.matchmaking_messages) == 2
+
+    # Opponent joins -> delete_matchmaking_messages clears all sent notifications
+    del_count = asyncio.run(delete_matchmaking_messages(FakeBot(), room))
+    assert del_count == 2
+    assert deleted == [(202, 777), (303, 777)]
+    assert len(room.matchmaking_messages) == 0
+
+
 def test_ege_duel_lobby_has_single_find_duel_button():
     from pathlib import Path
 

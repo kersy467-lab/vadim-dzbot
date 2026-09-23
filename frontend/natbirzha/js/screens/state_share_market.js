@@ -7,13 +7,22 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
 
 const money = (value) => `${Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash`;
 
+let stateShareRenderGeneration = 0;
+
 export async function renderStateShareMarket(container, showToast, onBack = () => {}) {
+  const generation = ++stateShareRenderGeneration;
+  const isCurrent = () => generation === stateShareRenderGeneration;
+  const returnToMarket = () => {
+    if (isCurrent()) stateShareRenderGeneration += 1;
+    onBack();
+  };
   container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Загрузка государственных акций…</div>';
   try {
     const [shareResult, portfolio] = await Promise.all([
       NatAPI.getStateShares(),
       NatAPI.getPortfolio(),
     ]);
+    if (!isCurrent()) return;
     const offers = shareResult.shares || [];
     const holdings = portfolio.state_shares || [];
     const payments = portfolio.state_share_dividend_payments || [];
@@ -43,7 +52,7 @@ export async function renderStateShareMarket(container, showToast, onBack = () =
         <section class="glass-card rounded-2xl p-3 space-y-2"><h3 class="text-xs font-bold">Мои государственные акции</h3>${holdingCards}</section>
         <details class="glass-card rounded-2xl p-3"><summary class="cursor-pointer text-xs font-bold">История дивидендов</summary><div class="mt-2 space-y-2">${paymentRows}</div></details>
       </div>`;
-      container.querySelector('.state-share-back')?.addEventListener('click', onBack);
+      container.querySelector('.state-share-back')?.addEventListener('click', returnToMarket);
       container.querySelectorAll('.state-share-buy').forEach(button => button.addEventListener('click', () => trade(button, 'buy')));
       container.querySelectorAll('.state-share-sell').forEach(button => button.addEventListener('click', () => trade(button, 'sell')));
     }
@@ -63,27 +72,29 @@ export async function renderStateShareMarket(container, showToast, onBack = () =
       button.disabled = true;
       try {
         const result = await action(shareId, quantity);
+        if (!isCurrent()) return;
         let updatedCompany;
         try {
           updatedCompany = await NatAPI.getMyCompany();
         } catch (error) {
           if (error?.name === 'AbortError') throw error;
         }
+        if (!isCurrent()) return;
         if (updatedCompany) store.setCompany(updatedCompany);
         showToast(side === 'buy'
           ? `Куплено ${quantity.toLocaleString('ru-RU')} акций за ${money(result.total_cost)}.`
           : `Казна выкупила ${quantity.toLocaleString('ru-RU')} акций за ${money(result.total_proceeds)}.`, 'success');
         await renderStateShareMarket(container, showToast, onBack);
       } catch (error) {
-        if (error?.name === 'AbortError') return;
+        if (error?.name === 'AbortError' || !isCurrent()) return;
         showToast(escapeHtml(error.message || 'Не удалось выполнить операцию.'), 'error');
         button.disabled = false;
       }
     }
   } catch (error) {
-    if (error?.name === 'AbortError') return;
+    if (error?.name === 'AbortError' || !isCurrent()) return;
     showToast(escapeHtml(error.message || 'Не удалось загрузить государственные акции.'), 'error');
     container.innerHTML = `<div class="space-y-3 p-4"><button id="state-share-back" class="text-xs font-bold text-blue-600">← Вернуться на биржу</button><div class="glass-card rounded-2xl p-5 text-center text-xs text-rose-500">Не удалось загрузить государственные акции.</div></div>`;
-    container.querySelector('#state-share-back')?.addEventListener('click', onBack);
+    container.querySelector('#state-share-back')?.addEventListener('click', returnToMarket);
   }
 }

@@ -73,5 +73,18 @@ assert(creatorShares.includes("showToast('Выпуск государствен�
 assert(creatorShares.includes("showToast(escapeHtml(message), 'error')")
   && marketShares.includes("showToast(escapeHtml(error.message || 'Не удалось выполнить операцию.'), 'error')"),
   'dynamic creator error text must be escaped before reaching the HTML-rendered toast');
+assert(marketShares.includes('let stateShareRenderGeneration = 0')
+  && marketShares.includes('const generation = ++stateShareRenderGeneration')
+  && marketShares.includes('const isCurrent = () => generation === stateShareRenderGeneration'),
+  'state share rendering must have a generation token for internal Market navigation');
+assert((marketShares.match(/if \(!isCurrent\(\)\) return;/g) || []).length >= 3
+  && (marketShares.match(/error\?\.name === 'AbortError' \|\| !isCurrent\(\)/g) || []).length >= 2,
+  'state share load and trade handlers must stop before stale DOM, store, or toast updates');
+const invalidateIndex = marketShares.indexOf('stateShareRenderGeneration += 1;');
+const backCallIndex = marketShares.indexOf('onBack();', invalidateIndex);
+assert(invalidateIndex >= 0 && backCallIndex > invalidateIndex,
+  'the state share back button must invalidate pending renders before returning to Market home');
+assert((marketShares.match(/addEventListener\('click', returnToMarket\)/g) || []).length === 2,
+  'both the normal and load-error back buttons must invalidate pending state share renders');
 
 console.log('State share creator and player UI contracts verified.');

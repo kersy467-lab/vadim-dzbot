@@ -13,6 +13,7 @@ from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.business_resource_service import consume_business_resources
+from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 from backend.natbirzha.services.progression_service import apply_xp
 
 
@@ -27,10 +28,8 @@ UPGRADE_TIME_CURVES: dict[str, tuple[int, int]] = {
 
 class BusinessService:
     @staticmethod
-    def business_slot_limits(*, level: int, territory_tiles: int, used: int) -> dict[str, int]:
-        level_slots = max(0, int(level) - 5)
-        territory_slots = min(4, max(0, int(territory_tiles) // 5))
-        maximum = min(50, 10 + level_slots + territory_slots)
+    def business_slot_limits(*, capacity: int, used: int) -> dict[str, int]:
+        maximum = max(BusinessCapacityService.BASE_CAPACITY, min(BusinessCapacityService.MAX_CAPACITY, int(capacity)))
         return {"used": int(used), "max": maximum, "free": max(0, maximum - int(used))}
 
     @staticmethod
@@ -173,9 +172,7 @@ class BusinessService:
         cls._validate_open_requirements(company, spec, existing)
 
         used_slots = await cls._used_slots(session, company.id)
-        slots = cls.business_slot_limits(
-            level=company.level, territory_tiles=company.territory_tiles, used=used_slots
-        )
+        slots = BusinessCapacityService.slot_limits(company, used=used_slots, now=current)
         if used_slots + int(spec["slot_weight"]) > slots["max"]:
             raise ValueError("Нет свободной корпоративной мощности для нового предприятия")
         open_cost = round(float(spec["open_cost"]), 2)
@@ -210,8 +207,7 @@ class BusinessService:
             "progression": progression,
             "business": cls._serialize_business(business),
             "slots": cls.business_slot_limits(
-                level=company.level,
-                territory_tiles=company.territory_tiles,
+                capacity=BusinessCapacityService.effective_capacity(company, now=current),
                 used=used_slots + int(spec["slot_weight"]),
             ),
         }

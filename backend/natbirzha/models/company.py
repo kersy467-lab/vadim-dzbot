@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import (
-    Integer, String, Float, Boolean, DateTime,
+    Integer, String, Float, Boolean, DateTime, JSON,
     ForeignKey, UniqueConstraint
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,6 +31,9 @@ class NatCompany(Base):
     
     territory_tiles: Mapped[int] = mapped_column(Integer, default=4, nullable=False)
     max_territory: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    business_slot_capacity: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    business_slot_upgrade_ready_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    industry_upgrade_levels_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     
     is_bankrupt: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_respec_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

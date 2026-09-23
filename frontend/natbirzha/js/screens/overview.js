@@ -199,21 +199,18 @@ export function renderOverview(container, showToast) {
         `}
       </div>
 
-      <!-- Territory Expansion -->
-      <div class="glass-card rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-base">🗺️</span>
-            <div>
-              <div class="text-xs font-bold text-slate-800 dark:text-white">Территория</div>
-              <div class="text-[11px] text-slate-400">${company.territory_tiles || 4} / ${company.max_territory || 20} тайлов · заводы ${company.factory_slots?.used ?? (company.factories?.length || 0)} / ${company.factory_slots?.max ?? '—'}</div>
+      <!-- Business Capacity -->
+      <div class="glass-card rounded-2xl p-4 shadow-sm" id="business-capacity-card">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-base">🏭</span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-slate-800 dark:text-white">Мощности предприятий</div>
+              <div class="text-[11px] text-slate-400" id="business-capacity-summary">Загружаем данные о слотах…</div>
             </div>
           </div>
-          <button
-            id="expand-territory-btn"
-            class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs active:scale-95 transition-all"
-          >
-            🏗️ Расширить
+          <button id="expand-capacity-btn" class="shrink-0 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs active:scale-95 transition-all">
+            ＋ Добавить
           </button>
         </div>
       </div>
@@ -238,6 +235,7 @@ export function renderOverview(container, showToast) {
     </div>
   `;
 
+  void updateBusinessCapacityCard(container);
   container.querySelector('#help-btn')?.addEventListener('click', () => window.NatApp?.navigateTo('help'));
   container.querySelector('#capital-plan-ipo-btn')?.addEventListener('click', () => window.NatApp?.navigateTo('market'));
   container.querySelector('#capital-plan-loan-btn')?.addEventListener('click', async () => {
@@ -334,22 +332,24 @@ export function renderOverview(container, showToast) {
     });
   }
 
-  const expandBtn = container.querySelector('#expand-territory-btn');
+  const expandBtn = container.querySelector('#expand-capacity-btn');
   if (expandBtn) {
     expandBtn.addEventListener('click', async () => {
       try {
-        expandBtn.innerText = 'Расширение...';
         expandBtn.disabled = true;
-        const res = await NatAPI.expandTerritory();
-        showToast(res.message || 'Территория расширена!', 'success');
+        expandBtn.innerText = 'Запускаем...';
+        const result = await NatAPI.expandBusinessCapacity();
+        showToast(`Слот ${result.target_capacity} откроется через ${result.duration_hours} ч.`, 'success');
         const refreshed = await NatAPI.getMyCompany();
         store.setCompany(refreshed);
         renderOverview(container, showToast);
       } catch (err) {
-        showToast(err.message || 'Ошибка расширения территории', 'error');
+        showToast(err.message || 'Не удалось расширить мощности', 'error');
       } finally {
-        expandBtn.disabled = false;
-        expandBtn.innerText = '🏗️ Расширить';
+        if (expandBtn.isConnected) {
+          expandBtn.disabled = false;
+          expandBtn.innerText = '＋ Добавить';
+        }
       }
     });
   }
@@ -361,5 +361,40 @@ export function renderOverview(container, showToast) {
         window.NatApp.navigateTo('creator');
       }
     });
+  }
+}
+
+async function updateBusinessCapacityCard(container) {
+  const card = container.querySelector('#business-capacity-card');
+  const summaryNode = card?.querySelector('#business-capacity-summary');
+  const button = card?.querySelector('#expand-capacity-btn');
+  if (!card || !summaryNode || !button) return;
+  try {
+    const summary = await NatAPI.getEmpireSummary();
+    if (container.querySelector('#business-capacity-card') !== card) return;
+    const slots = summary.slots || {};
+    const expansion = summary.slot_expansion || {};
+    summaryNode.textContent = `Занято ${Number(slots.used || 0)} / ${Number(slots.max || 10)} слотов.`;
+    if (expansion.maxed) {
+      summaryNode.textContent += ' Достигнут предел.';
+      button.disabled = true;
+      button.textContent = 'Лимит';
+    } else if (expansion.is_upgrading) {
+      const seconds = Number(expansion.remaining_seconds || 0);
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      summaryNode.textContent += ` Слот ${expansion.target_capacity} готовится: ${hours} ч ${String(minutes).padStart(2, '0')} мин.`;
+      button.disabled = true;
+      button.textContent = 'Идёт улучшение';
+    } else {
+      const price = Number(expansion.cost || 0).toLocaleString('ru-RU');
+      summaryNode.textContent += ` Следующий слот: ${price} cash · ${expansion.duration_hours} ч.`;
+      const enoughCash = Number(summary.cash || 0) >= Number(expansion.cost || 0);
+      button.disabled = !enoughCash;
+      button.textContent = enoughCash ? '＋ Добавить' : 'Не хватает cash';
+    }
+  } catch (error) {
+    summaryNode.textContent = 'Не удалось загрузить состояние мощностей.';
+    button.disabled = true;
   }
 }

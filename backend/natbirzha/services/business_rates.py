@@ -27,7 +27,13 @@ def _condition_multiplier(business: NatBusiness, spec: dict[str, Any], *, upgrad
     return efficiency * health * downtime
 
 
-def cash_business_rates(business: NatBusiness, spec: dict[str, Any], *, upgrading: bool) -> CashBusinessRates:
+def cash_business_rates(
+    business: NatBusiness,
+    spec: dict[str, Any],
+    *,
+    upgrading: bool,
+    output_bonus_multiplier: float = 1.0,
+) -> CashBusinessRates:
     stage = max(1, int(business.stage))
     income_multiplier = float(spec["income_growth"]) ** (stage - 1)
     for milestone_stage, milestone in spec.get("milestones", {}).items():
@@ -36,7 +42,8 @@ def cash_business_rates(business: NatBusiness, spec: dict[str, Any], *, upgradin
     condition = _condition_multiplier(business, spec, upgrading=upgrading)
     metadata = dict(business.metadata_json or {})
     asset_multiplier = max(0.0, float(metadata.get("asset_output_multiplier", 1.0) or 1.0))
-    gross = float(business.base_income_per_hour) * income_multiplier * condition * asset_multiplier
+    bonus = max(1.0, float(output_bonus_multiplier or 1.0))
+    gross = float(business.base_income_per_hour) * income_multiplier * condition * asset_multiplier * bonus
     maintenance = (
         float(business.base_maintenance_per_hour) * max(0.0, float(business.efficiency or 0.0))
         + max(0.0, float(metadata.get("asset_salary_per_hour", 0.0) or 0.0))
@@ -54,6 +61,7 @@ def resource_business_rates(
     spec: dict[str, Any],
     *,
     upgrading: bool,
+    output_bonus_multiplier: float = 1.0,
 ) -> ResourceBusinessRates:
     """Return independent input/output scaling for one production business.
 
@@ -73,7 +81,7 @@ def resource_business_rates(
     metadata = dict(business.metadata_json or {})
     asset_multiplier = max(0.0, float(metadata.get("asset_output_multiplier", 1.0) or 1.0))
     input_multiplier *= condition
-    output_multiplier *= condition * asset_multiplier
+    output_multiplier *= condition * asset_multiplier * max(1.0, float(output_bonus_multiplier or 1.0))
     maintenance = (
         float(business.base_maintenance_per_hour) * max(0.0, float(business.efficiency or 0.0))
         + max(0.0, float(metadata.get("asset_salary_per_hour", 0.0) or 0.0))

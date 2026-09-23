@@ -54,6 +54,8 @@ class NatInstrumentTrade(Base):
     spread_rub: Mapped[float] = mapped_column(Float, nullable=False)
     balance_after: Mapped[float] = mapped_column(Float, nullable=False)
     position_after: Mapped[float] = mapped_column(Float, nullable=False)
+    avg_cost_after_rub: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    realized_pnl_rub: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     source_snapshot_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("nat_reference_rate_snapshots.id"), nullable=False, index=True
     )

@@ -1,4 +1,4 @@
-"""Server-priced territory growth for the bounded NATBIRZHA 2.0 business grid."""
+"""Server-priced territory growth, independent from corporate business capacity."""
 
 from typing import Any
 
@@ -39,7 +39,7 @@ class TerritoryService:
             "new_tiles": company.territory_tiles,
             "remaining_cash": company.cash,
             "slots": BusinessService.business_slot_limits(
-                level=company.level, territory_tiles=company.territory_tiles, used=0
+                capacity=company.business_slot_capacity, used=0
             ),
         }
 

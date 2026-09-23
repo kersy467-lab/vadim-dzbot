@@ -12,6 +12,7 @@ from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.business_service import BusinessService
+from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 from backend.natbirzha.services.empire_summary_service import EmpireSummaryService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
@@ -109,6 +110,38 @@ async def empire_summary(
     summary = await EmpireSummaryService.build(session, company.id)
     await session.commit()
     return {"settlement": settlement, **summary}
+
+
+@company_router.get("/business-capacity")
+async def business_capacity_quote(
+    company: NatCompany = Depends(get_current_company),
+) -> dict:
+    _require_tycoon_v2()
+    return BusinessCapacityService.quote(company)
+
+
+@company_router.post("/business-capacity/expand")
+async def expand_business_capacity(
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    endpoint = "/api/natbirzha/company/business-capacity/expand"
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, {}
+    )
+    if cached:
+        return cached[1]
+    try:
+        await _settle_before_mutation(session, company)
+        response = await BusinessCapacityService.expand(session, company.id)
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, {}, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @company_router.get("/territory/quote")

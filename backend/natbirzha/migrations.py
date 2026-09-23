@@ -366,6 +366,68 @@ async def _migrate_v3_state_shares(conn) -> None:
     await conn.run_sync(create_tables)
 
 
+async def _migrate_v4_capacity_and_industry_boosts(conn) -> None:
+    """Add explicit business-slot progress and permanent specialization boosts."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    existing = await _columns(conn, "nat_companies")
+    await _add_columns(conn, "nat_companies", {
+        "business_slot_capacity": "INTEGER NOT NULL DEFAULT 10",
+        "business_slot_upgrade_ready_at": "TIMESTAMP",
+        "industry_upgrade_levels_json": "JSON NOT NULL DEFAULT '{}'",
+    })
+    if "business_slot_capacity" not in existing and {"id", "level", "territory_tiles"} <= existing:
+        rows = (await conn.execute(text(
+            'SELECT id, level, territory_tiles FROM nat_companies'
+        ))).all()
+        for company_id, level, territory_tiles in rows:
+            previous_capacity = min(
+                50,
+                10 + max(0, int(level or 1) - 5) + min(4, max(0, int(territory_tiles or 0) // 5)),
+            )
+            await conn.execute(text(
+                'UPDATE nat_companies SET business_slot_capacity=:capacity WHERE id=:company_id'
+            ), {"capacity": previous_capacity, "company_id": company_id})
+    await _add_columns(conn, "nat_instrument_trades", {
+        "avg_cost_after_rub": "FLOAT NOT NULL DEFAULT 0",
+        "realized_pnl_rub": "FLOAT NOT NULL DEFAULT 0",
+    })
+    if await _table_exists(conn, "nat_instrument_trades"):
+        # Rebuild the weighted-average basis from the append-only trade ledger
+        # so existing portfolios get correct realized P&L after the upgrade.
+        trades = (await conn.execute(text("""
+            SELECT id, company_id, instrument_code, side, quantity, gross_rub
+            FROM nat_instrument_trades
+            ORDER BY company_id, instrument_code, created_at, id
+        """))).all()
+        positions: dict[tuple[int, str], tuple[float, float]] = {}
+        for trade_id, company_id, instrument_code, side, quantity, gross_rub in trades:
+            key = (int(company_id), str(instrument_code))
+            position_quantity, average_cost = positions.get(key, (0.0, 0.0))
+            quantity = float(quantity)
+            gross = float(gross_rub)
+            if str(side).lower() == "buy":
+                new_quantity = round(position_quantity + quantity, 8)
+                new_average = round(
+                    (position_quantity * average_cost + gross) / new_quantity, 6
+                ) if new_quantity else 0.0
+                realized = 0.0
+            else:
+                realized = round(gross - average_cost * quantity, 2)
+                new_quantity = round(max(0.0, position_quantity - quantity), 8)
+                new_average = average_cost if new_quantity else 0.0
+            positions[key] = (new_quantity, new_average)
+            await conn.execute(text("""
+                UPDATE nat_instrument_trades
+                SET avg_cost_after_rub=:average_cost, realized_pnl_rub=:realized
+                WHERE id=:trade_id
+            """), {
+                "average_cost": new_average,
+                "realized": realized,
+                "trade_id": trade_id,
+            })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -383,6 +445,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v2_002_daily_profit_tax", _migrate_v2_tax_system),
     ("natbirzha_factory_001_restore_starters", _migrate_restore_factory_starters),
     ("natbirzha_v3_001_state_shares", _migrate_v3_state_shares),
+    ("natbirzha_v4_capacity_industry_upgrades", _migrate_v4_capacity_and_industry_boosts),
 )
 
 

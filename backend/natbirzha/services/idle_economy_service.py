@@ -62,16 +62,21 @@ class IdleEconomyService:
 
     @classmethod
     def _settle_cash_segment(
-        cls, business: NatBusiness, spec: dict[str, Any], *, hours: float, upgrading: bool
+        cls, business: NatBusiness, spec: dict[str, Any], *, hours: float, upgrading: bool,
+        industry_bonus_multiplier: float = 1.0,
     ) -> tuple[float, float]:
         if hours <= 0 or business.status in {"PAUSED_MANUAL", "PAUSED_SUPPLY", "PAUSED_MAINTENANCE", "PAUSED_STORAGE", "BANKRUPT", "MERGING"}:
             return 0.0, 0.0
-        rates = cash_business_rates(business, spec, upgrading=upgrading)
+        rates = cash_business_rates(
+            business, spec, upgrading=upgrading,
+            output_bonus_multiplier=industry_bonus_multiplier,
+        )
         return rates.gross_per_hour * hours, rates.maintenance_per_hour * hours
 
     @classmethod
     def _settle_business(
-        cls, business: NatBusiness, *, now: datetime, cap_hours: int
+        cls, business: NatBusiness, *, now: datetime, cap_hours: int,
+        industry_bonus_multiplier: float = 1.0,
     ) -> dict[str, Any]:
         spec = get_business_spec(business.business_type)
         if spec is None:
@@ -112,7 +117,8 @@ class IdleEconomyService:
         if business.status == "UPGRADING" and ready_at is not None and cursor < ready_at < settle_until:
             first_hours = (ready_at - cursor).total_seconds() / 3600
             first_gross, first_maintenance = cls._settle_cash_segment(
-                business, spec, hours=first_hours, upgrading=True
+                business, spec, hours=first_hours, upgrading=True,
+                industry_bonus_multiplier=industry_bonus_multiplier,
             )
             gross += first_gross
             maintenance += first_maintenance
@@ -125,6 +131,7 @@ class IdleEconomyService:
             spec,
             hours=remaining_hours,
             upgrading=business.status == "UPGRADING",
+            industry_bonus_multiplier=industry_bonus_multiplier,
         )
         gross += segment_gross
         maintenance += segment_maintenance
@@ -172,13 +179,17 @@ class IdleEconomyService:
         *,
         hours: float,
         upgrading: bool,
+        industry_bonus_multiplier: float = 1.0,
     ) -> tuple[float, float, float, float, list[str]]:
         """Consume inputs and return revenue, maintenance, worked hours and input cost basis."""
         if hours <= 0 or business.status in {
             "PAUSED_MANUAL", "PAUSED_MAINTENANCE", "BANKRUPT", "MERGING"
         }:
             return 0.0, 0.0, 0.0, 0.0, []
-        rates = resource_business_rates(business, spec, upgrading=upgrading)
+        rates = resource_business_rates(
+            business, spec, upgrading=upgrading,
+            output_bonus_multiplier=industry_bonus_multiplier,
+        )
         if rates.output_multiplier <= 0:
             return 0.0, 0.0, 0.0, 0.0, []
 
@@ -243,7 +254,8 @@ class IdleEconomyService:
 
     @classmethod
     async def _settle_resource_business(
-        cls, session: AsyncSession, business: NatBusiness, spec: dict[str, Any], *, now: datetime, cap_hours: int
+        cls, session: AsyncSession, business: NatBusiness, spec: dict[str, Any], *, now: datetime,
+        cap_hours: int, industry_bonus_multiplier: float = 1.0,
     ) -> dict[str, Any]:
         last_settled = normalize_dt(business.last_settled_at)
         if last_settled is None or now <= last_settled:
@@ -267,6 +279,7 @@ class IdleEconomyService:
             earned, paid, worked, inputs_cost, _ = await cls._settle_resource_segment(
                 session, business.company_id, business, spec,
                 hours=(ready_at - cursor).total_seconds() / 3600, upgrading=True,
+                industry_bonus_multiplier=industry_bonus_multiplier,
             )
             gross += earned
             maintenance += paid
@@ -278,6 +291,7 @@ class IdleEconomyService:
             session, business.company_id, business, spec,
             hours=(settle_until - cursor).total_seconds() / 3600,
             upgrading=business.status == "UPGRADING",
+            industry_bonus_multiplier=industry_bonus_multiplier,
         )
         gross += earned
         maintenance += paid

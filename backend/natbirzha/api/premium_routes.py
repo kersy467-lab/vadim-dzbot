@@ -20,6 +20,7 @@ from backend.natbirzha.services.premium_catalog import (
 )
 from backend.natbirzha.services.premium_service import PremiumError, PremiumService
 from backend.natbirzha.services.premium_upgrade_service import PremiumUpgradeService
+from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 
 
 router = APIRouter(prefix="/premium", tags=["Natbirzha Premium"])
@@ -112,6 +113,48 @@ async def get_owned_upgrades(
             for row in rows
         ]
     }
+
+
+@router.get("/industry-upgrades/catalog")
+async def get_industry_upgrade_catalog():
+    return {"upgrades": IndustryUpgradeService.catalog()}
+
+
+@router.get("/industry-upgrades")
+async def get_industry_upgrade(
+    company: NatCompany = Depends(get_current_company),
+):
+    return {"upgrade": IndustryUpgradeService.quote(company)}
+
+
+@router.post("/industry-upgrades/purchase")
+async def purchase_industry_upgrade(
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    if not idempotency_key:
+        raise HTTPException(status_code=400, detail="Idempotency-Key header is required")
+    endpoint = "/api/natbirzha/premium/industry-upgrades/purchase"
+    payload = {"specialization": company.specialization}
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        result = await IndustryUpgradeService.purchase_next_level(
+            session,
+            company.id,
+            f"api:{company.id}:{idempotency_key}",
+            actor_user_id=company.user_id,
+        )
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload, result
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/upgrades/{upgrade_code}/purchase")

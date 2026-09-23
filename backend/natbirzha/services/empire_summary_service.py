@@ -17,6 +17,8 @@ from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
 from backend.natbirzha.services.progression_service import progress_snapshot
+from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
+from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 
 
 class EmpireSummaryService:
@@ -40,6 +42,7 @@ class EmpireSummaryService:
         inventory: dict[str, float],
         supply_policies: dict[str, dict[str, Any]] | None = None,
         assets: dict[str, Any] | None = None,
+        industry_bonus_multiplier: float = 1.0,
     ) -> dict[str, Any]:
         spec = get_business_spec(business.business_type)
         if spec is None:
@@ -66,7 +69,8 @@ class EmpireSummaryService:
 
         if is_resource:
             rates = resource_business_rates(
-                business, spec, upgrading=business.status == "UPGRADING"
+                business, spec, upgrading=business.status == "UPGRADING",
+                output_bonus_multiplier=industry_bonus_multiplier,
             )
             inputs = {
                 item_id: round(float(value) * rates.input_multiplier, 4)
@@ -98,7 +102,8 @@ class EmpireSummaryService:
         else:
             sale_mode = None
             cash_rates = cash_business_rates(
-                business, spec, upgrading=business.status == "UPGRADING"
+                business, spec, upgrading=business.status == "UPGRADING",
+                output_bonus_multiplier=industry_bonus_multiplier,
             )
             inputs = spec["inputs_per_hour"]
             outputs = spec["outputs_per_hour"]
@@ -205,7 +210,8 @@ class EmpireSummaryService:
         assets_by_business = await BusinessAssetService.snapshot_for_businesses(session, visible_businesses)
         serialized = [
             cls._serialize_business(
-                business, inventory, policies_by_business.get(business.id), assets_by_business.get(business.id)
+                business, inventory, policies_by_business.get(business.id), assets_by_business.get(business.id),
+                IndustryUpgradeService.bonus_multiplier(company, business.specialization),
             )
             for business in visible_businesses
         ]
@@ -234,9 +240,9 @@ class EmpireSummaryService:
             "expenses_per_hour": round(expenses, 2),
             "net_cash_per_hour": round(gross - expenses, 2),
             "estimated_profit_per_hour": round(estimated_profit, 2),
-            "slots": BusinessService.business_slot_limits(
-                level=company.level, territory_tiles=company.territory_tiles, used=used_slots
-            ),
+            "slots": BusinessCapacityService.slot_limits(company, used=used_slots, now=now),
+            "slot_expansion": BusinessCapacityService.quote(company, now=now),
+            "industry_upgrade": IndustryUpgradeService.quote(company),
             "project_slots": BusinessService.project_slot_limits(
                 level=company.level, active=active_projects
             ),

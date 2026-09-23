@@ -1,4 +1,4 @@
-"""Territory expands the V2 business capacity through a bounded, priced path."""
+"""Territory still has its own price and does not grant business slots."""
 
 import asyncio
 
@@ -10,7 +10,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.territory_service import TerritoryService
 
 
-def test_territory_expansion_has_server_price_and_slot_effect() -> None:
+def test_territory_expansion_keeps_price_but_does_not_change_business_capacity() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -26,7 +26,7 @@ def test_territory_expansion_has_server_price_and_slot_effect() -> None:
             result = await TerritoryService.expand(session, company.id)
             assert result["new_tiles"] == 5
             assert result["cost"] == 15_000.0
-            assert result["slots"]["max"] == 4
+            assert result["slots"]["max"] == 10
 
         await engine.dispose()
 

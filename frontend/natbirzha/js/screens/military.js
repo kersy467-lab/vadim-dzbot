@@ -128,6 +128,8 @@ export async function renderMilitary(container, showToast) {
       NatAPI.getPremiumLicenses(),
       NatAPI.getPremiumUpgradeCatalog(),
       NatAPI.getPremiumUpgrades(),
+      NatAPI.getIndustryUpgradeCatalog(),
+      NatAPI.getIndustryUpgrade(),
     ]);
     const value = (index, fallback) => results[index].status === 'fulfilled' ? results[index].value : fallback;
     premiumData = {
@@ -137,6 +139,8 @@ export async function renderMilitary(container, showToast) {
       licenses: value(3, { licenses: [] }),
       upgradeCatalog: value(4, { upgrades: [] }),
       upgrades: value(5, { upgrades: [] }),
+      industryCatalog: value(6, { upgrades: [] }),
+      industry: value(7, { upgrade: null }),
     };
   }
 
@@ -272,6 +276,28 @@ export async function renderMilitary(container, showToast) {
   function renderView() {
     const section = { army: armySection, borders: bordersSection, tournament: tournamentSection, history: historySection, alliance: allianceSection, premium: premiumSection }[activeSection] || armySection;
     container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${SECTIONS.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${section()}</div>`;
+    if (activeSection === 'premium' && premiumData?.industry?.upgrade?.available) {
+      const industry = premiumData.industry.upgrade;
+      const premiumBody = container.querySelector('.space-y-4.max-w-md')?.lastElementChild;
+      const panel = document.createElement('div');
+      panel.className = 'glass-card rounded-2xl p-4 space-y-2 border border-indigo-400/30';
+      const heading = document.createElement('div');
+      heading.className = 'text-xs font-bold';
+      heading.textContent = industry.title + ' · ур. ' + industry.level + '/' + industry.max_level;
+      const description = document.createElement('div');
+      description.className = 'text-[10px] text-slate-500';
+      description.textContent = industry.description + ' Текущий бонус: ' + industry.bonus_pct + '%.';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'premium-industry-upgrade-btn w-full py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-bold disabled:opacity-50';
+      button.textContent = industry.level >= industry.max_level
+        ? 'Максимальный уровень'
+        : 'Улучшить до +' + industry.next_bonus_pct + '% за ' + industry.next_level_cost + ' PVC';
+      button.disabled = industry.level >= industry.max_level || Number(premiumData.wallet.balance || 0) < Number(industry.next_level_cost || 0);
+      panel.append(heading, description, button);
+      if (premiumBody?.firstElementChild) premiumBody.firstElementChild.after(panel);
+      else premiumBody?.prepend(panel);
+    }
     bindHandlers();
   }
 
@@ -364,6 +390,17 @@ export async function renderMilitary(container, showToast) {
         await NatAPI.purchasePremiumUpgrade(btn.dataset.code);
         await loadPremiumData();
         showToast('Эксклюзивное улучшение применено.', 'success');
+        renderView();
+      } catch (error) { showToast(error.message, 'error'); btn.disabled = false; }
+    }));
+    container.querySelectorAll('.premium-industry-upgrade-btn').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const result = await NatAPI.purchaseIndustryUpgrade();
+        await loadPremiumData();
+        const company = await NatAPI.getMyCompany();
+        store.setCompany(company);
+        showToast('Отраслевой бонус повышен до ' + result.bonus_pct + '%.', 'success');
         renderView();
       } catch (error) { showToast(error.message, 'error'); btn.disabled = false; }
     }));

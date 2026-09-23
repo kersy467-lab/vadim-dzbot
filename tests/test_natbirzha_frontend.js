@@ -87,11 +87,11 @@ console.log('state.js reactivity and safe updates verified!');
 console.log('=== [Natbirzha Test 3/5] Testing api.js request handling & error resilience ===');
 const apiScript = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/api.js'), 'utf-8');
 const cleanedApiScript = apiScript
+  .replace(/import\s*\{[^}]+\}\s*from\s*['"]\.\/auth\.js['"];?/s, '')
   .replace(/export\s+function\s+setNavigationAbortSignal/, 'function setNavigationAbortSignal')
   .replace(/export\s+const\s+NatAPI\s+=/, 'const NatAPI =');
 // Keep the lightweight CommonJS harness compatible with named helper exports.
 const normalizedApiScript = cleanedApiScript.replace(/export\s*\{[^}]+\};?/g, '');
-const apiFn = new Function('window', 'crypto', 'sessionStorage', normalizedApiScript + '\nreturn { NatAPI, parseErrorMessage, getAuthHeader, generateUUID };');
 
 const mockBrowserWindow = {
   location: { search: '?tg_user_id=777', hostname: 'localhost' },
@@ -104,7 +104,35 @@ const mockSessionStorage = {
 };
 const mockCrypto = { randomUUID: () => '11111111-2222-3333-4444-555555555555' };
 
-const { NatAPI, parseErrorMessage, getAuthHeader, generateUUID } = apiFn(mockBrowserWindow, mockCrypto, mockSessionStorage);
+function authHelpersFor(targetWindow) {
+  const getTelegramInitData = () => targetWindow.Telegram?.WebApp?.initData
+    || mockSessionStorage.getItem('natbirzha_telegram_init_data') || '';
+  const generateUUID = () => mockCrypto.randomUUID();
+  return {
+    generateUUID,
+    getTelegramInitData,
+    getTelegramUserId: () => null,
+    clearStaleInitData: () => { delete mockSessionStorage._store.natbirzha_telegram_init_data; },
+    getAuthHeader: () => {
+      const initData = getTelegramInitData();
+      if (initData) return { 'X-Telegram-Init-Data': initData };
+      let guestId = mockSessionStorage.getItem('natbirzha_guest_id');
+      if (!guestId) {
+        guestId = generateUUID();
+        mockSessionStorage.setItem('natbirzha_guest_id', guestId);
+      }
+      return { 'X-Natbirzha-Guest-Id': guestId };
+    },
+  };
+}
+const apiFn = new Function(
+  'window', 'crypto', 'sessionStorage', 'authHelpers',
+  'const { generateUUID, getTelegramInitData, clearStaleInitData, getTelegramUserId, getAuthHeader } = authHelpers;\n'
+    + normalizedApiScript + '\nreturn { NatAPI, parseErrorMessage, getAuthHeader, generateUUID };',
+);
+const { NatAPI, parseErrorMessage, getAuthHeader, generateUUID } = apiFn(
+  mockBrowserWindow, mockCrypto, mockSessionStorage, authHelpersFor(mockBrowserWindow),
+);
 
 assert(generateUUID() === '11111111-2222-3333-4444-555555555555', 'generateUUID must return UUID');
 assert(getAuthHeader()['X-Telegram-Init-Data'] === 'auth_signature_xyz', 'Telegram WebApp initData must be prioritized');
@@ -113,12 +141,16 @@ const mockDevWindow = {
   location: { search: '?tg_user_id=888', hostname: '127.0.0.1' },
   Telegram: {}
 };
-const { getAuthHeader: getDevAuthHeader } = apiFn(mockDevWindow, mockCrypto, mockSessionStorage);
+const { getAuthHeader: getDevAuthHeader } = apiFn(
+  mockDevWindow, mockCrypto, mockSessionStorage, authHelpersFor(mockDevWindow),
+);
 assert(!getDevAuthHeader()['X-Telegram-Init-Data'], 'Unsigned dev/query fallback must be disabled');
 assert(/^[a-f0-9-]{16,}$/.test(getDevAuthHeader()['X-Natbirzha-Guest-Id']),
   'Browser access must use a generated guest session identity');
 mockSessionStorage._store.natbirzha_telegram_init_data = 'carried_signed_init_data&hash=123';
-const { getAuthHeader: getCarriedAuthHeader } = apiFn(mockDevWindow, mockCrypto, mockSessionStorage);
+const { getAuthHeader: getCarriedAuthHeader } = apiFn(
+  mockDevWindow, mockCrypto, mockSessionStorage, authHelpersFor(mockDevWindow),
+);
 assert(getCarriedAuthHeader()['X-Telegram-Init-Data'] === 'carried_signed_init_data&hash=123',
   'Natbirzha must preserve signed initData when navigating from the parent Mini App');
 delete mockSessionStorage._store.natbirzha_telegram_init_data;
@@ -142,7 +174,7 @@ const err4 = parseErrorMessage({}, 500);
 assert(err4.includes('Ошибка сервера (500)'), 'empty object must produce readable server error');
 
 const requiredMethods = [
-  'login', 'getMyCompany', 'expandTerritory', 'createCompany', 'respecCompany',
+  'login', 'getMyCompany', 'expandTerritory', 'getBusinessCapacity', 'expandBusinessCapacity', 'createCompany', 'respecCompany',
   'getProductionStatus', 'getRecipes', 'getInventory', 'getFactoryUpgrades', 'buildFactory', 'triggerProduction', 'setFactoryAutomation',
   'getOrderbook', 'getNpcRates', 'placeOrder', 'cancelOrder', 'npcTrade', 'getTaxStatus', 'payTax',
   'getStocksList', 'issueIPO', 'buyShares', 'getPortfolio',
@@ -151,7 +183,7 @@ const requiredMethods = [
   'getTournamentTargets', 'attackTournamentTarget', 'getTournamentHistory',
   'getReferenceInstruments', 'tradeReferenceInstrument',
   'getStateBonds', 'createBondListing', 'buyBondListing', 'cancelBondListing',
-  'getBankruptcyStatus', 'submitRestructuring',
+  'getBankruptcyStatus', 'submitRestructuring', 'getIndustryUpgradeCatalog', 'getIndustryUpgrade', 'purchaseIndustryUpgrade',
   'getCreatorWorldResetPreview', 'resetCreatorWorld'
 ];
 requiredMethods.forEach(m => {

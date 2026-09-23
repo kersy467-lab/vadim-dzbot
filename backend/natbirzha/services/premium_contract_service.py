@@ -9,6 +9,7 @@ from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.business_service import BusinessService
+from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 
 
 class PremiumContractService:
@@ -56,9 +57,7 @@ class PremiumContractService:
             )
 
         used = await BusinessService._used_slots(session, company_id)
-        slots = BusinessService.business_slot_limits(
-            level=company.level, territory_tiles=company.territory_tiles, used=used
-        )
+        slots = BusinessCapacityService.slot_limits(company, used=used)
         if slots["free"] < int(spec["slot_weight"]):
             raise ValueError(
                 f"Для контрактного карьера нужна свободная корпоративная мощность ({slots['used']}/{slots['max']})"

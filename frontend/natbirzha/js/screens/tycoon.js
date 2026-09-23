@@ -4,6 +4,7 @@ import { getSpecializationName } from '../localization.js';
 import { store } from '../state.js';
 
 let refreshTimer = null;
+let compactBusinessView = false;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -221,7 +222,55 @@ function render(root, state, showToast) {
     <section><div class="flex items-center justify-between mb-2"><h3 class="text-lg font-black text-slate-900 dark:text-white">Ваши предприятия</h3><span class="text-xs text-slate-500 dark:text-slate-300">${businesses.length} объектов</span></div>${businesses.length ? `<div class="space-y-3">${businesses.map((business) => businessCard(business, summary, state.assetCatalog)).join('')}</div>` : `<div class="tycoon-empty">Предприятий пока нет. Откройте стартовый объект своей отрасли.</div>`}</section>
     <section><div class="mb-2"><h3 class="text-lg font-black text-slate-900 dark:text-white">Карьерная ветка</h3><p class="text-xs text-slate-500 dark:text-slate-300">${ownCatalog.length} типа предприятий · копии можно открывать повторно, если тип не уникальный. Каждое развивается до 50 уровней.</p></div><div class="grid gap-3">${ownCatalog.map((item) => catalogCard(item, requirementState(item, summary, owned, catalogMap), (owned.get(item.id) || []).length)).join('')}</div></section>
   </div>`;
+  const businessSection = [...root.querySelectorAll('section')].find((section) =>
+    section.querySelector('h3')?.textContent.includes('Ваши предприятия')
+  );
+  const businessList = businessSection?.querySelector('.space-y-3');
+  if (compactBusinessView && businessList) {
+    businessList.replaceChildren(...businesses.map(compactBusinessRow));
+  }
+  const statGrid = root.querySelector('.tycoon-stat-grid');
+  if (statGrid) {
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'tycoon-stat tycoon-view-toggle';
+    toggle.setAttribute('aria-label', compactBusinessView ? 'Показать карточки предприятий' : 'Показать компактный список предприятий');
+    const label = document.createElement('span');
+    label.textContent = 'Вид предприятий';
+    const value = document.createElement('b');
+    value.textContent = compactBusinessView ? 'Карточки' : 'Компактный';
+    toggle.append(label, value);
+    toggle.addEventListener('click', () => {
+      compactBusinessView = !compactBusinessView;
+      render(root, state, showToast);
+    });
+    statGrid.append(toggle);
+  }
   bind(root, showToast);
+}
+
+function compactBusinessRow(business) {
+  const row = document.createElement('div');
+  row.className = 'tycoon-business-compact flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2';
+  const details = document.createElement('div');
+  details.className = 'min-w-0';
+  const name = document.createElement('div');
+  name.className = 'truncate text-xs font-bold text-slate-900 dark:text-white';
+  name.textContent = business.catalog_name || business.name || 'Предприятие';
+  const level = document.createElement('div');
+  level.className = 'text-[10px] text-slate-500';
+  level.textContent = 'Уровень ' + business.stage + '/' + business.max_stage;
+  details.append(name, level);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tycoon-action tycoon-upgrade shrink-0';
+  button.dataset.action = 'upgrade';
+  button.dataset.id = business.id;
+  const isUpgrading = business.status === 'UPGRADING';
+  button.textContent = isUpgrading ? 'Улучшается…' : business.contract_expired ? 'Контракт истёк' : business.next_upgrade ? 'Улучшить' : 'Максимум';
+  button.disabled = isUpgrading || Boolean(business.contract_expired) || !business.next_upgrade;
+  row.append(details, button);
+  return row;
 }
 
 async function reload(root, showToast) {

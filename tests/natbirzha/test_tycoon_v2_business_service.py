@@ -48,10 +48,10 @@ def test_business_open_and_upgrade_are_server_priced_and_timed() -> None:
     asyncio.run(check())
 
 
-def test_business_slots_scale_by_company_level_and_territory() -> None:
-    assert BusinessService.business_slot_limits(level=1, territory_tiles=4, used=1) == {"used": 1, "max": 10, "free": 9}
-    assert BusinessService.business_slot_limits(level=30, territory_tiles=20, used=6) == {"used": 6, "max": 39, "free": 33}
-    assert BusinessService.business_slot_limits(level=60, territory_tiles=20, used=49) == {"used": 49, "max": 50, "free": 1}
+def test_business_slots_follow_explicit_capacity_only() -> None:
+    assert BusinessService.business_slot_limits(capacity=10, used=1) == {"used": 1, "max": 10, "free": 9}
+    assert BusinessService.business_slot_limits(capacity=24, used=6) == {"used": 6, "max": 24, "free": 18}
+    assert BusinessService.business_slot_limits(capacity=50, used=49) == {"used": 49, "max": 50, "free": 1}
 
 
 def test_career_businesses_can_repeat_but_explicit_unique_entries_cannot() -> None:

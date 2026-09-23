@@ -3,6 +3,7 @@
 .tycoon-stat-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
 .tycoon-stat,.tycoon-business-card,.tycoon-catalog-card,.tycoon-empty { border:1px solid var(--princess-line); border-radius:1.1rem; background:rgba(255,255,255,.86); box-shadow:var(--princess-shadow); }
 .tycoon-stat { padding:.8rem; }
+.tycoon-view-toggle { text-align:left; cursor:pointer; }.tycoon-view-toggle:focus-visible { outline:2px solid #8b5cf6; outline-offset:2px; }
 .tycoon-stat span,.tycoon-subgrid span { display:block; color:#8b5f7e; font-size:.68rem; }
 .tycoon-stat b { display:block; margin-top:.2rem; color:#5b2155; font-size:.95rem; }
 .tycoon-business-card,.tycoon-catalog-card { padding:.9rem; }

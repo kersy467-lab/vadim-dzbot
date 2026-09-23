@@ -237,6 +237,7 @@ class ReferenceInstrumentService:
             "spread_rub": trade.spread_rub,
             "remaining_cash": trade.balance_after,
             "remaining_quantity": trade.position_after,
+            "realized_pnl_rub": trade.realized_pnl_rub,
             "quoted_at": trade.created_at.isoformat(),
         }
 
@@ -301,9 +302,11 @@ class ReferenceInstrumentService:
             company.cash = round(company.cash - gross, 2)
             position.quantity = round(position.quantity + quantity, 8)
             position.avg_cost_rub = round((previous_cost + gross) / position.quantity, 6)
+            realized_pnl = 0.0
         else:
             if position.quantity < quantity:
                 raise ValueError("Insufficient instrument holdings.")
+            realized_pnl = round(gross - position.avg_cost_rub * quantity, 2)
             company.cash = round(company.cash + gross, 2)
             position.quantity = round(position.quantity - quantity, 8)
             if position.quantity == 0:
@@ -320,6 +323,8 @@ class ReferenceInstrumentService:
             spread_rub=spread,
             balance_after=company.cash,
             position_after=position.quantity,
+            avg_cost_after_rub=position.avg_cost_rub,
+            realized_pnl_rub=realized_pnl,
             source_snapshot_id=snapshot.id,
             created_at=now,
         )

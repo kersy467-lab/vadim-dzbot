@@ -23,9 +23,10 @@ export function renderMarketChart(points, options = {}) {
   const width = 360;
   const height = Number(options.height || 160);
   const pad = { left: 10, right: 44, top: 14, bottom: 20 };
-  if (normalized.length < 2) {
+  if (normalized.length === 0) {
     return `<div class="market-chart-empty" role="img" aria-label="История котировок накапливается">История котировок накапливается</div>`;
   }
+  if (normalized.length === 1) normalized.push({ ...normalized[0] });
   const values = normalized.map((point) => point.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);

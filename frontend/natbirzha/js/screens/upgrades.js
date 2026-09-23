@@ -10,6 +10,60 @@ const LABELS = {
 };
 
 export async function renderUpgrades(container, showToast) {
+  try {
+    const summary = await NatAPI.getEmpireSummary();
+    const businesses = Array.isArray(summary?.businesses) ? summary.businesses : [];
+    if (businesses.length) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'space-y-4 max-w-md mx-auto p-4 pb-24';
+      wrapper.innerHTML = '<div><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></div>';
+      const list = document.createElement('div');
+      list.className = 'space-y-3';
+      for (const business of businesses) {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-2xl p-4 space-y-2';
+        const title = document.createElement('div');
+        title.className = 'text-sm font-black';
+        title.textContent = business.catalog_name || business.name || 'Предприятие';
+        const level = document.createElement('div');
+        level.className = 'text-[10px] text-slate-500';
+        level.textContent = getSpecializationName(business.specialization) + ' · уровень ' + business.stage + '/' + business.max_stage;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'w-full rounded-xl bg-blue-600 text-white py-2 text-xs font-bold disabled:opacity-50';
+        const next = business.next_upgrade;
+        const upgrading = business.status === 'UPGRADING';
+        button.textContent = upgrading
+          ? 'Улучшение выполняется'
+          : business.contract_expired
+            ? 'Контракт PVC истёк'
+            : next
+              ? 'Улучшить до ' + next.target_stage + ' · ' + Number(next.cost).toLocaleString('ru-RU') + ' cash'
+              : 'Максимальный уровень';
+        button.disabled = upgrading || Boolean(business.contract_expired) || !next;
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            await NatAPI.upgradeBusiness(business.id);
+            store.setCompany(await NatAPI.getMyCompany());
+            showToast('Улучшение предприятия запущено', 'success');
+            await renderUpgrades(container, showToast);
+          } catch (error) {
+            showToast(error.message, 'error');
+            button.disabled = false;
+          }
+        });
+        card.append(title, level, button);
+        list.append(card);
+      }
+      wrapper.append(list);
+      container.replaceChildren(wrapper);
+      return;
+    }
+  } catch (error) {
+    console.warn('Could not refresh V2 businesses for upgrades:', error);
+  }
+
   let factories = store.factories || [];
   try {
     const data = await NatAPI.getProductionStatus();

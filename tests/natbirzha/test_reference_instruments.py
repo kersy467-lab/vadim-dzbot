@@ -10,6 +10,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.instruments import NatInstrumentPosition, NatInstrumentTrade
+from backend.natbirzha.api.portfolio_routes import get_unified_portfolio
 from backend.natbirzha.services.reference_instrument_service import (
     ReferenceInstrumentService,
     StaleReferenceRate,
@@ -101,12 +102,19 @@ async def run_async() -> None:
         assert sold["unit_price_rub"] == 99.0
         assert sold["remaining_quantity"] == 6
         assert sold["remaining_cash"] == 9386.0
+        assert sold["realized_pnl_rub"] == -8.0
         await session.commit()
 
         position = await session.scalar(select(NatInstrumentPosition))
         assert position is not None and position.quantity == 6
+        assert position.avg_cost_rub == 101.0
         count = await session.scalar(select(func.count(NatInstrumentTrade.id)))
         assert count == 2
+        portfolio = await get_unified_portfolio(company, session)
+        instrument = portfolio["instruments"][0]
+        assert instrument["unrealized_pnl_rub"] == -12.0
+        assert instrument["realized_pnl_rub"] == -8.0
+        assert portfolio["summary"]["total_pnl"] == -20.0
 
         try:
             await ReferenceInstrumentService.trade(

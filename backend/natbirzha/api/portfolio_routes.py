@@ -8,7 +8,11 @@ from backend.db.session import get_db_session
 from backend.natbirzha.config import get_game_now, get_game_today
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond, NatStateBondHolding
-from backend.natbirzha.models.instruments import NatInstrumentPosition, NatReferenceRateSnapshot
+from backend.natbirzha.models.instruments import (
+    NatInstrumentPosition,
+    NatInstrumentTrade,
+    NatReferenceRateSnapshot,
+)
 from backend.natbirzha.models.stocks import NatDividend, NatDividendPayment, NatStock, NatStockHolding
 from backend.natbirzha.models.state_shares import (
     NatStateShare,
@@ -180,6 +184,20 @@ async def get_unified_portfolio(
         .where(NatInstrumentPosition.company_id == company.id, NatInstrumentPosition.quantity > 0)
         .order_by(NatInstrumentPosition.instrument_code)
     )).scalars().all()
+    realized_rows = await session.execute(
+        select(
+            NatInstrumentTrade.instrument_code,
+            func.coalesce(func.sum(NatInstrumentTrade.realized_pnl_rub), 0.0),
+        )
+        .where(
+            NatInstrumentTrade.company_id == company.id,
+            NatInstrumentTrade.side == "sell",
+        )
+        .group_by(NatInstrumentTrade.instrument_code)
+    )
+    instrument_realized = {
+        str(code): round(float(total), 2) for code, total in realized_rows.all()
+    }
     instruments = []
     for position in instrument_rows:
         rate = await session.scalar(
@@ -199,6 +217,7 @@ async def get_unified_portfolio(
             "cost_value_rub": cost_value,
             "market_value_rub": market_value,
             "unrealized_pnl_rub": round(market_value - cost_value, 2) if market_value is not None else None,
+            "realized_pnl_rub": instrument_realized.get(position.instrument_code, 0.0),
             "quoted_at": rate.quoted_at.isoformat() if rate else None,
         })
 
@@ -224,6 +243,7 @@ async def get_unified_portfolio(
     state_share_dividends_earned = round(sum(row["payout_cash"] for row in state_share_dividend_payments), 2)
     dividends_earned = round(sum(row["payout_cash"] for row in dividend_payments) + state_share_dividends_earned, 2)
     coupons_earned = round(sum(row["coupons_earned"] for row in bonds), 2)
+    realized_pnl = round(sum(instrument_realized.values()), 2)
     return {
         "as_of": get_game_now().isoformat(),
         "cash": round(company.cash, 2),
@@ -234,6 +254,8 @@ async def get_unified_portfolio(
             "state_shares_market_value": state_share_value,
             "instruments_market_value": instrument_value,
             "unrealized_pnl": unrealized_pnl,
+            "realized_pnl": realized_pnl,
+            "total_pnl": round(unrealized_pnl + realized_pnl, 2),
             "dividends_earned": dividends_earned,
             "state_share_dividends_earned": state_share_dividends_earned,
             "coupons_earned": coupons_earned,

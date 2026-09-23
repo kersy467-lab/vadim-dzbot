@@ -78,13 +78,7 @@ function parseErrorMessage(data, status) {
 }
 
 async function request(endpoint, options = {}) {
-  const tgUid = getTelegramUserId();
-  let finalEndpoint = endpoint;
-  if (tgUid && !finalEndpoint.includes('tg_user_id=')) {
-    const sep = finalEndpoint.includes('?') ? '&' : '?';
-    finalEndpoint = `${finalEndpoint}${sep}tg_user_id=${tgUid}`;
-  }
-  const url = finalEndpoint.startsWith('/') ? finalEndpoint : `/api/natbirzha/${finalEndpoint}`;
+  const url = endpoint.startsWith('/') ? endpoint : `/api/natbirzha/${endpoint}`;
   const headers = {
     'Content-Type': 'application/json',
     ...getAuthHeader(),
@@ -144,6 +138,8 @@ export const NatAPI = {
   login: () => request('/api/natbirzha/auth/login', { method: 'POST' }),
   getMyCompany: () => request('/api/natbirzha/company/me'),
   expandTerritory: () => request('/api/natbirzha/company/territory/expand', { method: 'POST' }),
+  getBusinessCapacity: () => request('/api/natbirzha/company/business-capacity'),
+  expandBusinessCapacity: () => request('/api/natbirzha/company/business-capacity/expand', { method: 'POST' }),
   createCompany: (payload) => request('/api/natbirzha/company/create', { method: 'POST', body: JSON.stringify(payload) }),
   respecCompany: (specialization) => request('/api/natbirzha/company/respec', { method: 'POST', body: JSON.stringify({ new_specialization: specialization }) }),
   unlockMastery: (branch) => request('/api/natbirzha/company/mastery/unlock', { method: 'POST', body: JSON.stringify({ branch }) }),
@@ -277,6 +273,9 @@ export const NatAPI = {
   getPremiumUpgradeCatalog: () => cachedGet('/api/natbirzha/premium/upgrades/catalog', 5 * 60 * 1000),
   getPremiumUpgrades: () => request('/api/natbirzha/premium/upgrades'),
   purchasePremiumUpgrade: (upgrade_code) => request(`/api/natbirzha/premium/upgrades/${encodeURIComponent(upgrade_code)}/purchase`, { method: 'POST' }),
+  getIndustryUpgradeCatalog: () => cachedGet('/api/natbirzha/premium/industry-upgrades/catalog', 5 * 60 * 1000),
+  getIndustryUpgrade: () => request('/api/natbirzha/premium/industry-upgrades'),
+  purchaseIndustryUpgrade: () => request('/api/natbirzha/premium/industry-upgrades/purchase', { method: 'POST' }),
 
   // Public company rankings (all values are calculated on the server)
   getLeaderboard: (category = 'assets', page = 1) => request(`/api/natbirzha/leaderboard?category=${encodeURIComponent(category)}&page=${parseInt(page, 10)}`),

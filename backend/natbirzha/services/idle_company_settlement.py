@@ -15,6 +15,7 @@ from backend.natbirzha.services.business_income_ledger_service import BusinessIn
 from backend.natbirzha.services.progression_service import apply_xp
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.tax_service import TaxService
+from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 
 
 def _empty_result(company: NatCompany, cap_hours: int, projects: list, tax: dict) -> dict[str, Any]:
@@ -147,12 +148,17 @@ async def settle_company(
                 business.last_settled_at = current
             continue
         work_started_at = normalize_dt(business.last_settled_at) or effective_current
+        industry_bonus = IndustryUpgradeService.bonus_multiplier(company, business.specialization)
         if spec["mechanic"] == "cash_income":
-            result = engine._settle_business(business, now=effective_current, cap_hours=cap_hours)
+            result = engine._settle_business(
+                business, now=effective_current, cap_hours=cap_hours,
+                industry_bonus_multiplier=industry_bonus,
+            )
         elif spec["mechanic"] == "resource_production":
             await SupplyPolicyService.auto_procure(session, company, business, spec)
             result = await engine._settle_resource_business(
-                session, business, spec, now=effective_current, cap_hours=cap_hours
+                session, business, spec, now=effective_current, cap_hours=cap_hours,
+                industry_bonus_multiplier=industry_bonus,
             )
         else:
             continue

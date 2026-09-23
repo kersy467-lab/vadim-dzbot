@@ -294,6 +294,13 @@ export async function renderMarket(container, showToast) {
       </div>
     `;
 
+    const marketBack = document.createElement('button');
+    marketBack.type = 'button';
+    marketBack.className = 'market-back text-xs font-bold text-blue-600';
+    marketBack.textContent = '← Все разделы биржи';
+    marketBack.addEventListener('click', renderMarketHome);
+    container.querySelector('.max-w-md')?.prepend(marketBack);
+
     const resourceTabs = container.querySelector('.market-resource-tabs');
     if (resourceTabs) {
       resourceTabs.scrollLeft = selectorScrollLeft;

@@ -12,12 +12,14 @@ const ORIGIN_URL = "https://class-tg-bot.onrender.com";
 
 // Cache TTL configurations (in seconds)
 const CACHE_RULES = [
-  // Telegram photos from homework: 7 days
+  // Telegram photos from homework: 7 days (604800 sec)
   { prefix: "/api/media/", ttl: 604800 },
-  // Bell schedule & subjects: 1 hour
-  { prefix: "/api/bells", ttl: 3600 },
-  { prefix: "/api/subjects", ttl: 3600 },
-  // General schedule (read-only): 2 minutes
+  // Bell schedule & subjects: 7 days (604800 sec)
+  { prefix: "/api/bells", ttl: 604800 },
+  { prefix: "/api/subjects", ttl: 604800 },
+  // Permanent week schedule: 7 days
+  { prefix: "/api/schedule/week", ttl: 604800 },
+  // Daily schedule: 2 minutes (120 sec)
   { prefix: "/api/schedule", ttl: 120 },
   // Static frontend assets (images, fonts, scripts, css): 7 days
   { prefix: "/static/", ttl: 604800 },

@@ -73,7 +73,7 @@ async def get_bells(
     target_date: Optional[str] = Query(None, description="ISO format date YYYY-MM-DD"),
     session: AsyncSession = Depends(get_db_session)
 ):
-    response.headers["Cache-Control"] = "public, max-age=3600"
+    response.headers["Cache-Control"] = "public, max-age=604800"
     if target_date:
         query_date = date.fromisoformat(target_date)
         bells = await get_bell_schedule_for_date(session, query_date)
@@ -95,7 +95,7 @@ async def get_subjects(
     response: Response,
     session: AsyncSession = Depends(get_db_session)
 ):
-    response.headers["Cache-Control"] = "public, max-age=3600"
+    response.headers["Cache-Control"] = "public, max-age=604800"
     subjects = await get_all_subjects(session)
     return [
         {

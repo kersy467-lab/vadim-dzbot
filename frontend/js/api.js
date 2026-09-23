@@ -182,6 +182,7 @@ const api = {
   },
   // Multiplayer Games
   getClassmates: () => apiRequest("/api/games/classmates"),
+  getCasinoLeaderboard: () => apiRequest("/api/casino/leaderboard"),
   getEgeRating: () => apiRequest("/api/games/ege-rating"),
   getEgeLeaderboard: () => apiRequest("/api/ege/leaderboard"),
   getEgePlayers: () => apiRequest("/api/ege/players"),

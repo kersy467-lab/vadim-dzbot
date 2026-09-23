@@ -49,12 +49,25 @@
     render();
 
     try {
-      const res = await fetch('/api/casino/leaderboard');
-      if (!res.ok) {
-        throw new Error(`Ошибка загрузки (${res.status})`);
+      let data = null;
+      if (window.api && typeof window.api.getCasinoLeaderboard === 'function') {
+        data = await window.api.getCasinoLeaderboard();
+      } else if (window.api && typeof window.api.apiRequest === 'function') {
+        data = await window.api.apiRequest('/api/casino/leaderboard');
+      } else {
+        const uid = getMyUserId();
+        const headers = { 'Content-Type': 'application/json' };
+        if (uid) headers['X-Telegram-User-Id'] = String(uid);
+        const rawInit = window.Telegram?.WebApp?.initData;
+        if (rawInit && /^[\x20-\x7E]*$/.test(rawInit)) headers['X-Telegram-Init-Data'] = rawInit;
+        const url = uid ? `/api/casino/leaderboard?user_id=${uid}` : '/api/casino/leaderboard';
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+          throw new Error(`Ошибка загрузки (${res.status})`);
+        }
+        data = await res.json();
       }
-      const data = await res.json();
-      leaders = data.leaderboard || [];
+      leaders = data?.leaderboard || [];
     } catch (e) {
       errorMsg = e.message || 'Не удалось загрузить рейтинг';
     } finally {

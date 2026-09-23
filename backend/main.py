@@ -228,7 +228,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS & GZip middleware
+from starlette.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -260,11 +262,10 @@ class SmartCacheStaticFiles(StaticFiles):
         norm_path = str(path).replace("\\", "/").lower()
         if norm_path.endswith((".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff2", ".woff", ".mp3")):
             response.headers["Cache-Control"] = "public, max-age=604800, immutable"
-            if "pragma" in response.headers:
-                del response.headers["pragma"]
         else:
-            response.headers["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
-            response.headers["Pragma"] = "no-cache"
+            response.headers["Cache-Control"] = "no-cache"
+        if "pragma" in response.headers:
+            del response.headers["pragma"]
         return response
 
 # Static files for Telegram Mini App

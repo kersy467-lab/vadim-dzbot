@@ -21,6 +21,9 @@ def get_main_keyboard(is_admin: bool = False, user_id: int | None = None, is_tes
     # Natbirzha is in closed beta testing (only available to testers and admins)
     if is_admin or is_tester:
         nat_url = f"{settings.BASE_URL.rstrip('/')}/app/natbirzha"
+        if user_id:
+            separator = "&" if "?" in nat_url else "?"
+            nat_url = f"{nat_url}{separator}tg_user_id={user_id}"
         if nat_url.startswith("https://"):
             nat_btn = KeyboardButton(
                 text="📈 НАТБИРЖА (Beta)",

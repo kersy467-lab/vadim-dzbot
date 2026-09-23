@@ -120,6 +120,15 @@ async def get_strict_natbirzha_user(
                     "first_name": "Администратор",
                     "username": "notariuspiva" if tid == 1053722876 else "admin",
                 }
+            else:
+                res_exist = await session.execute(select(User).where(User.tg_id == tid))
+                existing_u = res_exist.scalar_one_or_none()
+                if existing_u:
+                    tg_user_data = {
+                        "id": tid,
+                        "first_name": existing_u.full_name or "Игрок",
+                        "username": existing_u.username,
+                    }
         except (ValueError, TypeError):
             pass
 

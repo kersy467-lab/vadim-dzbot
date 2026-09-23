@@ -3,118 +3,13 @@
  * Handles Telegram initData or browser guest authentication and Idempotency-Key generation.
  */
 
-function generateUUID() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-const GUEST_ID_STORAGE_KEY = 'natbirzha_guest_id';
-let inMemoryGuestId = '';
-
-const TELEGRAM_INIT_DATA_STORAGE_KEY = 'natbirzha_telegram_init_data';
-
-function getTelegramInitData() {
-  const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
-  if (tg?.initData && typeof tg.initData === 'string' && tg.initData.length > 0) {
-    try {
-      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(TELEGRAM_INIT_DATA_STORAGE_KEY, tg.initData);
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(TELEGRAM_INIT_DATA_STORAGE_KEY, tg.initData);
-        localStorage.setItem('tg_init_data', tg.initData);
-      }
-    } catch (_) {}
-    return tg.initData;
-  }
-  try {
-    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location?.search || '') : null;
-    const searchData = searchParams?.get('tgWebAppData');
-    if (searchData && typeof searchData === 'string' && searchData.length > 0 && searchData.includes('hash=')) {
-      try {
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(TELEGRAM_INIT_DATA_STORAGE_KEY, searchData);
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(TELEGRAM_INIT_DATA_STORAGE_KEY, searchData);
-          localStorage.setItem('tg_init_data', searchData);
-        }
-      } catch (_) {}
-      return searchData;
-    }
-    const hash = typeof window !== 'undefined' ? window.location?.hash?.slice(1) : '';
-    if (hash) {
-      const hashParams = new URLSearchParams(hash);
-      const hashData = hashParams.get('tgWebAppData');
-      if (hashData && typeof hashData === 'string' && hashData.length > 0 && hashData.includes('hash=')) {
-        try {
-          if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(TELEGRAM_INIT_DATA_STORAGE_KEY, hashData);
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(TELEGRAM_INIT_DATA_STORAGE_KEY, hashData);
-            localStorage.setItem('tg_init_data', hashData);
-          }
-        } catch (_) {}
-        return hashData;
-      }
-    }
-  } catch (_) {}
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      const carried = sessionStorage.getItem(TELEGRAM_INIT_DATA_STORAGE_KEY);
-      if (carried && typeof carried === 'string' && carried.includes('hash=')) return carried;
-    }
-  } catch (_) {}
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem(TELEGRAM_INIT_DATA_STORAGE_KEY) || localStorage.getItem('tg_init_data');
-      if (stored && typeof stored === 'string' && stored.includes('hash=')) return stored;
-    }
-  } catch (_) {}
-  return '';
-}
-
-function clearStaleInitData() {
-  const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
-  if (tg?.initData && tg.initData.length > 0) return;
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem(TELEGRAM_INIT_DATA_STORAGE_KEY);
-    }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(TELEGRAM_INIT_DATA_STORAGE_KEY);
-      localStorage.removeItem('tg_init_data');
-    }
-  } catch (_) {}
-}
-
-function getAuthHeader() {
-  const initData = getTelegramInitData();
-  if (initData && typeof initData === 'string' && initData.length > 0) {
-    try {
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(GUEST_ID_STORAGE_KEY);
-      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(GUEST_ID_STORAGE_KEY);
-    } catch (_) {}
-    inMemoryGuestId = '';
-    return { 'X-Telegram-Init-Data': initData };
-  }
-
-  let guestId = inMemoryGuestId;
-  try {
-    const storage = typeof localStorage !== 'undefined' ? localStorage : sessionStorage;
-    const stored = storage?.getItem(GUEST_ID_STORAGE_KEY);
-    if (/^[A-Za-z0-9_-]{16,128}$/.test(stored || '')) guestId = stored;
-    if (!guestId) {
-      guestId = generateUUID();
-      storage?.setItem(GUEST_ID_STORAGE_KEY, guestId);
-    }
-  } catch (_) {
-    guestId = guestId || generateUUID();
-  }
-  inMemoryGuestId = guestId;
-  return { 'X-Natbirzha-Guest-Id': guestId };
-}
+import {
+  generateUUID,
+  getTelegramInitData,
+  clearStaleInitData,
+  getTelegramUserId,
+  getAuthHeader,
+} from './auth.js';
 
 // App navigation owns this signal. A request started for a screen that the
 // player has already left must not keep the old screen alive.
@@ -138,6 +33,29 @@ function cachedGet(endpoint, ttlMs) {
   });
 }
 
+const REASON_MAP = {
+  'insufficient_inventory': 'Недостаточно ресурсов на складе',
+  'insufficient_cash': 'Недостаточно cash на балансе',
+  'maximum_territory_limit': 'Достигнут максимум территории',
+  'factory_not_found': 'Предприятие не найдено',
+  'company_not_found': 'Компания не найдена',
+  'npc_rare_reserve_empty': 'Редкий запас Госрезерва на сегодня закончился',
+  'inventory_overflow': 'Склад переполнен',
+  'cooldown': 'Эта цель недавно проиграла вам. Повторная атака будет доступна через 2 часа',
+  'tournament_not_active': 'PvP доступно только во время активного турнира',
+  'tournament_not_found': 'Турнир не найден',
+  'attacker_not_participant': 'Ваша компания не участвует в этом турнире',
+  'target_not_participant': 'Выбранная компания не участвует в турнире',
+  'self_attack': 'Нельзя атаковать собственную компанию',
+  'empty_army': 'Сначала сформируйте армию',
+  'target_empty_army': 'У цели не осталось армии',
+  'insufficient_ground_force': 'Для захвата нужна выжившая наземная армия',
+  'insufficient_supply': 'Недостаточно продовольствия, топлива или военного снаряжения для операции',
+  'already_conquered': 'Эта PvE-корпорация уже захвачена',
+  'prerequisite': 'Сначала захватите предыдущую PvE-корпорацию',
+  'company_level': 'Уровень компании слишком низкий для этой цели',
+};
+
 function parseErrorMessage(data, status) {
   if (!data) return `Ошибка сервера (${status})`;
   if (typeof data === 'string') return data;
@@ -149,31 +67,7 @@ function parseErrorMessage(data, status) {
   }
   if (detail && typeof detail === 'object') {
     if (typeof detail.error === 'string') return detail.error;
-    if (typeof detail.reason === 'string') {
-      const reasonMap = {
-        'insufficient_inventory': 'Недостаточно ресурсов на складе',
-        'insufficient_cash': 'Недостаточно cash на балансе',
-        'maximum_territory_limit': 'Достигнут максимум территории',
-        'factory_not_found': 'Предприятие не найдено',
-        'company_not_found': 'Компания не найдена',
-        'npc_rare_reserve_empty': 'Редкий запас Госрезерва на сегодня закончился',
-        'inventory_overflow': 'Склад переполнен',
-        'cooldown': 'Эта цель недавно проиграла вам. Повторная атака будет доступна через 2 часа',
-        'tournament_not_active': 'PvP доступно только во время активного турнира',
-        'tournament_not_found': 'Турнир не найден',
-        'attacker_not_participant': 'Ваша компания не участвует в этом турнире',
-        'target_not_participant': 'Выбранная компания не участвует в турнире',
-        'self_attack': 'Нельзя атаковать собственную компанию',
-        'empty_army': 'Сначала сформируйте армию',
-        'target_empty_army': 'У цели не осталось армии',
-        'insufficient_ground_force': 'Для захвата нужна выжившая наземная армия',
-        'insufficient_supply': 'Недостаточно продовольствия, топлива или военного снаряжения для операции',
-        'already_conquered': 'Эта PvE-корпорация уже захвачена',
-        'prerequisite': 'Сначала захватите предыдущую PvE-корпорацию',
-        'company_level': 'Уровень компании слишком низкий для этой цели',
-      };
-      return reasonMap[detail.reason] || detail.reason;
-    }
+    if (typeof detail.reason === 'string') return REASON_MAP[detail.reason] || detail.reason;
     if (typeof detail.message === 'string') return detail.message;
     return JSON.stringify(detail);
   }
@@ -184,7 +78,13 @@ function parseErrorMessage(data, status) {
 }
 
 async function request(endpoint, options = {}) {
-  const url = endpoint.startsWith('/') ? endpoint : `/api/natbirzha/${endpoint}`;
+  const tgUid = getTelegramUserId();
+  let finalEndpoint = endpoint;
+  if (tgUid && !finalEndpoint.includes('tg_user_id=')) {
+    const sep = finalEndpoint.includes('?') ? '&' : '?';
+    finalEndpoint = `${finalEndpoint}${sep}tg_user_id=${tgUid}`;
+  }
+  const url = finalEndpoint.startsWith('/') ? finalEndpoint : `/api/natbirzha/${finalEndpoint}`;
   const headers = {
     'Content-Type': 'application/json',
     ...getAuthHeader(),
@@ -392,4 +292,4 @@ export const NatAPI = {
 };
 
 
-export { clearStaleInitData };
+export { clearStaleInitData, getTelegramUserId, getTelegramInitData, getAuthHeader };

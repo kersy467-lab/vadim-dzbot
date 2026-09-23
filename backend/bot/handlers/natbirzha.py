@@ -15,9 +15,11 @@ router = Router(name="natbirzha_router")
 
 
 def get_natbirzha_app_url(tg_user_id: int | None = None) -> str:
-    # Identity comes from Telegram WebApp initData, never from URL parameters.
-    del tg_user_id
-    return get_natbirzha_webapp_url(settings.BASE_URL)
+    url = get_natbirzha_webapp_url(settings.BASE_URL)
+    if tg_user_id:
+        separator = "&" if "?" in url else "?"
+        url = f"{url}{separator}tg_user_id={tg_user_id}"
+    return url
 
 
 @router.message(Command("natbirzha"))

@@ -1,7 +1,7 @@
 import time
 from datetime import date
 from typing import Optional, List, Dict, Any, Tuple
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
@@ -15,7 +15,7 @@ from backend.config import get_today
 router = APIRouter(tags=["schedule"])
 
 _SCHEDULE_CACHE: Dict[str, Tuple[float, dict]] = {}
-_SCHEDULE_CACHE_TTL = 30.0
+_SCHEDULE_CACHE_TTL = 21600.0  # 6 hours in seconds
 
 
 def invalidate_schedule_cache() -> None:
@@ -24,9 +24,11 @@ def invalidate_schedule_cache() -> None:
 
 @router.get("/schedule")
 async def get_schedule(
+    response: Response,
     target_date: Optional[str] = Query(None, description="ISO format date YYYY-MM-DD"),
     session: AsyncSession = Depends(get_db_session)
 ):
+    response.headers["Cache-Control"] = "public, max-age=21600"
     if target_date:
         query_date = date.fromisoformat(target_date)
     else:
@@ -101,7 +103,11 @@ async def get_schedule(
 
 
 @router.get("/schedule/week")
-async def get_week_schedule(session: AsyncSession = Depends(get_db_session)):
+async def get_week_schedule(
+    response: Response,
+    session: AsyncSession = Depends(get_db_session)
+):
+    response.headers["Cache-Control"] = "public, max-age=604800"
     week_map = await get_full_week_schedule(session)
     bells = {b.lesson_number: b for b in await get_bell_schedule(session)}
 

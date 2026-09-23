@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.config import settings
 from backend.db.crud import (
     get_pending_users, get_pending_group_chats, get_active_users,
-    get_approved_group_chats
+    get_approved_group_chats, get_banned_users
 )
 from backend.bot.keyboards.admin_kb import get_admin_panel_keyboard
 from backend.bot.keyboards.inline import get_admin_approval_keyboard
@@ -102,6 +102,7 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
 
     students = await get_active_users(db_session)
     groups = await get_approved_group_chats(db_session)
+    banned = await get_banned_users(db_session)
 
     total_students = len(students)
     total_pages = max(1, (total_students + STUDENTS_PER_PAGE - 1) // STUDENTS_PER_PAGE)
@@ -173,8 +174,16 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
         for j, g in enumerate(groups, start=1):
             lines.append(f"{j}. {escape_md(g.title)} (ID: `{g.chat_id}`)")
 
+    if banned:
+        lines.append(f"\n🚫 **Бан-лист ({len(banned)}):**")
+        for b in banned:
+            safe_name = escape_md(b.full_name)
+            buname = f" (@{escape_md(b.username)})" if b.username else ""
+            lines.append(f"• {safe_name}{buname}")
+
     buttons.append([InlineKeyboardButton(text="🗑 Удалить пользователя", callback_data="admin_delete_user")])
     buttons.append([InlineKeyboardButton(text="🔙 В меню", callback_data="admin_menu_back")])
+
 
     try:
         await callback.message.edit_text(

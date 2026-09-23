@@ -288,24 +288,12 @@ async def callback_admin_reject(callback: CallbackQuery, db_session: AsyncSessio
         return
 
     await update_user_role(db_session, target_tg_id, "rejected")
-    
+
     await callback.message.edit_text(
-        f"{callback.message.text}\n\n❌ **ОТКЛОНЕНО** администратором {callback.from_user.full_name}",
+        f"{callback.message.text}\n\n🚫 **ОТКЛОНЕНО** администратором {callback.from_user.full_name}",
         parse_mode="Markdown"
     )
-    await callback.answer("Заявка отклонена!")
-
-    try:
-        await bot.send_message(
-            chat_id=target_tg_id,
-            text=(
-                "❌ **Доступ к боту класса был отклонен администратором.**\n\n"
-                "Если это произошло по ошибке или вам требуется доступ, вы можете отправить заявку повторно с помощью команды /start."
-            ),
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        print(f"Failed to notify user {target_tg_id}: {e}")
+    await callback.answer("Заявка отклонена — пользователь добавлен в бан-лист.")
 
 
 # Game challenge reject callback

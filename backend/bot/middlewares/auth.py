@@ -70,6 +70,10 @@ class AuthMiddleware(BaseMiddleware):
 
                     data["current_user"] = user
 
+                    # Забаненным пользователям (role == "rejected") бот молча не отвечает
+                    if user and user.role == "rejected":
+                        return
+
                     # Allow admin approval callbacks always
                     if isinstance(event, CallbackQuery):
                         cb_data = event.data or ""

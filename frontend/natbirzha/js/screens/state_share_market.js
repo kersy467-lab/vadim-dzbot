@@ -12,10 +12,17 @@ let stateShareRenderGeneration = 0;
 export async function renderStateShareMarket(container, showToast, onBack = () => {}) {
   const generation = ++stateShareRenderGeneration;
   const isCurrent = () => generation === stateShareRenderGeneration;
+  let tradePending = false;
   const returnToMarket = () => {
     if (isCurrent()) stateShareRenderGeneration += 1;
     onBack();
   };
+  function setTradeButtonsPending(pending) {
+    if (!isCurrent()) return;
+    container.querySelectorAll('.state-share-buy, .state-share-sell').forEach((button) => {
+      button.disabled = pending || Number(button.dataset.max || 0) <= 0;
+    });
+  }
   container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Загрузка государственных акций…</div>';
   try {
     const [shareResult, portfolio] = await Promise.all([
@@ -58,6 +65,7 @@ export async function renderStateShareMarket(container, showToast, onBack = () =
     }
 
     async function trade(button, side) {
+      if (tradePending || !isCurrent()) return;
       const shareId = Number(button.dataset.id);
       const maxQuantity = Number(button.dataset.max || 0);
       const action = side === 'buy' ? NatAPI.buyStateShares : NatAPI.sellStateShares;
@@ -69,7 +77,8 @@ export async function renderStateShareMarket(container, showToast, onBack = () =
         showToast(`Укажите целое число от 1 до ${maxQuantity.toLocaleString('ru-RU')}.`, 'error');
         return;
       }
-      button.disabled = true;
+      tradePending = true;
+      setTradeButtonsPending(true);
       try {
         const result = await action(shareId, quantity);
         if (!isCurrent()) return;
@@ -84,11 +93,16 @@ export async function renderStateShareMarket(container, showToast, onBack = () =
         showToast(side === 'buy'
           ? `Куплено ${quantity.toLocaleString('ru-RU')} акций за ${money(result.total_cost)}.`
           : `Казна выкупила ${quantity.toLocaleString('ru-RU')} акций за ${money(result.total_proceeds)}.`, 'success');
+        tradePending = false;
         await renderStateShareMarket(container, showToast, onBack);
       } catch (error) {
         if (error?.name === 'AbortError' || !isCurrent()) return;
         showToast(escapeHtml(error.message || 'Не удалось выполнить операцию.'), 'error');
-        button.disabled = false;
+      } finally {
+        if (isCurrent()) {
+          tradePending = false;
+          setTradeButtonsPending(false);
+        }
       }
     }
   } catch (error) {

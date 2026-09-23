@@ -86,5 +86,11 @@ assert(invalidateIndex >= 0 && backCallIndex > invalidateIndex,
   'the state share back button must invalidate pending renders before returning to Market home');
 assert((marketShares.match(/addEventListener\('click', returnToMarket\)/g) || []).length === 2,
   'both the normal and load-error back buttons must invalidate pending state share renders');
+assert(marketShares.includes('let tradePending = false')
+  && marketShares.includes("container.querySelectorAll('.state-share-buy, .state-share-sell')")
+  && marketShares.includes('if (tradePending || !isCurrent()) return;')
+  && marketShares.includes('setTradeButtonsPending(true)')
+  && marketShares.includes('setTradeButtonsPending(false)'),
+  'one pending state share trade must lock all buy/sell controls and restore them on current-generation errors');
 
 console.log('State share creator and player UI contracts verified.');

@@ -117,6 +117,8 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
     for i, s in enumerate(page_students, start=start_idx):
         safe_disp = escape_md(s.display_name)
         uname = f" (@{escape_md(s.username)})" if s.username else ""
+        ege_nick = getattr(s, "ege_nickname", None)
+        ege_str = f" «{escape_md(ege_nick)}»" if ege_nick else ""
 
         badges = []
         if s.role == "admin":
@@ -132,7 +134,7 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
 
         badge_str = f" [{' '.join(badges)}]" if badges else ""
         role_label = "Админ" if s.role == "admin" else "Ученик"
-        lines.append(f"{i}. {safe_disp}{uname} — {role_label}{badge_str}")
+        lines.append(f"{i}. {safe_disp}{uname}{ege_str} — {role_label}{badge_str}")
 
         # 1-й ряд: ник с карандашом
         buttons.append([

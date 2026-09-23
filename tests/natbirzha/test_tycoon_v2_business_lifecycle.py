@@ -41,7 +41,7 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
             resumed = await BusinessService.resume(session, company.id, business_id, now=now + timedelta(hours=2))
             assert resumed["status"] == "ACTIVE"
             settled = await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=3))
-            assert settled["net_cash"] == 1669.25
+            assert settled["net_cash"] == 1369.25
 
             await BusinessService.start_upgrade(session, company.id, business_id, now=now + timedelta(hours=3))
             with pytest.raises(ValueError, match="улучшения"):

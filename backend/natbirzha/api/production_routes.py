@@ -91,6 +91,8 @@ async def get_factories(
     factories = fac_res.scalars().all()
     inv_res = await session.execute(select(NatInventory).where(NatInventory.company_id == company.id))
     available_inventory = {row.item_id: row.available_quantity for row in inv_res.scalars().all()}
+    from backend.natbirzha.config import normalize_dt, get_game_now
+    now = normalize_dt(get_game_now())
     utc_now = datetime.utcnow()
     license_res = await session.execute(
         select(NatPremiumLicense.license_code).where(
@@ -101,8 +103,6 @@ async def get_factories(
         )
     )
     active_license_codes = set(license_res.scalars().all())
-    from backend.natbirzha.config import normalize_dt, get_game_now
-    now = normalize_dt(get_game_now())
     from backend.natbirzha.services.building_catalog import get_building_spec
     items = []
     for f in factories:
@@ -134,7 +134,9 @@ async def get_factories(
             "current_recipe": f.current_recipe,
             "default_recipe": spec.get("recipe_id") or next((k for k, v in RECIPES.items() if v.get("factory_type") == f.building_type), None),
             "cycle_duration": spec.get("cycle_duration", 60),
-            "upgrade_options": BuildingService.describe_upgrades(f, company),
+            "upgrade_options": await BuildingService.get_upgrade_options(
+                session, company, f
+            ),
             "cycle_started_at": _format_dt_iso(f.cycle_started_at),
             "cycle_ready_at": _format_dt_iso(f.cycle_ready_at),
             "last_produced_at": _format_dt_iso(f.last_produced_at),

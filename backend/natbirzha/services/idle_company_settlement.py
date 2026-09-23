@@ -1,13 +1,13 @@
 """Company-level orchestration for lazy V2 settlement and tax enforcement."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Type
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.catalogs.businesses import get_business_spec
-from backend.natbirzha.config import normalize_dt
+from backend.natbirzha.config import get_game_tz, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
@@ -60,6 +60,48 @@ async def settle_company(
         business for business in businesses
         if not (get_business_spec(business.business_type) or {}).get("legacy_hidden")
     ]
+    # PVC licenses are stored in UTC; settlement timestamps use the configured
+    # game timezone. Compare the same instant and freeze leased businesses
+    # without production back-pay when their contract expires.
+    license_now = current.replace(tzinfo=get_game_tz()).astimezone(timezone.utc).replace(tzinfo=None)
+    expired_contract_ids: set[int] = set()
+    for business in visible:
+        metadata = dict(business.metadata_json or {})
+        license_code = metadata.get("contract_license")
+        if not license_code:
+            continue
+        from backend.natbirzha.services.premium_service import PremiumService
+
+        license_active = await PremiumService.is_license_active(
+            session, company.id, str(license_code), now=license_now
+        )
+        spec = get_business_spec(business.business_type)
+        ready_at = normalize_dt(business.upgrade_ready_at)
+        if license_active:
+            if metadata.pop("contract_expired", None):
+                resume_status = metadata.pop("contract_resume_status", "ACTIVE")
+                business.metadata_json = metadata
+                if business.status == "PAUSED_MANUAL":
+                    business.status = resume_status if resume_status in {
+                        "ACTIVE", "PAUSED_MANUAL", "PAUSED_SUPPLY",
+                        "PAUSED_MAINTENANCE", "PAUSED_STORAGE",
+                    } else "ACTIVE"
+            continue
+        if not metadata.get("contract_expired"):
+            metadata["contract_resume_status"] = (
+                metadata.get("upgrade_resume_status", "ACTIVE")
+                if business.status == "UPGRADING"
+                else business.status
+            )
+        metadata["contract_expired"] = True
+        business.metadata_json = metadata
+        if spec and business.status == "UPGRADING" and ready_at and ready_at <= current:
+            engine._finish_due_upgrade(business, spec)
+        if business.status != "UPGRADING":
+            business.status = "PAUSED_MANUAL"
+        business.last_settled_at = current
+        expired_contract_ids.add(business.id)
+
     cap_hours = engine.offline_cap_hours(company)
     tax = await TaxService.summary(session, company.id, today=current.date())
     if tax["blocked"]:
@@ -92,6 +134,8 @@ async def settle_company(
     completed_upgrades: list[int] = []
     xp_gain = 0
     for business in businesses:
+        if business.id in expired_contract_ids:
+            continue
         spec = get_business_spec(business.business_type)
         if not spec:
             continue

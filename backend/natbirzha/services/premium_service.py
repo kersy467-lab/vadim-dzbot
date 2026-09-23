@@ -138,6 +138,16 @@ class PremiumService:
         now = now or datetime.utcnow()
         debit_type = "license_purchase"
 
+        contract_service = None
+        if license_code == "rare_mining":
+            from backend.natbirzha.services.premium_contract_service import PremiumContractService
+
+            contract_service = PremiumContractService
+            try:
+                await contract_service.validate_rare_mining_purchase(session, company_id)
+            except ValueError as exc:
+                raise PremiumError(str(exc)) from exc
+
         existing_operation = await cls._operation_by_key(session, operation_key)
         if existing_operation is not None:
             cls._validate_replay(
@@ -194,6 +204,15 @@ class PremiumService:
             license_row.purchase_ledger_id = ledger.id
             license_row.updated_at = now
         await session.flush()
+        if contract_service is not None:
+            try:
+                from backend.natbirzha.config import get_game_now
+
+                await contract_service.grant_rare_mining_business(
+                    session, company_id, now=get_game_now()
+                )
+            except ValueError as exc:
+                raise PremiumError(str(exc)) from exc
         return license_row
 
     @staticmethod

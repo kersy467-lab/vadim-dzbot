@@ -141,7 +141,7 @@ class ProductionTickEngine(ProductionAutomationMixin):
         if required_license:
             try:
                 await PremiumService.require_active_license(
-                    session, company.id, required_license, now=current
+                    session, company.id, required_license
                 )
             except PremiumLicenseRequired:
                 return {

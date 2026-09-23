@@ -36,7 +36,10 @@ async def run_async() -> None:
         session.add_all(users)
         await session.flush()
         companies = [
-            NatCompany(user_id=users[0].id, name="API Corp One", specialization="miner"),
+            NatCompany(
+                user_id=users[0].id, name="API Corp One", specialization="miner",
+                level=60, territory_tiles=20,
+            ),
             NatCompany(user_id=users[1].id, name="API Corp Two", specialization="agrarian"),
         ]
         session.add_all(companies)

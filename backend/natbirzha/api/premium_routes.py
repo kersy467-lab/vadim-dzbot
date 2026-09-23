@@ -1,5 +1,6 @@
 """HTTP contract for Pivocoin wallets and premium licenses."""
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -7,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
+from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.premium import NatPremiumLedgerEntry, NatPremiumLicense
 from backend.natbirzha.services.auth_service import get_current_company
@@ -24,10 +26,14 @@ router = APIRouter(prefix="/premium", tags=["Natbirzha Premium"])
 
 
 def _serialize_license(row: NatPremiumLicense) -> dict:
+    def utc_iso(value: datetime) -> str:
+        aware = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+        return aware.isoformat()
+
     return {
         "code": row.license_code,
-        "starts_at": row.starts_at.isoformat(),
-        "expires_at": row.expires_at.isoformat(),
+        "starts_at": utc_iso(row.starts_at),
+        "expires_at": utc_iso(row.expires_at),
         "status": row.status,
     }
 
@@ -178,6 +184,25 @@ async def purchase_license(
             "balance": company.pvc_balance,
             "license": _serialize_license(license_row),
         }
+        if license_code == "rare_mining":
+            business = await session.scalar(
+                select(NatBusiness)
+                .where(
+                    NatBusiness.company_id == company.id,
+                    NatBusiness.business_type == "lithium_quarry_v2",
+                )
+                .order_by(NatBusiness.id)
+                .limit(1)
+            )
+            response["contract"] = {
+                "factory_granted": business is not None,
+                "business_granted": business is not None,
+                "business_id": business.id if business is not None else None,
+                "business_type": "lithium_quarry_v2",
+                "price_cash": 0,
+                "stage": business.stage if business is not None else None,
+                "progress_preserved": bool(business and business.stage > 1),
+            }
         return await IdempotencyService.commit_response(
             session, company.user_id, endpoint, idempotency_key, payload, response
         )

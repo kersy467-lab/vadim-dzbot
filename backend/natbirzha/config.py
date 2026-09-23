@@ -80,7 +80,7 @@ class NatbirzhaSettings(BaseSettings):
     IPO_CASH_DISCOUNT: float = 0.85
     IPO_REQUIRE_FINANCIAL_HISTORY: bool = False  # Configurable IPO eligibility rule
     IPO_MIN_DIVIDEND_PCT: float = 5.0
-    IPO_MAX_DIVIDEND_PCT: float = 50.0
+    IPO_MAX_DIVIDEND_PCT: float = 100.0
     STOCK_VALUATION_REFRESH_MINUTES: int = 10
 
     # Dividends

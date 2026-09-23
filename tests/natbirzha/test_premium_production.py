@@ -1,7 +1,7 @@
 """Premium rare-resource production gates without market paywalls."""
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -48,13 +48,25 @@ async def run_async() -> None:
             session, miner.id, 500, "test_credit", "premium-production-credit", {}
         )
         now = get_game_now()
+        license_now = datetime.utcnow()
         await PremiumService.purchase_license(
-            session, miner.id, "rare_mining", "rare-license-1", now=now
+            session, miner.id, "rare_mining", "rare-license-1", now=license_now
         )
-        lithium_build = await BuildingService.build_factory(
+        # The contract grants the visible Tycoon V2 quarry. Classic production
+        # remains available as a separately built licensed facility.
+        assert await session.scalar(
+            select(NatFactory).where(
+                NatFactory.company_id == miner.id,
+                NatFactory.building_type == "lithium_mine",
+            )
+        ) is None
+        classic_mine = await BuildingService.build_factory(
             session, miner, "lithium_mine", commit=False
         )
-        lithium_factory = await session.get(NatFactory, lithium_build["factory_id"])
+        lithium_factory = await session.scalar(
+            select(NatFactory).where(NatFactory.id == classic_mine["factory_id"])
+        )
+        assert lithium_factory is not None and lithium_factory.level == 1
 
         license_row = await session.scalar(
             select(NatPremiumLicense).where(
@@ -62,7 +74,7 @@ async def run_async() -> None:
                 NatPremiumLicense.license_code == "rare_mining",
             )
         )
-        license_row.expires_at = now - timedelta(seconds=1)
+        license_row.expires_at = license_now - timedelta(seconds=1)
         await session.flush()
         try:
             await BuildingService.build_factory(session, miner, "rare_earth_mine", commit=False)
@@ -71,10 +83,11 @@ async def run_async() -> None:
         else:
             raise AssertionError("Expired licenses must not unlock construction")
 
+        renewal_now = datetime.utcnow()
         renewed = await PremiumService.purchase_license(
-            session, miner.id, "rare_mining", "rare-license-2", now=now
+            session, miner.id, "rare_mining", "rare-license-2", now=renewal_now
         )
-        assert renewed.starts_at == now
+        assert renewed.starts_at == renewal_now
         rare_build = await BuildingService.build_factory(
             session, miner, "rare_earth_mine", commit=False
         )
@@ -84,7 +97,7 @@ async def run_async() -> None:
             session, miner, lithium_factory, "mine_lithium", now=now
         )
         assert start["success"] is True
-        license_row.expires_at = now + timedelta(seconds=1)
+        license_row.expires_at = datetime.utcnow() + timedelta(seconds=1)
         complete = await ProductionTickEngine.complete_cycle(
             session, miner, lithium_factory, now=now + timedelta(seconds=200)
         )

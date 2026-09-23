@@ -20,7 +20,7 @@ class DividendService:
         Settles daily dividends:
           - Looks up closed cash profit for the date
           - Excludes unrealized inventory/stock gains
-          - Allocates 10% pool
+          - Applies the issuer's committed 5-100% profit share
           - Deducts pool from issuer company cash (checks solvency)
           - Distributes pro-rata to all shareholders in NatStockHolding
           - Idempotent per (stock_id, settlement_date)
@@ -74,11 +74,21 @@ class DividendService:
             await session.commit()
             return {"status": "zero_profit", "stock_id": stock.id, "closed_profit": closed_profit}
 
+        holdings_res = await session.execute(
+            select(NatStockHolding).where(NatStockHolding.stock_id == stock.id)
+        )
+        holdings = holdings_res.scalars().all()
+        held_shares = sum(max(0, int(holding.shares_count)) for holding in holdings)
+        total_shares = max(1, int(stock.total_shares))
+
         dividend_rate_pct = float(
             getattr(stock, "dividend_rate_pct", nat_settings.DIVIDEND_POOL_PCT * 100)
             or nat_settings.DIVIDEND_POOL_PCT * 100
         )
-        desired_pool = round(closed_profit * dividend_rate_pct / 100, 2)
+        declared_pool = round(closed_profit * dividend_rate_pct / 100, 2)
+        # Only shares held by investors receive cash. Unsold float shares stay
+        # with the issuer instead of being debited into an unclaimed pool.
+        desired_pool = round(declared_pool * min(held_shares, total_shares) / total_shares, 2)
         dividend_pool = min(desired_pool, round(issuer_comp.cash, 2))
 
         if dividend_pool <= 0:
@@ -98,7 +108,7 @@ class DividendService:
         # Deduct dividend pool from issuer company cash (no money out of thin air)
         issuer_comp.cash = round(issuer_comp.cash - dividend_pool, 2)
 
-        per_share = round(dividend_pool / stock.total_shares, 4)
+        per_share = round(dividend_pool / held_shares, 4) if held_shares else 0.0
 
         # Record the settlement before creating immutable per-holder receipts.
         div_record = NatDividend(
@@ -115,11 +125,6 @@ class DividendService:
 
         # Distribute dividend payouts to shareholders and retain a receipt so
         # portfolio history remains correct even if shares are sold later.
-        holdings_res = await session.execute(
-            select(NatStockHolding).where(NatStockHolding.stock_id == stock.id)
-        )
-        holdings = holdings_res.scalars().all()
-
         for h in holdings:
             payout = round(h.shares_count * per_share, 2)
             if payout > 0:

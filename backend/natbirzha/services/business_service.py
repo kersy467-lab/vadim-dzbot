@@ -255,10 +255,21 @@ class BusinessService:
         spec = get_business_spec(business.business_type)
         if spec is None:
             raise ValueError("Предприятие отсутствует в игровом каталоге")
+        contract_license = (business.metadata_json or {}).get("contract_license")
+        if contract_license:
+            from backend.natbirzha.services.premium_service import PremiumService
+
+            await PremiumService.require_active_license(
+                session, company.id, str(contract_license)
+            )
         if business.status == "UPGRADING":
             raise ValueError("Улучшение уже выполняется")
-        if business.status != "ACTIVE":
-            raise ValueError("Перед улучшением предприятие должно работать")
+        resumable_statuses = {
+            "ACTIVE", "PAUSED_MANUAL", "PAUSED_SUPPLY",
+            "PAUSED_MAINTENANCE", "PAUSED_STORAGE",
+        }
+        if business.status not in resumable_statuses:
+            raise ValueError("Предприятие нельзя улучшить в текущем состоянии")
         if business.stage >= int(spec["max_stage"]):
             raise ValueError("Достигнут максимальный уровень предприятия")
 
@@ -275,6 +286,9 @@ class BusinessService:
         milestone = quote.get("milestone") or {}
         await cls._consume_resources(session, company.id, milestone.get("resources", {}))
         company.cash = round(float(company.cash) - quote["cost"], 2)
+        metadata = dict(business.metadata_json or {})
+        metadata["upgrade_resume_status"] = business.status
+        business.metadata_json = metadata
         business.status = "UPGRADING"
         business.upgrade_started_at = current
         business.upgrade_ready_at = current + timedelta(minutes=quote["duration_minutes"])
@@ -356,6 +370,8 @@ class BusinessService:
         business = await cls._lifecycle_business(session, company_id, business_id, now=now)
         if business.status != "PAUSED_MANUAL":
             raise ValueError("Возобновить можно только предприятие на ручной паузе")
+        if (business.metadata_json or {}).get("contract_expired"):
+            raise ValueError("Контракт на предприятие истёк. Продлите его в разделе PVC")
         business.status = "ACTIVE"
         await session.flush()
         return {"success": True, "business_id": business.id, "status": business.status}
@@ -365,6 +381,8 @@ class BusinessService:
         cls, session: AsyncSession, company_id: int, business_id: int, *, now: datetime | None = None
     ) -> dict[str, Any]:
         business = await cls._lifecycle_business(session, company_id, business_id, now=now)
+        if (business.metadata_json or {}).get("contract_license"):
+            raise ValueError("Контрактное предприятие нельзя продать: улучшения сохраняются при продлении")
         if business.status == "UPGRADING":
             raise ValueError("Нельзя продать предприятие во время улучшения")
         company = await cls._locked_company(session, company_id)

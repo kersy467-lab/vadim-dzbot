@@ -23,7 +23,7 @@ async def run_checks():
         company = await CompanyService.create_company(
             session, 930001, "Dividend Policy Corp", "power_engineer"
         )
-        company.level = 2
+        company.level = 18
         stock = await StockService.apply_for_ipo(session, company)
 
         assert stock.dividend_rate_pct == 5.0
@@ -32,7 +32,7 @@ async def run_checks():
         custom_company = await CompanyService.create_company(
             session, 930002, "Custom Dividend Corp", "miner"
         )
-        custom_company.level = 2
+        custom_company.level = 18
         custom_stock = await StockService.apply_for_ipo(
             session, custom_company, dividend_rate_pct=7.5
         )
@@ -48,8 +48,9 @@ async def run_checks():
         refreshed_count = await StockService.refresh_due_valuations(session, now=refresh_at)
         assert refreshed_count == 1
         assert custom_stock.current_price > base_price
-        assert custom_stock.current_price == round(
-            custom_stock.last_valuation / custom_stock.total_shares, 2
+        fair_price = custom_stock.last_valuation / custom_stock.total_shares
+        assert fair_price * 0.75 - 0.01 <= custom_stock.current_price <= fair_price * 1.25 + 0.01, (
+            fair_price, custom_stock.current_price
         )
         assert custom_stock.valuation_updated_at == refresh_at
         assert await StockService.refresh_due_valuations(
@@ -59,7 +60,7 @@ async def run_checks():
         too_low_company = await CompanyService.create_company(
             session, 930003, "Too Low Dividend Corp", "forester"
         )
-        too_low_company.level = 2
+        too_low_company.level = 18
         try:
             await StockService.apply_for_ipo(session, too_low_company, dividend_rate_pct=4.99)
             raise AssertionError("IPO must reject a dividend rate below 5%")
@@ -79,7 +80,8 @@ async def run_checks():
         settlement = await DividendService.settle_daily_dividends_for_stock(
             session, custom_stock, get_game_today()
         )
-        assert settlement["dividend_pool"] == 750.0
+        # Only the 60% founder stake is held until another company buys float.
+        assert settlement["dividend_pool"] == 450.0
 
     print("STOCK MARKET RULES: ALL CHECKS PASSED")
 

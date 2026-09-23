@@ -102,30 +102,41 @@ function assetPanel(business, catalog) {
 }
 
 function businessCard(business, summary, assetCatalog) {
-  const [label, statusClass] = statusLabel(business.status);
+  const [label, statusClass] = business.contract_expired
+    ? ['Контракт истёк', 'tycoon-status-warning']
+    : statusLabel(business.status);
   const next = business.next_upgrade;
   const isUpgrading = business.status === 'UPGRADING';
   const rest = remainingUntil(business.upgrade_ready_at);
   const profit = Number(business.estimated_profit_per_hour ?? business.net_per_hour ?? 0);
   const autonomy = business.autonomy_hours == null ? null : Number(business.autonomy_hours);
   const milestone = next?.milestone;
-  const upgrade = next && !isUpgrading
+  const upgrade = next && !isUpgrading && !business.contract_expired
     ? `<button type="button" class="tycoon-action tycoon-upgrade" data-action="upgrade" data-id="${business.id}">Улучшить до ${next.target_stage} · ${money(next.cost)} cash</button>`
     : '';
   const saleMode = business.sale_mode || null;
   const saleControl = business.mechanic === 'resource_production'
     ? `<div class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5"><div class="text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">Реализация продукции</div><div class="grid grid-cols-2 gap-2"><button type="button" class="tycoon-action ${saleMode === 'NPC' ? 'tycoon-upgrade' : 'tycoon-secondary'}" data-action="sale-mode" data-mode="NPC" data-id="${business.id}">💰 Госрезерв</button><button type="button" class="tycoon-action ${saleMode === 'HOLD' ? 'tycoon-upgrade' : 'tycoon-secondary'}" data-action="sale-mode" data-mode="HOLD" data-id="${business.id}">📦 На склад</button></div><div class="mt-1.5 text-[10px] text-slate-400">Госрезерв даёт cash автоматически. «На склад» сохраняет товар для биржи и собственных цепочек.</div></div>`
     : '';
-  const lifecycle = business.status === 'PAUSED_MANUAL'
+  const lifecycle = business.contract_expired
+    ? ''
+    : business.status === 'PAUSED_MANUAL'
     ? `<button type="button" class="tycoon-action tycoon-secondary" data-action="resume" data-id="${business.id}">Возобновить</button>`
     : (!isUpgrading && !['BANKRUPT', 'PAUSED_SUPPLY', 'MERGING'].includes(business.status)
       ? `<button type="button" class="tycoon-action tycoon-secondary" data-action="pause" data-id="${business.id}">Пауза</button>` : '');
+  const leaseNotice = business.contract_expired
+    ? '<div class="mt-3 rounded-xl border border-amber-400/50 bg-amber-50/80 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-200"><b>Производство остановлено: срок PVC-контракта истёк.</b><div class="mt-1">Уровень и улучшения сохранены. Продлите контракт в разделе «Армия → PVC», чтобы снова запустить карьер.</div></div>'
+    : '';
+  const sell = business.contract_license
+    ? ''
+    : `<button type="button" class="tycoon-action tycoon-danger" data-action="sell" data-id="${business.id}">Продать</button>`;
   return `<article class="tycoon-business-card">
     <div class="flex items-start justify-between gap-3">
       <div class="flex items-start gap-2 min-w-0"><span class="tycoon-business-icon">${esc(business.icon || '🏢')}</span><div class="min-w-0"><h3 class="tycoon-business-title">${esc(business.catalog_name || business.name || 'Предприятие')}</h3><div class="text-xs text-slate-400">Уровень ${business.stage}/${business.max_stage}</div></div></div>
       <span class="tycoon-status ${statusClass}">${label}</span>
     </div>
     <p class="mt-2 text-xs text-slate-500 dark:text-slate-300">${esc(business.description || '')}</p>
+    ${leaseNotice}
     <div class="tycoon-rate-row"><span>Оценочная прибыль</span><strong class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)} cash/ч</strong></div>
     <div class="tycoon-meter"><span style="width:${Math.max(2, Math.min(100, Number(business.stage || 1) / Math.max(1, Number(business.max_stage || 1)) * 100))}%"></span></div>
     <div class="tycoon-subgrid"><div><span>Обслуживание</span><b>${money(business.maintenance_per_hour)} cash/ч</b></div><div><span>Автономность</span><b>${autonomy == null ? 'не ограничена' : `${autonomy.toFixed(1)} ч`}</b></div></div>
@@ -136,7 +147,7 @@ function businessCard(business, summary, assetCatalog) {
     ${saleControl}
     ${supplyControls(business, summary)}
     ${assetPanel(business, assetCatalog)}
-    <div class="tycoon-actions">${upgrade}${lifecycle}<button type="button" class="tycoon-action tycoon-danger" data-action="sell" data-id="${business.id}">Продать</button></div>
+    <div class="tycoon-actions">${upgrade}${lifecycle}${sell}</div>
   </article>`;
 }
 

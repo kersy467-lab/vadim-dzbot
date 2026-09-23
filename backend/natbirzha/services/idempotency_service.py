@@ -2,6 +2,7 @@ import hashlib
 import json
 from typing import Any, Dict, Optional, Tuple
 
+from fastapi.encoders import jsonable_encoder
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -59,6 +60,7 @@ class IdempotencyService:
             if commit:
                 await session.commit()
             return
+        safe_response = jsonable_encoder(response_body)
         session.add(
             NatIdempotencyRecord(
                 user_id=user_id,
@@ -66,7 +68,7 @@ class IdempotencyService:
                 idempotency_key=idempotency_key,
                 request_hash=cls.compute_payload_hash(payload),
                 status_code=status_code,
-                response_body=response_body,
+                response_body=safe_response,
             )
         )
         if commit:
@@ -95,6 +97,7 @@ class IdempotencyService:
             await session.commit()
             return response_body
 
+        safe_response = jsonable_encoder(response_body)
         session.add(
             NatIdempotencyRecord(
                 user_id=user_id,
@@ -102,12 +105,12 @@ class IdempotencyService:
                 idempotency_key=idempotency_key,
                 request_hash=cls.compute_payload_hash(payload),
                 status_code=status_code,
-                response_body=response_body,
+                response_body=safe_response,
             )
         )
         try:
             await session.commit()
-            return response_body
+            return safe_response
         except IntegrityError:
             await session.rollback()
             cached = await cls.check_or_conflict(session, user_id, endpoint, idempotency_key, payload)

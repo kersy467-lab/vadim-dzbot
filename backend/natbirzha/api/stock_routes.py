@@ -33,7 +33,7 @@ class IPOApplyRequest(BaseModel):
     dividend_rate_pct: float = Field(
         default=5.0,
         ge=5.0,
-        le=50.0,
+        le=100.0,
         description="Daily closed-profit share committed to shareholders.",
     )
 

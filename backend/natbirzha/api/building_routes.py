@@ -5,7 +5,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
-from backend.natbirzha.config import get_game_now
 from backend.natbirzha.services.building_catalog import CANONICAL_BUILDINGS
 from backend.natbirzha.models.company import NatCompany, NatFactory
 from backend.natbirzha.services.auth_service import get_current_company
@@ -42,9 +41,7 @@ async def get_buildings_catalog(
     }
     active_licenses = {
         code for code in license_codes
-        if await PremiumService.is_license_active(
-            session, company.id, code, now=get_game_now()
-        )
+        if await PremiumService.is_license_active(session, company.id, code)
     }
     catalog = BuildingService.get_catalog_for_company(
         company,
@@ -108,7 +105,7 @@ async def get_factory_upgrades(
         "workers": fac.workers,
         "automation_level": fac.automation_level,
         "technology_level": fac.technology_level,
-        "upgrades": BuildingService.describe_upgrades(fac, company),
+        "upgrades": await BuildingService.get_upgrade_options(session, company, fac),
     }
 
 @router.post("/factories/{factory_id}/upgrade")

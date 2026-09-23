@@ -53,8 +53,15 @@ class EmpireSummaryService:
 
         is_resource = spec["mechanic"] == "resource_production"
         next_upgrade = None
-        if business.stage < int(spec["max_stage"]) and business.status == "ACTIVE":
+        upgradeable_statuses = {
+            "ACTIVE", "PAUSED_MANUAL", "PAUSED_SUPPLY",
+            "PAUSED_MAINTENANCE", "PAUSED_STORAGE",
+        }
+        if business.stage < int(spec["max_stage"]) and business.status in upgradeable_statuses:
             next_upgrade = BusinessService.upgrade_quote(spec, business.stage)
+        contract_expired = bool((business.metadata_json or {}).get("contract_expired"))
+        if contract_expired:
+            next_upgrade = None
 
         if is_resource:
             rates = resource_business_rates(
@@ -132,6 +139,8 @@ class EmpireSummaryService:
             "stage": business.stage,
             "max_stage": spec["max_stage"],
             "status": business.status,
+            "contract_expired": contract_expired,
+            "contract_license": (business.metadata_json or {}).get("contract_license"),
             "slot_weight": business.slot_weight,
             "gross_per_hour": round(gross, 2),
             "maintenance_per_hour": round(maintenance, 2),

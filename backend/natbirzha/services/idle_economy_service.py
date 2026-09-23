@@ -22,7 +22,14 @@ class IdleEconomyService:
         if business.status != "UPGRADING" or business.upgrade_target_stage is None:
             return False
         business.stage = min(max(1, int(business.upgrade_target_stage)), int(spec["max_stage"]))
-        business.status = "ACTIVE"
+        metadata = dict(business.metadata_json or {})
+        resume_status = metadata.pop("upgrade_resume_status", "ACTIVE")
+        resumable_statuses = {
+            "ACTIVE", "PAUSED_MANUAL", "PAUSED_SUPPLY",
+            "PAUSED_MAINTENANCE", "PAUSED_STORAGE",
+        }
+        business.status = resume_status if resume_status in resumable_statuses else "ACTIVE"
+        business.metadata_json = metadata
         business.upgrade_started_at = None
         business.upgrade_ready_at = None
         business.upgrade_target_stage = None

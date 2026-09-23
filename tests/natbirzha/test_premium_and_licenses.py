@@ -1,4 +1,4 @@
-"""PVC ledger and 48-hour premium-license transaction checks."""
+"""PVC ledger and time-limited premium-license transaction checks."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -20,7 +20,10 @@ async def run_async() -> None:
         await connection.run_sync(Base.metadata.create_all)
 
     async with sessions() as session:
-        company = NatCompany(user_id=910001, name="Premium Test", specialization="miner")
+        company = NatCompany(
+            user_id=910001, name="Premium Test", specialization="miner",
+            level=60, territory_tiles=20,
+        )
         session.add(company)
         await session.commit()
         company_id = company.id
@@ -80,15 +83,15 @@ async def run_async() -> None:
             now=now,
         )
         assert license_row.starts_at == now
-        assert license_row.expires_at == now + timedelta(hours=48)
+        assert license_row.expires_at == now + timedelta(hours=72)
         assert await PremiumService.is_license_active(
-            session, company_id, "rare_mining", now + timedelta(hours=47, minutes=59, seconds=59)
+            session, company_id, "rare_mining", now + timedelta(hours=71, minutes=59, seconds=59)
         )
         assert not await PremiumService.is_license_active(
-            session, company_id, "rare_mining", now + timedelta(hours=48)
+            session, company_id, "rare_mining", now + timedelta(hours=72)
         )
 
-        # Renewing before expiry stacks a full 48 hours after the current expiry.
+        # Renewing before expiry stacks a full 72 hours after the current expiry.
         renewed = await PremiumService.purchase_license(
             session,
             company_id,
@@ -96,7 +99,7 @@ async def run_async() -> None:
             "license:rare:2",
             now=now + timedelta(hours=24),
         )
-        assert renewed.expires_at == now + timedelta(hours=96)
+        assert renewed.expires_at == now + timedelta(hours=144)
         renewed_expiry = renewed.expires_at
         balance_after_renewal = company.pvc_balance
 

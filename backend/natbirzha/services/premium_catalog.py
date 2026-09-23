@@ -24,10 +24,10 @@ PREMIUM_LICENSES: Mapping[str, PremiumLicenseSpec] = MappingProxyType(
     {
         "rare_mining": PremiumLicenseSpec(
             code="rare_mining",
-            title="Лицензия редкой добычи",
-            description="Открывает литиевый и редкоземельный рудники: литий, кобальт, редкоземельные элементы и галлий на 48 часов.",
+            title="Контракт на редкую добычу",
+            description="Для покупки нужны 32-й уровень компании, 6 единиц территории и свободная мощность. На 72 часа выдаёт бесплатный литиевый карьер в разделе «Предприятия». После окончания карьер останавливается, но сохраняет уровень и улучшения до продления контракта. Также открывает классические редкие производства.",
             price_pvc=120,
-            duration_hours=48,
+            duration_hours=72,
             permitted_buildings=("lithium_mine", "rare_earth_mine"),
             permitted_recipes=("mine_lithium", "mine_rare_earths"),
             permitted_upgrades=("rare_resource_extraction",),

@@ -139,7 +139,9 @@ class BuildingService:
             "status": "ready" if is_ready else ("running" if is_running else "idle"),
             "cycle_started_at": factory.cycle_started_at.isoformat() if factory.cycle_started_at else None,
             "cycle_ready_at": factory.cycle_ready_at.isoformat() if factory.cycle_ready_at else None,
-            "upgrade_options": BuildingService.describe_upgrades(factory, company),
+            "upgrade_options": await BuildingService.get_upgrade_options(
+                session, company, factory
+            ),
         }
 
     @staticmethod
@@ -162,15 +164,14 @@ class BuildingService:
         spec = get_building_spec(building_type)
         if not spec:
             raise ValueError(f"Unknown building type: '{raw_type}'")
+
         if company.level < spec["level_required"]:
             raise ValueError(
                 f"Company level {company.level} too low. Required level: {spec['level_required']}"
             )
         required_license = spec.get("required_license")
         if required_license:
-            await PremiumService.require_active_license(
-                session, company.id, required_license, now=get_game_now()
-            )
+            await PremiumService.require_active_license(session, company.id, required_license)
 
         count_result = await session.execute(
             select(func.count(NatFactory.id)).where(NatFactory.company_id == company.id)
@@ -254,10 +255,34 @@ class BuildingService:
         if factory.cycle_ready_at:
             raise ValueError("Cannot upgrade while a production cycle is active")
 
+        spec = get_building_spec(factory.building_type) or {}
+        required_license = spec.get("required_license")
+        if required_license:
+            await PremiumService.require_active_license(session, company.id, required_license)
+
         response = await UpgradeService.upgrade(session, company, factory_id, upgrade_type)
         if commit:
             await session.commit()
         return response
+
+    @staticmethod
+    async def get_upgrade_options(
+        session: AsyncSession,
+        company: NatCompany,
+        factory: NatFactory,
+    ) -> List[Dict[str, Any]]:
+        options = BuildingService.describe_upgrades(factory, company)
+        spec = get_building_spec(factory.building_type) or {}
+        required_license = spec.get("required_license")
+        if required_license and not await PremiumService.is_license_active(
+            session, company.id, str(required_license)
+        ):
+            message = "Срок PVC-контракта истёк: продлите его, чтобы улучшать рудник"
+            return [
+                {**option, "allowed": False, "reason": message}
+                for option in options
+            ]
+        return options
 
     @staticmethod
     def describe_upgrades(factory: NatFactory, company: NatCompany) -> List[Dict[str, Any]]:

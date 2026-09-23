@@ -150,7 +150,7 @@ export async function renderStocks(container, showToast) {
         </p>
         <label class="block text-xs text-slate-400 space-y-1">
           <span class="font-bold text-slate-700 dark:text-slate-300">Обязательные дивиденды, % от чистой дневной прибыли</span>
-          <input id="ipo-dividend-rate" type="number" min="5" max="50" step="0.5" value="5" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono" />
+          <input id="ipo-dividend-rate" type="number" min="5" max="100" step="0.5" value="5" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono" />
           <span class="text-[10px]">Минимум 5%. Ниже 5% выйти на IPO нельзя.</span>
         </label>
         <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs space-y-1 font-mono">
@@ -190,8 +190,8 @@ export async function renderStocks(container, showToast) {
       btn.disabled = true;
       btn.innerText = 'Размещение...';
       const rate = Number(container.querySelector('#ipo-dividend-rate')?.value || 5);
-      if (!Number.isFinite(rate) || rate < 5 || rate > 50) {
-        throw new Error('Дивиденды при IPO должны быть от 5% до 50%.');
+      if (!Number.isFinite(rate) || rate < 5 || rate > 100) {
+        throw new Error('Дивиденды при IPO должны быть от 5% до 100%.');
       }
       await NatAPI.issueIPO({ dividend_rate_pct: rate });
       ipoModal.classList.add('hidden');

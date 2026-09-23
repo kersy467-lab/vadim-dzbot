@@ -19,7 +19,7 @@ export async function renderUpgrades(container, showToast) {
       );
       const wrapper = document.createElement('div');
       wrapper.className = 'space-y-4 max-w-md mx-auto p-4 pb-24';
-      wrapper.innerHTML = `<div><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё (${availableBusinesses.length})</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
+      wrapper.innerHTML = `<div><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
       const upgradeAllButton = wrapper.querySelector('#upgrade-all-businesses');
       upgradeAllButton?.addEventListener('click', async () => {
         upgradeAllButton.disabled = true;

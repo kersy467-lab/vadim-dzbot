@@ -37,6 +37,8 @@ class EGEDuelRoom:
         self.host_tg_id, self.host_name = int(host_tg_id), host_name
         self.opponent_tg_id = int(opponent_tg_id) if opponent_tg_id else None
         self.opponent_name = opponent_name or "Соперник"
+        self.matchmaking_search = False
+        self.matchmaking_recipient_count = 0
         self.status, self.round_size, self.sudden_round = "waiting", 10, 0
         self.answers: dict[int, list[bool]] = {self.host_tg_id: []}
         if self.opponent_tg_id:
@@ -335,6 +337,8 @@ class EGEDuelRoom:
 
         return {
             "room_id": self.room_id, "game_type": self.game_type, "status": self.status,
+            "matchmaking_search": self.matchmaking_search,
+            "matchmaking_recipient_count": self.matchmaking_recipient_count,
             "host": {"tg_id": self.host_tg_id, "name": self.host_name},
             "opponent": {"tg_id": self.opponent_tg_id, "name": self.opponent_name} if self.opponent_tg_id else None,
             "your_answers": your_answers, "opponent_answers": rival_answers,

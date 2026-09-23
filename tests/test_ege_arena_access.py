@@ -43,6 +43,7 @@ def test_only_arena_api_surface_is_public():
     assert is_public_arena_path("/api/ege/profile/notariuspiva")
     assert is_public_arena_path("/api/ege/leaderboard")
     assert is_public_arena_path("/api/ege/players")
+    assert is_public_arena_path("/api/ege/matchmaking/search")
     assert is_public_arena_path("/api/games/room/abc123")
     assert not is_public_arena_path("/api/homework")
     assert not is_public_arena_path("/api/games/classmates")

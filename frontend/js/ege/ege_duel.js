@@ -128,7 +128,7 @@
     return `<div class="space-y-3">
       <div class="text-center"><div class="text-3xl">🎓⚔️</div><h2 class="font-black text-xl">ЕГЭ Арена</h2><p class="text-xs text-slate-500">Рейтинговые дуэли по русскому языку</p></div>
       ${renderRankCard(myRating)}
-      <div class="theme-card rounded-3xl p-4 space-y-3"><div class="grid grid-cols-2 gap-2"><button onclick="window.EGE.duelType('ege_stress_duel')" class="p-3 rounded-2xl font-bold text-xs ${type === 'ege_stress_duel' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700'}">Ударения</button><button onclick="window.EGE.duelType('ege_vocabulary_duel')" class="p-3 rounded-2xl font-bold text-xs ${type === 'ege_vocabulary_duel' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700'}">Словарные слова</button></div><p class="text-[11px] text-slate-400 text-center">10 вопросов · победа +30 MMR · поражение −25 MMR</p></div>
+      <div class="theme-card rounded-3xl p-4 space-y-3"><div class="grid grid-cols-2 gap-2"><button onclick="window.EGE.duelType('ege_stress_duel')" class="p-3 rounded-2xl font-bold text-xs ${type === 'ege_stress_duel' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700'}">Ударения</button><button onclick="window.EGE.duelType('ege_vocabulary_duel')" class="p-3 rounded-2xl font-bold text-xs ${type === 'ege_vocabulary_duel' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700'}">Словарные слова</button></div><button onclick="window.EGE.findDuel()" ${sending ? 'disabled' : ''} class="w-full py-3 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-700 disabled:opacity-60">${sending ? '🔎 Ищем дуэль…' : '🔍 Найти дуэль'}</button>${sendError ? `<p class="text-xs text-red-600 text-center">${esc(sendError)}</p>` : ''}<p class="text-[11px] text-slate-400 text-center">10 вопросов · победа +30 MMR · поражение −25 MMR</p></div>
       <div class="theme-card rounded-2xl p-3 space-y-2"><div class="flex justify-between"><p class="text-xs font-bold text-slate-500">Игроки</p><button onclick="window.EGE.editArenaNickname()" class="text-[11px] text-blue-600 font-bold">✏️ Ник</button></div>${names}</div>
       ${renderTop()}
     </div>`;
@@ -213,10 +213,13 @@
     if (room.status === 'waiting') {
       clearTimer();
       const oppName = esc(room.opponent?.name || room.opponent_name || 'соперника');
+      const waitingText = room.matchmaking_search
+        ? `Сообщение отправлено игрокам рейтинга${room.matchmaking_recipient_count ? ` (${Number(room.matchmaking_recipient_count)})` : ''}. Как только кто-нибудь примет дуэль, игра начнётся.`
+        : 'Приглашение отправлено. Если соперник не отвечает, вы можете отменить вызов и вернуться в лобби.';
       return `<div class="theme-card rounded-3xl p-6 text-center space-y-4">
         <div class="text-4xl">⏳</div>
         <h3 class="font-black text-lg">Ждём ${oppName}…</h3>
-        <p class="text-xs text-slate-500">Приглашение отправлено. Если соперник не отвечает, вы можете отменить вызов и вернуться в лобби.</p>
+        <p class="text-xs text-slate-500">${waitingText}</p>
         <button onclick="window.EGE.cancelDuel()" class="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
           <span>❌ Отменить вызов</span>
         </button>
@@ -252,6 +255,20 @@
     clearLeaderboardPoll();
     room = await window.api.inviteGame(id, myName(), type, 'white', name);
     sendError = ''; startPoll(); redraw();
+  }
+
+  async function findDuel() {
+    if (sending) return;
+    clearLeaderboardPoll();
+    sending = true; sendError = ''; redraw();
+    try {
+      room = await window.api.findEgeDuel(type);
+      sendError = '';
+      startPoll();
+    } catch (error) {
+      room = null;
+      sendError = error?.message || 'Не удалось начать поиск дуэли.';
+    } finally { sending = false; redraw(); }
   }
 
   async function answer(answerValue) {
@@ -317,6 +334,7 @@
 
   window.EGE_DUEL = {
     renderDuelTab, renderArenaHome, initLobby, cleanup,
+    findDuel,
     duelType: value => { type = value; redraw(); }, invite, inviteDuel: invite,
     answer, duelAnswer: answer, duelCheck: checkVocabulary, open,
     rematch, rematchDuel: rematch, editArenaNickname: editNickname,

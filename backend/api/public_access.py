@@ -16,6 +16,7 @@ _PUBLIC_EXACT = {
     "/api/ege/leaderboard",
     "/api/ege/players",
     "/api/ege/nickname",
+    "/api/ege/matchmaking/search",
 }
 _PUBLIC_PREFIXES = ("/api/ege/profile/", "/api/games/room/")
 

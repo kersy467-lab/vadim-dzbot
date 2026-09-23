@@ -187,6 +187,12 @@ const api = {
   getEgePlayers: () => apiRequest("/api/ege/players"),
   getEgeProfile: (nickname = "") => apiRequest(nickname ? `/api/ege/profile/${encodeURIComponent(nickname)}` : "/api/ege/profile"),
   setEgeNickname: (nickname) => apiRequest("/api/ege/nickname", { method: "POST", body: JSON.stringify({ nickname }) }),
+  findEgeDuel: (gameType = "ege_stress_duel") =>
+    apiRequest("/api/ege/matchmaking/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ game_type: gameType })
+    }),
   createLocalGame: (gameType = "chess", hostName = "Игрок 1") =>
     apiRequest("/api/games/local", {
       method: "POST",

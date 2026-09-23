@@ -1,5 +1,9 @@
 import asyncio
+import os
+import sys
 from types import SimpleNamespace
+
+sys.path.insert(0, os.path.abspath("."))
 
 from backend.api.game_rooms import GameRoomManager
 from backend.api.public_access import is_public_arena_path
@@ -80,8 +84,8 @@ def test_only_first_invited_player_can_join_matchmaking_room():
     assert room.status == "playing"
 
 
-def test_matchmaking_messages_deleted_when_opponent_joins():
-    from backend.api.ege_matchmaking import delete_matchmaking_messages
+def test_matchmaking_messages_deleted_except_participants_and_edited_on_finish():
+    from backend.api.ege_matchmaking import delete_matchmaking_messages, edit_duel_result_messages
     manager = GameRoomManager()
     room = manager.create_room(
         host_tg_id=101,
@@ -90,21 +94,41 @@ def test_matchmaking_messages_deleted_when_opponent_joins():
     )
     room.matchmaking_search = True
     deleted = []
+    edited = []
 
     class FakeBot:
         async def send_message(self, **kwargs):
             return SimpleNamespace(message_id=777)
         async def delete_message(self, chat_id, message_id):
             deleted.append((chat_id, message_id))
+        async def edit_message_text(self, chat_id, message_id, text, reply_markup=None, parse_mode=None):
+            edited.append({"chat_id": chat_id, "message_id": message_id, "text": text, "reply_markup": reply_markup})
 
     asyncio.run(send_matchmaking_notifications(FakeBot(), room, [202, 303], "https://example.test/app"))
     assert len(room.matchmaking_messages) == 2
 
-    # Opponent joins -> delete_matchmaking_messages clears all sent notifications
-    del_count = asyncio.run(delete_matchmaking_messages(FakeBot(), room))
-    assert del_count == 2
-    assert deleted == [(202, 777), (303, 777)]
-    assert len(room.matchmaking_messages) == 0
+    # Opponent 202 joins -> non-participant 303's message is deleted, 202's message is preserved
+    room.opponent_tg_id = 202
+    room.opponent_name = "Соперник"
+    room.status = "playing"
+    del_count = asyncio.run(delete_matchmaking_messages(FakeBot(), room, keep_participants=True))
+    assert del_count == 1
+    assert deleted == [(303, 777)]
+    assert room.matchmaking_messages == [(202, 777)]
+
+    # Duel finishes -> opponent 202's message is edited to show results
+    room.status = "finished"
+    room.winner = 202
+    room.answers = {101: [True, False, True], 202: [True, True, True]}
+    room.rating_changes = {101: -25, 202: 30}
+    edit_count = asyncio.run(edit_duel_result_messages(FakeBot(), room))
+    assert edit_count == 1
+    assert len(edited) == 1
+    assert edited[0]["chat_id"] == 202
+    assert edited[0]["message_id"] == 777
+    assert "Вы победили!" in edited[0]["text"]
+    assert "Итоговый счёт" in edited[0]["text"]
+    assert "+30 MMR" in edited[0]["text"]
 
 
 def test_ege_duel_lobby_has_single_find_duel_button():
@@ -172,3 +196,20 @@ def test_search_endpoint_creates_search_room_and_schedules_broadcast(monkeypatch
     assert reused_response["room_id"] == room_id
     assert len(tasks.tasks) == 1
     manager.rooms.pop(room_id, None)
+
+
+if __name__ == "__main__":
+    test_matchmaking_is_on_public_arena_api_surface()
+
+    class MonkeyPatch:
+        def setattr(self, target, name, value):
+            setattr(target, name, value)
+
+    test_candidate_ids_come_from_ranked_arena_roster_and_respect_notifications(MonkeyPatch())
+    test_matchmaking_notification_opens_searching_player_room()
+    test_only_first_invited_player_can_join_matchmaking_room()
+    test_matchmaking_messages_deleted_except_participants_and_edited_on_finish()
+    test_ege_duel_lobby_has_single_find_duel_button()
+    test_search_endpoint_creates_search_room_and_schedules_broadcast(MonkeyPatch())
+    print("ALL MATCHMAKING UNIT TESTS PASSED!")
+

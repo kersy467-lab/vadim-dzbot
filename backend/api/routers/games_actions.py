@@ -135,6 +135,6 @@ async def cancel_game_room(
             await update_canceled_invite_message(bot, room)
         except Exception:
             pass
-    on_opponent_joined_matchmaking(room)
+    on_opponent_joined_matchmaking(room, keep_participants=False)
     return {"status": "canceled"}
 

@@ -213,7 +213,7 @@ class GameRoomManager:
         if getattr(room, "matchmaking_search", False):
             try:
                 from backend.api.ege_matchmaking import on_opponent_joined_matchmaking
-                on_opponent_joined_matchmaking(room)
+                on_opponent_joined_matchmaking(room, keep_participants=True)
             except Exception:
                 pass
         return True, "Успешное подключение"

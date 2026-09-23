@@ -208,6 +208,11 @@ async def settle_duel(session: AsyncSession, room: Any) -> None:
             "EGE rating settled room=%s winner=%s changes=%s",
             getattr(room, "room_id", "?"), winner, changes,
         )
+        try:
+            from backend.api.ege_matchmaking import on_ege_duel_finished
+            on_ege_duel_finished(room)
+        except Exception:
+            logger.debug("Failed to notify duel finished", exc_info=True)
 
 
 async def build_room_payload(session: AsyncSession, room: Any, viewer_tg_id: int | None) -> dict[str, Any]:

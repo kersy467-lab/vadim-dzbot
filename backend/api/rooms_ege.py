@@ -47,6 +47,7 @@ class EGEDuelRoom:
         self.questions: dict[int, Optional[dict]] = {}
         self.winner, self.finished_at, self.rematch_requested_by = None, None, None
         self.rating_settled, self.rating_changes, self.rating_snapshots = False, {}, {}
+        self.results_notified = False
         self.settlement_lock = asyncio.Lock()
         self.created_at = self.last_activity = time.time()
         self.player_started_at: dict[int, float] = {}
@@ -308,6 +309,7 @@ class EGEDuelRoom:
             self.answers = {self.host_tg_id: [], int(self.opponent_tg_id): []}
             self.questions, self.rematch_requested_by = {}, None
             self.rating_settled, self.rating_changes, self.rating_snapshots = False, {}, {}
+            self.results_notified = False
             self.round_size, self.sudden_round = 10, 0
             self.player_started_at, self.sudden_question_started_at = {}, {}
             self._init_deck()

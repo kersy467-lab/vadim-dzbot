@@ -69,9 +69,11 @@ async def get_me(user: Optional[User] = Depends(get_optional_webapp_user)):
 
 @router.get("/bells")
 async def get_bells(
+    response: Response,
     target_date: Optional[str] = Query(None, description="ISO format date YYYY-MM-DD"),
     session: AsyncSession = Depends(get_db_session)
 ):
+    response.headers["Cache-Control"] = "public, max-age=3600"
     if target_date:
         query_date = date.fromisoformat(target_date)
         bells = await get_bell_schedule_for_date(session, query_date)
@@ -89,7 +91,11 @@ async def get_bells(
 
 
 @router.get("/subjects")
-async def get_subjects(session: AsyncSession = Depends(get_db_session)):
+async def get_subjects(
+    response: Response,
+    session: AsyncSession = Depends(get_db_session)
+):
+    response.headers["Cache-Control"] = "public, max-age=3600"
     subjects = await get_all_subjects(session)
     return [
         {
@@ -196,7 +202,7 @@ async def get_telegram_media(file_id: str):
                 content=tg_resp.content,
                 media_type=content_type,
                 headers={
-                    "Cache-Control": "public, max-age=86400",
+                    "Cache-Control": "public, max-age=604800, immutable",
                     "Content-Disposition": f"inline; filename=\"{filename}\""
                 }
             )

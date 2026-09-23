@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260921_broker1';
 import { store } from '../state.js';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -63,19 +63,26 @@ export async function renderStateShareMarket(container, showToast, onBack = () =
       button.disabled = true;
       try {
         const result = await action(shareId, quantity);
-        const updatedCompany = await NatAPI.getMyCompany().catch(() => null);
+        let updatedCompany;
+        try {
+          updatedCompany = await NatAPI.getMyCompany();
+        } catch (error) {
+          if (error?.name === 'AbortError') throw error;
+        }
         if (updatedCompany) store.setCompany(updatedCompany);
         showToast(side === 'buy'
           ? `Куплено ${quantity.toLocaleString('ru-RU')} акций за ${money(result.total_cost)}.`
           : `Казна выкупила ${quantity.toLocaleString('ru-RU')} акций за ${money(result.total_proceeds)}.`, 'success');
         await renderStateShareMarket(container, showToast, onBack);
       } catch (error) {
-        showToast(error.message, 'error');
+        if (error?.name === 'AbortError') return;
+        showToast(escapeHtml(error.message || 'Не удалось выполнить операцию.'), 'error');
         button.disabled = false;
       }
     }
   } catch (error) {
-    showToast(error.message, 'error');
+    if (error?.name === 'AbortError') return;
+    showToast(escapeHtml(error.message || 'Не удалось загрузить государственные акции.'), 'error');
     container.innerHTML = `<div class="space-y-3 p-4"><button id="state-share-back" class="text-xs font-bold text-blue-600">← Вернуться на биржу</button><div class="glass-card rounded-2xl p-5 text-center text-xs text-rose-500">Не удалось загрузить государственные акции.</div></div>`;
     container.querySelector('#state-share-back')?.addEventListener('click', onBack);
   }

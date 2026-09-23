@@ -56,5 +56,22 @@ assert(marketShares.includes('shares_held') && marketShares.includes('state_shar
 });
 assert(marketShares.includes('escapeHtml') && creatorShares.includes('escapeHtml'),
   'creator-entered issue text must be escaped before rendering');
+assert(creatorShares.includes('showFeedback(successMessage, \'success\')')
+  && creatorShares.includes('target.textContent = message'),
+  'creator-specific success detail must be written as text content');
+const sharedApiImport = "from '../api.js?v=20260921_broker1';";
+assert(marketShares.includes(sharedApiImport) && creatorShares.includes(sharedApiImport),
+  'new screens must share the app API module instance that receives the navigation abort signal');
+assert((marketShares.match(/error\?\.name === 'AbortError'/g) || []).length >= 2,
+  'state share load and trade handlers must ignore aborted requests');
+assert(!marketShares.includes("getMyCompany().catch(() => null)")
+  && marketShares.includes("if (error?.name === 'AbortError') throw error"),
+  'balance refresh must propagate aborts to the trade handler before it can toast or redraw');
+assert(creatorShares.includes("showToast('Выпуск государственных акций создан.'")
+  && !creatorShares.includes('showToast(successMessage'),
+  'creator success toast must not interpolate the creator-entered issue title');
+assert(creatorShares.includes("showToast(escapeHtml(message), 'error')")
+  && marketShares.includes("showToast(escapeHtml(error.message || 'Не удалось выполнить операцию.'), 'error')"),
+  'dynamic creator error text must be escaped before reaching the HTML-rendered toast');
 
 console.log('State share creator and player UI contracts verified.');

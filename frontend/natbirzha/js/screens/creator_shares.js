@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260921_broker1';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -8,7 +8,6 @@ const cash = (value) => `${Number(value || 0).toLocaleString('ru-RU', { maximumF
 
 export async function loadCreatorShares(el, showToast) {
   let issues = [];
-  let feedback = '';
 
   async function reload() {
     const data = await NatAPI.getCreatorShares();
@@ -47,7 +46,7 @@ export async function loadCreatorShares(el, showToast) {
               <input id="share-dividend-rate" type="number" min="0" max="100" step="0.01" value="5" required class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white">
             </label>
           </div>
-          <div id="creator-share-feedback" role="status" class="min-h-4 text-[10px] text-emerald-400">${escapeHtml(feedback)}</div>
+          <div id="creator-share-feedback" role="status" class="min-h-4 text-[10px] text-emerald-400"></div>
           <button id="issue-state-share-btn" class="w-full rounded-xl bg-amber-500 py-2.5 font-black text-slate-950">Выпустить акции вручную</button>
         </form>
       </div>
@@ -82,12 +81,15 @@ export async function loadCreatorShares(el, showToast) {
       button.disabled = true;
       try {
         await NatAPI.issueCreatorShares({ title, purpose, volume, issue_price, projected_annual_profit, dividend_rate_pct });
-        feedback = `Выпуск «${title}» создан. Казна пополнится только по мере покупки акций.`;
-        showToast(feedback, 'success');
+        const successMessage = `Выпуск «${title}» создан. Казна пополнится только по мере покупки акций.`;
+        showToast('Выпуск государственных акций создан.', 'success');
         await reload();
+        showFeedback(successMessage, 'success');
       } catch (error) {
-        showFeedback(error.message || 'Не удалось создать выпуск.', 'error');
-        showToast(error.message, 'error');
+        if (error?.name === 'AbortError') return;
+        const message = error.message || 'Не удалось создать выпуск.';
+        showFeedback(message, 'error');
+        showToast(escapeHtml(message), 'error');
       } finally {
         if (button.isConnected) button.disabled = false;
       }

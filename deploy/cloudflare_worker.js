@@ -31,6 +31,11 @@ export default {
     const url = new URL(request.url);
     const targetUrl = new URL(url.pathname + url.search, env.ORIGIN_URL || ORIGIN_URL);
 
+    // Support WebSocket upgrade for multiplayer games (Durak, Blackjack)
+    if (request.headers.get("Upgrade") === "websocket") {
+      return fetch(targetUrl.toString(), request);
+    }
+
     // Only GET and HEAD requests can be cached
     const isGetOrHead = request.method === "GET" || request.method === "HEAD";
     const cacheRule = isGetOrHead

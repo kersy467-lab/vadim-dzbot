@@ -139,6 +139,8 @@ class EmpireSummaryService:
             "mechanic": spec["mechanic"],
             "stage": business.stage,
             "max_stage": spec["max_stage"],
+            "capital_invested": round(max(0.0, float(business.capital_invested or 0.0)), 2),
+            "sale_refund": round(max(0.0, float(business.capital_invested or 0.0)) * 0.40, 2),
             "status": business.status,
             "contract_expired": contract_expired,
             "contract_license": (business.metadata_json or {}).get("contract_license"),

@@ -12,6 +12,7 @@ from backend.natbirzha.catalogs.businesses import (
     visible_business_specs,
 )
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS, get_npc_buy_price, get_npc_sell_price
+from backend.natbirzha.services.business_service import BusinessService
 
 
 def test_v2_catalog_contains_ten_long_industry_careers() -> None:
@@ -68,9 +69,50 @@ def test_every_career_business_is_viable_through_state_fallback() -> None:
         )
         net = revenue - input_cost - float(spec["base_maintenance_per_hour"])
         assert net > 0, spec["id"]
-        actual_roi = float(spec["open_cost"]) / net
+        construction_cost = sum(
+            float(quantity) * get_npc_sell_price(item_id)
+            for item_id, quantity in spec["open_resources"].items()
+        )
+        actual_roi = (float(spec["open_cost"]) + construction_cost) / net
         target_roi = float(spec["target_open_roi_hours"])
-        assert actual_roi <= target_roi * 1.02, spec["id"]
+        assert abs(actual_roi - target_roi) <= target_roi * 0.02, spec["id"]
+
+
+def _career_profit_per_hour(spec: dict, stage: int) -> float:
+    input_multiplier = float(spec["input_growth"]) ** (stage - 1)
+    output_multiplier = float(spec["output_growth"]) ** (stage - 1)
+    for milestone_stage, milestone in spec["milestones"].items():
+        if stage >= int(milestone_stage):
+            input_multiplier *= float(milestone.get("input_multiplier", 1.0))
+            output_multiplier *= float(milestone.get("output_multiplier", 1.0))
+    revenue = sum(
+        float(quantity) * output_multiplier * get_npc_buy_price(item_id)
+        for item_id, quantity in spec["outputs_per_hour"].items()
+    )
+    inputs = sum(
+        float(quantity) * input_multiplier * get_npc_sell_price(item_id)
+        for item_id, quantity in spec["inputs_per_hour"].items()
+    )
+    return revenue - inputs - float(spec["base_maintenance_per_hour"])
+
+
+def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() -> None:
+    ordered = sorted(
+        (spec for spec in CAREER_BUSINESSES.values() if spec["specialization"] == "miner"),
+        key=lambda spec: spec["industry_order"],
+    )
+    targets = [float(spec["target_open_roi_hours"]) for spec in ordered[:12]]
+    assert targets[0] == 10
+    assert all(left < right for left, right in zip(targets, targets[1:]))
+
+    for spec in CAREER_BUSINESSES.values():
+        first_profit = _career_profit_per_hour(spec, 1)
+        stage_two_profit = _career_profit_per_hour(spec, 2)
+        opening_upgrade = BusinessService.upgrade_quote(spec, 1)
+        upgrade_payback = opening_upgrade["cost"] / (stage_two_profit - first_profit)
+        assert stage_two_profit > first_profit, spec["id"]
+        assert upgrade_payback <= float(spec["target_open_roi_hours"]), spec["id"]
+        assert _career_profit_per_hour(spec, 10) >= first_profit * 2, spec["id"]
 
 
 def test_nonstarter_enterprises_require_cross_industry_opening_resources() -> None:

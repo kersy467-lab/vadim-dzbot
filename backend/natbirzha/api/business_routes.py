@@ -71,6 +71,7 @@ def _catalog_item(spec: dict) -> dict:
         "open_resources": spec.get("open_resources", {}),
         "industry_order": spec.get("industry_order", 0),
         "starter": bool(spec.get("starter")),
+        "unique": bool(spec.get("unique", True)),
         "tags": list(spec.get("tags", ())),
     }
 

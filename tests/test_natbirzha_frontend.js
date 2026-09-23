@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+require('./natbirzha/test_tycoon_frontend_contract.js');
 
 console.log('=== [Natbirzha Test 1/5] Testing index.html markup & theme sync ===');
 const natHtml = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');

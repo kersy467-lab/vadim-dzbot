@@ -11,8 +11,8 @@ from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import get_game_now, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+from backend.natbirzha.services.business_resource_service import consume_business_resources
 from backend.natbirzha.services.progression_service import apply_xp
 
 
@@ -28,9 +28,9 @@ UPGRADE_TIME_CURVES: dict[str, tuple[int, int]] = {
 class BusinessService:
     @staticmethod
     def business_slot_limits(*, level: int, territory_tiles: int, used: int) -> dict[str, int]:
-        level_slots = sum(1 for threshold in (6, 12, 20, 30, 45, 60) if int(level) >= threshold)
+        level_slots = max(0, int(level) - 5)
         territory_slots = min(4, max(0, int(territory_tiles) // 5))
-        maximum = min(20, 3 + level_slots + territory_slots)
+        maximum = min(50, 10 + level_slots + territory_slots)
         return {"used": int(used), "max": maximum, "free": max(0, maximum - int(used))}
 
     @staticmethod
@@ -58,7 +58,8 @@ class BusinessService:
     def upgrade_quote(spec: dict[str, Any], stage: int) -> dict[str, Any]:
         current_stage = max(1, int(stage))
         target_stage = current_stage + 1
-        base_cost = max(500.0, float(spec["open_cost"]) * 0.25)
+        base_multiplier = float(spec.get("upgrade_cost_base_multiplier", 0.25))
+        base_cost = max(500.0, float(spec["open_cost"]) * base_multiplier)
         cost = base_cost * (float(spec["upgrade_cost_growth"]) ** (current_stage - 1))
         base_minutes, max_minutes = UPGRADE_TIME_CURVES[spec["upgrade_time_curve"]]
         minutes = min(max_minutes, max(1, ceil(base_minutes * (1.22 ** (current_stage - 1)))))
@@ -108,53 +109,34 @@ class BusinessService:
         )
 
     @staticmethod
-    async def _company_businesses(session: AsyncSession, company_id: int) -> dict[str, NatBusiness]:
+    async def _company_businesses(session: AsyncSession, company_id: int) -> dict[str, list[NatBusiness]]:
         rows = (await session.execute(
             select(NatBusiness)
             .where(NatBusiness.company_id == company_id, NatBusiness.status != "BANKRUPT")
             .with_for_update()
         )).scalars().all()
-        return {
-            row.business_type: row for row in rows
-            if not (get_business_spec(row.business_type) or {}).get("legacy_hidden", False)
-        }
+        businesses: dict[str, list[NatBusiness]] = {}
+        for row in rows:
+            if (get_business_spec(row.business_type) or {}).get("legacy_hidden", False):
+                continue
+            businesses.setdefault(row.business_type, []).append(row)
+        return businesses
 
     @staticmethod
     async def _consume_resources(
         session: AsyncSession, company_id: int, requirements: dict[str, float]
     ) -> None:
-        locked: dict[str, NatInventory] = {}
-        missing: list[str] = []
-        for item_id, raw_quantity in requirements.items():
-            quantity = max(0.0, float(raw_quantity))
-            if quantity <= 0:
-                continue
-            inventory = await session.scalar(
-                select(NatInventory)
-                .where(NatInventory.company_id == company_id, NatInventory.item_id == item_id)
-                .with_for_update()
-            )
-            if inventory is None or float(inventory.available_quantity) + 1e-9 < quantity:
-                missing.append(item_id)
-            elif inventory is not None:
-                locked[item_id] = inventory
-        if missing:
-            names = [CANONICAL_ITEMS.get(item_id, {}).get("name", "Неизвестный ресурс") for item_id in missing]
-            raise ValueError("Не хватает ресурсов: " + ", ".join(names))
-        for item_id, inventory in locked.items():
-            inventory.quantity = round(
-                max(0.0, float(inventory.quantity) - float(requirements[item_id])), 6
-            )
+        await consume_business_resources(session, company_id, requirements)
 
     @staticmethod
     def _validate_open_requirements(
         company: NatCompany,
         spec: dict[str, Any],
-        existing: dict[str, NatBusiness],
+        existing: dict[str, list[NatBusiness]],
     ) -> None:
         if spec.get("legacy_hidden"):
             raise ValueError("Это предприятие относится к старой версии экономики")
-        if spec.get("unique", True) and spec["id"] in existing:
+        if spec.get("unique", True) and existing.get(spec["id"]):
             raise ValueError("Это предприятие уже принадлежит вашей компании")
         if spec["specialization"] != company.specialization:
             if company.level < 30 or company.licensed_foreign_spec != spec["specialization"]:
@@ -164,8 +146,9 @@ class BusinessService:
         if int(company.territory_tiles) < int(spec.get("territory_required", 0)):
             raise ValueError(f"Требуется территория: {spec['territory_required']} ед.")
         for business_type, stage in spec.get("prerequisites", {}).items():
-            owned = existing.get(business_type)
-            if owned is None or int(owned.stage) < int(stage):
+            owned = existing.get(business_type, [])
+            highest_stage = max((int(item.stage) for item in owned), default=0)
+            if highest_stage < int(stage):
                 prereq = get_business_spec(business_type)
                 name = prereq["name"] if prereq else business_type
                 raise ValueError(f"Сначала развейте «{name}» до уровня {stage}")

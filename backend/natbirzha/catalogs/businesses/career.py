@@ -7,7 +7,7 @@ from backend.natbirzha.models.inventory import get_npc_buy_price, get_npc_sell_p
 from .schema import business_spec
 
 
-_TARGET_OPEN_ROI_HOURS = (8, 12, 18, 24, 32, 42, 54, 68, 84, 102, 122, 144)
+_TARGET_OPEN_ROI_HOURS = (10, 14, 20, 28, 38, 50, 64, 80, 98, 118, 140, 164)
 
 
 def _target_open_roi_hours(order: int) -> float:
@@ -28,6 +28,7 @@ def _calibrate_outputs(
     open_cost: float,
     maintenance_per_hour: float,
     order: int,
+    opening_resources: Mapping[str, float],
 ) -> tuple[dict[str, float], float, float]:
     """Scale declared physical output to a playable NPC fallback economy.
 
@@ -46,8 +47,12 @@ def _calibrate_outputs(
         max(0.0, float(quantity)) * get_npc_sell_price(item_id)
         for item_id, quantity in inputs.items()
     )
+    construction_cost = sum(
+        max(0.0, float(quantity)) * get_npc_sell_price(item_id)
+        for item_id, quantity in opening_resources.items()
+    )
     roi_hours = _target_open_roi_hours(order)
-    target_profit = max(150.0, float(open_cost) / roi_hours)
+    target_profit = max(150.0, (float(open_cost) + construction_cost) / roi_hours)
     target_revenue = input_cost + max(0.0, float(maintenance_per_hour)) + target_profit
     scale = max(0.25, min(1000.0, target_revenue / current_revenue))
     calibrated = {item_id: round(quantity * scale, 4) for item_id, quantity in normalized.items()}
@@ -164,15 +169,22 @@ def career_business(
     base_income_per_hour: float = 0.0,
     tags: Iterable[str] = (),
     starter: bool = False,
+    unique: bool = False,
 ) -> dict[str, Any]:
     """Create one standard long-form enterprise with 50 progression stages."""
     tier = min(5, 1 + max(0, order - 1) // 2)
     maintenance_per_hour = max(8.0, open_cost * 0.0007)
+    opening_resources = (
+        dict(open_resources)
+        if open_resources is not None
+        else _default_open_resources(order)
+    )
     calibrated_outputs, output_balance_factor, target_roi_hours = _calibrate_outputs(
         outputs, inputs,
         open_cost=open_cost,
         maintenance_per_hour=maintenance_per_hour,
         order=order,
+        opening_resources=opening_resources,
     )
     spec = business_spec(
         business_id=business_id,
@@ -186,10 +198,10 @@ def career_business(
         open_cost=open_cost,
         base_income_per_hour=base_income_per_hour,
         base_maintenance_per_hour=maintenance_per_hour,
-        income_growth=1.05,
-        input_growth=1.035,
-        output_growth=1.05,
-        upgrade_cost_growth=1.105,
+        income_growth=1.10,
+        input_growth=1.03,
+        output_growth=1.10,
+        upgrade_cost_growth=1.12,
         upgrade_time_curve="career",
         inputs_per_hour=inputs,
         outputs_per_hour=calibrated_outputs,
@@ -203,11 +215,13 @@ def career_business(
         company_level_required=level_required,
         prerequisites=prerequisites,
         territory_required=territory_required,
-        open_resources=dict(open_resources) if open_resources is not None else _default_open_resources(order),
+        open_resources=opening_resources,
         industry_order=order,
         starter=starter,
+        unique=unique,
         tags=tuple(tags),
     )
     spec["output_balance_factor"] = output_balance_factor
     spec["target_open_roi_hours"] = target_roi_hours
+    spec["upgrade_cost_base_multiplier"] = 0.05
     return spec

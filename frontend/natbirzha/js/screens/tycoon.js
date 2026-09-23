@@ -129,7 +129,7 @@ function businessCard(business, summary, assetCatalog) {
     : '';
   const sell = business.contract_license
     ? ''
-    : `<button type="button" class="tycoon-action tycoon-danger" data-action="sell" data-id="${business.id}">Продать</button>`;
+    : `<button type="button" class="tycoon-action tycoon-danger" data-action="sell" data-id="${business.id}" data-refund="${Number(business.sale_refund || 0)}" data-invested="${Number(business.capital_invested || 0)}">Продать · +${money(business.sale_refund)} cash</button>`;
   return `<article class="tycoon-business-card">
     <div class="flex items-start justify-between gap-3">
       <div class="flex items-start gap-2 min-w-0"><span class="tycoon-business-icon">${esc(business.icon || '🏢')}</span><div class="min-w-0"><h3 class="tycoon-business-title">${esc(business.catalog_name || business.name || 'Предприятие')}</h3><div class="text-xs text-slate-400">Уровень ${business.stage}/${business.max_stage}</div></div></div>
@@ -160,7 +160,9 @@ function requirementState(item, summary, owned, catalogMap) {
     missing.push(`территория ${item.territory_required}`);
   }
   Object.entries(item.prerequisites || {}).forEach(([id, stage]) => {
-    const business = owned.get(id);
+    const business = (owned.get(id) || []).reduce((best, current) => (
+      !best || Number(current.stage) > Number(best.stage) ? current : best
+    ), null);
     if (!business || Number(business.stage) < Number(stage)) {
       missing.push(`${catalogMap.get(id)?.name || 'предыдущее предприятие'} ур. ${stage}`);
     }
@@ -169,18 +171,19 @@ function requirementState(item, summary, owned, catalogMap) {
   return { available: missing.length === 0, missing };
 }
 
-function catalogCard(item, requirement, opened) {
+function catalogCard(item, requirement, ownedCount) {
   const output = resourceChips(item.outputs_per_hour, 'out');
   const firstMilestone = item.milestones?.['10'] || item.milestones?.[10];
-  const disabled = !requirement.available || opened;
+  const uniqueOwned = Boolean(item.unique) && ownedCount > 0;
+  const disabled = !requirement.available || uniqueOwned;
   return `<article class="tycoon-catalog-card ${disabled ? 'opacity-80' : ''}">
-    <div class="flex items-start justify-between gap-2"><div class="flex items-start gap-2"><span class="text-2xl">${esc(item.icon || '🏢')}</span><div><h3 class="font-black text-slate-900 dark:text-white">${esc(item.name)}</h3><p class="text-xs text-slate-500 dark:text-slate-300">50 уровней · этап ${item.industry_order}</p></div></div><span class="text-lg">${opened ? '✅' : requirement.available ? '🔓' : '🔒'}</span></div>
+    <div class="flex items-start justify-between gap-2"><div class="flex items-start gap-2"><span class="text-2xl">${esc(item.icon || '🏢')}</span><div><h3 class="font-black text-slate-900 dark:text-white">${esc(item.name)}</h3><p class="text-xs text-slate-500 dark:text-slate-300">50 уровней · этап ${item.industry_order}${ownedCount ? ` · у вас: ${ownedCount}` : ''}</p></div></div><span class="text-lg">${uniqueOwned ? '✅' : requirement.available ? '🔓' : '🔒'}</span></div>
     <p class="mt-2 text-xs text-slate-500 dark:text-slate-300">${esc(item.description || '')}</p>
     <div class="mt-2 text-xs"><span class="text-slate-400">Производит</span><div class="mt-1">${output}</div></div>
     ${firstMilestone ? `<div class="mt-2 text-xs text-amber-700 dark:text-amber-300">Первый рубеж: <b>${esc(firstMilestone.label)}</b></div>` : ''}
     ${Object.keys(item.open_resources || {}).length ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-300"><span class="text-slate-400">Ресурсы открытия:</span> ${resourceRequirements(item.open_resources)}</div>` : ''}
     <div class="mt-2 text-xs text-slate-500 dark:text-slate-300">${requirement.missing.length ? `Нужно: ${esc(requirement.missing.join(' · '))}` : `Открытие: ${money(item.open_cost)} cash`}</div>
-    <button type="button" class="tycoon-open-btn" data-action="open" data-type="${esc(item.id)}" ${disabled ? 'disabled' : ''}>${opened ? 'Уже открыто' : requirement.available ? `Открыть за ${money(item.open_cost)} cash` : 'Пока недоступно'}</button>
+    <button type="button" class="tycoon-open-btn" data-action="open" data-type="${esc(item.id)}" ${disabled ? 'disabled' : ''}>${uniqueOwned ? 'Уникальное предприятие уже открыто' : requirement.available ? `${ownedCount ? 'Открыть ещё' : 'Открыть'} за ${money(item.open_cost)} cash` : 'Пока недоступно'}</button>
   </article>`;
 }
 
@@ -192,7 +195,12 @@ function render(root, state, showToast) {
   const ownCatalog = state.catalog
     .filter((item) => item.specialization === specialization)
     .sort((a, b) => Number(a.industry_order) - Number(b.industry_order));
-  const owned = new Map(businesses.map((item) => [item.business_type, item]));
+  const owned = new Map();
+  businesses.forEach((item) => {
+    const instances = owned.get(item.business_type) || [];
+    instances.push(item);
+    owned.set(item.business_type, instances);
+  });
   const catalogMap = new Map(ownCatalog.map((item) => [item.id, item]));
   const profit = Number(summary.estimated_profit_per_hour || 0);
   const xpPercent = progression.is_max_level
@@ -211,7 +219,7 @@ function render(root, state, showToast) {
     ${Number(state.settlement?.skipped_offline_hours || 0) > 0 ? `<div class="tycoon-offline border-amber-400/40">⏱️ Лимит офлайн-работы исчерпан. Не рассчитано: ${Number(state.settlement.skipped_offline_hours).toFixed(1)} ч. Текущий лимит: ${state.settlement.offline_cap_hours || summary.offline_cap_hours || 24} ч.</div>` : ''}
     ${state.settlement?.tax?.blocked ? `<div class="tycoon-offline border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/30">⛔ Предприятия остановлены из-за просроченного налога. К оплате: <b>${money(state.settlement.tax.total_due)} cash</b>. Оплатите задолженность во вкладке «Биржа → Налог».</div>` : ''}
     <section><div class="flex items-center justify-between mb-2"><h3 class="text-lg font-black text-slate-900 dark:text-white">Ваши предприятия</h3><span class="text-xs text-slate-500 dark:text-slate-300">${businesses.length} объектов</span></div>${businesses.length ? `<div class="space-y-3">${businesses.map((business) => businessCard(business, summary, state.assetCatalog)).join('')}</div>` : `<div class="tycoon-empty">Предприятий пока нет. Откройте стартовый объект своей отрасли.</div>`}</section>
-    <section><div class="mb-2"><h3 class="text-lg font-black text-slate-900 dark:text-white">Карьерная ветка</h3><p class="text-xs text-slate-500 dark:text-slate-300">${ownCatalog.length} уникальных предприятий · по 50 уровней каждое. Чужие отрасли здесь не смешиваются.</p></div><div class="grid gap-3">${ownCatalog.map((item) => catalogCard(item, requirementState(item, summary, owned, catalogMap), owned.has(item.id))).join('')}</div></section>
+    <section><div class="mb-2"><h3 class="text-lg font-black text-slate-900 dark:text-white">Карьерная ветка</h3><p class="text-xs text-slate-500 dark:text-slate-300">${ownCatalog.length} типа предприятий · копии можно открывать повторно, если тип не уникальный. Каждое развивается до 50 уровней.</p></div><div class="grid gap-3">${ownCatalog.map((item) => catalogCard(item, requirementState(item, summary, owned, catalogMap), (owned.get(item.id) || []).length)).join('')}</div></section>
   </div>`;
   bind(root, showToast);
 }
@@ -264,7 +272,9 @@ function bind(root, showToast) {
       if (action === 'fire-employee') await NatAPI.fireBusinessEmployee(button.dataset.employeeId);
       if (action === 'start-project') await NatAPI.startBusinessProject(button.dataset.id, button.dataset.projectType);
       if (action === 'sell') {
-        if (!window.confirm('Продать предприятие и вернуть 40% вложенного капитала?')) return;
+        const invested = Number(button.dataset.invested || 0);
+        const refund = Number(button.dataset.refund || 0);
+        if (!window.confirm(`Продажа вернёт ${money(refund)} cash из ${money(invested)} вложенных. Потеря составит ${money(Math.max(0, invested - refund))} cash. Продать предприятие?`)) return;
         await NatAPI.sellBusiness(button.dataset.id);
       }
       showToast('Империя обновлена', 'success');

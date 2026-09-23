@@ -259,6 +259,15 @@ export const NatAPI = {
   buyBondListing: (listing_id) => request(`/api/natbirzha/bonds/listings/${parseInt(listing_id, 10)}/buy`, { method: 'POST' }),
   cancelBondListing: (listing_id) => request(`/api/natbirzha/bonds/listings/${parseInt(listing_id, 10)}`, { method: 'DELETE' }),
 
+  // Creator-issued state shares (fixed-price Treasury instruments)
+  getStateShares: () => request('/api/natbirzha/shares'),
+  buyStateShares: (share_id, quantity) => request(`/api/natbirzha/shares/${parseInt(share_id, 10)}/buy`, {
+    method: 'POST', body: JSON.stringify({ quantity: parseInt(quantity, 10) })
+  }),
+  sellStateShares: (share_id, quantity) => request(`/api/natbirzha/shares/${parseInt(share_id, 10)}/sell`, {
+    method: 'POST', body: JSON.stringify({ quantity: parseInt(quantity, 10) })
+  }),
+
   // Pivocoins and time-limited premium branch
   getPremiumWallet: () => request('/api/natbirzha/premium/wallet'),
   getPremiumLedger: () => request('/api/natbirzha/premium/ledger'),
@@ -282,6 +291,8 @@ export const NatAPI = {
   removeCreatorRestriction: (restriction_id) => request(`/api/natbirzha/creator/market/restrictions/${restriction_id}`, { method: 'DELETE' }),
   issueCreatorBonds: (payload) => request('/api/natbirzha/creator/bonds/issue', { method: 'POST', body: JSON.stringify(payload) }),
   getCreatorBonds: () => request('/api/natbirzha/creator/bonds'),
+  issueCreatorShares: (payload) => request('/api/natbirzha/creator/shares/issue', { method: 'POST', body: JSON.stringify(payload) }),
+  getCreatorShares: () => request('/api/natbirzha/creator/shares'),
   launchCreatorTournament: (payload = {}) => request('/api/natbirzha/creator/tournaments/launch', { method: 'POST', body: JSON.stringify(payload) }),
   getCreatorAuditLog: () => request('/api/natbirzha/creator/audit-log'),
   getCreatorPremiumLedger: (company_id = null) => request(`/api/natbirzha/creator/premium/ledger${company_id ? `?company_id=${parseInt(company_id, 10)}` : ''}`),

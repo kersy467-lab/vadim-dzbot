@@ -1,6 +1,7 @@
 import { NatAPI } from '../api.js';
 import { loadCreatorOverview } from './creator_overview.js';
 import { loadCreatorModeration } from './creator_moderation.js';
+import { loadCreatorShares } from './creator_shares.js';
 
 let activeTab = 'overview';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
@@ -32,6 +33,7 @@ export async function renderCreator(container, showToast) {
         <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="overview">🏛️ Казна</button>
         <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'market' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="market">⚖️ Модерация</button>
         <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'bonds' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="bonds">📜 Облигации</button>
+        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'shares' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="shares">📈 Акции государства</button>
         <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'tournaments' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="tournaments">⚔️ Турниры</button>
         <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'players' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="players">👥 Игроки</button>
         <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'premium' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="premium">💎 PVC</button>
@@ -85,6 +87,8 @@ export async function renderCreator(container, showToast) {
       await loadCreatorModeration(contentArea, showToast);
     } else if (activeTab === 'bonds') {
       await loadBondsTab(contentArea, showToast);
+    } else if (activeTab === 'shares') {
+      await loadCreatorShares(contentArea, showToast);
     } else if (activeTab === 'tournaments') {
       await loadTournamentsTab(contentArea, showToast);
     } else if (activeTab === 'players') {

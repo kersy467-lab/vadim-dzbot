@@ -1,5 +1,6 @@
 import { NatAPI } from '../api.js';
 import { store } from '../state.js';
+import { renderStateShareMarket } from './state_share_market.js';
 
 export async function renderStocks(container, showToast) {
   let stocksList = [];
@@ -68,6 +69,11 @@ export async function renderStocks(container, showToast) {
           </div>
         ` : ''}
       </div>
+
+      <button id="open-state-share-market" class="glass-card w-full rounded-2xl p-3 text-left shadow-sm border border-emerald-500/30">
+        <div class="text-xs font-bold text-emerald-600 dark:text-emerald-300">🏛️ Акции государства</div>
+        <div class="mt-1 text-[10px] text-slate-500">Фиксированная цена, покупки из казны и дивиденды</div>
+      </button>
 
       <!-- State Bonds -->
       <div class="glass-card rounded-2xl p-4 shadow-sm space-y-3">
@@ -174,6 +180,10 @@ export async function renderStocks(container, showToast) {
   `;
 
   // IPO Modal handlers
+  container.querySelector('#open-state-share-market')?.addEventListener('click', () => {
+    renderStateShareMarket(container, showToast, () => renderStocks(container, showToast));
+  });
+
   const ipoModal = container.querySelector('#ipo-modal');
   container.querySelector('#open-ipo-btn')?.addEventListener('click', () => {
     ipoModal.classList.remove('hidden');

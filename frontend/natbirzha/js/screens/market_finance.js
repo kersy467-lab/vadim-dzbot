@@ -2,6 +2,7 @@ import { NatAPI } from '../api.js?v=20260921_broker1';
 import { store } from '../state.js';
 import { getSpecializationName } from '../localization.js';
 import { marketChange, renderMarketChart } from '../market_chart.js';
+import { renderStateShareMarket } from './state_share_market.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
 const money = (value) => `${Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash`;
@@ -53,9 +54,12 @@ export function createMarketFinance(container, showToast, onBack) {
     const summary = portfolio.summary || {};
     const stockBody = (portfolio.stocks || []).map(row => `<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50"><div class="flex justify-between"><b>${esc(row.issuer_company)}</b><span>${row.shares_count} акций</span></div><div class="flex justify-between text-xs"><span>${money(row.market_value)}</span>${pnl(row.unrealized_pnl)}</div><div class="text-[10px] text-slate-500">Дивиденды: ${money(row.dividends_earned)} · ${row.next_dividend_at ? `следующая выплата ${new Date(row.next_dividend_at).toLocaleString('ru-RU')}` : 'выплаты недоступны'}</div></div>`).join('') || '<div class="text-xs text-slate-400">Акций пока нет</div>';
     const bondBody = (portfolio.bonds || []).map(row => `<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50"><div class="flex justify-between"><b>${esc(row.title)}</b><span>${row.quantity} шт.</span></div><div class="flex justify-between text-xs"><span>${money(row.market_value)}</span>${pnl(row.unrealized_pnl)}</div></div>`).join('') || '<div class="text-xs text-slate-400">Облигаций пока нет</div>';
+    const stateShareBody = (portfolio.state_shares || []).map(row => `<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50"><div class="flex justify-between"><b>${esc(row.title)}</b><span>${Number(row.shares_count).toLocaleString('ru-RU')} акций</span></div><div class="text-[10px] text-slate-500">${money(row.market_value)} · дивиденды ${money(row.dividends_earned)}</div></div>`).join('') || '<div class="text-xs text-slate-400">Акций государства пока нет</div>';
     const instrumentBody = (portfolio.instruments || []).map(row => `<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex justify-between"><b>${esc(NAMES[row.instrument_code] || row.instrument_code)}</b><span>${row.quantity} · ${money(row.market_value_rub)}</span></div>`).join('') || '<div class="text-xs text-slate-400">Инструментов пока нет</div>';
-    const paymentsBody = (portfolio.dividend_payments || []).slice(0, 20).map(row => `<div class="flex justify-between p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-xs"><span>${esc(row.issuer_company)} · ${row.settlement_date}</span><b>+${money(row.payout_cash)}</b></div>`).join('') || '<div class="text-xs text-slate-400">Дивидендных выплат пока не было</div>';
-    container.innerHTML = shell('Мой портфель', 'Все финансовые активы компании', `<div class="space-y-3"><div class="glass-card rounded-2xl p-4 grid grid-cols-2 gap-2 text-xs"><div><span class="text-slate-500">Баланс</span><b class="block text-base">${money(portfolio.cash)}</b></div><div><span class="text-slate-500">Стоимость активов</span><b class="block text-base">${money(summary.market_value)}</b></div><div>Результат<br>${pnl(summary.unrealized_pnl)}</div><div>Выплаты<br><b>${money(Number(summary.dividends_earned || 0) + Number(summary.coupons_earned || 0))}</b></div></div><details class="glass-card rounded-2xl p-4" open><summary class="font-black">📈 Акции</summary><div class="space-y-2 pt-3">${stockBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">🏛️ Облигации</summary><div class="space-y-2 pt-3">${bondBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">💱 Валюты и металлы</summary><div class="space-y-2 pt-3">${instrumentBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">💸 История дивидендов</summary><div class="space-y-2 pt-3">${paymentsBody}</div></details></div>`);
+    const publicPayments = (portfolio.dividend_payments || []).slice(0, 20).map(row => `<div class="flex justify-between p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-xs"><span>${esc(row.issuer_company)} · ${esc(row.settlement_date)}</span><b>+${money(row.payout_cash)}</b></div>`).join('');
+    const stateSharePayments = (portfolio.state_share_dividend_payments || []).slice(0, 20).map(row => `<div class="flex justify-between p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-xs"><span>${esc(row.title)} · ${esc(row.settlement_date)}</span><b>+${money(row.payout_cash)}</b></div>`).join('');
+    const paymentsBody = publicPayments + stateSharePayments || '<div class="text-xs text-slate-400">Дивидендных выплат пока не было</div>';
+    container.innerHTML = shell('Мой портфель', 'Все финансовые активы компании', `<div class="space-y-3"><div class="glass-card rounded-2xl p-4 grid grid-cols-2 gap-2 text-xs"><div><span class="text-slate-500">Баланс</span><b class="block text-base">${money(portfolio.cash)}</b></div><div><span class="text-slate-500">Стоимость активов</span><b class="block text-base">${money(summary.market_value)}</b></div><div>Результат<br>${pnl(summary.unrealized_pnl)}</div><div>Выплаты<br><b>${money(Number(summary.dividends_earned || 0) + Number(summary.coupons_earned || 0))}</b></div></div><details class="glass-card rounded-2xl p-4" open><summary class="font-black">📈 Акции</summary><div class="space-y-2 pt-3">${stockBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">🏛️ Облигации</summary><div class="space-y-2 pt-3">${bondBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">🏛️ Акции государства</summary><div class="space-y-2 pt-3">${stateShareBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">💱 Валюты и металлы</summary><div class="space-y-2 pt-3">${instrumentBody}</div></details><details class="glass-card rounded-2xl p-4"><summary class="font-black">💸 История дивидендов</summary><div class="space-y-2 pt-3">${paymentsBody}</div></details></div>`);
     bindBack();
   }
 
@@ -74,6 +78,10 @@ export function createMarketFinance(container, showToast, onBack) {
       event.currentTarget.disabled = true;
       try { await NatAPI.issueIPO({ dividend_rate_pct: rate }); stockHistoryCache.clear(); store.setCompany(await NatAPI.getMyCompany()); await load(); showToast('Компания вышла на IPO', 'success'); renderStocks(); } catch (error) { showToast(error.message, 'error'); event.currentTarget.disabled = false; }
     });
+  }
+
+  function renderStateShares() {
+    return renderStateShareMarket(container, showToast, onBack);
   }
 
   async function renderStockDetail(id) {
@@ -138,5 +146,5 @@ export function createMarketFinance(container, showToast, onBack) {
     container.querySelectorAll('.reference-trade').forEach(btn => btn.addEventListener('click', async () => { const qty = parseFloat(prompt('Количество:', '1')); if (!qty) return; try { await NatAPI.tradeReferenceInstrument(code, btn.dataset.side, qty); await load(); showToast('Сделка исполнена', 'success'); renderReferenceDetail(code); } catch (error) { showToast(error.message, 'error'); } }));
   }
 
-  return { load, renderPortfolio, renderStocks, renderBonds, renderReference };
+  return { load, renderPortfolio, renderStocks, renderStateShares, renderBonds, renderReference };
 }

@@ -1,0 +1,60 @@
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+
+const root = path.join(__dirname, '../..');
+const read = (relativePath) => {
+  const fullPath = path.join(root, relativePath);
+  return fs.existsSync(fullPath) ? fs.readFileSync(fullPath, 'utf8') : '';
+};
+
+const api = read('frontend/natbirzha/js/api.js');
+const creator = read('frontend/natbirzha/js/screens/creator.js');
+const creatorShares = read('frontend/natbirzha/js/screens/creator_shares.js');
+const stocks = read('frontend/natbirzha/js/screens/stocks.js');
+const marketShares = read('frontend/natbirzha/js/screens/state_share_market.js');
+const marketFinance = read('frontend/natbirzha/js/screens/market_finance.js');
+const market = read('frontend/natbirzha/js/screens/market.js');
+
+[
+  'getStateShares', 'buyStateShares', 'sellStateShares',
+  'getCreatorShares', 'issueCreatorShares',
+].forEach((method) => assert(api.includes(`${method}:`), `NatAPI must expose ${method}`));
+[
+  "request('/api/natbirzha/shares')",
+  "request('/api/natbirzha/creator/shares')",
+  "request('/api/natbirzha/creator/shares/issue'",
+].forEach((endpoint) => assert(api.includes(endpoint), `NatAPI must use ${endpoint}`));
+
+assert(creator.includes('data-tab="shares"') && creator.includes('loadCreatorShares'),
+  'the State panel must expose a dedicated government shares tab');
+[
+  'share-title', 'share-purpose', 'share-volume', 'share-price',
+  'share-projected-profit', 'share-dividend-rate',
+].forEach((field) => assert(creatorShares.includes(field), `state share issuance must include ${field}`));
+assert(creatorShares.includes('NatAPI.issueCreatorShares') && creatorShares.includes('NatAPI.getCreatorShares'),
+  'the State panel must manually issue shares and reload its issue list');
+assert(creatorShares.includes('не пополняет казну') && creatorShares.includes('confirm('),
+  'issuance must explain and confirm that shares themselves do not create Treasury cash');
+
+assert(stocks.includes('renderStateShareMarket'),
+  'the stock market must include a separate state share market module');
+assert(marketShares.includes('NatAPI.getStateShares') && marketShares.includes('NatAPI.getPortfolio'),
+  'the player screen must load state share issues and portfolio holdings');
+assert(marketFinance.includes('renderStateShareMarket') && marketFinance.includes('state_shares'),
+  'the reachable Market screen must open the state share market and portfolio section');
+assert(market.includes('data-section="state_shares"') && market.includes('finance.renderStateShares'),
+  'the main Market menu must provide a route to the state share market');
+assert(marketShares.includes('NatAPI.buyStateShares') && marketShares.includes('NatAPI.sellStateShares'),
+  'the player screen must let players buy from and redeem shares with the Treasury');
+assert(marketShares.includes('remaining_volume') && marketShares.includes('dividends_earned'),
+  'state share offers and holdings must show available supply and earned dividends');
+assert(marketShares.includes('shares_held') && marketShares.includes('state_share_dividend_payments'),
+  'state share screen must show the company position and past government dividends');
+['issue_price', 'projected_annual_profit', 'dividend_rate_pct'].forEach((field) => {
+  assert(marketShares.includes(field), `state share offers must show ${field}`);
+});
+assert(marketShares.includes('escapeHtml') && creatorShares.includes('escapeHtml'),
+  'creator-entered issue text must be escaped before rendering');
+
+console.log('State share creator and player UI contracts verified.');

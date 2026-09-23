@@ -284,6 +284,13 @@
     renderGames();
   }
 
+  async function cancelChessGame() {
+    if (chessRoomId && chessState === "waiting") {
+      try { await api.cancelGame(chessRoomId); } catch (e) { console.warn("Cancel chess error:", e); }
+    }
+    leaveChessGame();
+  }
+
   function startChessPolling() {
     if (chessIsLocal || chessIsBot) return;
     stopChessPolling();
@@ -380,7 +387,7 @@
     renderHTML: renderChessHTML, init: initChess, cleanup: stopChessPolling,
     startBotChessGame, startLocalChessGame, toggleChessAutoRotate, flipChessBoardManual,
     openChessOnlineRoom, inviteChessClassmate, chessSquareClick, choosePromotion,
-    resignChessGame, requestChessRematch, cancelChessGame: leaveChessGame,
+    resignChessGame, requestChessRematch, cancelChessGame,
     leaveChessGame, backToChessLobby: leaveChessGame, filterChessClassmates,
     loadChessClassmates, refreshChessClassmates: loadChessClassmates, setChessColor
   };

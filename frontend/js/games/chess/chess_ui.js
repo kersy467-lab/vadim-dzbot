@@ -230,7 +230,7 @@
             <h3 class="text-sm font-black text-slate-800 dark:text-white">Вызов отправлен: ${escapeHtml(opp)}</h3>
             <p class="text-[11px] text-slate-400">Ждем, пока соперник примет вызов в Telegram...</p>
           </div>
-          <button onclick="(window.GAMES_CHESS || window.GAMES).leaveChessGame()" class="px-4 py-2 rounded-xl bg-rose-500/10 text-rose-600 font-bold text-xs active:scale-95">❌ Отменить вызов</button>
+          <button onclick="(window.GAMES_CHESS || window.GAMES).cancelChessGame()" class="px-4 py-2 rounded-xl bg-rose-500/10 text-rose-600 font-bold text-xs active:scale-95">❌ Отменить вызов</button>
         </div>
       `;
     }

@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import User
@@ -20,6 +20,48 @@ def _room_for_user(room_id: str, user: Optional[User]):
     if not has_full_access(user) and getattr(room, "game_type", "") not in _EGE_TYPES:
         raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
     return room
+
+
+@router.post("/games/bot")
+async def create_bot_game(
+    request: Request,
+    payload: Optional[Dict[str, Any]] = Body(default=None),
+    user: Optional[User] = Depends(get_optional_webapp_user)
+):
+    """Создает игру против бота (шашки или шахматы)."""
+    if not payload:
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+
+    if not isinstance(payload, dict):
+        payload = {}
+
+    game_type = str(payload.get("game_type") or "checkers").strip().lower()
+    host_color = str(payload.get("host_color") or "white").strip().lower()
+    if host_color not in ["white", "black", "random"]:
+        host_color = "white"
+
+    if not has_full_access(user):
+        raise HTTPException(status_code=403, detail="Обычным игрокам доступны только ЕГЭ-дуэли")
+    host_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
+    host_name = user.display_name if user else payload.get("host_name", "Игрок")
+
+    from backend.api.game_rooms import chess
+    if game_type == "chess" and chess is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Шахматный режим загружается на сервере. Пожалуйста, подождите минуту!"
+        )
+
+    room = game_manager.create_bot_room(
+        host_tg_id=host_tg_id,
+        host_name=host_name,
+        game_type=game_type,
+        host_color=host_color
+    )
+    return room.to_dict(viewer_tg_id=host_tg_id)
 
 
 @router.post("/games/room/{room_id}/bot")
@@ -79,8 +121,18 @@ async def cancel_game_room(
     payload: Dict[str, Any] = {},
     user: Optional[User] = Depends(get_optional_webapp_user),
 ):
-    _room_for_user(room_id, user)
+    room = _room_for_user(room_id, user)
     viewer_tg_id = _extract_viewer_tg_id(user, request, payload=payload) or 0
     if not game_manager.cancel_room(room_id, viewer_tg_id):
         raise HTTPException(status_code=400, detail="Отменить комнату может только создатель")
+
+    from backend.bot.bot import get_current_bot
+    from backend.api.routers.games_rpg_hooks import update_canceled_invite_message
+    bot = get_current_bot()
+    if bot:
+        try:
+            await update_canceled_invite_message(bot, room)
+        except Exception:
+            pass
     return {"status": "canceled"}
+

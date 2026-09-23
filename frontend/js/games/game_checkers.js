@@ -20,30 +20,46 @@
   let isCheckersPolling = false;
   let checkersSelectedColor = "white"; // 'white' | 'black' | 'random'
   let checkersIsLocal = false;
+  let checkersIsBot = false;
   let checkersLocalAutoRotate = true;
   let checkersManualFlipped = false;
 
-  function toggleAutoRotate() {
-    checkersLocalAutoRotate = !checkersLocalAutoRotate;
-    if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.selectionChanged();
-    renderGames();
-  }
-
-  function flipBoardManual() {
-    checkersManualFlipped = !checkersManualFlipped;
-    if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred("light");
-    renderGames();
-  }
-
+  function toggleAutoRotate() { checkersLocalAutoRotate = !checkersLocalAutoRotate; window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); renderGames(); }
+  function flipBoardManual() { checkersManualFlipped = !checkersManualFlipped; window.Telegram?.WebApp?.HapticFeedback?.impactOccurred("light"); renderGames(); }
   function setColor(color) {
     if (["white", "black", "random"].includes(color)) {
-      checkersSelectedColor = color;
-      if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.selectionChanged();
-      renderGames();
+      checkersSelectedColor = color; window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); renderGames();
     }
   }
 
+  async function startBotGame(color) {
+    const chosenColor = color || checkersSelectedColor || "white";
+    checkersIsBot = true;
+    checkersIsLocal = false;
+    checkersManualFlipped = false;
+    checkersState = "loading";
+    renderGames();
+
+    try {
+      const res = await api.createBotGame("checkers", chosenColor);
+      if (res && res.room_id) {
+        checkersRoomId = res.room_id;
+        checkersRoomData = res;
+        checkersState = "playing";
+      } else {
+        alert(res?.detail || "Ошибка создания игры против бота");
+        checkersState = "lobby";
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Не удалось запустить шашки против бота");
+      checkersState = "lobby";
+    }
+    renderGames();
+  }
+
   async function startLocalGame() {
+    checkersIsBot = false;
     checkersIsLocal = true;
     checkersLocalAutoRotate = true;
     checkersManualFlipped = false;
@@ -71,6 +87,7 @@
   }
 
   async function inviteClassmate(tgId, oppName) {
+    checkersIsBot = false;
     checkersOpponentName = oppName;
     checkersState = "waiting";
     renderGames();
@@ -208,14 +225,22 @@
     checkersRoomId = null;
     checkersRoomData = null;
     checkersIsLocal = false;
+    checkersIsBot = false;
     checkersManualFlipped = false;
     checkersSelectedSquare = null;
     checkersState = "lobby";
     renderGames();
   }
 
+  async function cancelCheckersGame() {
+    if (checkersRoomId && checkersState === "waiting") {
+      try { await api.cancelGame(checkersRoomId); } catch (e) { console.warn("Cancel checkers error:", e); }
+    }
+    leaveGame();
+  }
+
   function startPolling() {
-    if (checkersIsLocal) return;
+    if (checkersIsLocal || checkersIsBot) return;
     stopPolling();
     isCheckersPolling = true;
     pollState();
@@ -230,7 +255,7 @@
   }
 
   async function pollState() {
-    if (!isCheckersPolling || !checkersRoomId || checkersIsLocal) return;
+    if (!isCheckersPolling || !checkersRoomId || checkersIsLocal || checkersIsBot) return;
     try {
       const data = await api.getGameRoom(checkersRoomId);
       handleRoomUpdate(data);
@@ -247,6 +272,7 @@
     const oldFen = checkersRoomData ? checkersRoomData.fen : null;
     const oldRematch = checkersRoomData ? checkersRoomData.rematch_requested_by : null;
     checkersRoomData = data;
+    checkersIsBot = !!data.is_bot;
 
     if (data.active_jump_piece) {
       checkersSelectedSquare = data.active_jump_piece;
@@ -343,7 +369,11 @@
     init: initCheckers,
     cleanup: function() { stopPolling(); },
     renderHTML: renderHTML,
+    startBotGame: startBotGame,
+    startBotCheckersGame: startBotGame,
     startLocalGame: startLocalGame,
+    cancelCheckersGame: cancelCheckersGame,
+    cancelGame: cancelCheckersGame,
     toggleAutoRotate: toggleAutoRotate,
     flipBoardManual: flipBoardManual,
     setColor: setColor,
@@ -353,7 +383,7 @@
     resignGame: resignGame,
     requestRematch: requestRematch,
     leaveGame: leaveGame,
-    filterClassmates: function(val) { checkersClassmatesFilter = val; renderGames(); },
+    filterClassmates: (val) => { checkersClassmatesFilter = val; renderGames(); },
     loadClassmates: loadClassmates
   };
 })();

@@ -223,6 +223,22 @@ async def invite_opponent_to_game(
                         f"⚡ Готов сыграть партию на перемене?"
                     )
                     btn_text = "♟️ Принять вызов и играть"
+                elif game_type == "checkers":
+                    game_url = f"{base_url}{separator}room={room.room_id}&game=checkers&tg_user_id={opponent_tg_id}"
+                    host_color_actual = getattr(room, "host_color", "white")
+                    if host_color_actual == "black":
+                        color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>"
+                    else:
+                        color_line = "Твой цвет: <b>Черные ⚫</b>"
+                    if host_color == "random":
+                        color_line += "\n<i>(Цвета определены случайным образом 🎲)</i>"
+
+                    invite_text = (
+                        f"⚪⚫ <b>{escaped_host_name}</b> вызывает тебя на <b>Партию в шашки</b>!\n"
+                        f"{color_line}\n\n"
+                        f"⚡ Готов сразиться на перемене?"
+                    )
+                    btn_text = "⚪⚫ Принять вызов и играть"
                 else:
                     game_url = f"{base_url}{separator}room={room.room_id}&game=tictactoe&tg_user_id={opponent_tg_id}"
                     invite_text = (
@@ -256,7 +272,8 @@ async def invite_opponent_to_game(
                     bot,
                     opponent_tg_id,
                     invite_text,
-                    kb
+                    kb,
+                    room
                 )
                 bot_notified = True
             except Exception as e:

@@ -16,9 +16,9 @@
         <div class="w-16 h-16 rounded-3xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl mx-auto animate-pulse">⚪⚫</div>
         <div class="space-y-1.5">
           <h3 class="text-sm font-black text-slate-800 dark:text-white">Вызов отправлен: ${escapeHtml(name)}</h3>
-          <p class="text-[11px] text-slate-400 max-w-xs mx-auto">Бот отправил приглашение. Ждем подтверждения...</p>
+          <p class="text-[11px] text-slate-400 max-w-xs mx-auto">Ждем, пока соперник примет вызов в Telegram...</p>
         </div>
-        <button onclick="window.GAMES.leaveCheckersGame()" class="px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 font-bold text-xs active:scale-95">❌ Отменить вызов</button>
+        <button onclick="(window.GAMES_CHECKERS || window.GAMES).cancelCheckersGame()" class="px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 font-bold text-xs active:scale-95">❌ Отменить вызов</button>
       </div>
     `;
   }
@@ -36,6 +36,7 @@
 
   function renderPlaying(ctx) {
     const { data, isLocal, autoRotate, manualFlipped, selectedSquare } = ctx;
+    const isBot = !!data?.is_bot;
     let isFlipped = isLocal ? (autoRotate ? (data?.turn === "black") : false) : (data?.your_role === "black");
     if (manualFlipped) isFlipped = !isFlipped;
 
@@ -63,7 +64,8 @@
       } else if (isYourTurn) {
         statusHTML = `<div class="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-extrabold animate-pulse">🟢 Твой ход (${yourRole === 'white' ? 'Белые ⚪' : 'Черные ⚫'})</div>`;
       } else {
-        statusHTML = `<div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 text-xs font-bold">⏳ Ход соперника...</div>`;
+        const oppLabel = isBot ? "🤖 Бот думает..." : "⏳ Ход соперника...";
+        statusHTML = `<div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 text-xs font-bold">${oppLabel}</div>`;
       }
     }
 
@@ -90,6 +92,13 @@
         </div>
       ` : ''}
 
+      ${isBot ? `
+        <div class="flex items-center justify-between p-2 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+          <span class="flex items-center gap-1.5"><span>🤖</span> Шашечный Бот (ИИ)</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">Minimax</span>
+        </div>
+      ` : ''}
+
       ${statusHTML}
       ${boardHTML}
 
@@ -97,7 +106,7 @@
         ${!isFinished ? `
           <button onclick="window.GAMES.resignCheckersGame()" class="px-3 py-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold">🏳️ Сдаться</button>
         ` : `
-          <button onclick="window.GAMES.requestCheckersRematch()" class="flex-1 py-2.5 mr-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md active:scale-95">🔄 Реванш</button>
+          <button onclick="window.GAMES.requestCheckersRematch()" class="flex-1 py-2.5 mr-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md active:scale-95">🔄 Реванш ${isBot ? '(со сменой сторон)' : ''}</button>
         `}
         <button onclick="window.GAMES.leaveCheckersGame()" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold active:scale-95">🚪 Выход</button>
       </div>
@@ -112,6 +121,25 @@
 
     return `
       <div class="space-y-3">
+        <!-- 1. Игра против бота (ИИ) -->
+        <div class="p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-slate-100 dark:to-slate-800/80 border border-amber-500/30 text-left space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+              <span>🤖</span> Игра против бота
+            </span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+              ⚡ Minimax 3 шага
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">Тренируйся против умного алгоритма русских шашек</p>
+          <div class="grid grid-cols-3 gap-1.5 pt-0.5">
+            <button onclick="(window.GAMES_CHECKERS || window.GAMES).startBotCheckersGame('white')" class="py-2 rounded-xl bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-xs shadow-sm border border-slate-200 dark:border-slate-600 hover:border-amber-400 active:scale-95 transition-all">⚪ За белых</button>
+            <button onclick="(window.GAMES_CHECKERS || window.GAMES).startBotCheckersGame('random')" class="py-2 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs shadow-md transition-all">🎲 Случайно</button>
+            <button onclick="(window.GAMES_CHECKERS || window.GAMES).startBotCheckersGame('black')" class="py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm active:scale-95 transition-all">⚫ За чёрных</button>
+          </div>
+        </div>
+
+        <!-- 2. Локальная игра на одном телефоне -->
         <div class="p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 text-left space-y-2 shadow-sm">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5 font-black text-xs text-slate-800 dark:text-white">

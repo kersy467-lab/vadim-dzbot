@@ -232,3 +232,14 @@ class CheckersBoard:
         if not self.is_game_over():
             return None
         return "black" if self.turn == "white" else "white"
+
+    def clone(self) -> "CheckersBoard":
+        """Создает быструю поверхностную копию доски."""
+        new_board = CheckersBoard.__new__(CheckersBoard)
+        new_board.board = [row[:] for row in self.board]
+        new_board.turn = self.turn
+        new_board.active_jump_piece = self.active_jump_piece
+        new_board.captured_in_turn = self.captured_in_turn[:]
+        new_board.move_history = self.move_history[:]
+        return new_board
+

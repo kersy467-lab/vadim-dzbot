@@ -287,8 +287,8 @@ async def run_all_tests():
     print("[OK] Rematch endpoint verified via API.")
 
     # API 7: Cancel room (clean up)
-    cancel_room = game_manager.create_room(901, "A", 902, "B", game_type="chess")
-    resp = client.post(f"/api/games/room/{cancel_room.room_id}/cancel", headers={"X-Telegram-User-Id": "901"})
+    cancel_room = game_manager.create_room(777001, "A", 777002, "B", game_type="chess")
+    resp = client.post(f"/api/games/room/{cancel_room.room_id}/cancel", headers={"X-Telegram-User-Id": "777001"})
     assert resp.status_code == 200
     assert resp.json()["status"] == "canceled"
     assert game_manager.get_room(cancel_room.room_id).status == "canceled"
@@ -296,9 +296,9 @@ async def run_all_tests():
 
     # API 8: Bot reject callback test
     from backend.bot.handlers.start import callback_game_reject
-    reject_room = game_manager.create_room(901, "A", 902, "B", game_type="chess")
+    reject_room = game_manager.create_room(777001, "A", 777002, "B", game_type="chess")
     mock_call = MagicMock()
-    mock_call.from_user.id = 902
+    mock_call.from_user.id = 777002
     mock_call.data = f"game_reject:{reject_room.room_id}"
     mock_call.message.edit_text = AsyncMock()
     mock_call.answer = AsyncMock()

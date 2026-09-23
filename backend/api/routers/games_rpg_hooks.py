@@ -1,3 +1,4 @@
+import html
 import asyncio
 import logging
 from typing import Optional, Dict, Any, Tuple
@@ -29,15 +30,66 @@ def get_public_webapp_url(request: Request) -> str:
 
     return configured or "https://t.me"
 
+async def update_canceled_invite_message(bot, room: Any) -> bool:
+    """Updates the recipient's invite message in Telegram when challenge is canceled."""
+    if not bot or not room:
+        return False
+    msg_id = getattr(room, "invite_msg_id", None)
+    chat_id = getattr(room, "invite_chat_id", None) or getattr(room, "opponent_tg_id", None)
+    if not msg_id or not chat_id:
+        return False
+
+    gt = getattr(room, "game_type", "")
+    host_name = getattr(room, "host_name", "Соперник")
+    escaped_host_name = html.escape(str(host_name))
+
+    if gt == "chess":
+        game_name = "Шахматы"
+    elif gt == "checkers":
+        game_name = "Шашки"
+    elif gt == "ege_stress_duel":
+        game_name = "ЕГЭ-дуэль (ударения)"
+    elif gt == "ege_vocabulary_duel":
+        game_name = "ЕГЭ-дуэль (словарные слова)"
+    elif gt == "rpg_duel":
+        game_name = "Dota 2 PvP Дуэль"
+    elif gt == "rpg_coop":
+        game_name = "Рейд на босса"
+    else:
+        game_name = "Крестики-нолики"
+
+    text = (
+        f"❌ <b>Вызов на игру отменен</b>\n\n"
+        f"<b>{escaped_host_name}</b> отменил(а) вызов на игру в <b>{game_name}</b>."
+    )
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=msg_id,
+            text=text,
+            reply_markup=None,
+            parse_mode="HTML"
+        )
+        logger.info(f"Updated canceled invite message for room {getattr(room, 'room_id', '')} in chat {chat_id}")
+        return True
+    except Exception as e:
+        logger.warning(f"Could not edit canceled invite message for room {getattr(room, 'room_id', '')}: {e}")
+        return False
+
 async def send_game_invite_notification(
     bot,
     opponent_tg_id: int,
     invite_text: str,
-    reply_markup
+    reply_markup,
+    room: Optional[Any] = None
 ):
     """Sends invitation to opponent in the background without blocking the HTTP request."""
     try:
-        await asyncio.wait_for(
+        if room is not None and getattr(room, "status", None) == "canceled":
+            logger.info("Room was canceled before invite message was sent. Skipping.")
+            return
+
+        sent_msg = await asyncio.wait_for(
             bot.send_message(
                 chat_id=opponent_tg_id,
                 text=invite_text,
@@ -45,9 +97,16 @@ async def send_game_invite_notification(
             ),
             timeout=8.0
         )
-        logger.info(f"Game invitation notification sent to {opponent_tg_id}")
+        if room is not None and sent_msg:
+            room.invite_msg_id = getattr(sent_msg, "message_id", None)
+            room.invite_chat_id = opponent_tg_id
+            logger.info(f"Game invitation notification sent to {opponent_tg_id}, msg_id={room.invite_msg_id}")
+
+            if getattr(room, "status", None) == "canceled":
+                await update_canceled_invite_message(bot, room)
     except Exception as e:
         logger.warning(f"Could not deliver game invitation to {opponent_tg_id}: {e}")
+
 
 
 async def prepare_rpg_hero_data(session: AsyncSession, user: Optional[User], host_name: str) -> Optional[Dict[str, Any]]:

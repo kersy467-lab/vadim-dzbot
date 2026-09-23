@@ -315,7 +315,20 @@ async def callback_game_reject(callback: CallbackQuery, bot: Optional[Bot] = Non
     bot = bot or get_current_bot()
     room = game_manager.get_room(room_id)
     gt = getattr(room, "game_type", "") if room else ""
-    game_name = "Шахматы" if gt == "chess" else ("Шашки" if gt == "checkers" else "Крестики-нолики")
+    if gt == "chess":
+        game_name = "Шахматы"
+    elif gt == "checkers":
+        game_name = "Шашки"
+    elif gt == "ege_stress_duel":
+        game_name = "ЕГЭ-дуэль (ударения)"
+    elif gt == "ege_vocabulary_duel":
+        game_name = "ЕГЭ-дуэль (словарные слова)"
+    elif gt == "rpg_duel":
+        game_name = "Dota 2 PvP Дуэль"
+    elif gt == "rpg_coop":
+        game_name = "Рейд на босса"
+    else:
+        game_name = "Крестики-нолики"
     if room:
         game_manager.reject_room(room_id, callback.from_user.id)
         if bot:

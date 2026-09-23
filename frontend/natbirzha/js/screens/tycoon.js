@@ -112,7 +112,7 @@ function businessCard(business, summary, assetCatalog) {
   const autonomy = business.autonomy_hours == null ? null : Number(business.autonomy_hours);
   const milestone = next?.milestone;
   const upgrade = next && !isUpgrading && !business.contract_expired
-    ? `<button type="button" class="tycoon-action tycoon-upgrade" data-action="upgrade" data-id="${business.id}">Улучшить до ${next.target_stage} · ${money(next.cost)} cash</button>`
+    ? `<div><button type="button" class="tycoon-action tycoon-upgrade" data-action="upgrade" data-id="${business.id}">Улучшить до ${next.target_stage} · ${money(next.cost)} cash</button><div class="mt-1 text-center text-[10px] text-indigo-600 dark:text-indigo-300">За завершение: +${50 + Number(next.target_stage) * 10} XP компании</div></div>`
     : '';
   const saleMode = business.sale_mode || null;
   const saleControl = business.mechanic === 'resource_production'
@@ -186,6 +186,7 @@ function catalogCard(item, requirement, opened) {
 
 function render(root, state, showToast) {
   const summary = state.summary || {};
+  const progression = summary.progression || {};
   const businesses = summary.businesses || [];
   const specialization = summary.specialization || store.company?.specialization;
   const ownCatalog = state.catalog
@@ -194,9 +195,18 @@ function render(root, state, showToast) {
   const owned = new Map(businesses.map((item) => [item.business_type, item]));
   const catalogMap = new Map(ownCatalog.map((item) => [item.id, item]));
   const profit = Number(summary.estimated_profit_per_hour || 0);
+  const xpPercent = progression.is_max_level
+    ? 100
+    : Math.max(0, Math.min(100, Number(progression.level_progress_pct || 0)));
   root.innerHTML = `<div class="tycoon-screen space-y-4 max-w-md mx-auto p-4 pb-24">
     <div class="tycoon-hero"><div><div class="text-xs uppercase tracking-widest text-pink-200">НАТБИРЖА · IDLE TYCOON</div><h2 class="text-2xl font-black text-white mt-1">${esc(getSpecializationName(specialization))}</h2><p class="text-xs text-pink-100/80 mt-1">Ваша отрасль — отдельная карьерная ветка. Предприятия работают постоянно, пока хватает снабжения.</p></div><span class="text-4xl">🏭</span></div>
     <div class="tycoon-stat-grid"><div class="tycoon-stat"><span>Баланс</span><b>${money(summary.cash)} cash</b></div><div class="tycoon-stat"><span>Оценочная прибыль</span><b class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)}/ч</b></div><div class="tycoon-stat"><span>Компания</span><b>ур. ${summary.level || 1}</b></div><div class="tycoon-stat"><span>Мощности</span><b>${summary.slots?.used || 0}/${summary.slots?.max || 0}</b></div><div class="tycoon-stat"><span>Крупные проекты</span><b>${summary.project_slots?.used || 0}/${summary.project_slots?.max || 1}</b></div></div>
+    <section class="rounded-2xl border border-indigo-300/50 bg-indigo-50/80 dark:bg-indigo-950/30 p-3.5" aria-label="Прогресс уровня компании">
+      <div class="flex items-center justify-between gap-2 text-xs font-bold"><span>⭐ Уровень компании ${progression.level || summary.level || 1}</span><span class="font-mono">${progression.is_max_level ? `${Number(progression.xp || 0).toLocaleString('ru-RU')} XP · максимум` : `${Number(progression.xp || 0).toLocaleString('ru-RU')} / ${Number(progression.next_level_xp || 0).toLocaleString('ru-RU')} XP`}</span></div>
+      <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-all" style="width:${xpPercent}%"></div></div>
+      ${progression.is_max_level ? `<div class="mt-1 text-[10px] text-slate-500 dark:text-slate-300">Основной уровень достиг максимума; дальше растёт мастерство.</div>` : `<div class="mt-1 text-[10px] text-slate-500 dark:text-slate-300">До уровня ${Number(progression.level || summary.level || 1) + 1}: ${Number(progression.xp_to_next || 0).toLocaleString('ru-RU')} XP.</div>`}
+      <details class="mt-2 text-[10px] text-slate-500 dark:text-slate-300"><summary class="cursor-pointer font-semibold">Как получать опыт и открыть следующее предприятие</summary><p class="mt-1">Продуктивная работа предприятия: ${Number(progression.work_xp_per_hour || 20)} XP за отработанный час; без сырья XP не идёт. Стартовые материалы рассчитаны минимум на 4 часа: это ${4 * Number(progression.work_xp_per_hour || 20)} XP. Первое улучшение до уровня 2 даёт ещё 70 XP — вместе это 150 XP и уровень компании 2. Каждое следующее завершённое улучшение даёт 50 + 10 XP за новый уровень. Открытие предприятия добавляет 75 + 25 XP за его место в отраслевой ветке. Требования к следующему заводу — уровень компании, уровень предыдущего предприятия и ресурсы — перечислены в карточке карьерной ветки.</p></details>
+    </section>
     ${state.settlement?.settled_hours > 0 ? `<div class="tycoon-offline">🌙 Рассчитано офлайн: ${Number(state.settlement.settled_hours).toFixed(1)} ч. Денежный поток: <b>${money(state.settlement.net_cash)} cash</b>${Number(state.settlement.xp_gained || 0) ? ` · XP +${money(state.settlement.xp_gained)}` : ''}</div>` : ''}
     ${Number(state.settlement?.skipped_offline_hours || 0) > 0 ? `<div class="tycoon-offline border-amber-400/40">⏱️ Лимит офлайн-работы исчерпан. Не рассчитано: ${Number(state.settlement.skipped_offline_hours).toFixed(1)} ч. Текущий лимит: ${state.settlement.offline_cap_hours || summary.offline_cap_hours || 24} ч.</div>` : ''}
     ${state.settlement?.tax?.blocked ? `<div class="tycoon-offline border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/30">⛔ Предприятия остановлены из-за просроченного налога. К оплате: <b>${money(state.settlement.tax.total_due)} cash</b>. Оплатите задолженность во вкладке «Биржа → Налог».</div>` : ''}
@@ -210,8 +220,25 @@ async function reload(root, showToast) {
   const [summary, catalog, assetCatalog] = await Promise.all([
     NatAPI.getEmpireSummary(), NatAPI.getBusinessCatalog(), NatAPI.getBusinessAssetCatalog(),
   ]);
-  store.updateCompany({ cash: summary.cash, specialization: summary.specialization, level: summary.level });
+  store.updateCompany({
+    cash: summary.cash,
+    specialization: summary.specialization,
+    level: progressionLevel(summary),
+    xp: summary.progression?.xp,
+    current_level_xp: summary.progression?.current_level_xp,
+    next_level_xp: summary.progression?.next_level_xp,
+    xp_to_next: summary.progression?.xp_to_next,
+    level_progress_pct: summary.progression?.level_progress_pct,
+    is_max_level: summary.progression?.is_max_level,
+    max_level: summary.progression?.max_level,
+    era: summary.progression?.era,
+    mastery: summary.progression?.mastery,
+  });
   render(root, { summary, catalog: catalog.items || [], assetCatalog, settlement: summary.settlement }, showToast);
+}
+
+function progressionLevel(summary) {
+  return summary.progression?.level ?? summary.level;
 }
 
 function bind(root, showToast) {

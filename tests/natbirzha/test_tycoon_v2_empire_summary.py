@@ -27,6 +27,11 @@ def test_empire_summary_exposes_current_business_economy() -> None:
             opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)
 
             summary = await EmpireSummaryService.build(session, company.id, now=now)
+            assert summary["progression"]["level"] == 1
+            assert summary["progression"]["xp"] == 100
+            assert summary["progression"]["next_level_xp"] == 150
+            assert summary["progression"]["xp_to_next"] == 50
+            assert summary["progression"]["level_progress_pct"] == 66.67
             assert summary["cash"] == 18_000.0
             assert summary["income_per_hour"] == 1677.65
             assert summary["expenses_per_hour"] == 8.4

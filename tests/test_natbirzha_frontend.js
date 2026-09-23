@@ -400,6 +400,12 @@ assert(overviewCode.includes('level_progress_pct') && overviewCode.includes('is_
 assert(!overviewCode.includes("((company.level || 1) * 150)"),
   'overview must not fall back to the obsolete ten-level linear XP formula');
 
+const tycoonCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/tycoon.js'), 'utf-8');
+assert(tycoonCode.includes('summary.progression') && tycoonCode.includes('xp_to_next'),
+  'tycoon must render the server-authoritative company XP progress');
+assert(tycoonCode.includes('work_xp_per_hour') && tycoonCode.includes('Продуктивная работа предприятия'),
+  'tycoon must explain how productive business work earns XP');
+
 const productionCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/production.js'), 'utf-8');
 assert(productionCode.includes('production-help-btn'), 'empty production must link to relevant help');
 assert(productionCode.includes('start_hint') && productionCode.includes('factory-next-step'), 'factory cards must show the server-derived next step');

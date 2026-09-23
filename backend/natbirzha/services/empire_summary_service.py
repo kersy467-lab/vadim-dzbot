@@ -16,6 +16,7 @@ from backend.natbirzha.services.business_rates import cash_business_rates, resou
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
+from backend.natbirzha.services.progression_service import progress_snapshot
 
 
 class EmpireSummaryService:
@@ -221,6 +222,10 @@ class EmpireSummaryService:
             "company_id": company.id,
             "specialization": company.specialization,
             "level": company.level,
+            "progression": {
+                **progress_snapshot(company),
+                "work_xp_per_hour": max(1, int(nat_settings.TYCOON_V2_WORK_XP_PER_HOUR)),
+            },
             "territory_tiles": company.territory_tiles,
             "cash": round(float(company.cash), 2),
             "income_per_hour": round(gross, 2),

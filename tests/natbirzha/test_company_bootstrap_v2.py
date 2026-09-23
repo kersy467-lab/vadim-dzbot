@@ -1,6 +1,7 @@
 """Every selectable industry must create a playable V2 starter company."""
 
 import asyncio
+from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -12,6 +13,7 @@ from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.industry_service import IndustryService
+from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
 
 def test_all_industries_bootstrap_with_starter_business_and_supply() -> None:
@@ -43,6 +45,15 @@ def test_all_industries_bootstrap_with_starter_business_and_supply() -> None:
                 by_item = {row.item_id: row.quantity for row in inventory}
                 for item_id, hourly in expected["inputs_per_hour"].items():
                     assert by_item.get(item_id, 0.0) >= float(hourly) * 4.0
+
+                if index == 1:
+                    settled_at = business.last_settled_at
+                    first_shift = await IdleEconomyService.settle_company(
+                        session, company.id, now=settled_at + timedelta(hours=4)
+                    )
+                    assert first_shift["xp_gained"] == 80
+                    assert first_shift["progression"]["level"] == 1
+                    assert first_shift["progression"]["xp_to_next"] == 70
 
             total = await session.scalar(select(func.count(NatBusiness.id)))
             assert total == len(INDUSTRIES)

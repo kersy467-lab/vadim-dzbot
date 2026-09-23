@@ -66,7 +66,11 @@ def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
             hourly = expected_cash_per_hour(business, upgrading=False)
             first = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
             assert first["net_cash"] == hourly
+            assert first["xp_gained"] == 20
+            assert first["progression"]["xp"] == 20
+            assert first["progression"]["xp_to_next"] == 130
             assert company.cash == round(100_000.0 + hourly, 2)
+            assert company.xp == 20
             assert business.last_settled_at == start + timedelta(hours=1)
 
             repeated = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
@@ -111,6 +115,8 @@ def test_idle_settlement_completes_upgrade_mid_window() -> None:
 
             settlement = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
             assert settlement["net_cash"] == round((before + after) / 2, 2)
+            assert settlement["xp_gained"] == 90  # one productive hour + stage-2 completion reward
+            assert settlement["progression"]["xp"] == 90
             assert business.stage == 2
             assert business.status == "ACTIVE"
             assert business.upgrade_ready_at is None

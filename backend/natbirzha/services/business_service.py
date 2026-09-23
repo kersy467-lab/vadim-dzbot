@@ -220,9 +220,11 @@ class BusinessService:
         business_id: int,
         *,
         now: datetime | None = None,
+        _skip_settlement: bool = False,
     ) -> dict[str, Any]:
         current = normalize_dt(now or get_game_now())
-        await IdleEconomyService.settle_company(session, company_id, now=current)
+        if not _skip_settlement:
+            await IdleEconomyService.settle_company(session, company_id, now=current)
         company = await cls._locked_company(session, company_id)
         business = await session.scalar(
             select(NatBusiness).where(

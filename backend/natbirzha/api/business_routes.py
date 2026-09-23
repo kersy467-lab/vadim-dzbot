@@ -16,6 +16,7 @@ from backend.natbirzha.services.business_capacity_service import BusinessCapacit
 from backend.natbirzha.services.empire_summary_service import EmpireSummaryService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+from backend.natbirzha.services.business_upgrade_batch_service import BusinessUpgradeBatchService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.territory_service import TerritoryService
 
@@ -218,6 +219,29 @@ async def upgrade_business(
         response = await BusinessService.start_upgrade(session, company.id, business_id)
         return await IdempotencyService.commit_response(
             session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/upgrade-all")
+async def upgrade_all_businesses(
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    endpoint = "/api/natbirzha/businesses/upgrade-all"
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, {}
+    )
+    if cached:
+        return cached[1]
+    try:
+        response = await BusinessUpgradeBatchService.start_all(session, company.id)
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, {}, response
         )
     except ValueError as exc:
         await session.rollback()

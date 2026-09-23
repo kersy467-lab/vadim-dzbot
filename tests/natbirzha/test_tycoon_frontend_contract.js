@@ -18,6 +18,7 @@ const upgrades = fs.readFileSync(
   'utf-8',
 );
 assert(upgrades.includes('NatAPI.getEmpireSummary()') && upgrades.includes('NatAPI.upgradeBusiness(business.id)'), 'upgrade tab must read and upgrade Tycoon V2 businesses');
+assert(upgrades.includes('NatAPI.upgradeAllBusinesses()') && upgrades.includes('Прокачать всё'), 'upgrade tab must offer one atomic action for all available businesses');
 const overview = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/overview.js'),
   'utf-8',

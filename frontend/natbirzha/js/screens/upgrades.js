@@ -14,9 +14,32 @@ export async function renderUpgrades(container, showToast) {
     const summary = await NatAPI.getEmpireSummary();
     const businesses = Array.isArray(summary?.businesses) ? summary.businesses : [];
     if (businesses.length) {
+      const availableBusinesses = businesses.filter((business) =>
+        business.next_upgrade && !business.contract_expired && business.status !== 'UPGRADING'
+      );
       const wrapper = document.createElement('div');
       wrapper.className = 'space-y-4 max-w-md mx-auto p-4 pb-24';
-      wrapper.innerHTML = '<div><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></div>';
+      wrapper.innerHTML = `<div><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё (${availableBusinesses.length})</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
+      const upgradeAllButton = wrapper.querySelector('#upgrade-all-businesses');
+      upgradeAllButton?.addEventListener('click', async () => {
+        upgradeAllButton.disabled = true;
+        try {
+          const result = await NatAPI.upgradeAllBusinesses();
+          store.setCompany(await NatAPI.getMyCompany());
+          if (result.started_count) {
+            showToast(
+              `На прокачку поставлено ${result.started_count} предприятий · списано ${Number(result.total_cost).toLocaleString('ru-RU')} cash`,
+              'success',
+            );
+          } else {
+            showToast('Нет предприятий, доступных для прокачки.', 'info');
+          }
+          await renderUpgrades(container, showToast);
+        } catch (error) {
+          showToast(error.message, 'error');
+          upgradeAllButton.disabled = false;
+        }
+      });
       const list = document.createElement('div');
       list.className = 'space-y-3';
       for (const business of businesses) {

@@ -175,6 +175,7 @@ assert(err4.includes('Ошибка сервера (500)'), 'empty object must pr
 
 const requiredMethods = [
   'login', 'getMyCompany', 'expandTerritory', 'getBusinessCapacity', 'expandBusinessCapacity', 'createCompany', 'respecCompany',
+  'upgradeAllBusinesses',
   'getProductionStatus', 'getRecipes', 'getInventory', 'getFactoryUpgrades', 'buildFactory', 'triggerProduction', 'setFactoryAutomation',
   'getOrderbook', 'getNpcRates', 'placeOrder', 'cancelOrder', 'npcTrade', 'getTaxStatus', 'payTax',
   'getStocksList', 'issueIPO', 'buyShares', 'getPortfolio',

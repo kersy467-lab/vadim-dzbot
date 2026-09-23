@@ -157,6 +157,7 @@ export const NatAPI = {
     body: JSON.stringify({ business_type, custom_name }),
   }),
   upgradeBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/upgrade`, { method: 'POST' }),
+  upgradeAllBusinesses: () => request('/api/natbirzha/businesses/upgrade-all', { method: 'POST' }),
   pauseBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/pause`, { method: 'POST' }),
   resumeBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/resume`, { method: 'POST' }),
   sellBusiness: (business_id) => request(`/api/natbirzha/businesses/${parseInt(business_id, 10)}/sell`, { method: 'POST' }),

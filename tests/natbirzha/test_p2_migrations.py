@@ -115,7 +115,7 @@ async def run() -> None:
         versions = (await conn.execute(text(
             "SELECT version, COUNT(*) FROM nat_schema_versions GROUP BY version ORDER BY version"
         ))).all()
-        assert versions == [(version, 1) for version, _ in MIGRATIONS]
+        assert versions == sorted([(version, 1) for version, _ in MIGRATIONS])
 
     await engine.dispose()
     print("NATBIRZHA P2 migration checks: PASS")

@@ -38,6 +38,18 @@ async def cb_toggle_user_role(callback: CallbackQuery, db_session: AsyncSession,
             pass
 
         # Отправляем уведомление и моментально обновляем меню у пользователя
+        from backend.bot.services.commands import set_user_command_scope
+        try:
+            await set_user_command_scope(
+                callback.bot,
+                chat_id=target_id,
+                is_tester=bool(getattr(user, "is_tester", False)),
+                is_admin=new_role == "admin",
+                full_access=True
+            )
+        except Exception:
+            pass
+
         if new_role == "admin":
             try:
                 await callback.bot.send_message(
@@ -83,6 +95,17 @@ async def cb_toggle_user_tester(callback: CallbackQuery, db_session: AsyncSessio
     if user:
         new_status = not bool(getattr(user, "is_tester", False))
         await update_user_tester_status(db_session, target_id, new_status)
+        from backend.bot.services.commands import set_user_command_scope
+        try:
+            await set_user_command_scope(
+                callback.bot,
+                chat_id=target_id,
+                is_tester=new_status,
+                is_admin=bool(user.role == "admin"),
+                full_access=True
+            )
+        except Exception:
+            pass
         state_str = "выдан (Тестер)" if new_status else "снят"
         try:
             await callback.answer(f"Доступ к закрытому тестированию {state_str}!", show_alert=True)

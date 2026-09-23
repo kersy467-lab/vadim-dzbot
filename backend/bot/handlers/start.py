@@ -70,9 +70,18 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
     is_user_adm = bool((current_user and current_user.role == "admin") or (settings.ADMIN_ID and user_id == settings.ADMIN_ID))
     is_tester = bool(getattr(current_user, "is_tester", False)) if current_user else False
 
+    from backend.natbirzha.services.access_control import is_creator_identity
+    is_tester_or_admin = bool(is_user_adm or is_tester or is_creator_identity(user_id, username))
+
     try:
-        from aiogram.types import MenuButtonCommands
-        await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=MenuButtonCommands())
+        from backend.bot.services.commands import set_user_command_scope
+        await set_user_command_scope(
+            bot,
+            chat_id=message.chat.id,
+            is_tester=is_tester_or_admin,
+            is_admin=is_user_adm,
+            full_access=bool((current_user and current_user.role in ["student", "admin"]) or is_user_adm)
+        )
     except Exception:
         pass
 
@@ -186,6 +195,14 @@ async def callback_admin_approve_keep(callback: CallbackQuery, state: FSMContext
 
     # Notify student
     try:
+        from backend.bot.services.commands import set_user_command_scope
+        await set_user_command_scope(
+            bot,
+            chat_id=target_tg_id,
+            is_tester=bool(getattr(user, "is_tester", False)),
+            is_admin=False,
+            full_access=True
+        )
         await bot.send_message(
             chat_id=target_tg_id,
             text=(
@@ -230,6 +247,14 @@ async def msg_admin_approve_custom_name(message: Message, state: FSMContext, db_
 
     # Notify student
     try:
+        from backend.bot.services.commands import set_user_command_scope
+        await set_user_command_scope(
+            bot,
+            chat_id=target_tg_id,
+            is_tester=bool(getattr(user, "is_tester", False)),
+            is_admin=False,
+            full_access=True
+        )
         await bot.send_message(
             chat_id=target_tg_id,
             text=(

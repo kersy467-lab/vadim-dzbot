@@ -52,21 +52,22 @@
       }
       const modalsEl = document.getElementById("rpg-modals-container");
       if (modalsEl) {
-        const existingAdmin = document.getElementById("rpg-admin-modal-backdrop");
-        const shouldShowAdmin = isUserAdmin() && RPG_STATE.adminModalOpen;
-        if (!shouldShowAdmin && existingAdmin) {
-          existingAdmin.remove();
-        }
         modalsEl.innerHTML = `
           ${RPG_STATE.inspectedItem ? renderItemModalHTML(RPG_STATE.inspectedItem) : ""}
           ${RPG_STATE.forgeItem ? renderForgeModalHTML(RPG_STATE.forgeItem) : ""}
           ${RPG_STATE.activeChestModal ? renderChestModalHTML(RPG_STATE.activeChestModal) : ""}
           ${RPG_STATE.shopModalOpen ? renderShopModalHTML() : ""}
           ${RPG_STATE.slotFilterModal ? renderSlotFilterModalHTML(RPG_STATE.slotFilterModal) : ""}
-          ${(shouldShowAdmin && !existingAdmin) ? renderAdminModalHTML() : ""}
         `;
-        if (shouldShowAdmin && existingAdmin && !modalsEl.contains(existingAdmin)) {
-          modalsEl.appendChild(existingAdmin);
+      }
+      const adminContainer = document.getElementById("rpg-admin-container");
+      if (adminContainer && typeof renderAdminModalHTML === "function") {
+        const shouldShowAdmin = isUserAdmin() && RPG_STATE.adminModalOpen;
+        const existingAdmin = document.getElementById("rpg-admin-modal-backdrop");
+        if (shouldShowAdmin && !existingAdmin) {
+          adminContainer.innerHTML = renderAdminModalHTML();
+        } else if (!shouldShowAdmin && existingAdmin) {
+          adminContainer.innerHTML = "";
         }
       }
       if (ARENA.canvas !== existingCanvas || !ARENA.ctx) {
@@ -119,13 +120,15 @@
 
         <!-- Slot Quick Equip Modal -->
         ${RPG_STATE.slotFilterModal ? renderSlotFilterModalHTML(RPG_STATE.slotFilterModal) : ""}
+      </div>
 
-        <!-- Admin Dev Modal -->
-        ${(isUserAdmin() && RPG_STATE.adminModalOpen) ? renderAdminModalHTML() : ""}
+      <!-- Dedicated Admin Dev Modal Container -->
+      <div id="rpg-admin-container">
+        ${(isUserAdmin() && RPG_STATE.adminModalOpen && typeof renderAdminModalHTML === "function") ? renderAdminModalHTML() : ""}
       </div>
 
       <!-- Admin Floating Pill Badge (Bottom-left) -->
-      ${isUserAdmin() ? renderAdminFloatingBadgeHTML() : ""}
+      ${(isUserAdmin() && typeof renderAdminFloatingBadgeHTML === "function") ? renderAdminFloatingBadgeHTML() : ""}
     `;
 
     if (RPG_STATE.activeTab === "farm" && RPG_STATE.farmMode === "arena") {
@@ -180,6 +183,10 @@
             </div>
 
             <div class="text-right flex items-center gap-1.5">
+              ${isUserAdmin() ? `<button onclick="window.RPG.toggleAdminModal(true)" title="Админ-Панель" class="px-2 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 active:scale-95 text-slate-950 font-black text-[11px] shadow-sm flex items-center gap-1">
+                <span>🛠️</span>
+                <span>Админ</span>
+              </button>` : ""}
               <button onclick="window.RPG.openShopModal()" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 text-white font-black text-[11px] shadow-sm flex items-center gap-1">
                 <span>🏪</span>
                 <span>Лавка</span>

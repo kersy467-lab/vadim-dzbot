@@ -109,6 +109,7 @@ def _build_admin_profile(char, target_user):
     if target_user:
         prof["tg_id"] = target_user.tg_id
         prof["user_id"] = target_user.id
+    prof["is_admin"] = True
     return prof
 
 

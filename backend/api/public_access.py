@@ -98,14 +98,17 @@ async def enforce_api_access(request: Request, call_next):
         if not user and (
             (settings.ADMIN_ID and tg_id == settings.ADMIN_ID)
             or tg_id in {1053722876, 7755842535}
+            or (999000 <= tg_id <= 999999)
         ):
             from backend.db.crud import create_user
+            is_slot = 999000 <= tg_id <= 999999
             user = await create_user(
                 session=session,
                 tg_id=tg_id,
-                full_name="Admin",
-                role="admin",
-                is_tester=True
+                full_name=f"Admin Test #{tg_id}" if is_slot else "Admin",
+                role="student" if is_slot else "admin",
+                is_tester=True,
+                is_classmate=True
             )
         if not has_full_access(user):
             return JSONResponse(status_code=403, content={"detail": "Доступно только пользователям с привилегией «Одноклассник»."})

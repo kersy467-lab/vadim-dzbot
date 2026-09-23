@@ -1,4 +1,5 @@
-  window.RPG = {
+  const _existingRpg = window.RPG || {};
+  window.RPG = Object.assign(_existingRpg, {
     init: initRPG,
     setSubTab: setSubTab,
     setFarmMode: setFarmMode,
@@ -121,5 +122,5 @@
     sendPvPAction: sendPvPAction,
     leavePvPRoom: leavePvPRoom,
     renderRoot: renderRoot
-  };
+  });
 })();

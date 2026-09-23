@@ -15,13 +15,13 @@ async def create_user(
     tg_id: int,
     full_name: str,
     username: Optional[str] = None,
-    role: str = "pending"
+    role: str = "pending",
+    is_tester: bool = False,
+    is_classmate: bool = False
 ) -> User:
     user = User(
-        tg_id=tg_id,
-        full_name=full_name,
-        username=username,
-        role=role
+        tg_id=tg_id, full_name=full_name, username=username,
+        role=role, is_tester=is_tester, is_classmate=is_classmate
     )
     session.add(user)
     await session.commit()

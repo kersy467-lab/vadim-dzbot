@@ -32,6 +32,11 @@ function getDefaultAdminPlayers() {
 }
 
 function updateAdminModalDOM() {
+  const adminContainer = document.getElementById("rpg-admin-container");
+  if (adminContainer && RPG_STATE.adminModalOpen) {
+    adminContainer.innerHTML = renderAdminModalHTML();
+    return;
+  }
   const backdrop = document.getElementById("rpg-admin-modal-backdrop");
   if (backdrop && RPG_STATE.adminModalOpen) {
     backdrop.outerHTML = renderAdminModalHTML();
@@ -250,13 +255,15 @@ window.RPG.onAdminCatalogItemChange = function(itemName) {
 function applyAdminProfileUpdate(res, target) {
   if (!res || !res.profile) return;
   const p = res.profile;
+  p.is_admin = true;
   const curUid = String(RPG_STATE.profile?.user_id || "");
   const curTg = String(RPG_STATE.profile?.tg_id || localStorage.getItem("admin_test_tg_uid") || localStorage.getItem("cached_tg_uid") || "");
   const tgtStr = target ? String(target).trim() : "";
   const isMe = !tgtStr || tgtStr === curUid || tgtStr === curTg || String(p.user_id) === curUid || (p.tg_id && String(p.tg_id) === curTg);
 
   if (isMe) {
-    RPG_STATE.profile = p;
+    RPG_STATE.profile = Object.assign({}, RPG_STATE.profile || {}, p, { is_admin: true });
+    try { localStorage.setItem("is_admin_verified", "true"); } catch (_) {}
     if (typeof syncArenaPlayerStats === "function") syncArenaPlayerStats();
     const topNav = document.getElementById("rpg-top-nav");
     if (topNav && typeof renderTopNavBarHTML === "function") topNav.outerHTML = renderTopNavBarHTML();
@@ -366,6 +373,13 @@ window.RPG.adminResetPlayerSubmit = async function() {
     showAdminNotice(e.message || "Ошибка сброса игрока");
   }
 };
+
+[
+  "setAdminSubTab", "refreshAdminPlayers", "fetchAdminCatalog", "applyAdminCustomTarget",
+  "adminGiveGold", "adminGiveGoldCustom", "adminGiveGems", "adminGiveGemsCustom",
+  "adminSetLevel", "adminSetLevelCustom", "adminGiveItemSubmit", "adminResetPlayerSubmit",
+  "onAdminCatalogItemChange"
+].forEach(k => { window[k] = window.RPG[k]; });
 
 // Immediate pre-fetch in background on script initialization
 setTimeout(() => {

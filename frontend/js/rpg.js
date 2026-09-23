@@ -137,6 +137,7 @@ loadRpgImages();
       { id: "999004", name: "🧪 Тест #4 (Песочница)", tg_id: "999004" }
     ]
   };
+  window.RPG_STATE = RPG_STATE;
 
   const RARITY_MAP = {
     common: { name: "Обычный", color: "border-slate-400 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300", badge: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300" },
@@ -888,15 +889,29 @@ loadRpgImages();
   }
 
   // ===========================================================================
-  // ADMIN DEV PANEL & TEST ACCOUNT SWITCHER (Admin only: 1053722876)
+  // ADMIN DEV PANEL & TEST ACCOUNT SWITCHER
   // ===========================================================================
 
   function isUserAdmin() {
     if (localStorage.getItem("admin_test_tg_uid")) return true;
     if (localStorage.getItem("is_admin_verified") === "true") return true;
     const p = RPG_STATE.profile;
-    if (p && (p.is_admin || String(p.tg_id) === "1053722876" || String(p.user_id) === "1053722876")) {
-      localStorage.setItem("is_admin_verified", "true");
+    const curUser = window.currentUser;
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const adminIds = ["7755842535", "1053722876"];
+    const adminUserIds = ["1", "4"];
+    const isAdmin = Boolean(
+      p?.is_admin ||
+      curUser?.role === "admin" ||
+      curUser?.is_tester ||
+      (curUser?.tg_id && adminIds.includes(String(curUser.tg_id))) ||
+      (tgUser?.id && adminIds.includes(String(tgUser.id))) ||
+      (p?.tg_id && adminIds.includes(String(p.tg_id))) ||
+      (p?.user_id && (adminIds.includes(String(p.user_id)) || adminUserIds.includes(String(p.user_id)))) ||
+      (curUser?.id && adminUserIds.includes(String(curUser.id)))
+    );
+    if (isAdmin) {
+      try { localStorage.setItem("is_admin_verified", "true"); } catch (_) {}
       return true;
     }
     return false;
@@ -909,7 +924,12 @@ loadRpgImages();
       if (window.RPG.refreshAdminPlayers) window.RPG.refreshAdminPlayers();
       if (window.RPG.fetchAdminCatalog) window.RPG.fetchAdminCatalog();
     }
-    renderRoot();
+    const adminContainer = document.getElementById("rpg-admin-container");
+    if (adminContainer && typeof renderAdminModalHTML === "function") {
+      adminContainer.innerHTML = (isUserAdmin() && RPG_STATE.adminModalOpen) ? renderAdminModalHTML() : "";
+    } else {
+      renderRoot();
+    }
   }
 
   function switchAdminTestAccount(tgId) {
@@ -14017,21 +14037,22 @@ function renderSpecialBossTelegraphs(ctx, ARENA, time) {
       }
       const modalsEl = document.getElementById("rpg-modals-container");
       if (modalsEl) {
-        const existingAdmin = document.getElementById("rpg-admin-modal-backdrop");
-        const shouldShowAdmin = isUserAdmin() && RPG_STATE.adminModalOpen;
-        if (!shouldShowAdmin && existingAdmin) {
-          existingAdmin.remove();
-        }
         modalsEl.innerHTML = `
           ${RPG_STATE.inspectedItem ? renderItemModalHTML(RPG_STATE.inspectedItem) : ""}
           ${RPG_STATE.forgeItem ? renderForgeModalHTML(RPG_STATE.forgeItem) : ""}
           ${RPG_STATE.activeChestModal ? renderChestModalHTML(RPG_STATE.activeChestModal) : ""}
           ${RPG_STATE.shopModalOpen ? renderShopModalHTML() : ""}
           ${RPG_STATE.slotFilterModal ? renderSlotFilterModalHTML(RPG_STATE.slotFilterModal) : ""}
-          ${(shouldShowAdmin && !existingAdmin) ? renderAdminModalHTML() : ""}
         `;
-        if (shouldShowAdmin && existingAdmin && !modalsEl.contains(existingAdmin)) {
-          modalsEl.appendChild(existingAdmin);
+      }
+      const adminContainer = document.getElementById("rpg-admin-container");
+      if (adminContainer && typeof renderAdminModalHTML === "function") {
+        const shouldShowAdmin = isUserAdmin() && RPG_STATE.adminModalOpen;
+        const existingAdmin = document.getElementById("rpg-admin-modal-backdrop");
+        if (shouldShowAdmin && !existingAdmin) {
+          adminContainer.innerHTML = renderAdminModalHTML();
+        } else if (!shouldShowAdmin && existingAdmin) {
+          adminContainer.innerHTML = "";
         }
       }
       if (ARENA.canvas !== existingCanvas || !ARENA.ctx) {
@@ -14084,13 +14105,15 @@ function renderSpecialBossTelegraphs(ctx, ARENA, time) {
 
         <!-- Slot Quick Equip Modal -->
         ${RPG_STATE.slotFilterModal ? renderSlotFilterModalHTML(RPG_STATE.slotFilterModal) : ""}
+      </div>
 
-        <!-- Admin Dev Modal -->
-        ${(isUserAdmin() && RPG_STATE.adminModalOpen) ? renderAdminModalHTML() : ""}
+      <!-- Dedicated Admin Dev Modal Container -->
+      <div id="rpg-admin-container">
+        ${(isUserAdmin() && RPG_STATE.adminModalOpen && typeof renderAdminModalHTML === "function") ? renderAdminModalHTML() : ""}
       </div>
 
       <!-- Admin Floating Pill Badge (Bottom-left) -->
-      ${isUserAdmin() ? renderAdminFloatingBadgeHTML() : ""}
+      ${(isUserAdmin() && typeof renderAdminFloatingBadgeHTML === "function") ? renderAdminFloatingBadgeHTML() : ""}
     `;
 
     if (RPG_STATE.activeTab === "farm" && RPG_STATE.farmMode === "arena") {
@@ -14145,6 +14168,10 @@ function renderSpecialBossTelegraphs(ctx, ARENA, time) {
             </div>
 
             <div class="text-right flex items-center gap-1.5">
+              ${isUserAdmin() ? `<button onclick="window.RPG.toggleAdminModal(true)" title="Админ-Панель" class="px-2 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 active:scale-95 text-slate-950 font-black text-[11px] shadow-sm flex items-center gap-1">
+                <span>🛠️</span>
+                <span>Админ</span>
+              </button>` : ""}
               <button onclick="window.RPG.openShopModal()" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 text-white font-black text-[11px] shadow-sm flex items-center gap-1">
                 <span>🏪</span>
                 <span>Лавка</span>
@@ -17113,6 +17140,11 @@ function getDefaultAdminPlayers() {
 }
 
 function updateAdminModalDOM() {
+  const adminContainer = document.getElementById("rpg-admin-container");
+  if (adminContainer && RPG_STATE.adminModalOpen) {
+    adminContainer.innerHTML = renderAdminModalHTML();
+    return;
+  }
   const backdrop = document.getElementById("rpg-admin-modal-backdrop");
   if (backdrop && RPG_STATE.adminModalOpen) {
     backdrop.outerHTML = renderAdminModalHTML();
@@ -17331,13 +17363,15 @@ window.RPG.onAdminCatalogItemChange = function(itemName) {
 function applyAdminProfileUpdate(res, target) {
   if (!res || !res.profile) return;
   const p = res.profile;
+  p.is_admin = true;
   const curUid = String(RPG_STATE.profile?.user_id || "");
   const curTg = String(RPG_STATE.profile?.tg_id || localStorage.getItem("admin_test_tg_uid") || localStorage.getItem("cached_tg_uid") || "");
   const tgtStr = target ? String(target).trim() : "";
   const isMe = !tgtStr || tgtStr === curUid || tgtStr === curTg || String(p.user_id) === curUid || (p.tg_id && String(p.tg_id) === curTg);
 
   if (isMe) {
-    RPG_STATE.profile = p;
+    RPG_STATE.profile = Object.assign({}, RPG_STATE.profile || {}, p, { is_admin: true });
+    try { localStorage.setItem("is_admin_verified", "true"); } catch (_) {}
     if (typeof syncArenaPlayerStats === "function") syncArenaPlayerStats();
     const topNav = document.getElementById("rpg-top-nav");
     if (topNav && typeof renderTopNavBarHTML === "function") topNav.outerHTML = renderTopNavBarHTML();
@@ -17448,6 +17482,13 @@ window.RPG.adminResetPlayerSubmit = async function() {
   }
 };
 
+[
+  "setAdminSubTab", "refreshAdminPlayers", "fetchAdminCatalog", "applyAdminCustomTarget",
+  "adminGiveGold", "adminGiveGoldCustom", "adminGiveGems", "adminGiveGemsCustom",
+  "adminSetLevel", "adminSetLevelCustom", "adminGiveItemSubmit", "adminResetPlayerSubmit",
+  "onAdminCatalogItemChange"
+].forEach(k => { window[k] = window.RPG[k]; });
+
 // Immediate pre-fetch in background on script initialization
 setTimeout(() => {
   if (window.RPG) {
@@ -17456,7 +17497,8 @@ setTimeout(() => {
   }
 }, 300);
 
-  window.RPG = {
+  const _existingRpg = window.RPG || {};
+  window.RPG = Object.assign(_existingRpg, {
     init: initRPG,
     setSubTab: setSubTab,
     setFarmMode: setFarmMode,
@@ -17579,5 +17621,5 @@ setTimeout(() => {
     sendPvPAction: sendPvPAction,
     leavePvPRoom: leavePvPRoom,
     renderRoot: renderRoot
-  };
+  });
 })();

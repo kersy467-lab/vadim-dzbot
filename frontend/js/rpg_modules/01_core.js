@@ -116,6 +116,7 @@
       { id: "999004", name: "🧪 Тест #4 (Песочница)", tg_id: "999004" }
     ]
   };
+  window.RPG_STATE = RPG_STATE;
 
   const RARITY_MAP = {
     common: { name: "Обычный", color: "border-slate-400 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300", badge: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300" },
@@ -867,15 +868,29 @@
   }
 
   // ===========================================================================
-  // ADMIN DEV PANEL & TEST ACCOUNT SWITCHER (Admin only: 1053722876)
+  // ADMIN DEV PANEL & TEST ACCOUNT SWITCHER
   // ===========================================================================
 
   function isUserAdmin() {
     if (localStorage.getItem("admin_test_tg_uid")) return true;
     if (localStorage.getItem("is_admin_verified") === "true") return true;
     const p = RPG_STATE.profile;
-    if (p && (p.is_admin || String(p.tg_id) === "1053722876" || String(p.user_id) === "1053722876")) {
-      localStorage.setItem("is_admin_verified", "true");
+    const curUser = window.currentUser;
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const adminIds = ["7755842535", "1053722876"];
+    const adminUserIds = ["1", "4"];
+    const isAdmin = Boolean(
+      p?.is_admin ||
+      curUser?.role === "admin" ||
+      curUser?.is_tester ||
+      (curUser?.tg_id && adminIds.includes(String(curUser.tg_id))) ||
+      (tgUser?.id && adminIds.includes(String(tgUser.id))) ||
+      (p?.tg_id && adminIds.includes(String(p.tg_id))) ||
+      (p?.user_id && (adminIds.includes(String(p.user_id)) || adminUserIds.includes(String(p.user_id)))) ||
+      (curUser?.id && adminUserIds.includes(String(curUser.id)))
+    );
+    if (isAdmin) {
+      try { localStorage.setItem("is_admin_verified", "true"); } catch (_) {}
       return true;
     }
     return false;
@@ -888,7 +903,12 @@
       if (window.RPG.refreshAdminPlayers) window.RPG.refreshAdminPlayers();
       if (window.RPG.fetchAdminCatalog) window.RPG.fetchAdminCatalog();
     }
-    renderRoot();
+    const adminContainer = document.getElementById("rpg-admin-container");
+    if (adminContainer && typeof renderAdminModalHTML === "function") {
+      adminContainer.innerHTML = (isUserAdmin() && RPG_STATE.adminModalOpen) ? renderAdminModalHTML() : "";
+    } else {
+      renderRoot();
+    }
   }
 
   function switchAdminTestAccount(tgId) {

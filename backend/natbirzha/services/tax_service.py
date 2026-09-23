@@ -144,8 +144,12 @@ class TaxService:
     async def pay(
         cls, session: AsyncSession, company_id: int, amount: float | None = None
     ) -> dict:
+        # Tax deposits and state-share/bond payouts share this Treasury row.
+        # Always lock Treasury before a company to avoid cross-instrument cycles.
+        treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         company = await session.scalar(
             select(NatCompany).where(NatCompany.id == company_id).with_for_update()
+            .execution_options(populate_existing=True)
         )
         if company is None:
             raise ValueError("Компания не найдена")
@@ -167,7 +171,6 @@ class TaxService:
             row.paid_amount = round(float(row.paid_amount or 0.0) + part, 2)
             remaining = round(remaining - part, 2)
         company.cash = round(float(company.cash) - payment, 2)
-        treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         treasury.cash = round(float(treasury.cash) + payment, 2)
         await EconomyMetricsService.record(
             session, company_id=company.id, flow="SINK", category="daily_profit_tax", cash_amount=payment

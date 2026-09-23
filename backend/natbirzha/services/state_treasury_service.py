@@ -22,7 +22,7 @@ class StateTreasuryService:
     ) -> NatStateTreasury:
         stmt = select(NatStateTreasury).where(NatStateTreasury.id == cls.TREASURY_ID)
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         treasury = (await session.execute(stmt)).scalar_one_or_none()
         if treasury:
             return treasury
@@ -40,7 +40,7 @@ class StateTreasuryService:
             # Another worker created the singleton first. Re-read the canonical row.
             stmt = select(NatStateTreasury).where(NatStateTreasury.id == cls.TREASURY_ID)
             if for_update:
-                stmt = stmt.with_for_update()
+                stmt = stmt.with_for_update().execution_options(populate_existing=True)
             treasury = (await session.execute(stmt)).scalar_one()
 
         if commit:

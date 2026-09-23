@@ -79,6 +79,9 @@ class StateBondSettlementMixin:
         cls, session: AsyncSession, now: datetime | None = None, commit: bool = False
     ) -> dict[str, Any]:
         now = now or get_game_now()
+        # Cash-moving state services serialize on Treasury first. Once held,
+        # settlement locks bonds, their holdings, then recipient companies.
+        treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         bonds = (await session.execute(
             select(NatStateBond)
             .where(NatStateBond.status != "CLOSED")
@@ -88,7 +91,6 @@ class StateBondSettlementMixin:
         for bond in bonds:
             await cls._ensure_due_rows(session, bond, now)
 
-        treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         pending = (await session.execute(
             select(NatBondSettlement)
             .where(NatBondSettlement.status == "PENDING", NatBondSettlement.due_at <= now)
@@ -106,6 +108,7 @@ class StateBondSettlementMixin:
         for settlement in pending:
             company = await session.scalar(
                 select(NatCompany).where(NatCompany.id == settlement.company_id).with_for_update()
+                .execution_options(populate_existing=True)
             )
             if not company or treasury.cash < settlement.amount_rub:
                 continue

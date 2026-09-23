@@ -227,16 +227,30 @@ def setup_scheduler(bot: Bot):
 
         # Natbirzha: ежедневная выплата дивидендов и ликвидации в 00:01
         async def run_natbirzha_daily_settlement():
-            try:
-                from backend.db.session import async_session_factory
+            async def run_step(name, settlement):
+                try:
+                    from backend.db.session import async_session_factory
+                    async with async_session_factory() as session:
+                        result = await settlement(session)
+                    logger.info("Natbirzha daily settlement %s completed: %s", name, result)
+                except Exception as ex:
+                    logger.error("Error in Natbirzha daily settlement %s: %s", name, ex)
+
+            async def settle_state_shares(session):
+                from backend.natbirzha.services.state_share_service import StateShareService
+                return await StateShareService.settle_daily_dividends(session)
+
+            async def settle_public_stocks(session):
                 from backend.natbirzha.services.dividend_service import DividendService
+                return await DividendService.settle_all_public_dividends(session)
+
+            async def settle_liquidations(session):
                 from backend.natbirzha.services.bankruptcy_service import BankruptcyService
-                async with async_session_factory() as session:
-                    await DividendService.settle_all_public_dividends(session)
-                    await BankruptcyService.process_daily_liquidations(session)
-                    logger.info("Natbirzha daily settlement completed.")
-            except Exception as ex:
-                logger.error(f"Error in natbirzha daily settlement: {ex}")
+                return await BankruptcyService.process_daily_liquidations(session)
+
+            await run_step("state shares", settle_state_shares)
+            await run_step("public stocks", settle_public_stocks)
+            await run_step("liquidations", settle_liquidations)
 
         scheduler.add_job(
             run_natbirzha_daily_settlement,

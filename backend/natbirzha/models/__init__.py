@@ -47,6 +47,13 @@ from backend.natbirzha.models.creator import (
     NatBondSettlement,
     NatBondListing,
 )
+from backend.natbirzha.models.state_shares import (
+    NatStateShare,
+    NatStateShareHolding,
+    NatStateShareOperation,
+    NatStateShareDailySettlement,
+    NatStateShareDividendPayment,
+)
 from backend.natbirzha.models.business import (
     BUSINESS_STATUSES,
     NatBusiness,
@@ -116,6 +123,11 @@ __all__ = [
     "NatStateBondHolding",
     "NatBondSettlement",
     "NatBondListing",
+    "NatStateShare",
+    "NatStateShareHolding",
+    "NatStateShareOperation",
+    "NatStateShareDailySettlement",
+    "NatStateShareDividendPayment",
     "BUSINESS_STATUSES",
     "NatBusiness",
     "NatBusinessIncomeDaily",

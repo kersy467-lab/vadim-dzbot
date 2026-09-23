@@ -114,8 +114,12 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin):
         if quantity <= 0:
             raise ValueError("Bond quantity must be positive.")
         now = now or get_game_now()
+        # Cash-moving state instruments all lock Treasury before companies to
+        # keep the shared Treasury/holder lock order consistent.
+        treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         company = await session.scalar(
             select(NatCompany).where(NatCompany.id == company.id).with_for_update()
+            .execution_options(populate_existing=True)
         )
         if not company:
             raise ValueError("Company not found.")
@@ -129,7 +133,6 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin):
         total_cost = round(float(bond.face_value) * quantity, 2)
         if company.cash < total_cost:
             raise ValueError(f"Insufficient cash. Required: {total_cost}, Available: {company.cash}")
-        treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         holding = await session.scalar(select(NatStateBondHolding).where(
             NatStateBondHolding.bond_id == bond.id,
             NatStateBondHolding.company_id == company.id,

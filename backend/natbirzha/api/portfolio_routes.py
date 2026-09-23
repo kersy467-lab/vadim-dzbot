@@ -10,6 +10,11 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond, NatStateBondHolding
 from backend.natbirzha.models.instruments import NatInstrumentPosition, NatReferenceRateSnapshot
 from backend.natbirzha.models.stocks import NatDividend, NatDividendPayment, NatStock, NatStockHolding
+from backend.natbirzha.models.state_shares import (
+    NatStateShare,
+    NatStateShareDividendPayment,
+    NatStateShareHolding,
+)
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.reference_instrument_service import ReferenceInstrumentService
 from backend.natbirzha.services.state_bond_service import StateBondService
@@ -73,7 +78,7 @@ async def get_unified_portfolio(
             "avg_buy_price": holding.avg_price,
             "current_market_price": stock.current_price,
             "invested_value": invested,
-            "market_price": round(market_price, 2),
+            "market_price": round(float(stock.current_price), 2),
             "market_value": market_value,
             "unrealized_pnl": round(market_value - invested, 2),
             "dividends_earned": payment_totals.get(stock.id, 0.0),
@@ -124,6 +129,52 @@ async def get_unified_portfolio(
             "status": bond.status,
         })
 
+    state_share_rows = (await session.execute(
+        select(NatStateShareHolding, NatStateShare)
+        .join(NatStateShare, NatStateShare.id == NatStateShareHolding.share_id)
+        .where(
+            NatStateShareHolding.company_id == company.id,
+            NatStateShareHolding.quantity > 0,
+        )
+        .order_by(NatStateShareHolding.id.desc())
+    )).all()
+    state_share_payment_rows = (await session.execute(
+        select(NatStateShareDividendPayment, NatStateShare)
+        .join(NatStateShare, NatStateShare.id == NatStateShareDividendPayment.share_id)
+        .where(NatStateShareDividendPayment.company_id == company.id)
+        .order_by(NatStateShareDividendPayment.settlement_date.desc(), NatStateShareDividendPayment.id.desc())
+    )).all()
+    state_share_dividends_by_id: dict[int, float] = {}
+    state_share_dividend_payments = []
+    for payment, share in state_share_payment_rows:
+        state_share_dividends_by_id[share.id] = round(
+            state_share_dividends_by_id.get(share.id, 0.0) + payment.amount_paid, 2
+        )
+        state_share_dividend_payments.append({
+            "share_id": share.id,
+            "title": share.title,
+            "shares_count": payment.quantity,
+            "payout_cash": payment.amount_paid,
+            "settlement_date": str(payment.settlement_date),
+            "paid_at": payment.paid_at.isoformat(),
+        })
+    state_shares = []
+    for holding, share in state_share_rows:
+        invested = round(float(holding.invested_cash), 2)
+        market_value = round(holding.quantity * float(share.issue_price), 2)
+        state_shares.append({
+            "share_id": share.id,
+            "title": share.title,
+            "shares_count": holding.quantity,
+            "issue_price": share.issue_price,
+            "redemption_price": share.issue_price,
+            "invested_value": invested,
+            "market_value": market_value,
+            "unrealized_pnl": round(market_value - invested, 2),
+            "dividends_earned": state_share_dividends_by_id.get(share.id, 0.0),
+            "dividend_rate_pct": share.dividend_rate_pct,
+        })
+
     instrument_rows = (await session.execute(
         select(NatInstrumentPosition)
         .where(NatInstrumentPosition.company_id == company.id, NatInstrumentPosition.quantity > 0)
@@ -162,30 +213,37 @@ async def get_unified_portfolio(
 
     stock_value = round(sum(row["market_value"] for row in stocks), 2)
     bond_value = round(sum(row["market_value"] for row in bonds), 2)
+    state_share_value = round(sum(row["market_value"] for row in state_shares), 2)
     instrument_value = round(sum(float(row["market_value_rub"] or 0) for row in instruments), 2)
     unrealized_pnl = round(
         sum(row["unrealized_pnl"] for row in stocks)
         + sum(row["unrealized_pnl"] for row in bonds)
+        + sum(row["unrealized_pnl"] for row in state_shares)
         + sum(float(row["unrealized_pnl_rub"] or 0) for row in instruments), 2
     )
-    dividends_earned = round(sum(row["payout_cash"] for row in dividend_payments), 2)
+    state_share_dividends_earned = round(sum(row["payout_cash"] for row in state_share_dividend_payments), 2)
+    dividends_earned = round(sum(row["payout_cash"] for row in dividend_payments) + state_share_dividends_earned, 2)
     coupons_earned = round(sum(row["coupons_earned"] for row in bonds), 2)
     return {
         "as_of": get_game_now().isoformat(),
         "cash": round(company.cash, 2),
         "summary": {
-            "market_value": round(stock_value + bond_value + instrument_value, 2),
+            "market_value": round(stock_value + bond_value + instrument_value + state_share_value, 2),
             "stocks_market_value": stock_value,
             "bonds_market_value": bond_value,
+            "state_shares_market_value": state_share_value,
             "instruments_market_value": instrument_value,
             "unrealized_pnl": unrealized_pnl,
             "dividends_earned": dividends_earned,
+            "state_share_dividends_earned": state_share_dividends_earned,
             "coupons_earned": coupons_earned,
         },
         "stocks": stocks,
         "bonds": bonds,
+        "state_shares": state_shares,
         "instruments": instruments,
         "dividend_payments": dividend_payments,
+        "state_share_dividend_payments": state_share_dividend_payments,
     }
 
 

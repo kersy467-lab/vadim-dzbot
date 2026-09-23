@@ -344,6 +344,28 @@ async def _migrate_restore_factory_starters(conn) -> None:
     await backfill_missing_starter_factories(conn)
 
 
+async def _migrate_v3_state_shares(conn) -> None:
+    """Create state-issued shares and their independent Treasury settlement ledger."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    table_names = (
+        "nat_state_shares",
+        "nat_state_share_holdings",
+        "nat_state_share_operations",
+        "nat_state_share_daily_settlements",
+        "nat_state_share_dividend_payments",
+    )
+
+    def create_tables(sync_connection) -> None:
+        for table_name in table_names:
+            Base.metadata.tables[table_name].create(sync_connection, checkfirst=True)
+
+    await conn.run_sync(create_tables)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -360,6 +382,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v2_001_business_foundation", _migrate_v2_business_foundation),
     ("natbirzha_v2_002_daily_profit_tax", _migrate_v2_tax_system),
     ("natbirzha_factory_001_restore_starters", _migrate_restore_factory_starters),
+    ("natbirzha_v3_001_state_shares", _migrate_v3_state_shares),
 )
 
 

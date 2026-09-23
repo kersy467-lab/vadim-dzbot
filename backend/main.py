@@ -254,11 +254,12 @@ async def favicon():
     return Response(content=b"", media_type="image/x-icon")
 
 
-class NoCacheStaticFiles(StaticFiles):
+class SmartCacheStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        if str(path).replace("\\", "/").startswith("assets/ranks/"):
-            response.headers["Cache-Control"] = "public, max-age=86400"
+        norm_path = str(path).replace("\\", "/").lower()
+        if norm_path.endswith((".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff2", ".woff", ".mp3")):
+            response.headers["Cache-Control"] = "public, max-age=604800, immutable"
             if "pragma" in response.headers:
                 del response.headers["pragma"]
         else:
@@ -269,7 +270,7 @@ class NoCacheStaticFiles(StaticFiles):
 # Static files for Telegram Mini App
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.exists(frontend_path):
-    app.mount("/static", NoCacheStaticFiles(directory=frontend_path), name="static")
+    app.mount("/static", SmartCacheStaticFiles(directory=frontend_path), name="static")
 
 _NO_CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",

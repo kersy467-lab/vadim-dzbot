@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
+from math import isclose
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -21,8 +22,8 @@ def test_water_inputs_are_multiplied_in_both_live_production_catalogs() -> None:
     factory_spec = get_building_spec("farm_grain")
     business_spec = get_business_spec("agroholding")
     water_utility = get_business_spec("water_utility")
-    assert factory_spec is not None and factory_spec["inputs"]["water"] == 25
-    assert business_spec is not None and business_spec["inputs_per_hour"]["water"] == 12.5
+    assert factory_spec is not None and isclose(factory_spec["inputs"]["water"], 25 / 1.5)
+    assert business_spec is not None and isclose(business_spec["inputs_per_hour"]["water"], 12.5 / 1.5)
     assert business_spec["inputs_per_hour"]["energy"] == 2.75
     assert water_utility is not None and water_utility["outputs_per_hour"]["water"] == 12
     assert get_item_base_price("water") == 2
@@ -40,7 +41,7 @@ def test_energy_inputs_are_multiplied_elevenfold_in_all_live_catalogs() -> None:
     assert get_item_base_price("energy") == 10
 
 
-def test_factory_cycle_consumes_twenty_five_units_of_technical_water() -> None:
+def test_factory_cycle_consumes_scaled_technical_water() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -58,7 +59,7 @@ def test_factory_cycle_consumes_twenty_five_units_of_technical_water() -> None:
                 company_id=company.id, building_type="farm_grain",
                 specialization="agrarian", level=1,
             )
-            water = NatInventory(company_id=company.id, item_id="water", quantity=24)
+            water = NatInventory(company_id=company.id, item_id="water", quantity=16)
             energy = NatInventory(company_id=company.id, item_id="grid_quota", quantity=10)
             session.add_all([factory, water, energy])
             await session.commit()
@@ -68,15 +69,15 @@ def test_factory_cycle_consumes_twenty_five_units_of_technical_water() -> None:
             )
             assert denied["success"] is False
             assert denied["reason"] == "insufficient_water"
-            assert denied["needed"] == 25
+            assert denied["needed"] == round(25 / 1.5, 4)
 
-            water.quantity = 25
+            water.quantity = round(25 / 1.5, 4)
             allowed = await ProductionTickEngine.start_cycle(
                 session, company, factory, now=datetime(2026, 9, 24, 12)
             )
             assert allowed["success"] is True
             await session.refresh(water)
-            assert water.quantity == 0
+            assert isclose(water.quantity, 0, abs_tol=1e-6)
 
         await engine.dispose()
 
@@ -104,7 +105,7 @@ def test_idle_business_consumes_scaled_hourly_water_demand() -> None:
                 last_settled_at=now,
             )
             water = NatInventory(
-                company_id=company.id, item_id="water", quantity=25,
+                company_id=company.id, item_id="water", quantity=20,
                 avg_cost_basis=2,
             )
             energy = NatInventory(
@@ -122,8 +123,8 @@ def test_idle_business_consumes_scaled_hourly_water_demand() -> None:
             await session.flush()
             await session.refresh(water)
             assert result[2] == 2
-            assert result[3] == 50
-            assert water.quantity == 0
+            assert isclose(result[3], 100 / 3, abs_tol=1e-6)
+            assert isclose(water.quantity, 20 - 25 / 1.5, abs_tol=1e-6)
 
         await engine.dispose()
 

@@ -75,7 +75,12 @@ def test_every_career_business_is_viable_through_state_fallback() -> None:
         )
         actual_roi = (float(spec["open_cost"]) + construction_cost) / net
         target_roi = float(spec["target_open_roi_hours"])
-        assert abs(actual_roi - target_roi) <= target_roi * 0.02, spec["id"]
+        if spec["inputs_per_hour"].get("water", 0) > 0:
+            # Water use was reduced; retain catalog output so these businesses
+            # recover the saved water cost as a shorter ROI.
+            assert actual_roi <= target_roi * 1.02, spec["id"]
+        else:
+            assert abs(actual_roi - target_roi) <= target_roi * 0.02, spec["id"]
 
 
 def test_water_demand_multiplier_preserves_water_processor_fallback_margin() -> None:
@@ -96,7 +101,7 @@ def test_water_demand_multiplier_preserves_water_processor_fallback_margin() -> 
         )) / net
         target_roi = float(spec["target_open_roi_hours"])
         assert net > 0, business_id
-        assert abs(actual_roi - target_roi) <= target_roi * 0.02, business_id
+        assert actual_roi < target_roi, business_id
 
 
 def _career_profit_per_hour(spec: dict, stage: int) -> float:

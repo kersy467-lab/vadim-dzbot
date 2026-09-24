@@ -5,7 +5,8 @@ from typing import Any, Mapping
 from backend.natbirzha.models.inventory import get_npc_buy_price, get_npc_sell_price
 
 
-TECHNICAL_WATER_DEMAND_MULTIPLIER = 25
+TECHNICAL_WATER_DEMAND_MULTIPLIER = 25 / 1.5
+TECHNICAL_WATER_OUTPUT_CALIBRATION_MULTIPLIER = 25
 
 
 def scale_catalog_water_inputs(
@@ -14,7 +15,7 @@ def scale_catalog_water_inputs(
     input_field: str,
     resource_production_only: bool = False,
 ) -> dict[str, dict[str, Any]]:
-    """Return catalog copies with live technical-water input rates multiplied by 25."""
+    """Return catalog copies with the current technical-water input multiplier."""
     scaled_specs: dict[str, dict[str, Any]] = {}
     for spec_id, spec in specs.items():
         scaled = dict(spec)
@@ -33,9 +34,9 @@ def scale_catalog_water_inputs(
 def recalibrate_scaled_water_outputs(
     specs: Mapping[str, Mapping[str, Any]],
     *,
-    multiplier: float = TECHNICAL_WATER_DEMAND_MULTIPLIER,
+    multiplier: float = TECHNICAL_WATER_OUTPUT_CALIBRATION_MULTIPLIER,
 ) -> dict[str, dict[str, Any]]:
-    """Preserve each calibrated career business's NPC fallback margin after scaling water use."""
+    """Keep calibrated output rates steady when water input usage is reduced."""
     result = {spec_id: dict(spec) for spec_id, spec in specs.items()}
     factor = max(1.0, float(multiplier))
     for spec in result.values():
@@ -50,10 +51,11 @@ def recalibrate_scaled_water_outputs(
         ):
             continue
 
-        # Catalog outputs were calibrated before the live 25x technical-water
-        # multiplier. Add the resulting NPC input cost back into output value,
-        # leaving water prices and the business's target ROI unchanged.
-        added_water_cost = water_rate * (1.0 - 1.0 / factor) * get_npc_sell_price("water")
+        # Keep output quantities at their previous 25x calibration. A later
+        # reduction in water use should lower operating costs, not also shrink
+        # the amount of goods a business produces.
+        base_water_rate = water_rate / TECHNICAL_WATER_DEMAND_MULTIPLIER
+        added_water_cost = base_water_rate * (factor - 1.0) * get_npc_sell_price("water")
         output_revenue = sum(
             max(0.0, float(quantity)) * get_npc_buy_price(item_id)
             for item_id, quantity in outputs.items()

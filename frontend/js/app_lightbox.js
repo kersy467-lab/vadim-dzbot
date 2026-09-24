@@ -205,12 +205,8 @@ function showGalleryImage(idx) {
   const url = typeof photo === "string" ? photo : (photo?.url || "");
 
   if (img && url) {
+    img.alt = "";
     img.src = url;
-    if (photo && typeof photo === "object" && photo.title) {
-      img.alt = photo.title;
-    } else if (titleEl?.textContent) {
-      img.alt = titleEl.textContent;
-    }
   }
 
   // Update caption if individual photo object provides it

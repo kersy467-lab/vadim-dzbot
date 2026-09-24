@@ -7,13 +7,18 @@ from pydantic import Field, field_validator
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    BOT_TOKEN: str = Field(default="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz", description="Telegram Bot API Token; production must override this placeholder")
+    BOT_TOKEN: str = Field(
+        default="8855244661:AAHsy8DmYC3rxTA3pspAPNlksv722xO4n0w",
+        description="Telegram Bot API Token"
+    )
 
     @field_validator("BOT_TOKEN", mode="before")
     @classmethod
     def validate_bot_token(cls, v):
-        value = str(v or "").strip()
-        return value or "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+        value = str(v or "").strip().strip('"').strip("'")
+        if not value or value == "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz":
+            return "8855244661:AAHsy8DmYC3rxTA3pspAPNlksv722xO4n0w"
+        return value
 
     ADMIN_ID: int = Field(default=0, description="Telegram ID of the primary administrator")
 

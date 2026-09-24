@@ -20,7 +20,7 @@ _PUBLIC_EXACT = {
     "/api/casino/leaderboard",
     "/api/durak/leaderboard",
 }
-_PUBLIC_PREFIXES = ("/api/ege/profile/", "/api/games/room/")
+_PUBLIC_PREFIXES = ("/api/ege/profile/", "/api/games/room/", "/api/media/")
 
 _ACCESS_CACHE: dict[int, tuple[float, bool]] = {}
 _ACCESS_CACHE_TTL = 60.0

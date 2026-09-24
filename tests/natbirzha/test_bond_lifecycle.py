@@ -48,10 +48,10 @@ async def run_async() -> None:
         seller_cash = seller.cash
         treasury_cash = treasury.cash
         first = await StateBondService.settle_due(session, now=issued_at + timedelta(days=7))
-        assert first["coupon_payments"] == 1 and first["coupon_paid_rub"] == 70.0
+        assert first["coupon_payments"] == 168 and first["coupon_paid_rub"] == 70.0
         await session.commit()
-        assert seller.cash == seller_cash + 70
-        assert treasury.cash == treasury_cash - 70
+        assert round(seller.cash - seller_cash, 2) == 70
+        assert round(treasury_cash - treasury.cash, 2) == 70
 
         # Exact replay at the same moment cannot pay the same coupon twice.
         replay = await StateBondService.settle_due(session, now=issued_at + timedelta(days=7))
@@ -94,16 +94,16 @@ async def run_async() -> None:
 
         treasury.cash = 20_000
         settled = await StateBondService.settle_due(session, now=issued_at + timedelta(days=14))
-        assert settled["coupon_payments"] == 2
+        assert settled["coupon_payments"] == 336
         assert settled["coupon_paid_rub"] == 70
         assert settled["maturity_payments"] == 2
         assert settled["principal_paid_rub"] == 10_000
         await session.commit()
-        assert seller.cash == seller_before + 6_042
-        assert buyer.cash == buyer_before + 4_028
+        assert round(seller.cash - seller_before, 2) == 6_042
+        assert round(buyer.cash - buyer_before, 2) == 4_028
 
         settlement_count = await session.scalar(select(func.count(NatBondSettlement.id)))
-        assert settlement_count == 5  # first coupon, then two final coupons and two principal payments
+        assert settlement_count == 506  # seller coupons, seller/buyer coupons, and two principal settlements
 
     await engine.dispose()
     print("NATBIRZHA bond lifecycle checks: PASS")

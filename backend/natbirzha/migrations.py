@@ -268,6 +268,22 @@ async def _migrate_p2_daily_bond_coupons(conn) -> None:
         """))
 
 
+async def _migrate_p2_hourly_bond_coupons(conn) -> None:
+    """Move outstanding issues onto the hourly coupon cadence at rollout."""
+    if not await _table_exists(conn, "nat_state_bonds"):
+        return
+    from datetime import timedelta
+    from backend.natbirzha.config import get_game_now
+
+    now = get_game_now()
+    await conn.execute(text("""
+        UPDATE nat_state_bonds
+        SET next_coupon_at = :next_coupon_at
+        WHERE status NOT IN ('CLOSED', 'BANKRUPT')
+          AND (maturity_at IS NULL OR maturity_at > :now)
+    """), {"next_coupon_at": now + timedelta(hours=1), "now": now})
+
+
 def _bond_inactive_expression(dialect_name: str) -> str:
     """Return a boolean-safe predicate for legacy bond activity flags."""
     return "is_active = 0" if dialect_name == "sqlite" else "is_active IS FALSE"
@@ -457,6 +473,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_010_creator_grant", _migrate_p2_creator_grant),
     ("natbirzha_p2_011_market_history", _migrate_p2_market_history),
     ("natbirzha_p2_012_daily_bond_coupons", _migrate_p2_daily_bond_coupons),
+    ("natbirzha_p2_013_hourly_bond_coupons", _migrate_p2_hourly_bond_coupons),
     ("natbirzha_v2_001_business_foundation", _migrate_v2_business_foundation),
     ("natbirzha_v2_002_daily_profit_tax", _migrate_v2_tax_system),
     ("natbirzha_factory_001_restore_starters", _migrate_restore_factory_starters),

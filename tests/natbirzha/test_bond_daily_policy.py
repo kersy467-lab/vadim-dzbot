@@ -1,4 +1,4 @@
-"""Daily coupon policy for newly issued state bonds."""
+"""Hourly coupon policy for newly issued state bonds."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -28,20 +28,27 @@ async def run_async() -> None:
             session, actor_id=777, title="ОФЗ-День", volume=10, face_value=1_000,
             coupon_rate=25, maturity_days=30, purpose="daily coupon", now=issued_at, commit=False,
         )
-        assert issue["next_coupon_at"].startswith("2026-09-02"), "new bonds must schedule the first coupon after 24 hours"
+        assert issue["next_coupon_at"] == "2026-09-01T13:00:00", "new bonds must schedule the first coupon after one hour"
         bond = await session.scalar(select(NatStateBond).where(NatStateBond.id == issue["bond_id"]))
         assert bond.coupon_interval_days == 1
         await StateBondService.buy(session, buyer, bond.id, 1, now=issued_at, commit=False)
         await session.commit()
 
     async with sessions() as session:
-        result = await StateBondService.settle_due(session, now=issued_at + timedelta(days=1))
-        # 25% annual rate is prorated over 365 daily settlements.
+        result = await StateBondService.settle_due(session, now=issued_at + timedelta(hours=1))
         assert result["coupon_payments"] == 1
-        assert result["coupon_paid_rub"] == round(1000 * 0.25 / 365, 2)
+        hourly_coupon = 1000 * 0.25 / (365 * 24)
+        assert result["coupon_paid_rub"] == round(hourly_coupon, 2)
+
+        replay = await StateBondService.settle_due(session, now=issued_at + timedelta(hours=1))
+        assert replay["coupon_payments"] == 0
+
+        catch_up = await StateBondService.settle_due(session, now=issued_at + timedelta(hours=3))
+        assert catch_up["coupon_payments"] == 2
+        assert catch_up["coupon_paid_rub"] == round(hourly_coupon * 2, 2)
 
     await engine.dispose()
-    print("NATBIRZHA daily bond policy checks: PASS")
+    print("NATBIRZHA hourly bond policy checks: PASS")
 
 
 if __name__ == "__main__":

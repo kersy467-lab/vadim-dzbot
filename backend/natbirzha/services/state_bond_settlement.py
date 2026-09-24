@@ -15,9 +15,9 @@ from backend.natbirzha.services.state_treasury_service import StateTreasuryServi
 class StateBondSettlementMixin:
     @classmethod
     async def _ensure_due_rows(cls, session: AsyncSession, bond: NatStateBond, now: datetime) -> None:
-        interval = max(1, int(bond.coupon_interval_days or 7))
+        interval = timedelta(hours=1)
         maturity_at = bond.maturity_at or bond.created_at + timedelta(days=bond.maturity_days)
-        next_coupon = bond.next_coupon_at or bond.created_at + timedelta(days=interval)
+        next_coupon = bond.next_coupon_at or bond.created_at + interval
         holdings = (await session.execute(
             select(NatStateBondHolding)
             .where(NatStateBondHolding.bond_id == bond.id, NatStateBondHolding.quantity > 0)
@@ -25,16 +25,16 @@ class StateBondSettlementMixin:
             .with_for_update()
         )).scalars().all()
         while next_coupon <= now and next_coupon <= maturity_at:
-            period = max(1, int((next_coupon - bond.created_at).days / interval))
+            period = max(1, int((next_coupon - bond.created_at).total_seconds() // 3600))
             for holding in holdings:
-                key = f"bond:{bond.id}:coupon:{period}:company:{holding.company_id}"
+                key = f"bond:{bond.id}:coupon-hour:{period}:company:{holding.company_id}"
                 exists = await session.scalar(
                     select(NatBondSettlement.id).where(NatBondSettlement.operation_key == key)
                 )
                 if exists:
                     continue
                 amount = round(
-                    bond.face_value * holding.quantity * (bond.coupon_rate / 100.0) * (interval / 365.0), 2
+                    bond.face_value * holding.quantity * (bond.coupon_rate / 100.0) / (365 * 24), 12
                 )
                 if amount > 0:
                     session.add(NatBondSettlement(
@@ -49,7 +49,7 @@ class StateBondSettlementMixin:
                         due_at=next_coupon,
                         created_at=now,
                     ))
-            next_coupon += timedelta(days=interval)
+            next_coupon += interval
         bond.next_coupon_at = next_coupon
         if maturity_at <= now:
             bond.is_active = False
@@ -112,13 +112,13 @@ class StateBondSettlementMixin:
             )
             if not company or treasury.cash < settlement.amount_rub:
                 continue
-            treasury.cash = round(treasury.cash - settlement.amount_rub, 2)
-            company.cash = round(company.cash + settlement.amount_rub, 2)
+            treasury.cash = round(treasury.cash - settlement.amount_rub, 8)
+            company.cash = round(company.cash + settlement.amount_rub, 8)
             settlement.status = "PAID"
             settlement.paid_at = now
             if settlement.settlement_type == "COUPON":
                 result["coupon_payments"] += 1
-                result["coupon_paid_rub"] = round(result["coupon_paid_rub"] + settlement.amount_rub, 2)
+                result["coupon_paid_rub"] += settlement.amount_rub
             else:
                 result["maturity_payments"] += 1
                 result["principal_paid_rub"] = round(result["principal_paid_rub"] + settlement.amount_rub, 2)
@@ -165,6 +165,7 @@ class StateBondSettlementMixin:
                 NatBondSettlement.settlement_type == "PRINCIPAL",
             )
         ) or 0)
+        result["coupon_paid_rub"] = round(result["coupon_paid_rub"], 2)
         if commit:
             await session.commit()
         return result

@@ -1,11 +1,13 @@
 """Repeatable migration from the legacy NATBIRZHA army and NAT balance."""
 
 import asyncio
+from datetime import datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.natbirzha.migrations import MIGRATIONS, run_natbirzha_migrations
+from backend.natbirzha.config import get_game_now
 
 
 async def run() -> None:
@@ -82,7 +84,11 @@ async def run() -> None:
             VALUES (1, 1, 1, 6, 6000, '2026-09-01 12:00:00')
         """))
 
+        migration_started_at = get_game_now()
         await run_natbirzha_migrations(conn)
+        hourly_next_coupon = (await conn.execute(text(
+            "SELECT next_coupon_at FROM nat_state_bonds WHERE id = 1"
+        ))).scalar_one()
         await run_natbirzha_migrations(conn)
 
         row = (await conn.execute(text(
@@ -106,7 +112,9 @@ async def run() -> None:
         """))).one()
         assert bond.coupon_interval_days == 1
         assert bond.status == "ACTIVE"
-        assert str(bond.next_coupon_at).startswith("2026-09-02")
+        coupon_time = datetime.fromisoformat(str(bond.next_coupon_at))
+        assert migration_started_at < coupon_time <= migration_started_at + timedelta(hours=1, seconds=5)
+        assert str(bond.next_coupon_at) == str(hourly_next_coupon), "repeat migrations must not move the hourly payout again"
         assert str(bond.maturity_at).startswith("2026-10-01")
         reserved = (await conn.execute(text(
             "SELECT reserved_quantity FROM nat_state_bond_holdings WHERE id = 1"

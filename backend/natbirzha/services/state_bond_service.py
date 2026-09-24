@@ -56,9 +56,11 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             raise ValueError("Volume, face value, and maturity must be positive.")
         if coupon_rate < 0:
             raise ValueError("Coupon rate cannot be negative.")
-        coupon_interval_days = min(1, maturity_days) if coupon_interval_days is None else coupon_interval_days
-        if coupon_interval_days <= 0 or coupon_interval_days > maturity_days:
+        if coupon_interval_days is not None and (coupon_interval_days <= 0 or coupon_interval_days > maturity_days):
             raise ValueError("Coupon interval must be positive and not exceed maturity.")
+        # Keep the legacy field/API argument for compatibility; all bond issues
+        # now pay hourly coupons.
+        coupon_interval_days = 1
         treasury = await StateTreasuryService.get_or_create(session, commit=False)
         now = now or get_game_now()
         bond = NatStateBond(
@@ -73,7 +75,7 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             actor_id=actor_id,
             is_active=True,
             status="OFFERING",
-            next_coupon_at=now + timedelta(days=coupon_interval_days),
+            next_coupon_at=now + timedelta(hours=1),
             maturity_at=now + timedelta(days=maturity_days),
             created_at=now,
         )

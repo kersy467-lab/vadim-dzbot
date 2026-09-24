@@ -1,8 +1,10 @@
 import asyncio
+import hashlib
 import html
+import json
 import logging
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
@@ -311,8 +313,13 @@ async def get_game_room_state(
     if room and getattr(room, "game_type", None) == "rpg_coop" and room.status == "finished" and room.winner == "heroes":
         if not getattr(room, "reward_distributed", False):
             from backend.api.routers.games_rpg_hooks import handle_rpg_room_moved
-            await handle_rpg_room_moved(room, session, user, viewer_tg_id)
-    return await build_ege_room_payload(session, room, viewer_tg_id)
+    payload = await build_ege_room_payload(session, room, viewer_tg_id)
+    payload_raw = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+    etag = f'"{hashlib.md5(payload_raw).hexdigest()[:12]}"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return Response(content=payload_raw, media_type="application/json", headers={"ETag": etag})
+
 
 
 @router.post("/games/room/{room_id}/join")

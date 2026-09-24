@@ -2079,11 +2079,13 @@
   function startCoopPolling() {
     stopCoopPolling();
     RPG_STATE.coopPolling = setInterval(async () => {
-      if (!RPG_STATE.coopRoomId) return;
+      if (!RPG_STATE.coopRoomId || (typeof document !== "undefined" && document.hidden)) return;
       try {
         const updated = await api.getGameRoom(RPG_STATE.coopRoomId);
-        RPG_STATE.coopRoomData = updated;
-        renderRoot();
+        if (updated) {
+          RPG_STATE.coopRoomData = updated;
+          renderRoot();
+        }
       } catch (e) {
         if (e && (e.status === 404 || (e.message && (e.message.includes("404") || e.message.includes("не найден"))))) {
           console.warn("[Coop] Room no longer exists (404), stopping polling");
@@ -2093,7 +2095,7 @@
           renderRoot();
         }
       }
-    }, 1500);
+    }, 2500);
   }
 
   function stopCoopPolling() {
@@ -2191,11 +2193,13 @@
   function startPvPPolling() {
     stopPvPPolling();
     RPG_STATE.pvpPolling = setInterval(async () => {
-      if (!RPG_STATE.pvpRoomId) return;
+      if (!RPG_STATE.pvpRoomId || (typeof document !== "undefined" && document.hidden)) return;
       try {
         const updated = await api.getGameRoom(RPG_STATE.pvpRoomId);
-        RPG_STATE.pvpRoomData = updated;
-        renderRoot();
+        if (updated) {
+          RPG_STATE.pvpRoomData = updated;
+          renderRoot();
+        }
       } catch (e) {
         if (e && (e.status === 404 || (e.message && (e.message.includes("404") || e.message.includes("не найден"))))) {
           console.warn("[PvP] Room no longer exists (404), stopping polling");
@@ -2205,7 +2209,7 @@
           renderRoot();
         }
       }
-    }, 1500);
+    }, 2500);
   }
 
   function stopPvPPolling() {
@@ -2244,8 +2248,19 @@
     }
   }
 
-  // ===========================================================================
-  // RENDERING ROOT & SUBTABS
-  // ===========================================================================
-
-
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        if (RPG_STATE.coopRoomId) {
+          api.getGameRoom(RPG_STATE.coopRoomId).then(updated => {
+            if (updated) { RPG_STATE.coopRoomData = updated; renderRoot(); }
+          }).catch(() => {});
+        }
+        if (RPG_STATE.pvpRoomId) {
+          api.getGameRoom(RPG_STATE.pvpRoomId).then(updated => {
+            if (updated) { RPG_STATE.pvpRoomData = updated; renderRoot(); }
+          }).catch(() => {});
+        }
+      }
+    });
+  }

@@ -1,4 +1,5 @@
 const API_BASE = "";
+const _roomEtags = {};
 
 function getTelegramInitData() {
   if (window.Telegram?.WebApp?.initData) {
@@ -129,14 +130,13 @@ async function apiRequest(endpoint, options = {}) {
     }
   } catch (e) {}
 
-
-
-
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers
     });
+
+    if (response.status === 304) return null;
 
     if (!response.ok) {
       let errorDetail = "";
@@ -156,6 +156,11 @@ async function apiRequest(endpoint, options = {}) {
       const errObj = new Error(errMsg);
       errObj.status = response.status;
       throw errObj;
+    }
+
+    const etag = response.headers.get("ETag");
+    if (etag && options._roomId) {
+      _roomEtags[options._roomId] = etag;
     }
 
     return await response.json();
@@ -227,14 +232,26 @@ const api = {
         hero_data: heroData
       })
     }),
-  getGameRoom: (roomId) => apiRequest(`/api/games/room/${roomId}`),
-  joinGameRoom: (roomId, userName) =>
-    apiRequest(`/api/games/room/${roomId}/join`, {
+  getGameRoom: (roomId) => {
+    if (typeof document !== "undefined" && document.hidden) return Promise.resolve(null);
+    const headers = {};
+    if (_roomEtags[roomId]) headers["If-None-Match"] = _roomEtags[roomId];
+    return apiRequest(`/api/games/room/${roomId}`, { headers, _roomId: roomId });
+  },
+  clearGameRoomEtag: (roomId) => {
+    if (roomId) delete _roomEtags[roomId];
+    else for (const k in _roomEtags) delete _roomEtags[k];
+  },
+  joinGameRoom: (roomId, userName) => {
+    delete _roomEtags[roomId];
+    return apiRequest(`/api/games/room/${roomId}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_name: userName })
-    }),
+    });
+  },
   sendGameMove: (roomId, moveData) => {
+    delete _roomEtags[roomId];
     const payload = typeof moveData === "number" ? { cell: moveData } : { move: moveData };
     return apiRequest(`/api/games/room/${roomId}/move`, {
       method: "POST",
@@ -242,6 +259,7 @@ const api = {
       body: JSON.stringify(payload)
     });
   },
+
   addCoopBot: (roomId) =>
     apiRequest(`/api/games/room/${roomId}/bot`, {
       method: "POST"
@@ -362,31 +380,11 @@ const api = {
     }),
   getAdminRpgPlayers: () => apiRequest("/api/rpg/admin/players"),
   getAdminItemsCatalog: () => apiRequest("/api/rpg/admin/items_catalog"),
-  adminGiveGold: (payload) =>
-    apiRequest("/api/rpg/admin/give_gold", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-  adminGiveGems: (payload) =>
-    apiRequest("/api/rpg/admin/give_gems", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-  adminSetLevel: (payload) =>
-    apiRequest("/api/rpg/admin/set_level", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-  adminGiveItem: (payload) =>
-    apiRequest("/api/rpg/admin/give_item", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-  adminResetPlayer: (payload) =>
-    apiRequest("/api/rpg/admin/reset_player", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
+  adminGiveGold: (payload) => apiRequest("/api/rpg/admin/give_gold", { method: "POST", body: JSON.stringify(payload) }),
+  adminGiveGems: (payload) => apiRequest("/api/rpg/admin/give_gems", { method: "POST", body: JSON.stringify(payload) }),
+  adminSetLevel: (payload) => apiRequest("/api/rpg/admin/set_level", { method: "POST", body: JSON.stringify(payload) }),
+  adminGiveItem: (payload) => apiRequest("/api/rpg/admin/give_item", { method: "POST", body: JSON.stringify(payload) }),
+  adminResetPlayer: (payload) => apiRequest("/api/rpg/admin/reset_player", { method: "POST", body: JSON.stringify(payload) }),
   request: apiRequest
 };
 

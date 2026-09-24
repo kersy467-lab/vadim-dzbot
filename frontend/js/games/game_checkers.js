@@ -263,7 +263,7 @@
       console.warn("Error polling checkers:", e);
     }
     if (isCheckersPolling && checkersRoomId) {
-      checkersPollTimer = setTimeout(pollState, 800);
+      checkersPollTimer = setTimeout(pollState, 1500);
     }
   }
 

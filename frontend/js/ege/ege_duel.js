@@ -233,12 +233,13 @@
   function redraw() { const root = document.getElementById('ege-subtab-container') || document.getElementById('pane-ege'); if (root) root.innerHTML = renderDuelTab(); }
 
   async function refresh() {
-    if (!room || sending) return;
+    if (!room || sending || (typeof document !== "undefined" && document.hidden)) return;
     const generation = refreshGeneration;
     try {
       const updated = await window.api.getGameRoom(room.room_id);
+      if (!updated) return;
       if (!sending && generation === refreshGeneration) {
-        if (!updated || updated.status === 'canceled' || updated.status === 'rejected') {
+        if (updated.status === 'canceled' || updated.status === 'rejected') {
           clearPoll(); clearTimer(); room = null; initLobby(); return;
         }
         room = updated;
@@ -341,5 +342,14 @@
     leaveDuel: leave, cancelDuel: cancelInvite, cancelInvite,
     duelTimeout: () => answer('__timeout__'),
   };
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && room && room.status !== 'finished') {
+        refresh().catch(() => {});
+      }
+    });
+  }
+
   window.EGE = Object.assign(window.EGE || {}, window.EGE_DUEL);
 })();
+

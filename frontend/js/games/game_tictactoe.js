@@ -653,7 +653,7 @@
     }
 
     if (isOnlinePolling && onlineRoomId) {
-      onlinePollTimer = setTimeout(pollRoomState, 800);
+      onlinePollTimer = setTimeout(pollRoomState, 1500);
     }
   }
 

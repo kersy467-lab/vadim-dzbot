@@ -315,7 +315,7 @@
       console.warn("Error polling chess room:", e);
     }
     if (isChessPolling && chessRoomId) {
-      chessPollTimer = setTimeout(pollChessRoomState, 800);
+      chessPollTimer = setTimeout(pollChessRoomState, 1500);
     }
   }
 

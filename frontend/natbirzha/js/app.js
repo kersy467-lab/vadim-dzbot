@@ -4,10 +4,10 @@ import { renderOnboarding } from './screens/onboarding.js?v=20260920_reset_v8';
 import { renderOverview } from './screens/overview.js?v=20260924_state_credit_approval';
 import { renderTycoon } from './screens/tycoon.js?v=20260921_tycoon1';
 import { renderUpgrades } from './screens/upgrades.js';
-import { renderMarket } from './screens/market.js?v=20260924_state_credit_approval';
+import { renderMarket } from './screens/market.js?v=20260924_credit20';
 import { renderStocks } from './screens/stocks.js?v=20260924_ipo_terms';
 import { renderMilitary } from './screens/military.js';
-import { renderCreator } from './screens/creator.js?v=20260924_creator_controls';
+import { renderCreator } from './screens/creator.js?v=20260924_credit20';
 import { renderLeaderboard } from './screens/leaderboard.js';
 import { renderHelp } from './screens/help.js?v=20260920_liquidity1';
 

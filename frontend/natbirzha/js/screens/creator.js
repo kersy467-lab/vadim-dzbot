@@ -3,7 +3,7 @@ import { loadCreatorOverview } from './creator_overview.js';
 import { loadCreatorModeration } from './creator_moderation.js';
 import { loadCreatorShares } from './creator_shares.js';
 import { loadCreatorPlayersTab } from './creator_players.js?v=20260924_creator_controls';
-import { loadCreatorCreditTab } from './creator_credit.js?v=20260924_creator_controls';
+import { loadCreatorCreditTab } from './creator_credit.js?v=20260924_credit20';
 import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260924_creator_controls';
 
 let activeTab = 'overview';

@@ -16,7 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
-assert(natHtml.includes('app.js?v=20260924_creator_controls'), 'Natbirzha entrypoint must refresh its cached code after a release');
+assert(natHtml.includes('app.js?v=20260924_credit20'), 'Natbirzha entrypoint must refresh its cached code after a release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -281,9 +281,9 @@ assert(creatorScreenCode.includes('grid grid-cols-3') && !creatorScreenCode.incl
   'government controls must be visible in a wrapping grid instead of hidden in a horizontal tab strip');
 assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"'),
   'player bankruptcy and bond bankruptcy sections must remain directly navigable');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260924_creator_controls'),
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260924_credit20'),
   'app.js must reload the updated creator panel module');
-assert(creatorScreenCode.includes('creator_credit.js?v=20260924_creator_controls')
+assert(creatorScreenCode.includes('creator_credit.js?v=20260924_credit20')
   && creatorScreenCode.includes('creator_players.js?v=20260924_creator_controls')
   && creatorScreenCode.includes('creator_bond_api.js?v=20260924_creator_controls'),
   'creator tabs and bankruptcy actions must load their current screen modules');
@@ -399,7 +399,7 @@ assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
 assert(appSourceCode.includes('overview.js?v=20260924_state_credit_approval'),
   'overview inventory fixes must be loaded from a fresh screen module');
-assert(marketCoreCode.includes("market_credit.js?v=20260924_state_credit_approval"),
+assert(marketCoreCode.includes("market_credit.js?v=20260924_credit20"),
   'market credit screen must use a cache-busted module URL');
 assert(marketCreditCode.includes("../api.js?v=20260924_state_credit_approval"),
   'credit screen must import the current API module containing state-credit methods');

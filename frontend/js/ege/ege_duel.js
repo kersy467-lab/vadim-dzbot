@@ -159,7 +159,7 @@
     if (q.mode === 'stress') {
       task = `<p class="text-xs text-slate-500">Нажмите ударную гласную</p><div class="flex flex-wrap justify-center gap-2 py-3">${[...q.word].map((letter, i) => q.vowel_indexes.includes(i) ? `<button ${sending ? 'disabled' : ''} onclick="window.EGE.duelAnswer(${i})" class="w-10 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 font-black text-xl hover:scale-105 active:scale-95 transition-transform">${letter}</button>` : `<span class="w-7 h-12 flex items-center justify-center font-black text-xl">${letter}</span>`).join('')}</div>`;
     } else {
-      task = `<p class="text-xs text-slate-500">Впишите словарное слово полностью</p><div class="text-3xl font-black py-3 tracking-[0.18em]">${esc(q.masked)}</div><input id="ege-duel-vocab-input" ${sending ? 'disabled' : ''} onkeydown="if(event.key==='Enter') window.EGE.duelCheck()" placeholder="Напишите слово" class="w-full px-4 py-3 rounded-2xl border text-center font-bold dark:bg-slate-700"><button ${sending ? 'disabled' : ''} onclick="window.EGE.duelCheck()" class="mt-2 w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-98 transition-all">Проверить</button>`;
+      task = `<p class="text-xs text-slate-500">Впишите словарное слово полностью</p><div class="text-3xl font-black py-3 tracking-[0.18em]">${esc(q.masked)}</div><input id="ege-duel-vocab-input" ${sending ? 'disabled' : ''} oninput="const b=document.getElementById('ege-duel-vocab-btn');if(b)b.disabled=!this.value.trim();" onkeydown="if(event.key==='Enter'&&this.value.trim())window.EGE.duelCheck()" placeholder="Напишите слово" class="w-full px-4 py-3 rounded-2xl border text-center font-bold dark:bg-slate-700" autocomplete="off" autocapitalize="off" spellcheck="false"><button id="ege-duel-vocab-btn" ${sending ? 'disabled' : ''} disabled onclick="window.EGE.duelCheck()" class="mt-2 w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed">Проверить</button>`;
     }
     const feedback = sending ? '<p class="text-xs text-blue-600 font-bold">Проверяем…</p>' : (sendError ? `<p class="text-xs text-red-600 font-bold">${esc(sendError)}</p>` : '');
     const suddenBanner = isSudden
@@ -167,12 +167,15 @@
       : '';
     const isDanger = localRemaining <= (isSudden ? 2.0 : 5.0);
     const timerPct = Math.max(0, Math.min(100, (localRemaining / timerLimit) * 100));
-    const timerLabel = isSudden ? '⚡ 5 с на слово' : '⏱️ 35 с на 10 заданий';
+    const timerLabel = isSudden
+      ? (room.game_type === 'ege_vocabulary_duel' ? '⚡ 12 с на слово' : '⚡ 5 с на слово')
+      : (room.game_type === 'ege_vocabulary_duel' ? '⏱️ 70 с на 10 заданий' : '⏱️ 35 с на 10 заданий');
     const timerWidget = `<div class="rounded-2xl p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-left">
       <div class="flex justify-between items-center text-xs font-black mb-1">
         <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1">${timerLabel}</span>
         <span id="ege-timer-val" class="font-mono text-xs font-black transition-colors ${isDanger ? 'text-red-500 animate-pulse' : 'text-blue-600'}">${localRemaining.toFixed(1)} с</span>
       </div>
+
       <div class="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
         <div id="ege-timer-bar" class="h-full rounded-full transition-all duration-100 ${isDanger ? 'bg-red-500' : 'bg-blue-600'}" style="width:${timerPct}%"></div>
       </div>
@@ -204,9 +207,7 @@
     myRating = profile;
     const suddenNote = isSudden ? ` (Внезапная смерть: ${room.sudden_round} доп. раунд)` : '';
     const winnerName = room.winner_name || (result === 'win' ? myName() : rival?.name || 'Соперник');
-    const winnerLine = result === 'draw'
-      ? `Ничья${suddenNote}`
-      : `Победитель: ${esc(winnerName)}${suddenNote}`;
+    const winnerLine = result === 'draw' ? `Ничья${suddenNote}` : `Победитель: ${esc(winnerName)}${suddenNote}`;
     return `<div class="theme-card rounded-3xl p-5 text-center space-y-4"><div class="text-5xl">${icon}</div><h3 class="font-black text-xl">${title}</h3><div class="text-sm font-bold">${winnerLine}</div><div class="font-black text-lg">${esc(myName())} ${Number(room.your_score || 0)} : ${Number(room.opponent_score || 0)} ${esc(rival?.name || 'Соперник')}</div><div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>Вы</b><br>✅ ${Number(room.your_score || 0)}<br>❌ ${Number(room.your_errors || 0)} ошибок</div><div class="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><b>${esc(rival?.name || 'Соперник')}</b><br>✅ ${Number(room.opponent_score || 0)}<br>❌ ${Number(room.opponent_errors || 0)} ошибок</div></div><img src="${esc(rankImage(profile))}" class="w-28 h-28 object-contain mx-auto"><div class="font-black text-blue-600">${ratingText(profile)}</div><div class="text-sm font-black ${change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-slate-400'}">${change > 0 ? '+' : ''}${change} MMR</div><button onclick="window.EGE.rematchDuel()" class="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold">Реванш</button><button onclick="window.EGE.leaveDuel()" class="w-full py-2 text-xs text-slate-500 font-bold">Вернуться в лобби</button></div>`;
   }
 
@@ -218,18 +219,12 @@
       const waitingText = room.matchmaking_search
         ? `Сообщение отправлено игрокам рейтинга${room.matchmaking_recipient_count ? ` (${Number(room.matchmaking_recipient_count)})` : ''}. Как только кто-нибудь примет дуэль, игра начнётся.`
         : 'Приглашение отправлено. Если соперник не отвечает, вы можете отменить вызов и вернуться в лобби.';
-      return `<div class="theme-card rounded-3xl p-6 text-center space-y-4">
-        <div class="text-4xl">⏳</div>
-        <h3 class="font-black text-lg">Ждём ${oppName}…</h3>
-        <p class="text-xs text-slate-500">${waitingText}</p>
-        <button onclick="window.EGE.cancelDuel()" class="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
-          <span>❌ Отменить вызов</span>
-        </button>
-      </div>`;
+      return `<div class="theme-card rounded-3xl p-6 text-center space-y-4"><div class="text-4xl">⏳</div><h3 class="font-black text-lg">Ждём ${oppName}…</h3><p class="text-xs text-slate-500">${waitingText}</p><button onclick="window.EGE.cancelDuel()" class="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"><span>❌ Отменить вызов</span></button></div>`;
     }
     if (room.status === 'finished') return renderFinished();
     return renderBattle();
   }
+
 
   function renderArenaHome() { return renderDuelTab(); }
   function redraw() { const root = document.getElementById('ege-subtab-container') || document.getElementById('pane-ege'); if (root) root.innerHTML = renderDuelTab(); }
@@ -253,28 +248,20 @@
 
   function startPoll() {
     clearPoll();
-    const roomId = room?.room_id;
-    const userId = window.AppState?.tgUserId || window.api?.getTelegramUserId?.() || 0;
+    const roomId = room?.room_id, userId = window.AppState?.tgUserId || window.api?.getTelegramUserId?.() || 0;
     if (window.GameWS && roomId && userId) {
-      _egeWsConn = window.GameWS.connect(
-        roomId, userId,
-        (data) => {
-          if (!data || sending) return;
-          if (data.status === 'canceled' || data.status === 'rejected') {
-            clearPoll(); clearTimer(); room = null; initLobby(); return;
-          }
-          room = data;
-          if (room.status === 'finished') clearPoll();
-          syncTimerWithRoom();
-          redraw();
-        },
-        () => { _egeWsConn = null; }
-      );
+      _egeWsConn = window.GameWS.connect(roomId, userId, (data) => {
+        if (!data || sending) return;
+        if (data.status === 'canceled' || data.status === 'rejected') { clearPoll(); clearTimer(); room = null; initLobby(); return; }
+        room = data;
+        if (room.status === 'finished') clearPoll();
+        syncTimerWithRoom(); redraw();
+      }, () => { _egeWsConn = null; });
     } else {
-      // HTTP fallback
       poll = setInterval(() => refresh().catch(() => {}), 3000);
     }
   }
+
 
 
   async function invite(id, name) {
@@ -306,10 +293,39 @@
       if (room.status === 'finished') clearPoll(); else startPoll();
     } catch (error) {
       sendError = error?.message || 'Не удалось отправить ответ.';
-    } finally { sending = false; redraw(); }
+      try {
+        const fresh = await window.api.getGameRoom(room.room_id);
+        if (fresh) {
+          room = fresh;
+          if (room.status === 'finished') {
+            sendError = '';
+            clearPoll();
+            clearTimer();
+          }
+        }
+      } catch (_) {}
+    } finally {
+      sending = false;
+      redraw();
+      setTimeout(() => {
+        const inp = document.getElementById('ege-duel-vocab-input');
+        if (inp) inp.focus();
+      }, 50);
+    }
   }
 
-  function checkVocabulary() { answer(document.getElementById('ege-duel-vocab-input')?.value || ''); }
+  function checkVocabulary() {
+    const input = document.getElementById('ege-duel-vocab-input');
+    const val = (input?.value || '').trim();
+    if (!val) {
+      sendError = '⚠️ Введите слово перед отправкой!';
+      if (input) input.focus();
+      redraw();
+      return;
+    }
+    answer(val);
+  }
+
 
   async function open(roomId, gameType) {
     type = gameType || 'ege_stress_duel';

@@ -131,6 +131,8 @@ from backend.bot.handlers.admin.users import (
     cb_admin_delete_user_list,
     cb_admin_delete_user_ask,
     cb_admin_delete_user_confirm,
+    cb_admin_kick_confirm,
+    cb_admin_view_banlist,
 )
 from backend.bot.handlers.admin.broadcast import (
     cb_admin_broadcast_custom_start,
@@ -183,4 +185,6 @@ __all__ = [
     "cb_admin_duty_broadcast_start",
     "cb_admin_delete_user_ask",
     "cb_admin_delete_user_confirm",
+    "cb_admin_kick_confirm",
+    "cb_admin_view_banlist",
 ]

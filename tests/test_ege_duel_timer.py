@@ -145,6 +145,32 @@ def test_ege_duel_rematch_resets_timers():
     assert len(room.sudden_question_started_at) == 0
 
 
+def test_ege_vocab_duel_timer_and_empty_protection():
+    room = EGEDuelRoom("test_room_vocab", 1001, "Host", 1002, "Opponent", game_type="ege_vocabulary_duel")
+    room.status = "playing"
+
+    # Vocab duel main round limit should be 70s
+    d = room.to_dict(1001)
+    assert d["timer_limit"] == 70.0
+    assert 69.0 <= d["time_remaining"] <= 70.0
+
+    # Sending empty string or whitespace must be rejected and not burn a question
+    ok, msg = room.make_move(1001, {"answer": ""})
+    assert ok is False
+    assert "Введите ответ" in msg
+    assert len(room.answers[1001]) == 0
+
+    ok, msg = room.make_move(1001, {"answer": "   "})
+    assert ok is False
+    assert len(room.answers[1001]) == 0
+
+    # If room is finished, make_move must return True gracefully
+    room.status = "finished"
+    ok, msg = room.make_move(1001, {"answer": "палисадник"})
+    assert ok is True
+    assert "завершена" in msg
+
+
 if __name__ == "__main__":
     test_ege_duel_timer_initialization()
     test_ege_duel_timer_start_and_countdown()
@@ -152,4 +178,6 @@ if __name__ == "__main__":
     test_ege_duel_client_timeout_message()
     test_ege_duel_sudden_death_5s_timer()
     test_ege_duel_rematch_resets_timers()
+    test_ege_vocab_duel_timer_and_empty_protection()
     print("All EGE duel timer tests passed successfully!")
+

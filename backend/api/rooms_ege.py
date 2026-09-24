@@ -23,8 +23,11 @@ logger = logging.getLogger(__name__)
 
 VOWELS = "аеёиоуыэюя"
 MAIN_ROUND_TIME_LIMIT = 35.0
+VOCAB_ROUND_TIME_LIMIT = 70.0
 SUDDEN_WORD_TIME_LIMIT = 5.0
+VOCAB_SUDDEN_WORD_TIME_LIMIT = 12.0
 GRACE_PERIOD = 1.0
+
 
 
 class EGEDuelRoom:
@@ -55,6 +58,14 @@ class EGEDuelRoom:
         self.deck: list[dict[str, Any]] = []
         self.used_words: set[str] = set()
         self._init_deck()
+
+    @property
+    def main_round_limit(self) -> float:
+        return VOCAB_ROUND_TIME_LIMIT if self.game_type == "ege_vocabulary_duel" else MAIN_ROUND_TIME_LIMIT
+
+    @property
+    def sudden_word_limit(self) -> float:
+        return VOCAB_SUDDEN_WORD_TIME_LIMIT if self.game_type == "ege_vocabulary_duel" else SUDDEN_WORD_TIME_LIMIT
 
     def _init_deck(self) -> None:
         self.deck.clear()
@@ -172,7 +183,7 @@ class EGEDuelRoom:
                 continue
             if self.sudden_round == 0:
                 started = self.player_started_at.get(uid)
-                if started and (now - started) >= (MAIN_ROUND_TIME_LIMIT + GRACE_PERIOD):
+                if started and (now - started) >= (self.main_round_limit + GRACE_PERIOD):
                     while len(answers) < 10:
                         answers.append(False)
                     self.questions[uid] = None
@@ -181,7 +192,7 @@ class EGEDuelRoom:
             else:
                 key = (uid, self.sudden_round)
                 started = self.sudden_question_started_at.get(key)
-                if started and (now - started) >= (SUDDEN_WORD_TIME_LIMIT + GRACE_PERIOD):
+                if started and (now - started) >= (self.sudden_word_limit + GRACE_PERIOD):
                     answers.append(False)
                     self.questions[uid] = None
                     timed_out.append(uid)
@@ -202,14 +213,15 @@ class EGEDuelRoom:
         if self.sudden_round == 0:
             started = self.player_started_at.get(uid)
             if not started:
-                return MAIN_ROUND_TIME_LIMIT
-            return max(0.0, round(MAIN_ROUND_TIME_LIMIT - (now - started), 1))
+                return self.main_round_limit
+            return max(0.0, round(self.main_round_limit - (now - started), 1))
         else:
             key = (uid, self.sudden_round)
             started = self.sudden_question_started_at.get(key)
             if not started:
-                return SUDDEN_WORD_TIME_LIMIT
-            return max(0.0, round(SUDDEN_WORD_TIME_LIMIT - (now - started), 1))
+                return self.sudden_word_limit
+            return max(0.0, round(self.sudden_word_limit - (now - started), 1))
+
 
     def _finalize_if_ready(self) -> None:
         if not self._both_finished() or self.status == "finished":
@@ -243,7 +255,11 @@ class EGEDuelRoom:
     def make_move(self, user_tg_id: int, move_data: Any) -> tuple[bool, str]:
         self.last_activity = time.time()
         uid = int(user_tg_id)
-        if self.status != "playing" or not self._is_member(uid):
+        if not self._is_member(uid):
+            return False, "Вы не являетесь участником этой дуэли"
+        if self.status == "finished":
+            return True, "Дуэль уже завершена"
+        if self.status != "playing":
             return False, "Дуэль сейчас недоступна"
 
         self._ensure_timer_started(uid)
@@ -269,16 +285,20 @@ class EGEDuelRoom:
             self._finish_timeout_forfeit(uid)
             return True, "Время вышло! Дуэль завершена"
 
+        # Защита от случайного отправления пустого ответа
+        if raw_answer is None or (isinstance(raw_answer, str) and not raw_answer.strip()):
+            return False, "Введите ответ на вопрос"
+
         now = time.time()
         if self.sudden_round == 0:
             started = self.player_started_at.get(uid, now)
-            if (now - started) > (MAIN_ROUND_TIME_LIMIT + GRACE_PERIOD):
+            if (now - started) > (self.main_round_limit + GRACE_PERIOD):
                 self._finish_timeout_forfeit(uid)
                 return True, "Время раунда вышло! Дуэль завершена"
         else:
             key = (uid, self.sudden_round)
             started = self.sudden_question_started_at.get(key, now)
-            if (now - started) > (SUDDEN_WORD_TIME_LIMIT + GRACE_PERIOD):
+            if (now - started) > (self.sudden_word_limit + GRACE_PERIOD):
                 self._finish_timeout_forfeit(uid)
                 return True, "Время на слово вышло! Дуэль завершена"
 
@@ -334,7 +354,8 @@ class EGEDuelRoom:
         if self.status == "finished" and viewer:
             result = "draw" if self.winner is None else ("win" if self.winner == viewer else "loss")
 
-        timer_limit = SUDDEN_WORD_TIME_LIMIT if self.sudden_round > 0 else MAIN_ROUND_TIME_LIMIT
+        timer_limit = self.sudden_word_limit if self.sudden_round > 0 else self.main_round_limit
+
         time_remaining = self.get_time_remaining(viewer)
         timer_mode = "sudden" if self.sudden_round > 0 else "main"
 

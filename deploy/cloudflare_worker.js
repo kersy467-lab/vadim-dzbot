@@ -8,7 +8,7 @@
  */
 
 // Your Render backend URL (without trailing slash)
-const ORIGIN_URL = "https://class-tg-bot.onrender.com";
+const ORIGIN_URL = "https://dzbot-6eid.onrender.com";
 
 // Cache TTL configurations (in seconds)
 const CACHE_RULES = [

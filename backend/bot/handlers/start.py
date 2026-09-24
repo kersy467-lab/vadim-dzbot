@@ -20,10 +20,10 @@ async def register_pending_user_and_notify_admin(
     session: AsyncSession,
     user_id: int,
     full_name: str,
-    username: str | None
+    username: str | None,
+    is_reapply: bool = False
 ) -> User:
     user = await get_user_by_tg_id(session, user_id)
-    is_reapply = False
 
     if not user:
         user = await create_user(
@@ -33,13 +33,16 @@ async def register_pending_user_and_notify_admin(
             username=username,
             role="pending"
         )
-    elif user.role in ["rejected", "pending"]:
+    elif user.role == "kicked":
         user.role = "pending"
         user.full_name = full_name
         user.username = username
         await session.commit()
         await session.refresh(user)
         is_reapply = True
+    elif user.role in ["pending", "rejected"]:
+        # Уже на рассмотрении или забанен — уведомление админам не отправляется
+        return user
     else:
         return user
 
@@ -47,10 +50,11 @@ async def register_pending_user_and_notify_admin(
     from backend.bot.services.notifier import notify_all_admins
     uname_str = f"@{username}" if username else "без @username"
     title = "🔔 **Повторная заявка на доступ к боту!**" if is_reapply else "🔔 **Новая заявка на доступ к боту!**"
+    extra_note = "\n⚠️ _Пользователь ранее был исключен из класса (кикнут)._" if is_reapply else ""
     admin_text = (
         f"{title}\n\n"
         f"👤 **Пользователь:** {full_name}\n"
-        f"🔗 **Telegram:** {uname_str}"
+        f"🔗 **Telegram:** {uname_str}{extra_note}"
     )
     await notify_all_admins(
         bot=bot,
@@ -91,7 +95,7 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
         if is_user_adm or is_tester:
             local_app_link += f"\n📈 **Игра «НАТБИРЖА» (Beta):** http://localhost:{settings.PORT}/app/natbirzha"
 
-    # If user is admin
+    # 1. Главный администратор
     if settings.ADMIN_ID and user_id == settings.ADMIN_ID:
         await message.answer(
             f"👋 **Здравствуйте, Администратор ({full_name})!**\n\n"
@@ -102,7 +106,7 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
         )
         return
 
-    # If user is already registered and approved
+    # 2. Одобренный ученик или администратор
     if current_user and current_user.role in ["student", "admin"]:
         role_label = " (Администратор)" if is_user_adm else ""
         await message.answer(
@@ -114,14 +118,44 @@ async def cmd_start(message: Message, db_session: AsyncSession, bot: Bot, curren
         )
         return
 
+    # 3. Забаненный пользователь (в бан-листе) — молча игнорируем, заявку подать нельзя
+    if current_user and current_user.role == "rejected":
+        return
 
-    # If not registered, create pending and notify admin
+    # 4. Заявка УЖЕ отправлена и ожидает решения админа
+    if current_user and current_user.role == "pending":
+        await message.answer(
+            "⏳ **Ваша заявка уже находится на рассмотрении у администратора.**\n\n"
+            "Пожалуйста, ожидайте решения. Как только администратор подтвердит ваш доступ, вам откроется меню, расписание и Mini App.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # 5. Пользователь был кикнут из класса — при ручном нажатии /start отправляется повторная заявка
+    if current_user and current_user.role == "kicked":
+        await register_pending_user_and_notify_admin(
+            bot=bot,
+            session=db_session,
+            user_id=user_id,
+            full_name=full_name,
+            username=username,
+            is_reapply=True
+        )
+        await message.answer(
+            "⏳ **Ваша повторная заявка отправлена администратору.**\n\n"
+            "Как только администратор подтвердит ваш доступ, вам снова откроется меню и Mini App.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # 6. Новый пользователь
     await register_pending_user_and_notify_admin(
         bot=bot,
         session=db_session,
         user_id=user_id,
         full_name=full_name,
-        username=username
+        username=username,
+        is_reapply=False
     )
 
     await message.answer(
@@ -193,7 +227,10 @@ async def callback_admin_approve_keep(callback: CallbackQuery, state: FSMContext
     except Exception:
         pass
 
-    # Notify student
+    await _notify_approved_student(bot, user, target_tg_id, display_name)
+
+
+async def _notify_approved_student(bot: Bot, user: User, target_tg_id: int, display_name: str) -> None:
     try:
         from backend.bot.services.commands import set_user_command_scope
         await set_user_command_scope(
@@ -246,33 +283,7 @@ async def msg_admin_approve_custom_name(message: Message, state: FSMContext, db_
         parse_mode="Markdown"
     )
 
-    # Notify student
-    try:
-        from backend.bot.services.commands import set_user_command_scope
-        await set_user_command_scope(
-            bot,
-            chat_id=target_tg_id,
-            is_tester=bool(getattr(user, "is_tester", False)),
-            is_admin=False,
-            full_access=True
-        )
-        await bot.send_message(
-            chat_id=target_tg_id,
-            text=(
-                f"🎉 **Ваш доступ подтвержден администратором!**\n\n"
-                f"👤 Ваше имя в системе: **{name}**\n\n"
-                "Теперь вам доступно расписание, домашние задания и Mini App класса."
-            ),
-            reply_markup=get_main_keyboard(
-                is_admin=False,
-                user_id=target_tg_id,
-                is_tester=bool(getattr(user, "is_tester", False)),
-                flag_b=bool(getattr(user, "flag_b", False))
-            ),
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        print(f"Failed to notify user {target_tg_id}: {e}")
+    await _notify_approved_student(bot, user, target_tg_id, name)
 
 
 # Admin reject callback

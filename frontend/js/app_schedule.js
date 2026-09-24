@@ -51,7 +51,7 @@
       if (photos.length > 0) {
         const thumbs = photos.map((p, pIdx) => `
           <div class="pv-thumb relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shadow-sm border border-slate-200/80 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 cursor-pointer shrink-0 hover:scale-105 active:scale-95 transition-all group" data-hw-id="${hw.id}" data-idx="${pIdx}">
-            <img src="${p.url}" alt="Фото задания" loading="lazy" class="w-full h-full object-cover" />
+            <img src="${p.url}" alt="" loading="lazy" class="w-full h-full object-cover transition-opacity duration-200" onerror="this.style.opacity='0';" />
             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-end justify-end p-1">
               <span class="text-[9px] bg-black/60 text-white font-bold px-1 rounded shadow">🔍</span>
             </div>

@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 from backend.db.models import Base
 from backend.db.session import async_session_factory, engine
-from backend.natbirzha.config import get_game_now, get_game_today
+from backend.natbirzha.config import get_game_now, get_game_today, nat_settings
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.dividend_service import DividendService
@@ -27,6 +27,9 @@ async def run_checks():
         stock = await StockService.apply_for_ipo(session, company)
 
         assert stock.dividend_rate_pct == 5.0
+        assert stock.total_shares == nat_settings.IPO_DEFAULT_SHARES
+        assert stock.founder_shares == round(nat_settings.IPO_DEFAULT_SHARES * 0.60)
+        assert stock.float_shares == round(nat_settings.IPO_DEFAULT_SHARES * 0.40)
         assert stock.valuation_updated_at is not None
 
         custom_company = await CompanyService.create_company(

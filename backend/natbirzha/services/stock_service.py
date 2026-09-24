@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, date, timedelta
+import math
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
@@ -152,6 +153,8 @@ class StockService:
         company: NatCompany,
         strategy: Optional[ValuationStrategy] = None,
         dividend_rate_pct: float = nat_settings.IPO_MIN_DIVIDEND_PCT,
+        company_sale_pct: float = nat_settings.IPO_DEFAULT_FLOAT_PCT * 100,
+        total_shares: int = nat_settings.IPO_DEFAULT_SHARES,
     ) -> NatStock:
         required_level = ipo_recommendation_level()
         if company.level < required_level:
@@ -163,6 +166,18 @@ class StockService:
                 f"Dividend rate must be between {nat_settings.IPO_MIN_DIVIDEND_PCT:g}% "
                 f"and {nat_settings.IPO_MAX_DIVIDEND_PCT:g}%."
             )
+        if isinstance(total_shares, bool) or not isinstance(total_shares, int) or total_shares < nat_settings.IPO_MIN_SHARES:
+            raise ValueError(f"IPO share count must be at least {nat_settings.IPO_MIN_SHARES:,}.")
+        maximum_sale_pct = nat_settings.IPO_FLOAT_MAX_PCT * 100
+        if (
+            not math.isfinite(float(company_sale_pct))
+            or company_sale_pct < nat_settings.IPO_MIN_FLOAT_PCT
+            or company_sale_pct > maximum_sale_pct
+        ):
+            raise ValueError(
+                f"The company sale size must be between {nat_settings.IPO_MIN_FLOAT_PCT:g}% "
+                f"and {maximum_sale_pct:g}%."
+            )
 
         # Check if already actively listed
         existing_stock = await session.execute(
@@ -173,10 +188,11 @@ class StockService:
 
         valuation = await StockService.calculate_company_valuation(session, company, strategy)
 
-        total_shares = nat_settings.IPO_MIN_SHARES
-        founder_shares = int(total_shares * nat_settings.IPO_FOUNDER_MIN_PCT)  # 6000
-        float_shares = total_shares - founder_shares                           # 4000
+        float_shares = max(1, math.floor(total_shares * float(company_sale_pct) / 100))
+        founder_shares = total_shares - float_shares
         share_price = round(valuation / total_shares, 2)
+        if share_price <= 0:
+            raise ValueError("The selected share count makes the IPO share price too small.")
 
         now = get_game_now()
         stock = NatStock(
@@ -221,6 +237,41 @@ class StockService:
 
         await session.commit()
         await session.refresh(stock)
+        return stock
+
+    @staticmethod
+    async def set_dividend_rate(
+        session: AsyncSession,
+        company: NatCompany,
+        stock_id: int,
+        dividend_rate_pct: float,
+        *,
+        commit: bool = True,
+    ) -> NatStock:
+        minimum = nat_settings.DIVIDEND_RATE_MIN_AFTER_IPO_PCT
+        maximum = nat_settings.IPO_MAX_DIVIDEND_PCT
+        if not math.isfinite(float(dividend_rate_pct)) or not minimum <= dividend_rate_pct <= maximum:
+            raise ValueError(f"Dividend rate must be between {minimum:g}% and {maximum:g}%.")
+
+        result = await session.execute(
+            select(NatStock)
+            .where(
+                NatStock.id == stock_id,
+                NatStock.company_id == company.id,
+                NatStock.is_listed == True,
+            )
+            .with_for_update()
+        )
+        stock = result.scalar_one_or_none()
+        if stock is None:
+            raise ValueError("Listed stock was not found for this company owner.")
+
+        stock.dividend_rate_pct = round(float(dividend_rate_pct), 2)
+        if commit:
+            await session.commit()
+            await session.refresh(stock)
+        else:
+            await session.flush()
         return stock
 
     @staticmethod

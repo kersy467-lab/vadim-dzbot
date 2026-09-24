@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260921_broker1';
+import { NatAPI } from '../api.js?v=20260924_ipo_terms';
 import { store } from '../state.js';
 import { getSpecializationName } from '../localization.js';
 import { marketChange, renderMarketChart } from '../market_chart.js';
@@ -71,14 +71,46 @@ export function createMarketFinance(container, showToast, onBack) {
     const ownStock = list.find(item => Number(item.company_id) === ownId);
     const level = Number(store.company?.level || 1);
     const ipoLevel = Number(store.company?.capital_plan?.ipo_available_from_level || 7);
-    const ipo = ownStock ? '' : `<div class="glass-card rounded-2xl p-4 space-y-3"><div class="font-bold">🚀 Выход на IPO</div><div class="text-xs text-slate-500">Доступно с ${ipoLevel} уровня. Сейчас: ${level} ур.</div><input id="market-ipo-dividend-rate" type="number" min="5" max="100" step="0.5" value="5" class="w-full rounded-lg border p-2 bg-white dark:bg-slate-900"><button id="market-ipo-open-btn" class="w-full py-2 rounded-xl bg-blue-600 text-white font-bold" ${level >= ipoLevel ? '' : 'disabled'}>Выйти на IPO</button></div>`;
+    const ipo = ownStock ? `<div class="glass-card rounded-2xl p-4 space-y-3">
+      <div class="font-bold">Ваша дивидендная политика</div>
+      <div class="text-xs text-slate-500">Сейчас ${Number(ownStock.dividend_rate_pct || 5).toFixed(1)}% · free-float ${Number(ownStock.company_sale_pct ?? ((ownStock.total_shares - ownStock.founder_shares) * 100 / Math.max(1, ownStock.total_shares))).toFixed(1)}%</div>
+      <div class="flex gap-2"><input id="market-dividend-rate" type="number" min="6" max="100" step="0.5" value="${Math.max(6, Number(ownStock.dividend_rate_pct || 5))}" aria-label="Новый процент дивидендов" class="min-w-0 flex-1 rounded-lg border p-2 bg-white dark:bg-slate-900"><button id="market-dividend-rate-save" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Изменить</button></div>
+      <div class="text-[10px] text-slate-500">Ставку можно повышать и снижать, минимум при изменении — 6%.</div>
+    </div>` : `<div class="glass-card rounded-2xl p-4 space-y-3">
+      <div class="font-bold">🚀 Выход на IPO</div><div class="text-xs text-slate-500">Доступно с ${ipoLevel} уровня. Сейчас: ${level} ур.</div>
+      <label class="block space-y-1 text-xs text-slate-500"><span>Дивиденды при IPO, % (минимум 5)</span><input id="market-ipo-dividend-rate" type="number" min="5" max="100" step="0.5" value="5" class="w-full rounded-lg border p-2 bg-white dark:bg-slate-900"></label>
+      <label class="block space-y-1 text-xs text-slate-500"><span>Продаваемая доля, % (максимум 50)</span><input id="market-ipo-company-sale-pct" type="number" min="0.1" max="50" step="0.5" value="40" class="w-full rounded-lg border p-2 bg-white dark:bg-slate-900"></label>
+      <label class="block space-y-1 text-xs text-slate-500"><span>Всего акций (минимум 4 000)</span><input id="market-ipo-total-shares" type="number" min="4000" step="1" value="10000" class="w-full rounded-lg border p-2 bg-white dark:bg-slate-900"></label>
+      <button id="market-ipo-open-btn" class="w-full py-2 rounded-xl bg-blue-600 text-white font-bold" ${level >= ipoLevel ? '' : 'disabled'}>Выйти на IPO</button>
+    </div>`;
     const body = list.map(stock => `<button class="stock-card glass-card rounded-xl p-3 w-full text-left flex justify-between" data-id="${stock.stock_id}"><span><b>${esc(stock.company_name)}</b><br><small>${esc(getSpecializationName(stock.specialization))} · дивиденды ${Number(stock.dividend_rate_pct || 5).toFixed(1)}%</small></span><strong>${Number(stock.current_price || 0).toFixed(2)} cash</strong></button>`).join('') || '<div class="glass-card rounded-2xl p-6 text-center text-sm text-slate-500">Публичных компаний пока нет</div>';
     container.innerHTML = shell('Акции компаний', 'Цена зависит от бизнеса и реального стакана заявок', `<div class="space-y-3">${ipo}${body}</div>`); bindBack();
     container.querySelectorAll('.stock-card').forEach(btn => btn.addEventListener('click', () => renderStockDetail(Number(btn.dataset.id))));
+    container.querySelector('#market-dividend-rate-save')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const rate = Number(container.querySelector('#market-dividend-rate')?.value);
+      if (!Number.isFinite(rate) || rate < 6 || rate > 100) return showToast('Укажите дивиденды от 6% до 100%.', 'error');
+      button.disabled = true;
+      try {
+        await NatAPI.updateStockDividendRate(ownStock.stock_id, rate);
+        await load();
+        showToast('Ставка дивидендов изменена.', 'success');
+        renderStocks();
+      } catch (error) { showToast(error.message, 'error'); button.disabled = false; }
+    });
     container.querySelector('#market-ipo-open-btn')?.addEventListener('click', async (event) => {
-      const rate = Number(container.querySelector('#market-ipo-dividend-rate')?.value); if (rate < 5 || rate > 100) return showToast('Укажите дивиденды от 5% до 100%', 'error');
-      event.currentTarget.disabled = true;
-      try { await NatAPI.issueIPO({ dividend_rate_pct: rate }); stockHistoryCache.clear(); store.setCompany(await NatAPI.getMyCompany()); await load(); showToast('Компания вышла на IPO', 'success'); renderStocks(); } catch (error) { showToast(error.message, 'error'); event.currentTarget.disabled = false; }
+      const button = event.currentTarget;
+      const rate = Number(container.querySelector('#market-ipo-dividend-rate')?.value);
+      const companySalePct = Number(container.querySelector('#market-ipo-company-sale-pct')?.value);
+      const totalShares = Number(container.querySelector('#market-ipo-total-shares')?.value);
+      if (!Number.isFinite(rate) || rate < 5 || rate > 100) return showToast('Укажите дивиденды от 5% до 100%.', 'error');
+      if (!Number.isFinite(companySalePct) || companySalePct < 0.1 || companySalePct > 50) return showToast('Укажите продаваемую долю от 0,1% до 50%.', 'error');
+      if (!Number.isInteger(totalShares) || totalShares < 4000) return showToast('Для IPO нужно минимум 4 000 акций.', 'error');
+      button.disabled = true;
+      try {
+        await NatAPI.issueIPO({ dividend_rate_pct: rate, company_sale_pct: companySalePct, total_shares: totalShares });
+        stockHistoryCache.clear(); store.setCompany(await NatAPI.getMyCompany()); await load(); showToast('Компания вышла на IPO', 'success'); renderStocks();
+      } catch (error) { showToast(error.message, 'error'); button.disabled = false; }
     });
   }
 

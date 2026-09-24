@@ -71,9 +71,12 @@ class NatbirzhaSettings(BaseSettings):
 
     # IPO rules
     IPO_MIN_LEVEL: int = 7
-    IPO_MIN_SHARES: int = 10000
-    IPO_FOUNDER_MIN_PCT: float = 0.60       # Founder retains at least 60%
-    IPO_FLOAT_MAX_PCT: float = 0.40         # Public float at most 40%
+    IPO_MIN_SHARES: int = 4000
+    IPO_DEFAULT_SHARES: int = 10000
+    IPO_FOUNDER_MIN_PCT: float = 0.50       # Founder retains at least 50%
+    IPO_FLOAT_MAX_PCT: float = 0.50         # Public float at most 50%
+    IPO_DEFAULT_FLOAT_PCT: float = 0.40
+    IPO_MIN_FLOAT_PCT: float = 0.10
     IPO_SPO_COOLDOWN_DAYS: int = 14
     IPO_NAV_WEIGHT: float = 1.0
     IPO_PROFIT_PE_MULT: float = 8.0
@@ -81,6 +84,7 @@ class NatbirzhaSettings(BaseSettings):
     IPO_REQUIRE_FINANCIAL_HISTORY: bool = False  # Configurable IPO eligibility rule
     IPO_MIN_DIVIDEND_PCT: float = 5.0
     IPO_MAX_DIVIDEND_PCT: float = 100.0
+    DIVIDEND_RATE_MIN_AFTER_IPO_PCT: float = 6.0
     STOCK_VALUATION_REFRESH_MINUTES: int = 10
 
     # Dividends

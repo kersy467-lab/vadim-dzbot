@@ -218,6 +218,7 @@ export const NatAPI = {
   // Stocks & IPO
   getStocksList: () => request('/api/natbirzha/stocks/market'),
   issueIPO: (payload = {}) => request('/api/natbirzha/stocks/ipo/apply', { method: 'POST', body: JSON.stringify(payload) }),
+  updateStockDividendRate: (stock_id, dividend_rate_pct) => request(`/api/natbirzha/stocks/${parseInt(stock_id, 10)}/dividend-rate`, { method: 'POST', body: JSON.stringify({ dividend_rate_pct: Number(dividend_rate_pct) }) }),
   buyShares: (stock_id, shares_count) => request('/api/natbirzha/stocks/buy', { method: 'POST', body: JSON.stringify({ stock_id: parseInt(stock_id, 10), shares_count: parseInt(shares_count, 10) }) }),
   sellShares: (stock_id, shares_count) => request('/api/natbirzha/stocks/sell', { method: 'POST', body: JSON.stringify({ stock_id: parseInt(stock_id, 10), shares_count: parseInt(shares_count, 10) }) }),
   getPortfolio: () => request('/api/natbirzha/portfolio'),

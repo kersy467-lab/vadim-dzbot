@@ -265,8 +265,9 @@ assert(stocksCode.includes('Доступно с ${ipoMinLevel} уровня ко
   'stocks screen must explain IPO unlock level instead of making the feature appear missing');
 assert(stocksCode.includes('ipo-dividend-rate') && stocksCode.includes('min="5"'),
   'stocks screen must require an explicit dividend policy with a 5% minimum');
-assert(stocksCode.includes('NatAPI.issueIPO({ dividend_rate_pct: rate })'),
-  'stocks screen must submit the selected dividend rate to the backend');
+assert(stocksCode.includes('NatAPI.issueIPO({') && stocksCode.includes('company_sale_pct: companySalePct')
+  && stocksCode.includes('total_shares: ipoTotalShares'),
+  'stocks screen must submit dividend, company sale percentage and share count to the backend');
 
 const prodCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/production.js'), 'utf-8');
 assert(prodCode.includes("from '../factory_map.js'"), 'production.js must use the pure factory map projection');
@@ -324,6 +325,8 @@ assert(startedFactory.cycle_ready_at === startResult.ready_at && startedFactory.
 const marketCoreCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
 const marketCommodityCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_commodities.js'), 'utf-8');
 const marketFinanceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_finance.js'), 'utf-8');
+const stockScreenCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/stocks.js'), 'utf-8');
+const natApiCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/api.js'), 'utf-8');
 assert(marketCoreCode.includes('finally'), 'market.js place order must have finally block to re-enable button');
 assert(marketCoreCode.includes('renderCommodityCatalog'), 'commodity market must route to its material catalog');
 assert(marketCommodityCode.includes('commodity-category-tab'), 'commodity market must expose category tabs');
@@ -343,6 +346,19 @@ assert(marketCoreCode.includes('finance.renderStocks') && marketFinanceCode.incl
   'the reachable stocks section must expose IPO and its dividend policy');
 assert(marketFinanceCode.includes('NatAPI.issueIPO'),
   'the reachable stocks section must submit the IPO request');
+['market-ipo-dividend-rate', 'market-ipo-company-sale-pct', 'market-ipo-total-shares'].forEach((field) => {
+  assert(marketFinanceCode.includes(field), `market IPO form must ask the user for ${field}`);
+});
+['ipo-dividend-rate', 'ipo-company-sale-pct', 'ipo-total-shares'].forEach((field) => {
+  assert(stockScreenCode.includes(field), `stock screen IPO form must ask the user for ${field}`);
+});
+assert(marketFinanceCode.includes('market-dividend-rate-save') && stockScreenCode.includes('save-stock-dividend-rate'),
+  'the issuer must be able to change dividend rate from both stock entry points');
+assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes('total_shares')
+  && marketFinanceCode.includes('company_sale_pct') && marketFinanceCode.includes('total_shares'),
+  'both IPO entry points must submit company sale percentage and total shares');
+assert(natApiCode.includes('updateStockDividendRate'),
+  'stock API client must support dividend policy changes');
 const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
   .replace(/export\s+function\s+mergeNpcRatesIntoMarketItems/, 'function mergeNpcRatesIntoMarketItems')

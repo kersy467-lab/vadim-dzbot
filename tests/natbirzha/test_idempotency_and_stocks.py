@@ -85,7 +85,7 @@ async def test_idempotency_and_stocks():
         assert r2.status_code == 409, f"Expected 409 Conflict, got {r2.status_code}: {r2.text}"
         print("[OK] Reusing Idempotency-Key with altered payload strictly returned HTTP 409 Conflict.")
 
-    # 2. Stock IPO Issuance (Founder 60%, Float 40%)
+    # 2. Stock IPO Issuance (default 60% founder, 40% public float)
     print("\n--- [2/4] IPO Issuance & Share Allocation ---")
     async with async_session_factory() as session:
         u_ipo = int(time.time()) % 1000000 + 500000
@@ -93,9 +93,9 @@ async def test_idempotency_and_stocks():
         comp_ipo.level = 7  # IPO requires level >= 7
 
         stock = await StockService.apply_for_ipo(session, comp_ipo)
-        assert stock.total_shares == nat_settings.IPO_MIN_SHARES
-        assert stock.founder_shares == int(nat_settings.IPO_MIN_SHARES * 0.60), "Founder must retain 60% of shares"
-        assert stock.float_shares == int(nat_settings.IPO_MIN_SHARES * 0.40), "Public float must be 40% of shares"
+        assert stock.total_shares == nat_settings.IPO_DEFAULT_SHARES
+        assert stock.founder_shares == int(nat_settings.IPO_DEFAULT_SHARES * 0.60), "Default IPO keeps 60% with founder"
+        assert stock.float_shares == int(nat_settings.IPO_DEFAULT_SHARES * 0.40), "Default IPO offers 40% to the public"
         assert stock.is_listed is True
         print(f"[OK] IPO issued for company {comp_ipo.id}: {stock.total_shares} total shares ({stock.founder_shares} founder, {stock.float_shares} float).")
 

@@ -832,6 +832,7 @@ async def main():
         "tests/natbirzha/test_state_credit.py",
         "tests/natbirzha/test_bond_bankruptcy.py",
         "tests/natbirzha/test_company_rename.py",
+        "tests/natbirzha/test_ipo_terms.py",
         "tests/natbirzha/test_premium_production.py",
         "tests/natbirzha/test_premium_military_upgrades.py",
         "tests/natbirzha/test_p2_backend_api.py",

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.db.session import get_db_session
+from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding
 from backend.natbirzha.services.auth_service import get_current_company
@@ -31,10 +32,27 @@ class StockLimitOrderRequest(BaseModel):
 
 class IPOApplyRequest(BaseModel):
     dividend_rate_pct: float = Field(
-        default=5.0,
-        ge=5.0,
-        le=100.0,
+        default=nat_settings.IPO_MIN_DIVIDEND_PCT,
+        ge=nat_settings.IPO_MIN_DIVIDEND_PCT,
+        le=nat_settings.IPO_MAX_DIVIDEND_PCT,
         description="Daily closed-profit share committed to shareholders.",
+    )
+    company_sale_pct: float = Field(
+        default=nat_settings.IPO_DEFAULT_FLOAT_PCT * 100,
+        ge=nat_settings.IPO_MIN_FLOAT_PCT,
+        le=nat_settings.IPO_FLOAT_MAX_PCT * 100,
+        description="Percentage of the company offered to public investors.",
+    )
+    total_shares: int = Field(
+        default=nat_settings.IPO_DEFAULT_SHARES,
+        ge=nat_settings.IPO_MIN_SHARES,
+    )
+
+
+class DividendRateUpdateRequest(BaseModel):
+    dividend_rate_pct: float = Field(
+        ge=nat_settings.DIVIDEND_RATE_MIN_AFTER_IPO_PCT,
+        le=nat_settings.IPO_MAX_DIVIDEND_PCT,
     )
 
 @router.get("/market")
@@ -54,7 +72,9 @@ async def get_stocks_market(session: AsyncSession = Depends(get_db_session)):
             "specialization": c.specialization,
             "current_price": s.current_price,
             "total_shares": s.total_shares,
+            "founder_shares": s.founder_shares,
             "float_shares": s.float_shares,
+            "company_sale_pct": round((s.total_shares - s.founder_shares) * 100 / max(1, s.total_shares), 2),
             "last_valuation": s.last_valuation,
             "dividend_rate_pct": s.dividend_rate_pct,
             "valuation_updated_at": str(s.valuation_updated_at) if s.valuation_updated_at else None,
@@ -155,13 +175,20 @@ async def apply_for_ipo(
         return cached[1]
 
     try:
-        stock = await StockService.apply_for_ipo(session, company, dividend_rate_pct=req.dividend_rate_pct)
+        stock = await StockService.apply_for_ipo(
+            session,
+            company,
+            dividend_rate_pct=req.dividend_rate_pct,
+            company_sale_pct=req.company_sale_pct,
+            total_shares=req.total_shares,
+        )
         resp = {
             "success": True,
             "stock_id": stock.id,
             "total_shares": stock.total_shares,
             "founder_shares": stock.founder_shares,
             "float_shares": stock.float_shares,
+            "company_sale_pct": round((stock.total_shares - stock.founder_shares) * 100 / max(1, stock.total_shares), 2),
             "share_price": stock.current_price,
             "valuation": stock.last_valuation,
             "dividend_rate_pct": stock.dividend_rate_pct,
@@ -172,6 +199,35 @@ async def apply_for_ipo(
         return resp
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{stock_id}/dividend-rate")
+async def update_company_dividend_rate(
+    stock_id: int,
+    req: DividendRateUpdateRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    endpoint = f"/api/natbirzha/stocks/{stock_id}/dividend-rate"
+    payload = req.model_dump()
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    try:
+        stock = await StockService.set_dividend_rate(
+            session, company, stock_id, req.dividend_rate_pct, commit=False
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    response = {"success": True, "stock_id": stock.id, "dividend_rate_pct": stock.dividend_rate_pct}
+    return await IdempotencyService.commit_response(
+        session, company.user_id, endpoint, idempotency_key, payload, response
+    )
 
 @router.get("/portfolio")
 async def get_portfolio(

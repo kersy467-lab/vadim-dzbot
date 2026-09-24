@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260924_ipo_terms';
 import { store } from '../state.js';
 import { renderStateShareMarket } from './state_share_market.js';
 
@@ -22,10 +22,16 @@ export async function renderStocks(container, showToast) {
 
   const myCompany = store.company || {};
   const isPublic = myCompany.is_public;
+  const companyId = Number(myCompany.id || myCompany.company_id || 0);
+  const ownStock = stocksList.find((stock) => Number(stock.company_id) === companyId);
   const companyLevel = Number(myCompany.level || 1);
   const ipoMinLevel = Number(myCompany.capital_plan?.ipo_available_from_level || IPO_MIN_LEVEL_FALLBACK);
   const ipoUnlocked = companyLevel >= ipoMinLevel;
-  const dividendRate = Number(myCompany.stock?.dividend_rate_pct || myCompany.dividend_rate_pct || 5);
+  const dividendRate = Number(ownStock?.dividend_rate_pct || myCompany.stock?.dividend_rate_pct || 5);
+  const totalShares = Number(ownStock?.total_shares || 0);
+  const floatShares = Number(ownStock?.float_shares || 0);
+  const founderShares = Number(ownStock?.founder_shares || Math.max(0, totalShares - floatShares));
+  const floatPct = Number(ownStock?.company_sale_pct ?? (totalShares ? (totalShares - founderShares) * 100 / totalShares : 0));
 
   container.innerHTML = `
     <div class="space-y-4 max-w-md mx-auto p-4 pb-24">
@@ -46,7 +52,7 @@ export async function renderStocks(container, showToast) {
                 ${isPublic ? 'Ваша корпорация торгуется на бирже' : 'Выход на IPO'}
               </div>
               <div class="text-[11px] text-slate-400">
-                ${isPublic ? '60% основатель, 40% free-float в открытом обращении' : `Доступно с ${ipoMinLevel} уровня компании. Сейчас: ${companyLevel} ур.`}
+                ${isPublic ? `${totalShares ? (founderShares * 100 / totalShares).toFixed(1) : '—'}% основателю · ${floatPct.toFixed(1)}% выставлено рынку` : `Доступно с ${ipoMinLevel} уровня компании. Сейчас: ${companyLevel} ур.`}
               </div>
             </div>
           </div>
@@ -69,6 +75,14 @@ export async function renderStocks(container, showToast) {
               <span class="text-slate-400 text-[11px]">Режим выплат:</span>
               <div class="font-mono font-bold text-slate-300">Ежедневно 00:01</div>
             </div>
+            ${ownStock ? `<div class="col-span-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 space-y-2">
+              <div class="text-[11px] text-slate-400">Настройка дивидендов для вашей компании</div>
+              <div class="flex gap-2">
+                <input id="stock-dividend-rate" type="number" min="6" max="100" step="0.5" value="${Math.max(6, dividendRate)}" aria-label="Новый процент дивидендов" class="min-w-0 flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 font-mono text-xs text-slate-900 dark:text-white" />
+                <button id="save-stock-dividend-rate" type="button" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white">Изменить</button>
+              </div>
+              <div class="text-[10px] text-slate-500">Ставку можно повышать или снижать, минимум при изменении — 6%.</div>
+            </div>` : ''}
           </div>
         ` : ''}
       </div>
@@ -155,12 +169,22 @@ export async function renderStocks(container, showToast) {
           <button id="close-ipo-modal-btn" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
         </div>
         <p class="text-xs text-slate-400">
-          При выходе на биржу выпускается 10,000 акций. 60% остаётся у вас, 40% выставляется на свободный рынок.
+          Выберите дивиденды, долю компании для продажи и общее число акций. На рынок можно выставить не больше 50% компании.
         </p>
         <label class="block text-xs text-slate-400 space-y-1">
           <span class="font-bold text-slate-700 dark:text-slate-300">Обязательные дивиденды, % от чистой дневной прибыли</span>
           <input id="ipo-dividend-rate" type="number" min="5" max="100" step="0.5" value="5" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono" />
-          <span class="text-[10px]">Минимум 5%. Ниже 5% выйти на IPO нельзя.</span>
+          <span class="text-[10px]">При размещении минимум 5%. После IPO изменение ставки — от 6%.</span>
+        </label>
+        <label class="block text-xs text-slate-400 space-y-1">
+          <span class="font-bold text-slate-700 dark:text-slate-300">Продаваемая доля компании, %</span>
+          <input id="ipo-company-sale-pct" type="number" min="0.1" max="50" step="0.5" value="40" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono" />
+          <span class="text-[10px]">Максимум 50%; остальная доля останется у основателя.</span>
+        </label>
+        <label class="block text-xs text-slate-400 space-y-1">
+          <span class="font-bold text-slate-700 dark:text-slate-300">Общее количество акций</span>
+          <input id="ipo-total-shares" type="number" min="4000" step="1" value="10000" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono" />
+          <span class="text-[10px]">Минимум 4 000 акций.</span>
         </label>
         <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs space-y-1 font-mono">
           <div class="flex justify-between">
@@ -168,8 +192,8 @@ export async function renderStocks(container, showToast) {
             <span class="font-bold text-slate-900 dark:text-white">${store.nav || 10000} cash</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-slate-500">Цена размещения:</span>
-            <span class="font-bold text-emerald-500">${((store.nav || 10000) / 10000).toFixed(4)} cash / акция</span>
+            <span class="text-slate-500">Акции в свободном обращении:</span>
+            <span id="ipo-float-shares-preview" class="font-bold text-emerald-500">4 000 / 10 000</span>
           </div>
         </div>
         <button
@@ -197,16 +221,55 @@ export async function renderStocks(container, showToast) {
     ipoModal.classList.remove('flex');
   });
 
+  const updateIpoFloatPreview = () => {
+    const shares = Number(container.querySelector('#ipo-total-shares')?.value || 0);
+    const pct = Number(container.querySelector('#ipo-company-sale-pct')?.value || 0);
+    const preview = container.querySelector('#ipo-float-shares-preview');
+    if (preview) preview.textContent = `${Math.max(0, Math.floor(shares * pct / 100)).toLocaleString('ru-RU')} / ${Math.max(0, shares).toLocaleString('ru-RU')}`;
+  };
+  container.querySelector('#ipo-total-shares')?.addEventListener('input', updateIpoFloatPreview);
+  container.querySelector('#ipo-company-sale-pct')?.addEventListener('input', updateIpoFloatPreview);
+
+  container.querySelector('#save-stock-dividend-rate')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const rate = Number(container.querySelector('#stock-dividend-rate')?.value);
+    if (!ownStock || !Number.isFinite(rate) || rate < 6 || rate > 100) {
+      showToast('Укажите ставку дивидендов от 6% до 100%.', 'error');
+      return;
+    }
+    button.disabled = true;
+    try {
+      await NatAPI.updateStockDividendRate(ownStock.stock_id, rate);
+      showToast('Ставка дивидендов изменена.', 'success');
+      renderStocks(container, showToast);
+    } catch (err) {
+      showToast(err.message, 'error');
+      button.disabled = false;
+    }
+  });
+
   container.querySelector('#confirm-ipo-btn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#confirm-ipo-btn');
     try {
       btn.disabled = true;
       btn.innerText = 'Размещение...';
       const rate = Number(container.querySelector('#ipo-dividend-rate')?.value || 5);
+      const companySalePct = Number(container.querySelector('#ipo-company-sale-pct')?.value);
+      const ipoTotalShares = Number(container.querySelector('#ipo-total-shares')?.value);
       if (!Number.isFinite(rate) || rate < 5 || rate > 100) {
         throw new Error('Дивиденды при IPO должны быть от 5% до 100%.');
       }
-      await NatAPI.issueIPO({ dividend_rate_pct: rate });
+      if (!Number.isFinite(companySalePct) || companySalePct < 0.1 || companySalePct > 50) {
+        throw new Error('Укажите продаваемую долю компании от 0,1% до 50%.');
+      }
+      if (!Number.isInteger(ipoTotalShares) || ipoTotalShares < 4000) {
+        throw new Error('Для IPO нужно выпустить минимум 4 000 акций.');
+      }
+      await NatAPI.issueIPO({
+        dividend_rate_pct: rate,
+        company_sale_pct: companySalePct,
+        total_shares: ipoTotalShares,
+      });
       ipoModal.classList.add('hidden');
       showToast('IPO успешно проведено! Акции вышли на биржу.', 'success');
       const refreshed = await NatAPI.getMyCompany();

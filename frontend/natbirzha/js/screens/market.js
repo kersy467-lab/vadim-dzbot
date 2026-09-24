@@ -1,10 +1,10 @@
-import { NatAPI } from '../api.js?v=20260921_broker1';
+import { NatAPI } from '../api.js?v=20260924_ipo_terms';
 import { store } from '../state.js';
 import { getItemInfo } from '../items.js';
 import { renderMarketChart } from '../market_chart.js';
 import { renderTaxSection } from './market_tax.js';
 import { renderStateCreditSection } from './market_credit.js';
-import { createMarketFinance } from './market_finance.js';
+import { createMarketFinance } from './market_finance.js?v=20260924_ipo_terms';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js';
 
 const MARKET_ITEMS = [

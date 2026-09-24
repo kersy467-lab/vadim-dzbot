@@ -14,6 +14,7 @@ from backend.natbirzha.models.military import NatTournament, NatTournamentPartic
 from backend.natbirzha.services.army_service import ArmyService
 from backend.natbirzha.services.premium_service import PremiumService
 from backend.natbirzha.services.tournament_combat import TournamentCombatMixin, TournamentError
+from backend.natbirzha.services.tournament_registration import TournamentRegistrationMixin
 from backend.natbirzha.config import game_dt_iso
 
 
@@ -22,7 +23,7 @@ TOURNAMENT_DURATION = timedelta(hours=18)
 DEFAULT_REWARDS = (150, 100, 70)
 
 
-class TournamentService(TournamentCombatMixin):
+class TournamentService(TournamentRegistrationMixin, TournamentCombatMixin):
     @staticmethod
     async def _next_number(session: AsyncSession) -> int:
         current = await session.scalar(select(func.max(NatTournament.tournament_number)))
@@ -70,13 +71,14 @@ class TournamentService(TournamentCombatMixin):
     async def _snapshot_participants(
         cls, session: AsyncSession, tournament: NatTournament, now: datetime
     ) -> None:
-        existing = await session.scalar(
-            select(func.count(NatTournamentParticipant.id)).where(
-                NatTournamentParticipant.tournament_id == tournament.id
+        existing_rows = (
+            await session.execute(
+                select(NatTournamentParticipant)
+                .where(NatTournamentParticipant.tournament_id == tournament.id)
+                .with_for_update()
             )
-        )
-        if existing:
-            return
+        ).scalars().all()
+        existing_by_company = {row.company_id: row for row in existing_rows}
         companies = (
             await session.execute(
                 select(NatCompany)
@@ -95,21 +97,30 @@ class TournamentService(TournamentCombatMixin):
             status = await ArmyService.compatibility_status(session, company.id)
             if status["army_strength"] <= 0:
                 continue
-            session.add(
-                NatTournamentParticipant(
-                    tournament_id=tournament.id,
-                    company_id=company.id,
-                    alliance_id=alliance_by_company.get(company.id),
-                    snapshot_strength=status["army_strength"],
-                    initial_strength=status["army_strength"],
-                    final_strength=status["army_strength"],
-                    initial_rating=company.military_rating,
-                    final_rating=company.military_rating,
-                    wins=0,
-                    losses=0,
-                    army_updated_at=now,
-                )
-            )
+            strength = status["army_strength"]
+            participant = existing_by_company.get(company.id)
+            if participant is not None:
+                participant.alliance_id = alliance_by_company.get(company.id)
+                participant.snapshot_strength = strength
+                participant.initial_strength = strength
+                participant.final_strength = strength
+                participant.initial_rating = company.military_rating
+                participant.final_rating = company.military_rating
+                participant.army_updated_at = now
+                continue
+            session.add(NatTournamentParticipant(
+                tournament_id=tournament.id,
+                company_id=company.id,
+                alliance_id=alliance_by_company.get(company.id),
+                snapshot_strength=strength,
+                initial_strength=strength,
+                final_strength=strength,
+                initial_rating=company.military_rating,
+                final_rating=company.military_rating,
+                wins=0,
+                losses=0,
+                army_updated_at=now,
+            ))
         await session.flush()
 
     @classmethod

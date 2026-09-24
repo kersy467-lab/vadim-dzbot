@@ -254,7 +254,7 @@ assert(marketTaxCode.includes('штраф не начисляется на шт�
   'tax screen must make the non-compounding penalty rule explicit');
 
 const stocksCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/stocks.js'), 'utf-8');
-assert(stocksCode.includes('Доступно с 2 уровня компании') && stocksCode.includes('Сейчас:'),
+assert(stocksCode.includes('Доступно с ${ipoMinLevel} уровня компании') && stocksCode.includes('IPO с ${ipoMinLevel} уровня') && stocksCode.includes('IPO_MIN_LEVEL_FALLBACK = 7'),
   'stocks screen must explain IPO unlock level instead of making the feature appear missing');
 assert(stocksCode.includes('ipo-dividend-rate') && stocksCode.includes('min="5"'),
   'stocks screen must require an explicit dividend policy with a 5% minimum');
@@ -315,10 +315,15 @@ assert(startedFactory.cycle_ready_at === startResult.ready_at && startedFactory.
   'successful production start must copy the server deadline so the timer starts without tab navigation');
 
 const marketCoreCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
+const marketCommodityCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_commodities.js'), 'utf-8');
 const marketFinanceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_finance.js'), 'utf-8');
 assert(marketCoreCode.includes('finally'), 'market.js place order must have finally block to re-enable button');
-assert(marketCoreCode.includes('market-resource-tabs'), 'market.js must keep a stable resource selector hook');
-assert(marketCoreCode.includes('selectorScrollLeft'), 'market.js must preserve horizontal resource position across refreshes');
+assert(marketCoreCode.includes('renderCommodityCatalog'), 'commodity market must route to its material catalog');
+assert(marketCommodityCode.includes('commodity-category-tab'), 'commodity market must expose category tabs');
+assert(marketCommodityCode.includes('market-commodity-row'), 'commodity categories must use compact horizontal rows');
+assert(marketCommodityCode.includes('data-commodity-item'), 'selecting a compact commodity row must open its trading screen');
+assert(marketCommodityCode.includes('Моя продукция') && marketCommodityCode.includes('Нужно заводам') && marketCommodityCode.includes('Поиск'),
+  'commodity market must offer search, own products and factory input categories');
 
 // Every canonical production output must be selectable in the NPC market.
 // The API is the source of truth; this regression test prevents a hard-coded
@@ -338,8 +343,13 @@ const marketHelperCode = marketCoreCode
   .replace(/export\s+function\s+prioritizeIndustryItems/, 'function prioritizeIndustryItems')
   .replace(/export\s+async\s+function\s+renderMarket[\s\S]*/, '')
   .replace(/export\s+function\s+renderMarket[\s\S]*/, '');
+const commodityHelperCode = marketCommodityCode
+  .replace(/^import[^;]+;\s*$/gm, '')
+  .replace(/export\s+function\s+getCompanyInputIds/, 'function getCompanyInputIds')
+  .replace(/export\s+function\s+renderCommodityCatalog[\s\S]*/, '');
 const marketHelperFn = new Function(`${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
 const { MARKET_ITEMS: initialMarketItems, getIndustryOutputIds, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems } = marketHelperFn();
+const { getCompanyInputIds } = new Function(`${commodityHelperCode}\nreturn { getCompanyInputIds };`)();
 const mergedMarketItems = mergeNpcRatesIntoMarketItems([
   { item_id: 'gas_natural', name: 'Природный газ', unit: 'тыс. м³', base_price: 45, npc_buy_price: 36, npc_sell_price: 56.25 },
   { item_id: 'energy', name: 'Электроэнергия', unit: 'МВт·ч', base_price: 10, npc_buy_price: 8, npc_sell_price: 12.5,
@@ -351,7 +361,8 @@ assert(mergedMarketItems.some(item => item.id === 'copper'), 'copper must be vis
 const mergedEnergy = mergedMarketItems.find(item => item.id === 'energy');
 assert(!('npcDemandRemainingQuota' in mergedEnergy) && !('npcDemandQuotaLabel' in mergedEnergy),
   'regular NPC market items must not carry the removed daily-liquidity quota into the UI');
-assert(marketCode.includes('Ваша отрасль'), 'own-industry resources must carry a visible label');
+assert(marketCommodityCode.includes('Моя продукция') && marketCommodityCode.includes("item.isIndustry"),
+  'own-industry materials must have a dedicated product category');
 assert(!marketCode.includes('hasNpcDemandQuota') && !marketCode.includes('npcDemandQuotaLabel'),
   'NPC sell controls must not disable or label ordinary trades by a daily liquidity quota');
 assert(marketCode.includes('refreshNpcRates'),
@@ -372,6 +383,16 @@ assert(prioritizedMarketItems[0].id === 'gas_natural' && prioritizedMarketItems[
   'own-industry products must appear first in the market selector');
 assert(prioritizedMarketItems[0].isIndustry === true && prioritizedMarketItems[2].isIndustry !== true,
   'own-industry products must be marked for yellow highlighting');
+const companyInputs = getCompanyInputIds(
+  [{ inputs_per_hour: { energy: 1, water: 0.5 } }],
+  [{ building_type: 'sawmill', current_recipe: 'lumber' }],
+  {
+    lumber: { factory_type: 'sawmill', inputs: { wood_raw: 2, energy: 1 } },
+    other: { factory_type: 'steelworks', inputs: { iron_ore: 3 } },
+  },
+);
+assert(companyInputs.length === 3 && companyInputs.includes('energy') && companyInputs.includes('water') && companyInputs.includes('wood_raw'),
+  'needed materials must combine deduplicated inputs from owned businesses and selected factory recipes');
 
 const milCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/military.js'), 'utf-8');
 assert(milCode.includes('joinAlliance'), 'military.js must support joining alliances');
@@ -381,7 +402,10 @@ assert(milCode.includes('Требования к армии'), 'PvE cards must e
 assert(milCode.includes('force_composition'), 'PvE cards must explain when army composition blocks an attack');
 assert(milCode.includes('attackTournamentTarget'), 'military.js must wire tournament PvP attacks');
 assert(milCode.includes('getTournamentHistory'), 'military.js must show tournament history and personal results');
-assert(milCode.includes('Участие автоматическое'), 'tournament screen must explain automatic enrolment before an event starts');
+assert(milCode.includes('joinTournament'), 'military.js must submit tournament registration');
+const tournamentUiCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/military_tournament.js'), 'utf-8');
+assert(tournamentUiCode.includes('tournament-join-btn'), 'tournament screen must show a join button to non-participants');
+assert(apiScript.includes('joinTournament:'), 'api.js must expose tournament registration');
 assert(milCode.includes('Pivocoins') && milCode.includes('premium'), 'military.js must expose the separate Pivocoins premium branch');
 assert(milCode.includes('purchasePremiumLicense') && milCode.includes('purchasePremiumUpgrade'), 'military.js must wire premium licenses and upgrades');
 assert(milCode.includes('border_guards') && milCode.includes('aircraft'), 'military.js must render all six unit types');

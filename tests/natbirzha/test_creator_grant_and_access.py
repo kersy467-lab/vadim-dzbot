@@ -41,7 +41,7 @@ def test_creator_starting_grant_amounts():
     async def _check():
         session = DummySession()
         cash, pvc = await CompanyService.get_starting_grant(session, 1053722876)
-        assert cash == 500_000.0
+        assert cash == nat_settings.STARTING_CASH
         assert pvc == 200
 
     asyncio.run(_check())

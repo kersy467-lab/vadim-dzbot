@@ -70,7 +70,7 @@ export function createMarketFinance(container, showToast, onBack) {
     const ownId = Number(store.company?.id || store.company?.company_id || 0);
     const ownStock = list.find(item => Number(item.company_id) === ownId);
     const level = Number(store.company?.level || 1);
-    const ipoLevel = Number(store.company?.capital_plan?.ipo_available_from_level || 18);
+    const ipoLevel = Number(store.company?.capital_plan?.ipo_available_from_level || 7);
     const ipo = ownStock ? '' : `<div class="glass-card rounded-2xl p-4 space-y-3"><div class="font-bold">🚀 Выход на IPO</div><div class="text-xs text-slate-500">Доступно с ${ipoLevel} уровня. Сейчас: ${level} ур.</div><input id="market-ipo-dividend-rate" type="number" min="5" max="100" step="0.5" value="5" class="w-full rounded-lg border p-2 bg-white dark:bg-slate-900"><button id="market-ipo-open-btn" class="w-full py-2 rounded-xl bg-blue-600 text-white font-bold" ${level >= ipoLevel ? '' : 'disabled'}>Выйти на IPO</button></div>`;
     const body = list.map(stock => `<button class="stock-card glass-card rounded-xl p-3 w-full text-left flex justify-between" data-id="${stock.stock_id}"><span><b>${esc(stock.company_name)}</b><br><small>${esc(getSpecializationName(stock.specialization))} · дивиденды ${Number(stock.dividend_rate_pct || 5).toFixed(1)}%</small></span><strong>${Number(stock.current_price || 0).toFixed(2)} cash</strong></button>`).join('') || '<div class="glass-card rounded-2xl p-6 text-center text-sm text-slate-500">Публичных компаний пока нет</div>';
     container.innerHTML = shell('Акции компаний', 'Цена зависит от бизнеса и реального стакана заявок', `<div class="space-y-3">${ipo}${body}</div>`); bindBack();

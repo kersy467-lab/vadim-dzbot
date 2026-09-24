@@ -193,6 +193,39 @@ async def get_current_tournament(
     }
 
 
+@router.post("/tournaments/{tournament_id}/join")
+async def join_tournament(
+    tournament_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    if not idempotency_key:
+        raise HTTPException(status_code=400, detail={"reason": "idempotency_key_required"})
+    endpoint = f"/api/natbirzha/military/tournaments/{tournament_id}/join"
+    payload = {"tournament_id": tournament_id}
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+    from backend.natbirzha.config import get_game_now
+    try:
+        response = await TournamentService.join(
+            session, tournament_id, company, now=get_game_now()
+        )
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except TournamentError as exc:
+        await session.rollback()
+        status_code = 404 if exc.reason == "tournament_not_found" else 400
+        raise HTTPException(
+            status_code=status_code,
+            detail={"reason": exc.reason, "message": str(exc)},
+        ) from exc
+
+
 @router.get("/tournaments/history")
 async def get_tournament_history(
     company: NatCompany = Depends(get_current_company),

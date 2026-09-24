@@ -143,7 +143,12 @@ class HeadlessSimulationEngine:
                 # 4. Expansion & IPO
                 if p.cash >= 20000.0 and p.level == 1:
                     p.level = 2
-                if p.level >= 2 and not p.is_public and p.cash >= 30000.0:
+                ipo_min_level = (
+                    nat_settings.TYCOON_V2_IPO_MIN_LEVEL
+                    if nat_settings.TYCOON_V2_ENABLED
+                    else nat_settings.IPO_MIN_LEVEL
+                )
+                if p.level >= ipo_min_level and not p.is_public and p.cash >= 30000.0:
                     p.is_public = True
 
                 # 5. Dividends (10% of closed revenue)

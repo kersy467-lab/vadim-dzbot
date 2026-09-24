@@ -1,6 +1,7 @@
 import { NatAPI } from '../api.js';
 import { store } from '../state.js';
 import { getItemInfo } from '../items.js';
+import { renderTournamentSection } from './military_tournament.js';
 
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },
@@ -22,18 +23,12 @@ const COMBAT_LABELS = {
   infantry: 'Пехота', border_guards: 'Пограничники', tanks: 'Бронетехника', drones: 'БПЛА',
   aircraft: 'Авиация', air_defense: 'ПВО', electronic_warfare: 'РЭБ', readiness: 'Боеготовность',
 };
-
-const TOURNAMENT_LABELS = {
-  AUTO: 'Автоматический', ACTIVE: 'Идёт', SCHEDULED: 'Запланирован', FINISHED: 'Завершён', RESOLVED: 'Завершён',
-};
-
 const PVC_OPERATION_LABELS = {
   purchase: 'Покупка', spend: 'Списание', grant: 'Начисление', reward: 'Награда', refund: 'Возврат',
   license_purchase: 'Покупка лицензии', tournament_reward: 'Награда турнира', creator_grant: 'Начисление Государства',
 };
 
 const combatLabel = (value) => COMBAT_LABELS[value] || 'Военная система';
-const tournamentLabel = (value) => TOURNAMENT_LABELS[value] || 'Турнир';
 const pvcOperationLabel = (value) => PVC_OPERATION_LABELS[value] || 'Операция PVC';
 
 const SECTIONS = [
@@ -220,21 +215,6 @@ export async function renderMilitary(container, showToast) {
     }).join('')}</div>`;
   }
 
-  function tournamentSection() {
-    const tournament = tournamentData?.tournament;
-    if (!tournament) return '<div class="glass-card rounded-2xl p-5 text-xs text-slate-400 text-center">Следующий турнир создаётся автоматически. Участие автоматическое для подходящих компаний при старте события.</div>';
-    const rewards = tournament.rewards_pvc || [150, 100, 70];
-    const isActive = tournament.status === 'ACTIVE';
-    return `<div class="space-y-3">
-      <div class="glass-card rounded-2xl p-4 border-l-4 border-l-amber-500 space-y-3">
-        <div class="flex justify-between"><div><div class="text-sm font-black">Турнир #${tournament.cycle_number || tournament.id}</div><div class="text-[10px] text-slate-400">${esc(tournamentLabel(tournament.tournament_type || 'AUTO'))} · ${esc(tournamentLabel(tournament.status))}</div></div><div class="text-right text-[10px]"><div class="text-amber-500 font-bold">${timeLeft(tournament.finish_time)}</div><div>${tournament.is_participant ? 'Вы участвуете' : 'Нет участия'}</div></div></div>
-        <div class="grid grid-cols-3 gap-2 text-center">${rewards.map((reward, i) => `<div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-2"><div class="text-[9px] text-slate-400">${i + 1} место</div><div class="text-xs font-black text-amber-500">${reward} PVC</div></div>`).join('')}</div>
-      </div>
-      <div class="glass-card rounded-2xl p-4 space-y-2"><h3 class="text-xs font-bold uppercase text-slate-400">Топ по силе армии</h3>${(tournamentData.participants || []).slice(0, 10).map((row, index) => `<div class="flex justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50"><span><b>#${row.rank || index + 1}</b> ${esc(row.company_name)}</span><span class="font-mono">${number(row.current_strength || row.strength)} · ${row.rating || 1000} р.</span></div>`).join('') || '<div class="text-xs text-slate-400">Нет участников</div>'}</div>
-      ${isActive ? `<div class="glass-card rounded-2xl p-4 space-y-2"><h3 class="text-xs font-bold uppercase text-slate-400">Цели PvP</h3>${tournamentTargets.map(target => `<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50"><div><div class="text-xs font-bold">${esc(target.company_name)}</div><div class="text-[9px] text-slate-400">≈${number(target.approximate_strength)} силы · ${target.rating} р. · ${target.wins}/${target.losses}</div></div><button class="attack-pvp-btn px-3 py-1.5 rounded-lg ${target.attack_available ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-400'} text-xs font-bold disabled:opacity-50" data-company-id="${target.company_id}" ${target.attack_available ? '' : 'disabled'}>${target.attack_available ? 'Атака' : timeLeft(target.cooldown_until)}</button></div>`).join('') || '<div class="text-xs text-slate-400">Других участников пока нет</div>'}</div>` : '<div class="glass-card rounded-2xl p-4 text-xs text-slate-400">Участие автоматическое для подходящих компаний при старте. PvP будет доступно только в активные 18 часов турнира.</div>'}
-    </div>`;
-  }
-
   function historySection() {
     const battles = history.length ? `<div class="space-y-2">${history.map(battle => {
       const won = battle.winner === 'attacker';
@@ -274,7 +254,7 @@ export async function renderMilitary(container, showToast) {
   }
 
   function renderView() {
-    const section = { army: armySection, borders: bordersSection, tournament: tournamentSection, history: historySection, alliance: allianceSection, premium: premiumSection }[activeSection] || armySection;
+    const section = { army: armySection, borders: bordersSection, tournament: () => renderTournamentSection({ tournamentData, tournamentTargets, army }), history: historySection, alliance: allianceSection, premium: premiumSection }[activeSection] || armySection;
     container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${SECTIONS.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${section()}</div>`;
     if (activeSection === 'premium' && premiumData?.industry?.upgrade?.available) {
       const industry = premiumData.industry.upgrade;
@@ -310,7 +290,6 @@ export async function renderMilitary(container, showToast) {
   }
 
   function bindHandlers() {
-    // Mouse wheel → horizontal scroll on the tabs row (PC / Telegram Desktop)
     const tabsRow = container.querySelector('.flex.gap-2.overflow-x-auto');
     if (tabsRow) {
       tabsRow.addEventListener('wheel', (e) => {
@@ -366,6 +345,16 @@ export async function renderMilitary(container, showToast) {
       try { await refreshAfterBattle(await NatAPI.attackTournamentTarget(tournamentData.tournament.id, btn.dataset.companyId)); }
       catch (error) { showToast(error.message, 'error'); btn.disabled = false; }
     }));
+    container.querySelector('.tournament-join-btn')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const result = await NatAPI.joinTournament(tournamentData.tournament.id);
+        showToast(result.message || 'Вы зарегистрировались в турнире', 'success');
+        await loadWarData();
+        renderView();
+      } catch (error) { showToast(error.message, 'error'); button.disabled = false; }
+    });
     container.querySelector('#join-alliance-btn')?.addEventListener('click', async event => {
       const id = parseInt(prompt('ID альянса:', '1'), 10);
       if (!id || id <= 0) return;

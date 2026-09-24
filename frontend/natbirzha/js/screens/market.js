@@ -4,18 +4,19 @@ import { getItemInfo } from '../items.js';
 import { renderMarketChart } from '../market_chart.js';
 import { renderTaxSection } from './market_tax.js';
 import { createMarketFinance } from './market_finance.js';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js';
 
 const MARKET_ITEMS = [
-  { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 112.5 },
-  { id: 'iron_ore', name: 'Железная руда', unit: 'т', base: 35.0, buy: 28.0, sell: 43.75 },
-  { id: 'coal', name: 'Каменный уголь', unit: 'т', base: 30.0, buy: 24.0, sell: 37.5 },
-  { id: 'energy', name: 'Электроэнергия', unit: 'МВт·ч', base: 10.0, buy: 8.0, sell: 12.5 },
-  { id: 'oil_crude', name: 'Сырая нефть', unit: 'барр.', base: 50.0, buy: 40.0, sell: 62.5 },
-  { id: 'fuel_diesel', name: 'Дизельное топливо', unit: 'л', base: 1.2, buy: 0.96, sell: 1.5 },
-  { id: 'grain', name: 'Зерно', unit: 'т', base: 20.0, buy: 16.0, sell: 25.0 },
-  { id: 'fertilizer', name: 'Удобрения', unit: 'т', base: 50.0, buy: 40.0, sell: 62.5 },
-  { id: 'wood_raw', name: 'Лес-кругляк', unit: 'м³', base: 25.0, buy: 20.0, sell: 31.25 },
-  { id: 'aluminum', name: 'Алюминий', unit: 'т', base: 110.0, buy: 88.0, sell: 137.5 },
+  { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },
+  { id: 'iron_ore', name: 'Железная руда', unit: 'т', base: 35.0, buy: 28.0, sell: 52.5 },
+  { id: 'coal', name: 'Каменный уголь', unit: 'т', base: 30.0, buy: 24.0, sell: 45.0 },
+  { id: 'energy', name: 'Электроэнергия', unit: 'МВт·ч', base: 10.0, buy: 8.0, sell: 15.0 },
+  { id: 'oil_crude', name: 'Сырая нефть', unit: 'барр.', base: 50.0, buy: 40.0, sell: 75.0 },
+  { id: 'fuel_diesel', name: 'Дизельное топливо', unit: 'л', base: 1.2, buy: 0.96, sell: 1.8 },
+  { id: 'grain', name: 'Зерно', unit: 'т', base: 20.0, buy: 16.0, sell: 30.0 },
+  { id: 'fertilizer', name: 'Удобрения', unit: 'т', base: 50.0, buy: 40.0, sell: 75.0 },
+  { id: 'wood_raw', name: 'Лес-кругляк', unit: 'м³', base: 25.0, buy: 20.0, sell: 37.5 },
+  { id: 'aluminum', name: 'Алюминий', unit: 'т', base: 110.0, buy: 88.0, sell: 165.0 },
 ];
 
 // The server's NPC-rate registry is the source of truth.  Keep the small
@@ -78,10 +79,12 @@ export async function renderMarket(container, showToast) {
   let recipesData = { recipes: {} };
   let orderbookData = null;
   let orderbookRequestId = 0;
+  const commodityCatalogState = { category: 'search', query: '' };
 
 
   async function loadOrderbook() {
     const requestId = ++orderbookRequestId;
+    orderbookData = null;
     try {
       const data = await NatAPI.getOrderbook(selectedItemId);
       if (requestId !== orderbookRequestId) return false;
@@ -98,10 +101,11 @@ export async function renderMarket(container, showToast) {
 
   const finance = createMarketFinance(container, showToast, renderMarketHome);
 
-  const [ratesData, loadedRecipes, businessCatalog] = await Promise.all([
+  const [ratesData, loadedRecipes, businessCatalog, empireSummary] = await Promise.all([
     NatAPI.getNpcRates().catch(() => null),
     NatAPI.getRecipes().catch(() => null),
     NatAPI.getBusinessCatalog().catch(() => ({ items: [] })),
+    NatAPI.getEmpireSummary().catch(() => null),
     finance.load(),
   ]);
 
@@ -121,14 +125,27 @@ export async function renderMarket(container, showToast) {
   const industryOutputs = getIndustryOutputIds(
     store.company?.specialization, recipesData.recipes, businessCatalog?.items || []
   );
+  const companyInputIds = getCompanyInputIds(
+    empireSummary?.businesses, store.factories, recipesData.recipes
+  );
   marketItems = prioritizeIndustryItems(marketItems, industryOutputs);
-  const firstIndustryItem = marketItems.find(item => item.isIndustry);
-  if (firstIndustryItem && !marketItems.some(item => item.id === selectedItemId && item.isIndustry)) {
-    selectedItemId = firstIndustryItem.id;
+
+
+  function renderCommodityBrowser() {
+    renderCommodityCatalog(container, {
+      items: marketItems,
+      inventory: store.inventory,
+      inputIds: companyInputIds,
+      state: commodityCatalogState,
+      onBack: renderMarketHome,
+      onSelect: async (itemId) => {
+        if (!marketItems.some((item) => item.id === itemId)) return;
+        selectedItemId = itemId;
+        await loadOrderbook();
+        renderView();
+      },
+    });
   }
-  await loadOrderbook();
-
-
 
   function renderMarketHome() {
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_shares"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Акции государства</div><div class="text-xs text-slate-500">Фиксированная цена, доступная эмиссия, дивиденды и выкуп казной</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% дневной прибыли, задолженность и штрафы</div></button></div></div>`;
@@ -140,12 +157,11 @@ export async function renderMarket(container, showToast) {
       else if (section === 'bonds') finance.renderBonds();
       else if (section === 'reference') finance.renderReference();
       else if (section === 'tax') renderTaxSection(container, showToast, renderMarketHome);
-      else renderView();
+      else if (section === 'commodities') renderCommodityBrowser();
     }));
   }
 
   function renderView() {
-    const selectorScrollLeft = container.querySelector('.market-resource-tabs')?.scrollLeft || 0;
     const itemInfo = marketItems.find(i => i.id === selectedItemId) || marketItems[0];
     const bids = orderbookData?.bids || [];
     const asks = orderbookData?.asks || [];
@@ -155,25 +171,8 @@ export async function renderMarket(container, showToast) {
 
     container.innerHTML = `
       <div class="space-y-4 max-w-md mx-auto p-4 pb-24">
-        <!-- Resource Selector Bar -->
-        <div class="market-resource-tabs flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          ${marketItems.map(item => `
-            <button
-              class="market-item-tab px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                item.id === selectedItemId
-                  ? `bg-blue-600 text-white shadow-md shadow-blue-500/25 ${item.isIndustry ? 'border-2 border-amber-300 ring-1 ring-amber-300' : ''}`
-                  : item.isIndustry
-                    ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border-2 border-amber-400 shadow-sm'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-              }"
-              data-item-id="${item.id}"
-              title="${item.isIndustry ? 'Продукт вашей отрасли' : item.name}"
-            >
-              ${item.isIndustry ? '★ ' : ''}${item.name}
-              ${item.isIndustry ? '<span class="ml-1 text-[9px] opacity-80">Ваша отрасль</span>' : ''}
-            </button>
-          `).join('')}
-        </div>
+        <button type="button" class="market-back text-xs font-bold text-pink-500">← Список сырья</button>
+        <div><h2 class="text-lg font-black">${itemInfo.name}</h2><p class="text-[10px] text-slate-500">Стакан, NPC и торговые ордера · ${itemInfo.unit}</p></div>
 
         <!-- NPC Reserve Liquidity Banner -->
         <div class="glass-card rounded-2xl p-4 shadow-sm space-y-2 border-l-4 border-l-amber-500">
@@ -192,7 +191,7 @@ export async function renderMarket(container, showToast) {
               </button>
             </div>
             <div class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-              <div class="text-[10px] font-semibold text-rose-700 dark:text-rose-300">Продажа NPC (Потолок +25%)</div>
+              <div class="text-[10px] font-semibold text-rose-700 dark:text-rose-300">Продажа NPC (Потолок +50%)</div>
               <div class="font-mono font-black text-sm text-rose-600 dark:text-rose-400">${itemInfo.sell.toFixed(2)} cash</div>
               <button class="npc-buy-btn mt-1 w-full py-1 rounded bg-rose-600 text-white font-bold text-[11px] active:scale-95 transition-all">
                 Купить у NPC
@@ -294,31 +293,7 @@ export async function renderMarket(container, showToast) {
       </div>
     `;
 
-    const marketBack = document.createElement('button');
-    marketBack.type = 'button';
-    marketBack.className = 'market-back text-xs font-bold text-blue-600';
-    marketBack.textContent = '← Все разделы биржи';
-    marketBack.addEventListener('click', renderMarketHome);
-    container.querySelector('.max-w-md')?.prepend(marketBack);
-
-    const resourceTabs = container.querySelector('.market-resource-tabs');
-    if (resourceTabs) {
-      resourceTabs.scrollLeft = selectorScrollLeft;
-      // Mouse wheel → horizontal scroll (PC / Telegram Desktop)
-      resourceTabs.addEventListener('wheel', (e) => {
-        if (e.deltaY !== 0) { e.preventDefault(); resourceTabs.scrollLeft += e.deltaY; }
-      }, { passive: false });
-    }
-
-    // Tab click listeners
-    container.querySelectorAll('.market-item-tab').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const nextItemId = btn.getAttribute('data-item-id');
-        if (!nextItemId || nextItemId === selectedItemId) return;
-        selectedItemId = nextItemId;
-        if (await loadOrderbook()) renderView();
-      });
-    });
+    container.querySelector('.market-back')?.addEventListener('click', renderCommodityBrowser);
 
     // NPC Trade handlers
     container.querySelector('.npc-sell-btn')?.addEventListener('click', async () => {

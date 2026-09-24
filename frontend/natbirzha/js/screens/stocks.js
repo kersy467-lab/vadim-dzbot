@@ -2,6 +2,8 @@ import { NatAPI } from '../api.js';
 import { store } from '../state.js';
 import { renderStateShareMarket } from './state_share_market.js';
 
+const IPO_MIN_LEVEL_FALLBACK = 7;
+
 export async function renderStocks(container, showToast) {
   let stocksList = [];
   let stateBonds = [];
@@ -21,7 +23,8 @@ export async function renderStocks(container, showToast) {
   const myCompany = store.company || {};
   const isPublic = myCompany.is_public;
   const companyLevel = Number(myCompany.level || 1);
-  const ipoUnlocked = companyLevel >= 2;
+  const ipoMinLevel = Number(myCompany.capital_plan?.ipo_available_from_level || IPO_MIN_LEVEL_FALLBACK);
+  const ipoUnlocked = companyLevel >= ipoMinLevel;
   const dividendRate = Number(myCompany.stock?.dividend_rate_pct || myCompany.dividend_rate_pct || 5);
 
   container.innerHTML = `
@@ -43,13 +46,13 @@ export async function renderStocks(container, showToast) {
                 ${isPublic ? 'Ваша корпорация торгуется на бирже' : 'Выход на IPO'}
               </div>
               <div class="text-[11px] text-slate-400">
-                ${isPublic ? '60% основатель, 40% free-float в открытом обращении' : `Доступно с 2 уровня компании. Сейчас: ${companyLevel} ур.`}
+                ${isPublic ? '60% основатель, 40% free-float в открытом обращении' : `Доступно с ${ipoMinLevel} уровня компании. Сейчас: ${companyLevel} ур.`}
               </div>
             </div>
           </div>
           ${!isPublic ? `
             <button id="open-ipo-btn" ${ipoUnlocked ? '' : 'disabled'} class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-              ${ipoUnlocked ? 'Выйти на IPO' : 'IPO с 2 уровня'}
+              ${ipoUnlocked ? 'Выйти на IPO' : `IPO с ${ipoMinLevel} уровня`}
             </button>
           ` : `
             <span class="text-xs font-bold font-mono text-emerald-500">АКТИВНО</span>

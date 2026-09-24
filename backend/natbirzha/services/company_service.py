@@ -31,7 +31,7 @@ class CompanyService:
             res = await session.execute(select(User).where(User.tg_id == user_id))
             user = res.scalar_one_or_none()
         if user_id in get_creator_tg_ids() or (user and (is_creator_user(user) or user.tg_id in get_creator_tg_ids())):
-            return float(nat_settings.CREATOR_STARTING_CASH), int(getattr(nat_settings, "CREATOR_STARTING_PVC", 200))
+            return float(nat_settings.STARTING_CASH), int(getattr(nat_settings, "CREATOR_STARTING_PVC", 200))
         if user and bool(user.is_tester):
             return float(nat_settings.STARTING_CASH), int(nat_settings.TESTER_STARTING_PVC)
         return float(nat_settings.STARTING_CASH), 0

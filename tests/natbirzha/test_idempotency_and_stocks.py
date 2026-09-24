@@ -90,7 +90,7 @@ async def test_idempotency_and_stocks():
     async with async_session_factory() as session:
         u_ipo = int(time.time()) % 1000000 + 500000
         comp_ipo = await CompanyService.create_company(session, u_ipo, f"ПАО Энергия {u_ipo}", "power_engineer")
-        comp_ipo.level = 2  # IPO requires level >= 2
+        comp_ipo.level = 7  # IPO requires level >= 7
 
         stock = await StockService.apply_for_ipo(session, comp_ipo)
         assert stock.total_shares == nat_settings.IPO_MIN_SHARES

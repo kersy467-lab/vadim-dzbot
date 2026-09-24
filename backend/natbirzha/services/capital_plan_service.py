@@ -13,7 +13,7 @@ MIN_SELF_FUNDED_BUFFER = 90_000.0
 
 
 def ipo_recommendation_level() -> int:
-    """Keep legacy seasons compatible while V2 makes IPO a midgame decision."""
+    """Return the IPO level gate configured for the active progression mode."""
     if nat_settings.TYCOON_V2_ENABLED:
         return int(nat_settings.TYCOON_V2_IPO_MIN_LEVEL)
     return int(nat_settings.IPO_MIN_LEVEL)

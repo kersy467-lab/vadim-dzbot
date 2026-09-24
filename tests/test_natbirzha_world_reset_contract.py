@@ -20,7 +20,7 @@ def test_world_reset_table_scope_preserves_only_reference_catalogs():
 
 def test_world_reset_confirmation_and_new_profile_grants():
     assert WorldResetService.CONFIRMATION_PHRASE == "СБРОСИТЬ НАТБИРЖУ"
-    assert nat_settings.CREATOR_STARTING_CASH == 500_000
+    assert nat_settings.STARTING_CASH == 50_000
     assert nat_settings.CREATOR_STARTING_PVC == 200
     assert nat_settings.STARTING_CASH == 50_000
     assert nat_settings.TESTER_STARTING_PVC == 200

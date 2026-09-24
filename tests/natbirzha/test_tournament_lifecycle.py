@@ -55,6 +55,15 @@ async def run_async() -> None:
             150, 100, 70
         )
 
+        registered = await TournamentService.join(
+            session, tournament.id, companies[0], now=now - timedelta(minutes=10)
+        )
+        assert registered["joined"] is True and registered["already_joined"] is False
+        duplicate = await TournamentService.join(
+            session, tournament.id, companies[0], now=now - timedelta(minutes=9)
+        )
+        assert duplicate["already_joined"] is True
+
         activated = await TournamentService.activate_due(session, now)
         assert [row.id for row in activated] == [tournament.id]
         assert tournament.status == "ACTIVE"
@@ -68,6 +77,7 @@ async def run_async() -> None:
         assert len(participants) == 3
         by_company = {participant.company_id: participant for participant in participants}
         assert by_company[companies[0].id].alliance_id == alliance.id
+        assert by_company[companies[0].id].army_updated_at == now
         assert by_company[companies[1].id].alliance_id is None
 
         result = await TournamentService.resolve(

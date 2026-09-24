@@ -25,7 +25,7 @@ class SeasonResetService:
             "affected_companies": len(rows),
             "creator_companies": sum(1 for _company, user in rows if is_creator_user(user)),
             "normal_starting_cash": nat_settings.STARTING_CASH,
-            "creator_starting_cash": nat_settings.CREATOR_STARTING_CASH,
+            "creator_starting_cash": nat_settings.STARTING_CASH,
             "tester_starting_pvc": nat_settings.TESTER_STARTING_PVC,
         }
 

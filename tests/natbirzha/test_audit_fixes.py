@@ -113,7 +113,8 @@ async def test_audit_fixes():
         # public-status transition, so prepare an eligible company explicitly.
         async with async_session_factory() as session:
             company = await session.get(NatCompany, company_id)
-            company.level = nat_settings.IPO_MIN_LEVEL
+            from backend.natbirzha.services.capital_plan_service import ipo_recommendation_level
+            company.level = ipo_recommendation_level()
             await session.commit()
         status_pre = await client.get("/api/natbirzha/company/me", headers=headers_1)
         assert status_pre.status_code == 200

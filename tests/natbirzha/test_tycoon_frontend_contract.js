@@ -29,6 +29,10 @@ const market = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/market.js'),
   'utf-8',
 );
+const commodityMarket = fs.readFileSync(
+  path.join(__dirname, '../../frontend/natbirzha/js/screens/market_commodities.js'),
+  'utf-8',
+);
 const finance = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/market_finance.js'),
   'utf-8',
@@ -37,7 +41,7 @@ const chart = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/market_chart.js'),
   'utf-8',
 );
-assert(market.includes('Все разделы биржи'), 'raw-material market must provide a back action');
+assert(commodityMarket.includes('Все разделы биржи') && market.includes('renderCommodityCatalog'), 'raw-material catalog must provide a back action to all exchange sections');
 assert(finance.includes('suggested)') && finance.includes('row.unrealized_pnl_rub'), 'reference trades must prefill an affordable maximum and show holding P/L');
 assert(finance.includes('Всего') || finance.includes('всего '), 'bond holdings must show total quantity explicitly');
 assert(chart.includes('normalized.length === 1'), 'a bond with one recorded quote must still render a chart');

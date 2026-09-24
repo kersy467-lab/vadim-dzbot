@@ -222,6 +222,7 @@ export const NatAPI = {
   recruitUnits: (unit_type, count) => request('/api/natbirzha/military/recruit', { method: 'POST', body: JSON.stringify({ unit_type, count: parseInt(count, 10) }) }),
   upgradeMilitaryInfrastructure: (facility) => request(`/api/natbirzha/military/infrastructure/${encodeURIComponent(facility)}/upgrade`, { method: 'POST' }),
   getCurrentTournament: () => request('/api/natbirzha/military/tournaments/current'),
+  joinTournament: (tournament_id) => request(`/api/natbirzha/military/tournaments/${parseInt(tournament_id, 10)}/join`, { method: 'POST' }),
   getPveTargets: () => request('/api/natbirzha/military/pve/targets'),
   scoutPveTarget: (target_code) => request(`/api/natbirzha/military/pve/targets/${encodeURIComponent(target_code)}/scout`, { method: 'POST' }),
   attackPveTarget: (target_code) => request(`/api/natbirzha/military/pve/targets/${encodeURIComponent(target_code)}/attack`, { method: 'POST' }),

@@ -26,7 +26,7 @@ class NatbirzhaSettings(BaseSettings):
     TYCOON_V2_OFFLINE_CASH_CAP_HOURS: int = 24
     TYCOON_V2_RESOURCE_TICK_MINUTES: int = 15
     TYCOON_V2_WORK_XP_PER_HOUR: int = 20
-    TYCOON_V2_IPO_MIN_LEVEL: int = 18
+    TYCOON_V2_IPO_MIN_LEVEL: int = 7
 
     # Mandatory company income tax. A closed game day is taxed on positive
     # operating profit only. Three unpaid days are tolerated; after that
@@ -46,7 +46,7 @@ class NatbirzhaSettings(BaseSettings):
     # NPC State Reserve (Госрезерв). Regular resources have no daily
     # liquidity/volume cap: NPC trades at the fixed price corridor.
     NPC_BUY_FLOOR_MULT: float = 0.80        # NPC buys surplus at 80% base price
-    NPC_SELL_CAP_MULT: float = 1.25         # NPC sells supplies at 125% base price
+    NPC_SELL_CAP_MULT: float = 1.50         # NPC sells supplies at 150% base price
     # Premium raw materials keep a tiny explicit emergency stock so unlimited
     # NPC supply cannot bypass premium production and player-to-player trade.
     NPC_RARE_SELL_RESERVES: Dict[str, float] = {
@@ -70,7 +70,7 @@ class NatbirzhaSettings(BaseSettings):
     PVE_WIN_COOLDOWN_HOURS: int = 2
 
     # IPO rules
-    IPO_MIN_LEVEL: int = 2
+    IPO_MIN_LEVEL: int = 7
     IPO_MIN_SHARES: int = 10000
     IPO_FOUNDER_MIN_PCT: float = 0.60       # Founder retains at least 60%
     IPO_FLOAT_MAX_PCT: float = 0.40         # Public float at most 40%
@@ -92,10 +92,9 @@ class NatbirzhaSettings(BaseSettings):
     BANKRUPTCY_FEE_RATE: float = 0.30              # 30% of positive daily profit
 
     # Base Economic Constants
-    # Ordinary companies start with 50k; the creator/admin receives the
-    # agreed 500k test grant. Testers additionally keep their PVC grant.
+    # Every company starts with the same cash balance. Creators and testers
+    # retain their separate PVC grants.
     STARTING_CASH: float = 50000.0
-    CREATOR_STARTING_CASH: float = 500000.0
     CREATOR_STARTING_PVC: int = 200
     TESTER_STARTING_PVC: int = 200
     STARTING_TERRITORY_TILES: int = 4

@@ -98,7 +98,7 @@ async def reset_self(
     session: AsyncSession = Depends(get_db_session),
 ):
     """Delete only the creator's own company. User record and admin role are preserved.
-    Next company creation uses the standard creator grant: 500k cash + 200 PVC."""
+    Next company creation uses the normal cash balance plus the creator's PVC grant."""
     from backend.natbirzha.services.company_service import CompanyService
 
     comp_res = await session.execute(
@@ -116,9 +116,10 @@ async def reset_self(
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка сброса: {exc}") from exc
 
+    starting_cash_text = f"{nat_settings.STARTING_CASH:,.0f}".replace(",", " ")
     return {
         "ok": True,
-        "message": f"Компания «{company_name}» удалена. При новом создании компании старт: 500 000 cash + 200 PVC.",
+        "message": f"Компания «{company_name}» удалена. При новом создании стартовый баланс: {starting_cash_text} cash + 200 PVC.",
         "deleted_company": company_name,
         "deleted_company_id": company_id,
     }

@@ -52,7 +52,7 @@ class WorldResetService:
             "tester_companies": tester_companies,
             "global_users_preserved": int(total_users),
             "normal_starting_cash": nat_settings.STARTING_CASH,
-            "creator_starting_cash": nat_settings.CREATOR_STARTING_CASH,
+            "creator_starting_cash": nat_settings.STARTING_CASH,
             "tester_starting_pvc": nat_settings.TESTER_STARTING_PVC,
             "confirmation_phrase": WorldResetService.CONFIRMATION_PHRASE,
         }
@@ -101,7 +101,7 @@ class WorldResetService:
             "cleared_tables": len(cleared_tables),
             "users_preserved": int(preview["global_users_preserved"]),
             "next_start": {
-                "creator_cash": nat_settings.CREATOR_STARTING_CASH,
+                "creator_cash": nat_settings.STARTING_CASH,
                 "normal_cash": nat_settings.STARTING_CASH,
                 "tester_pvc": nat_settings.TESTER_STARTING_PVC,
             },

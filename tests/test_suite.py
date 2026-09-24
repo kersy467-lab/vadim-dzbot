@@ -816,6 +816,7 @@ async def main():
     await test_database_and_crud()
     test_keyboards_and_fastapi()
     p2_scripts = (
+        "tests/natbirzha/test_admin_cash_and_npc_margin.py",
         "tests/natbirzha/test_market_orderbook_regressions.py",
         "tests/test_natbirzha_broadcast.py",
         "tests/natbirzha/test_p2_models.py",
@@ -825,6 +826,7 @@ async def main():
         "tests/natbirzha/test_army_service.py",
         "tests/natbirzha/test_pve_wars.py",
         "tests/natbirzha/test_tournament_lifecycle.py",
+        "tests/natbirzha/test_tournament_join_api.py",
         "tests/natbirzha/test_tournament_pvp.py",
         "tests/natbirzha/test_creator_custom_tournaments.py",
         "tests/natbirzha/test_premium_production.py",

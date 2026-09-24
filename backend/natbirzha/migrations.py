@@ -280,12 +280,13 @@ async def _migrate_p2_custom_ticker(conn) -> None:
 
 
 async def _migrate_p2_creator_grant(conn) -> None:
+    # Keep the one-time creator PVC grant for databases that have not run this
+    # legacy migration yet, but never change company cash during an upgrade.
     if not await _table_exists(conn, "nat_companies") or not await _table_exists(conn, "users"):
         return
     await conn.execute(text("""
         UPDATE nat_companies
-        SET cash = CASE WHEN cash < 500000.0 THEN 500000.0 ELSE cash END,
-            pvc_balance = CASE WHEN pvc_balance < 200 THEN 200 ELSE pvc_balance END,
+        SET pvc_balance = CASE WHEN pvc_balance < 200 THEN 200 ELSE pvc_balance END,
             nat_balance = CASE WHEN nat_balance < 200 THEN 200 ELSE nat_balance END
         WHERE user_id IN (
             SELECT id FROM users

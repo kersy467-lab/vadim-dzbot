@@ -181,16 +181,17 @@ mockWindow.GAMES.updateTesterStatus(true);
 mockWindow.GAMES.switchGame('rpg');
 assert(mockWindow.GAMES.getCurrentGame() === 'rpg', 'Tester must be able to switch to RPG game');
 
-// Test tester-only Natbirzha banner exposure
+// Test Natbirzha banner exposure for all users (not tester-restricted)
 mockWindow.GAMES.updateTesterStatus(false);
 const paneNonTester = sharedElements['pane-games'] ? sharedElements['pane-games'].innerHTML : '';
-assert(!paneNonTester.includes('НАТБИРЖА'), 'Non-tester must not see Natbirzha banner');
+assert(paneNonTester.includes('НАТБИРЖА'), 'Non-tester must also see Natbirzha banner');
+assert(!paneNonTester.includes('>Beta<'), 'Natbirzha banner must not show Beta tag');
 
 mockWindow.GAMES.updateTesterStatus(true);
 const paneTester = sharedElements['pane-games'] ? sharedElements['pane-games'].innerHTML : '';
 assert(paneTester.includes('НАТБИРЖА'), 'Tester must see Natbirzha banner');
 assert(paneTester.includes('/app/natbirzha'), 'Natbirzha banner must link to /app/natbirzha');
-console.log('window.GAMES module loaded, tester-only RPG & Natbirzha banner restrictions verified!');
+console.log('window.GAMES module loaded, RPG & Natbirzha banner exposure verified!');
 
 console.log('=== [5/5] Testing multiplayer games & online room routing ===');
 ['game_2048.js', 'game_tictactoe.js', 'game_snake.js', 'game_tetris.js', 'game_chess.js'].forEach(m => {

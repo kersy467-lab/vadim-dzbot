@@ -23,26 +23,11 @@ def get_natbirzha_app_url(tg_user_id: int | None = None) -> str:
 
 
 @router.message(Command("natbirzha"))
-@router.message(F.text == "📈 НАТБИРЖА (Beta)")
+@router.message(F.text.in_({"📈 НАТБИРЖА", "📈 НАТБИРЖА (Beta)"}))
 async def cmd_natbirzha(message: Message, db_session: AsyncSession, current_user: User | None = None):
     if not message.from_user:
         return
     user_id = message.from_user.id
-    username = message.from_user.username
-
-    is_tester_or_admin = bool(
-        (current_user and (getattr(current_user, "is_tester", False) or current_user.role == "admin"))
-        or (settings.ADMIN_ID and user_id == settings.ADMIN_ID)
-        or is_creator_identity(user_id, username)
-    )
-
-    if not is_tester_or_admin:
-        await message.answer(
-            "🔒 <b>Игра «НАТБИРЖА» находится в закрытом бета-тестировании</b>\n\n"
-            "Доступ открыт только для утверждённых бета-тестеров 11 «Б». Ожидайте официального релиза!",
-            parse_mode="HTML"
-        )
-        return
 
     app_url = get_natbirzha_app_url(user_id)
 

@@ -584,7 +584,8 @@ console.log('All screen modules and app.js integration verified!');
 console.log('=== [Natbirzha Test 5/5] Testing games.js Natbirzha banner exposure & items localization ===');
 const gamesCode = fs.readFileSync(path.join(__dirname, '../frontend/js/games.js'), 'utf-8');
 assert(gamesCode.includes('НАТБИРЖА'), 'games.js must contain Natbirzha banner definition');
-assert(gamesCode.includes('${isTesterUser ?'), 'games.js must condition Natbirzha banner on isTesterUser');
+assert(!gamesCode.includes('${isTesterUser ? `<a href="/app/natbirzha"'), 'games.js must not restrict Natbirzha banner to testers');
+assert(!gamesCode.includes('>Beta<'), 'games.js must not contain Beta badge');
 assert(gamesCode.includes('/app/natbirzha'), 'Natbirzha banner must link to /app/natbirzha');
 assert(gamesCode.includes('prepareNatbirzhaNavigation'),
   'Natbirzha banner must call prepareNatbirzhaNavigation to carry over Telegram auth');

@@ -23,20 +23,19 @@ def get_main_keyboard(
         )
         app_buttons.append(webapp_btn)
 
-    # Natbirzha is in closed beta testing (only available to testers and admins)
-    if is_admin or is_tester:
-        nat_url = f"{settings.BASE_URL.rstrip('/')}/app/natbirzha"
-        if user_id:
-            separator = "&" if "?" in nat_url else "?"
-            nat_url = f"{nat_url}{separator}tg_user_id={user_id}"
-        if nat_url.startswith("https://"):
-            nat_btn = KeyboardButton(
-                text="📈 НАТБИРЖА (Beta)",
-                web_app=WebAppInfo(url=nat_url)
-            )
-            app_buttons.append(nat_btn)
-        else:
-            app_buttons.append(KeyboardButton(text="📈 НАТБИРЖА (Beta)"))
+    # Natbirzha multiplayer strategy game — available for all players
+    nat_url = f"{settings.BASE_URL.rstrip('/')}/app/natbirzha"
+    if user_id:
+        separator = "&" if "?" in nat_url else "?"
+        nat_url = f"{nat_url}{separator}tg_user_id={user_id}"
+    if nat_url.startswith("https://"):
+        nat_btn = KeyboardButton(
+            text="📈 НАТБИРЖА",
+            web_app=WebAppInfo(url=nat_url)
+        )
+        app_buttons.append(nat_btn)
+    else:
+        app_buttons.append(KeyboardButton(text="📈 НАТБИРЖА"))
 
     if app_buttons:
         kb.append(app_buttons)

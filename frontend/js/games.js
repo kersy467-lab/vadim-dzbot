@@ -136,20 +136,20 @@
           <span class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-slate-800 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-slate-700">${gameCountLabel}</span>
         </div>
 
-        ${isTesterUser ? `<a href="/app/natbirzha" onclick="window.prepareNatbirzhaNavigation ? window.prepareNatbirzhaNavigation(event) : null" class="block p-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 text-white shadow-md active:scale-98 transition-all cursor-pointer">
+        <a href="/app/natbirzha" onclick="window.prepareNatbirzhaNavigation ? window.prepareNatbirzhaNavigation(event) : null" class="block p-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 text-white shadow-md active:scale-98 transition-all cursor-pointer">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="text-2xl">📈</span>
               <div>
                 <div class="text-xs font-black tracking-tight flex items-center gap-1.5">
-                  НАТБИРЖА <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-white/20 uppercase font-bold tracking-wider">Beta</span>
+                  НАТБИРЖА
                 </div>
                 <div class="text-[10px] text-blue-100 font-medium">Экономика, заводы, акции и турниры</div>
               </div>
             </div>
             <span class="px-2.5 py-1 rounded-xl bg-white text-blue-700 font-black text-[11px] shrink-0 shadow-sm">Играть ➔</span>
           </div>
-        </a>` : ''}
+        </a>
 
         <div class="relative flex items-center">
           <button type="button" onclick="window.GAMES.scrollTabs(-100)" class="p-1.5 rounded-xl bg-slate-200/80 dark:bg-slate-700/80 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold mr-1 shrink-0 active:scale-95" title="Влево">◀</button>

@@ -38,7 +38,7 @@ TESTER_COMMANDS = [
 
 ADMIN_COMMANDS = [
     *TESTER_COMMANDS,
-    BotCommand(command="natnotice", description="📣 Уведомить игроков НАТБИРЖИ"),
+    BotCommand(command="sms", description="📣 Уведомить игроков НАТБИРЖИ"),
 ]
 
 # Обратная совместимость

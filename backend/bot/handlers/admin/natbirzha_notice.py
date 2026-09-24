@@ -24,8 +24,8 @@ async def _get_natbirzha_recipient_ids(db_session: AsyncSession) -> list[int]:
     return list(dict.fromkeys(int(tg_id) for tg_id in result.scalars().all() if tg_id is not None))
 
 
-# Accept the typo used by the admin as a backwards-compatible alias.
-@router.message(Command("natnotice", "natnoice"))
+# Keep the old names as aliases while exposing /sms as the official command.
+@router.message(Command("sms", "natnotice", "natnoice"))
 async def cmd_natbirzha_notice(
     message: Message,
     bot: Bot,
@@ -39,7 +39,7 @@ async def cmd_natbirzha_notice(
     body = parts[1].strip() if len(parts) > 1 else ""
     if not body:
         await message.answer(
-            "⚠️ Укажите текст сообщения.\nПример: /natnotice Продайте уголь по 30",
+            "⚠️ Укажите текст сообщения.\nПример: /sms Продайте уголь по 30",
             parse_mode=None,
         )
         return

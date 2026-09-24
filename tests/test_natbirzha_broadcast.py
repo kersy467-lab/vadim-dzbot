@@ -123,7 +123,7 @@ def test_natbirzha_notice_ignores_non_admins():
     asyncio.run(run())
 
 
-def test_natnotice_command_is_visible_only_in_admin_command_menu():
+def test_sms_command_is_visible_only_in_admin_command_menu():
     async def run():
         admin_bot = SimpleNamespace(
             set_my_commands=AsyncMock(),
@@ -157,8 +157,8 @@ def test_natnotice_command_is_visible_only_in_admin_command_menu():
             command.command
             for command in tester_bot.set_my_commands.await_args.kwargs["commands"]
         ]
-        assert "natnotice" in admin_names
-        assert "natnotice" not in tester_names
+        assert "sms" in admin_names
+        assert "sms" not in tester_names
 
     asyncio.run(run())
 
@@ -168,5 +168,5 @@ if __name__ == "__main__":
     test_natbirzha_notice_counts_failed_delivery_and_continues()
     test_natbirzha_notice_rejects_empty_message_without_querying_or_sending()
     test_natbirzha_notice_ignores_non_admins()
-    test_natnotice_command_is_visible_only_in_admin_command_menu()
+    test_sms_command_is_visible_only_in_admin_command_menu()
     print("NATBIRZHA admin notice tests: PASS")

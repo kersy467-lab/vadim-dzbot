@@ -88,7 +88,19 @@ async def cb_admin_delete_user_ask(callback: CallbackQuery, db_session: AsyncSes
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="⚠️ Да, удалить пользователя!",
+                    text="🚫 Забанить (в бан-лист, без права заявки)",
+                    callback_data=f"adm_ban_confirm_{target_tg_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👢 Кикнуть (сможет подать заявку)",
+                    callback_data=f"adm_kick_confirm_{target_tg_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🗑️ Полностью удалить из базы данных",
                     callback_data=f"adm_del_user_confirm_{target_tg_id}"
                 )
             ],
@@ -100,25 +112,86 @@ async def cb_admin_delete_user_ask(callback: CallbackQuery, db_session: AsyncSes
 
     try:
         await callback.message.edit_text(
-            f"❓ **Подтверждение удаления пользователя**\n\n"
+            f"❓ **Управление доступом пользователя**\n\n"
             f"👤 **Имя:** {safe_name}\n"
             f"🔗 **Telegram:** {uname}\n"
             f"🏷 **Роль:** {role_name}\n\n"
-            "⚠️ _Пользователь потеряет доступ к боту. Если он снова нажмет /start, ему придется заново отправлять заявку на регистрацию._",
+            "Выберите нужное действие:\n"
+            "• **Забанить** — пользователь отправляется в бан-лист, бот не отвечает ему, повторная заявка недоступна.\n"
+            "• **Кикнуть** — доступ аннулируется, но при отправке /start пользователь сможет подать повторную заявку.\n"
+            "• **Удалить** — полное удаление из базы данных.",
             reply_markup=kb,
             parse_mode="Markdown"
         )
     except Exception:
         await callback.message.edit_text(
-            f"❓ Подтверждение удаления пользователя\n\n"
+            f"❓ Управление доступом пользователя\n\n"
             f"👤 Имя: {target_user.full_name}\n"
             f"🔗 Telegram: {target_user.username or 'нет'}\n"
             f"🏷 Роль: {role_name}\n\n"
-            "Пользователь потеряет доступ к боту.",
+            "Выберите действие ниже:",
             reply_markup=kb
         )
     try:
         await callback.answer()
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data.startswith("adm_kick_confirm_"))
+async def cb_admin_kick_confirm(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
+    if not is_admin(current_user, callback.from_user.id):
+        return
+
+    target_tg_id = int(callback.data.replace("adm_kick_confirm_", ""))
+    if target_tg_id == settings.ADMIN_ID:
+        await callback.answer("Нельзя исключить главного администратора!", show_alert=True)
+        return
+    if target_tg_id == callback.from_user.id:
+        await callback.answer("❌ Вы не можете исключить самого себя!", show_alert=True)
+        return
+
+    target_user = await get_user_by_tg_id(db_session, target_tg_id)
+    if not target_user:
+        await callback.answer("Пользователь не найден!", show_alert=True)
+        return
+
+    target_user.role = "kicked"
+    target_user.is_classmate = False
+    await db_session.commit()
+
+    from backend.api.public_access import invalidate_access_cache
+    invalidate_access_cache(target_tg_id)
+
+    try:
+        from backend.bot.services.commands import set_user_command_scope
+        await set_user_command_scope(
+            callback.bot,
+            chat_id=target_tg_id,
+            is_tester=False,
+            is_admin=False,
+            full_access=False
+        )
+    except Exception:
+        pass
+
+    user_name = target_user.full_name or f"ID {target_tg_id}"
+    safe_user_name = escape_md(user_name)
+
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👥 К списку пользователей", callback_data="admin_view_students")],
+            [InlineKeyboardButton(text="🔙 В админ-панель", callback_data="admin_menu_back")]
+        ]
+    )
+    await callback.message.edit_text(
+        f"👢 **Пользователь {safe_user_name} успешно исключен (кикнут).**\n\n"
+        "Его доступ к боту и Mini App закрыт. Если он сам нажмет /start, он сможет отправить повторную заявку на рассмотрение.",
+        reply_markup=kb,
+        parse_mode="Markdown"
+    )
+    try:
+        await callback.answer("Пользователь кикнут!")
     except Exception:
         pass
 

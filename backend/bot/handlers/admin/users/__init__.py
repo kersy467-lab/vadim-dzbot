@@ -24,6 +24,17 @@ from backend.bot.handlers.admin.users.delete import (
     cb_admin_delete_user_list,
     cb_admin_delete_user_ask,
     cb_admin_delete_user_confirm,
+    cb_admin_kick_confirm,
+)
+from backend.bot.handlers.admin.users.ban import (
+    router as ban_router,
+    cb_admin_view_banlist,
+    cb_admin_unban_ask,
+    cb_admin_unban_kick,
+    cb_admin_unban_student,
+    cb_admin_ban_pick_user,
+    cb_admin_ban_ask,
+    cb_admin_ban_confirm,
 )
 
 router = Router(name="admin_users_router")
@@ -31,6 +42,7 @@ router.include_router(list_router)
 router.include_router(rename_router)
 router.include_router(roles_router)
 router.include_router(delete_router)
+router.include_router(ban_router)
 
 __all__ = [
     "router",
@@ -47,4 +59,12 @@ __all__ = [
     "cb_admin_delete_user_list",
     "cb_admin_delete_user_ask",
     "cb_admin_delete_user_confirm",
+    "cb_admin_kick_confirm",
+    "cb_admin_view_banlist",
+    "cb_admin_unban_ask",
+    "cb_admin_unban_kick",
+    "cb_admin_unban_student",
+    "cb_admin_ban_pick_user",
+    "cb_admin_ban_ask",
+    "cb_admin_ban_confirm",
 ]

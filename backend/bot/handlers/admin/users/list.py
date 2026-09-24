@@ -174,14 +174,11 @@ async def cb_view_students(callback: CallbackQuery, db_session: AsyncSession, pa
         for j, g in enumerate(groups, start=1):
             lines.append(f"{j}. {escape_md(g.title)} (ID: `{g.chat_id}`)")
 
-    if banned:
-        lines.append(f"\n🚫 **Бан-лист ({len(banned)}):**")
-        for b in banned:
-            safe_name = escape_md(b.full_name)
-            buname = f" (@{escape_md(b.username)})" if b.username else ""
-            lines.append(f"• {safe_name}{buname}")
-
-    buttons.append([InlineKeyboardButton(text="🗑 Удалить пользователя", callback_data="admin_delete_user")])
+    btn_banlist_text = f"🚫 Бан-лист ({len(banned)})" if banned else "🚫 Бан-лист"
+    buttons.append([
+        InlineKeyboardButton(text="🗑 Удалить / Кикнуть", callback_data="admin_delete_user"),
+        InlineKeyboardButton(text=btn_banlist_text, callback_data="admin_view_banlist"),
+    ])
     buttons.append([InlineKeyboardButton(text="🔙 В меню", callback_data="admin_menu_back")])
 
 

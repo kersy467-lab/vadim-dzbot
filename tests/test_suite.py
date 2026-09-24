@@ -525,10 +525,10 @@ async def test_database_and_crud():
         assert check_deleted_st is None, "Deleted user's homework status must be wiped!"
         print("[OK] User deletion and related data cleanup verified.")
 
-        # Test rejected user re-applying without DB clearing
-        user_rej = await create_user(session, tg_id=888777, full_name="Rejected Student", role="rejected")
-        assert user_rej.role == "rejected"
-        
+        # Test kicked user re-applying vs banned user blocked vs pending deduplication
+        user_kicked = await create_user(session, tg_id=888777, full_name="Kicked Student", role="kicked")
+        assert user_kicked.role == "kicked"
+
         class MockBot:
             def __init__(self):
                 self.sent_messages = []
@@ -537,6 +537,8 @@ async def test_database_and_crud():
 
         mock_bot = MockBot()
         from backend.bot.handlers.start import register_pending_user_and_notify_admin
+        
+        # 1. Kicked user re-applying becomes pending and notifies admin
         reapplied_user = await register_pending_user_and_notify_admin(
             bot=mock_bot,
             session=session,
@@ -544,9 +546,38 @@ async def test_database_and_crud():
             full_name="Reapplied Student",
             username="reapplied"
         )
-        assert reapplied_user.role == "pending", "Rejected user re-applying must become pending!"
-        assert len(mock_bot.sent_messages) == 1, "Admin must receive approval notification for re-applying user!"
-        print("[OK] Rejected user re-applying without DB clearing verified.")
+        assert reapplied_user.role == "pending", "Kicked user re-applying must become pending!"
+        assert len(mock_bot.sent_messages) == 1, "Admin must receive approval notification for re-applying kicked user!"
+        
+        # 2. Pending user attempting to re-apply must NOT trigger duplicate notification
+        dup_pending_user = await register_pending_user_and_notify_admin(
+            bot=mock_bot,
+            session=session,
+            user_id=888777,
+            full_name="Reapplied Student",
+            username="reapplied"
+        )
+        assert dup_pending_user.role == "pending", "Pending user must stay pending!"
+        assert len(mock_bot.sent_messages) == 1, "Admin must NOT receive duplicate notifications while pending!"
+
+        # 3. Banned user (role=rejected) must NOT be able to re-apply
+        user_banned = await create_user(session, tg_id=888666, full_name="Banned Student", role="rejected")
+        banned_attempt = await register_pending_user_and_notify_admin(
+            bot=mock_bot,
+            session=session,
+            user_id=888666,
+            full_name="Banned Student",
+            username="banned"
+        )
+        assert banned_attempt.role == "rejected", "Banned user must remain rejected and cannot re-apply!"
+        assert len(mock_bot.sent_messages) == 1, "Admin must NOT receive notifications for banned users!"
+
+        # 4. Ban-list retrieval
+        from backend.db.crud import get_banned_users
+        banned_list = await get_banned_users(session)
+        assert any(b.tg_id == 888666 for b in banned_list), "Banned user must appear in get_banned_users!"
+
+        print("[OK] Kicked re-application, ban enforcement, and pending deduplication verified.")
 
         # Test schedule formatting with substitution
         from backend.bot.handlers.schedule import format_day_schedule

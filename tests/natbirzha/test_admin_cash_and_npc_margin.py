@@ -5,7 +5,11 @@ import asyncio
 from backend.db.models import User
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.migrations import _migrate_p2_creator_grant
-from backend.natbirzha.models.inventory import get_npc_buy_price, get_npc_sell_price
+from backend.natbirzha.models.inventory import (
+    get_item_base_price,
+    get_npc_buy_price,
+    get_npc_sell_price,
+)
 from backend.natbirzha.services.company_service import CompanyService
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -42,9 +46,12 @@ def test_admin_and_creator_start_with_normal_cash_without_losing_creator_pvc():
 
 
 def test_npc_markup_is_fifty_percent_and_buy_discount_stays_twenty_percent():
-    # Copper has a base price of 60 cash.
-    assert get_npc_sell_price("copper") == 90.0
-    assert get_npc_buy_price("copper") == 48.0
+    # Primary copper must price above steel to reflect its higher production
+    # and investment costs; preserve the shared NPC buy/sell spread.
+    assert get_item_base_price("copper") == 140.0
+    assert get_item_base_price("copper") > get_item_base_price("steel")
+    assert get_npc_sell_price("copper") == 210.0
+    assert get_npc_buy_price("copper") == 112.0
 
 
 def test_pending_creator_migration_only_grants_pvc_not_starting_cash():

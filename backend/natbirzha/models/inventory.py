@@ -54,7 +54,7 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "flour": {"name": "Мука пшеничная", "category": "intermediate", "unit": "т", "base_price": 28.0},
     "meat": {"name": "Мясо", "category": "intermediate", "unit": "т", "base_price": 65.0},
     "milk": {"name": "Молоко фермерское", "category": "intermediate", "unit": "т", "base_price": 25.0},
-    "copper": {"name": "Медь первичная", "category": "intermediate", "unit": "т", "base_price": 60.0},
+    "copper": {"name": "Медь первичная", "category": "intermediate", "unit": "т", "base_price": 140.0},
     "rolled_metal": {"name": "Прокат металлический", "category": "intermediate", "unit": "т", "base_price": 120.0},
     "metal_structures": {"name": "Металлоконструкции", "category": "finished", "unit": "т", "base_price": 160.0},
     "brick": {"name": "Строительный кирпич", "category": "intermediate", "unit": "т", "base_price": 38.0},

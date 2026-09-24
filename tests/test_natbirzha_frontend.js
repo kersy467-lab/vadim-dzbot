@@ -421,10 +421,13 @@ const mergedMarketItems = mergeNpcRatesIntoMarketItems([
   { item_id: 'gas_natural', name: 'Природный газ', unit: 'тыс. м³', base_price: 45, npc_buy_price: 36, npc_sell_price: 56.25 },
   { item_id: 'energy', name: 'Электроэнергия', unit: 'МВт·ч', base_price: 10, npc_buy_price: 8, npc_sell_price: 12.5,
     daily_quota: null, remaining_npc_quota: null, liquidity_unlimited: true },
-  { item_id: 'copper', name: 'Медь первичная', unit: 'т', base_price: 60, npc_buy_price: 48, npc_sell_price: 75 },
+  { item_id: 'copper', name: 'Медь первичная', unit: 'т', base_price: 140, npc_buy_price: 112, npc_sell_price: 210 },
 ], initialMarketItems);
 assert(mergedMarketItems.some(item => item.id === 'gas_natural'), 'natural gas must be visible in the NPC market');
 assert(mergedMarketItems.some(item => item.id === 'copper'), 'copper must be visible in the NPC market');
+const mergedCopper = mergedMarketItems.find(item => item.id === 'copper');
+assert(mergedCopper.base === 140 && mergedCopper.buy === 112 && mergedCopper.sell === 210,
+  'the market must show copper at the authoritative higher price and NPC spread');
 const mergedEnergy = mergedMarketItems.find(item => item.id === 'energy');
 assert(!('npcDemandRemainingQuota' in mergedEnergy) && !('npcDemandQuotaLabel' in mergedEnergy),
   'regular NPC market items must not carry the removed daily-liquidity quota into the UI');

@@ -55,7 +55,7 @@ async def cmd_natbirzha_notice(
         return
 
     delivered = 0
-    failed = 0
+    failed_recipient_ids: list[int] = []
     for recipient_id in recipient_ids:
         try:
             await bot.send_message(
@@ -65,16 +65,27 @@ async def cmd_natbirzha_notice(
             )
             delivered += 1
         except Exception as exc:
-            failed += 1
+            failed_recipient_ids.append(recipient_id)
             logger.warning(
                 "Natbirzha notice delivery failed for Telegram user %s: %s",
                 recipient_id,
                 exc,
             )
 
-    await message.answer(
+    failed = len(failed_recipient_ids)
+    report = (
         "📢 Рассылка игрокам НАТБИРЖИ завершена.\n"
+        f"👥 Адресатов: {len(recipient_ids)}\n"
         f"✅ Доставлено: {delivered}\n"
-        f"❌ Ошибки отправки: {failed}",
-        parse_mode=None,
+        f"❌ Ошибки отправки: {failed}"
     )
+    if failed_recipient_ids:
+        report += (
+            "\n\nTelegram не смог написать этим игрокам. Частая причина — игрок не нажимал /start "
+            "в личном чате с ботом или заблокировал его.\n"
+            "TG ID недоставленных: "
+            + ", ".join(str(tg_id) for tg_id in failed_recipient_ids[:20])
+        )
+        if failed > 20:
+            report += f" и ещё {failed - 20}"
+    await message.answer(report, parse_mode=None)

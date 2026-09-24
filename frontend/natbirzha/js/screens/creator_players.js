@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260924_creator_controls';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',

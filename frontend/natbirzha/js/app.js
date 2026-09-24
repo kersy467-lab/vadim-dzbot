@@ -7,7 +7,7 @@ import { renderUpgrades } from './screens/upgrades.js';
 import { renderMarket } from './screens/market.js?v=20260924_state_credit_approval';
 import { renderStocks } from './screens/stocks.js?v=20260924_ipo_terms';
 import { renderMilitary } from './screens/military.js';
-import { renderCreator } from './screens/creator.js';
+import { renderCreator } from './screens/creator.js?v=20260924_creator_controls';
 import { renderLeaderboard } from './screens/leaderboard.js';
 import { renderHelp } from './screens/help.js?v=20260920_liquidity1';
 

@@ -1,10 +1,10 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260924_creator_controls';
 import { loadCreatorOverview } from './creator_overview.js';
 import { loadCreatorModeration } from './creator_moderation.js';
 import { loadCreatorShares } from './creator_shares.js';
-import { loadCreatorPlayersTab } from './creator_players.js';
-import { loadCreatorCreditTab } from './creator_credit.js';
-import { declareCreatorBondBankruptcy } from './creator_bond_api.js';
+import { loadCreatorPlayersTab } from './creator_players.js?v=20260924_creator_controls';
+import { loadCreatorCreditTab } from './creator_credit.js?v=20260924_creator_controls';
+import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260924_creator_controls';
 
 let activeTab = 'overview';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
@@ -32,16 +32,16 @@ export async function renderCreator(container, showToast) {
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="flex gap-1 overflow-x-auto pb-1 text-xs font-bold scrollbar-none">
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="overview">🏛️ Казна</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'market' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="market">⚖️ Модерация</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'bonds' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="bonds">📜 Облигации</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'shares' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="shares">📈 Акции государства</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'credits' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="credits">🏦 Кредиты</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'tournaments' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="tournaments">⚔️ Турниры</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'players' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="players">👥 Игроки</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'premium' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="premium">💎 PVC</button>
-        <button class="creator-tab-btn px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeTab === 'audit' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="audit">📋 Аудит</button>
+      <div class="grid grid-cols-3 gap-1.5 text-[10px] font-bold">
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="overview">🏛️ Казна</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'market' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="market">⚖️ Модерация</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'bonds' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="bonds">📜 Облигации</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'shares' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="shares">📈 Акции государства</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'credits' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="credits">🏦 Кредиты</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'tournaments' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="tournaments">⚔️ Турниры</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'players' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="players">👥 Игроки</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'premium' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="premium">💎 PVC</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'audit' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="audit">📋 Аудит</button>
       </div>
 
       <div id="creator-tab-content" class="space-y-3">
@@ -49,14 +49,6 @@ export async function renderCreator(container, showToast) {
       </div>
     </div>
   `;
-
-  // Mouse wheel → horizontal scroll on top tabs row (PC / Telegram Desktop)
-  const creatorTabsRow = container.querySelector('.flex.gap-1.overflow-x-auto');
-  if (creatorTabsRow) {
-    creatorTabsRow.addEventListener('wheel', (e) => {
-      if (e.deltaY !== 0) { e.preventDefault(); creatorTabsRow.scrollLeft += e.deltaY; }
-    }, { passive: false });
-  }
 
   // Bind tab switching
   container.querySelectorAll('.creator-tab-btn').forEach(btn => {

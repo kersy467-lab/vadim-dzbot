@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260924_creator_controls';
 
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const dateLabel = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';

@@ -29,7 +29,7 @@ def _database_with_recipients(ids):
 
 def test_natbirzha_notice_sends_once_per_registered_player_and_reports_counts():
     async def run():
-        message = _message("/natnotice Продайте уголь по 30")
+        message = _message("/sms Продайте уголь по 30")
         session = _database_with_recipients([101, 202, 101])
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -48,6 +48,7 @@ def test_natbirzha_notice_sends_once_per_registered_player_and_reports_counts():
         assert all(call.kwargs["text"] == "Продайте уголь по 30" for call in bot.send_message.await_args_list)
         assert all(call.kwargs["parse_mode"] is None for call in bot.send_message.await_args_list)
         response = message.answer.await_args.args[0]
+        assert "Адресатов: 2" in response
         assert "Доставлено: 2" in response
         assert "Ошибки отправки: 0" in response
 
@@ -75,8 +76,10 @@ def test_natbirzha_notice_counts_failed_delivery_and_continues():
 
         assert bot.send_message.await_count == 3
         response = message.answer.await_args.args[0]
+        assert "Адресатов: 3" in response
         assert "Доставлено: 2" in response
         assert "Ошибки отправки: 1" in response
+        assert "TG ID недоставленных: 202" in response
 
     asyncio.run(run())
 

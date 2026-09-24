@@ -51,11 +51,11 @@ class Settings(BaseSettings):
     PORT: int = Field(default=8000, description="Port to listen on")
     HOST: str = Field(default="0.0.0.0", description="Host to listen on")
     BASE_URL: str = Field(
-        default_factory=lambda: os.environ.get("RENDER_EXTERNAL_URL") or "https://dzbot-6eid.onrender.com",
+        default_factory=lambda: os.environ.get("RENDER_EXTERNAL_URL") or "https://dzbot-hy44.onrender.com",
         description="Base URL of the server"
     )
     WEBAPP_URL: str = Field(
-        default_factory=lambda: f"{os.environ.get('RENDER_EXTERNAL_URL', 'https://dzbot-6eid.onrender.com').rstrip('/')}/app",
+        default_factory=lambda: f"{os.environ.get('RENDER_EXTERNAL_URL', 'https://dzbot-hy44.onrender.com').rstrip('/')}/app",
         description="Public URL for the Telegram Mini App"
     )
     AUTO_TUNNEL: bool = Field(

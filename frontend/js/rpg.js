@@ -13687,31 +13687,78 @@ function drawBossModelMid(ctx, b, bId, time) {
 
   function startCoopPolling() {
     stopCoopPolling();
-    RPG_STATE.coopPolling = setInterval(async () => {
-      if (!RPG_STATE.coopRoomId || (typeof document !== "undefined" && document.hidden)) return;
-      try {
-        const updated = await api.getGameRoom(RPG_STATE.coopRoomId);
-        if (updated) {
-          RPG_STATE.coopRoomData = updated;
-          renderRoot();
+    const roomId = RPG_STATE.coopRoomId;
+    const userId = window.AppState?.tgUserId || 0;
+    if (window.GameWS && roomId && userId) {
+      RPG_STATE._coopWsConn = window.GameWS.connect(
+        roomId, userId,
+        (data) => { RPG_STATE.coopRoomData = data; renderRoot(); },
+        () => { RPG_STATE._coopWsConn = null; }
+      );
+    } else {
+      RPG_STATE.coopPolling = setInterval(async () => {
+        if (!RPG_STATE.coopRoomId || (typeof document !== "undefined" && document.hidden)) return;
+        try {
+          const updated = await api.getGameRoom(RPG_STATE.coopRoomId);
+          if (updated) { RPG_STATE.coopRoomData = updated; renderRoot(); }
+        } catch (e) {
+          if (e && (e.status === 404 || (e.message && (e.message.includes("404") || e.message.includes("не найден"))))) {
+            console.warn("[Coop] Room 404, stopping polling");
+            stopCoopPolling(); RPG_STATE.coopRoomId = null; RPG_STATE.coopRoomData = null; renderRoot();
+          }
         }
-      } catch (e) {
-        if (e && (e.status === 404 || (e.message && (e.message.includes("404") || e.message.includes("не найден"))))) {
-          console.warn("[Coop] Room no longer exists (404), stopping polling");
-          stopCoopPolling();
-          RPG_STATE.coopRoomId = null;
-          RPG_STATE.coopRoomData = null;
-          renderRoot();
-        }
-      }
-    }, 2500);
+      }, 2500);
+    }
   }
 
   function stopCoopPolling() {
-    if (RPG_STATE.coopPolling) {
-      clearInterval(RPG_STATE.coopPolling);
-      RPG_STATE.coopPolling = null;
+    if (RPG_STATE.coopPolling) { clearInterval(RPG_STATE.coopPolling); RPG_STATE.coopPolling = null; }
+    if (RPG_STATE._coopWsConn) { RPG_STATE._coopWsConn.disconnect(); RPG_STATE._coopWsConn = null; }
+  }
+
+  function startPvPPolling() {
+    stopPvPPolling();
+    const roomId = RPG_STATE.pvpRoomId;
+    const userId = window.AppState?.tgUserId || 0;
+    if (window.GameWS && roomId && userId) {
+      RPG_STATE._pvpWsConn = window.GameWS.connect(
+        roomId, userId,
+        (data) => { RPG_STATE.pvpRoomData = data; renderRoot(); },
+        () => { RPG_STATE._pvpWsConn = null; }
+      );
+    } else {
+      RPG_STATE.pvpPolling = setInterval(async () => {
+        if (!RPG_STATE.pvpRoomId || (typeof document !== "undefined" && document.hidden)) return;
+        try {
+          const updated = await api.getGameRoom(RPG_STATE.pvpRoomId);
+          if (updated) { RPG_STATE.pvpRoomData = updated; renderRoot(); }
+        } catch (e) {
+          if (e && (e.status === 404 || (e.message && (e.message.includes("404") || e.message.includes("не найден"))))) {
+            console.warn("[PvP] Room 404, stopping polling");
+            stopPvPPolling(); RPG_STATE.pvpRoomId = null; RPG_STATE.pvpRoomData = null; renderRoot();
+          }
+        }
+      }, 2500);
     }
+  }
+
+  function stopPvPPolling() {
+    if (RPG_STATE.pvpPolling) { clearInterval(RPG_STATE.pvpPolling); RPG_STATE.pvpPolling = null; }
+    if (RPG_STATE._pvpWsConn) { RPG_STATE._pvpWsConn.disconnect(); RPG_STATE._pvpWsConn = null; }
+  }
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      // WS reconnects сам. Для HTTP-fallback делаем немедленный refresh.
+      if (!document.hidden) {
+        if (RPG_STATE.coopRoomId && !RPG_STATE._coopWsConn) {
+          api.getGameRoom(RPG_STATE.coopRoomId).then(u => { if (u) { RPG_STATE.coopRoomData = u; renderRoot(); } }).catch(() => {});
+        }
+        if (RPG_STATE.pvpRoomId && !RPG_STATE._pvpWsConn) {
+          api.getGameRoom(RPG_STATE.pvpRoomId).then(u => { if (u) { RPG_STATE.pvpRoomData = u; renderRoot(); } }).catch(() => {});
+        }
+      }
+    });
   }
 
   async function sendCoopAction(actionType) {
@@ -13799,35 +13846,6 @@ function drawBossModelMid(ctx, b, bId, time) {
     }
   }
 
-  function startPvPPolling() {
-    stopPvPPolling();
-    RPG_STATE.pvpPolling = setInterval(async () => {
-      if (!RPG_STATE.pvpRoomId || (typeof document !== "undefined" && document.hidden)) return;
-      try {
-        const updated = await api.getGameRoom(RPG_STATE.pvpRoomId);
-        if (updated) {
-          RPG_STATE.pvpRoomData = updated;
-          renderRoot();
-        }
-      } catch (e) {
-        if (e && (e.status === 404 || (e.message && (e.message.includes("404") || e.message.includes("не найден"))))) {
-          console.warn("[PvP] Room no longer exists (404), stopping polling");
-          stopPvPPolling();
-          RPG_STATE.pvpRoomId = null;
-          RPG_STATE.pvpRoomData = null;
-          renderRoot();
-        }
-      }
-    }, 2500);
-  }
-
-  function stopPvPPolling() {
-    if (RPG_STATE.pvpPolling) {
-      clearInterval(RPG_STATE.pvpPolling);
-      RPG_STATE.pvpPolling = null;
-    }
-  }
-
   async function sendPvPAction(actionType) {
     if (!RPG_STATE.pvpRoomId) return;
     try {
@@ -13857,22 +13875,7 @@ function drawBossModelMid(ctx, b, bId, time) {
     }
   }
 
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) {
-        if (RPG_STATE.coopRoomId) {
-          api.getGameRoom(RPG_STATE.coopRoomId).then(updated => {
-            if (updated) { RPG_STATE.coopRoomData = updated; renderRoot(); }
-          }).catch(() => {});
-        }
-        if (RPG_STATE.pvpRoomId) {
-          api.getGameRoom(RPG_STATE.pvpRoomId).then(updated => {
-            if (updated) { RPG_STATE.pvpRoomData = updated; renderRoot(); }
-          }).catch(() => {});
-        }
-      }
-    });
-  }
+
 
 // ============================================================================
 // 07_boss_telegraphs.js — Rendering Unique Boss Visual Telegraphs & Ultimates

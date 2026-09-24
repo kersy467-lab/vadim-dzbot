@@ -14,6 +14,7 @@ from backend.api.game_rooms import game_manager
 from backend.api.ege_rating import build_ege_room_payload, rating_payload, settle_ege_duel_rating
 from backend.db.crud import get_active_users, get_user_by_tg_id, has_full_access
 from backend.ege.ranking import get_player_profile
+from backend.api.routers.games_ws import room_ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -200,65 +201,27 @@ async def invite_opponent_to_game(
                     game_url, invite_text, btn_text = get_rpg_invite_details(
                         room, game_type, base_url, separator, opponent_tg_id, escaped_host_name
                     )
-                elif game_type in {"ege_stress_duel", "ege_vocabulary_duel"}:
+                elif is_ege_duel:
                     label = "ударения" if game_type == "ege_stress_duel" else "словарные слова"
                     game_url = f"{base_url}{separator}room={room.room_id}&game={game_type}&tg_user_id={opponent_tg_id}"
-                    invite_text = (
-                        f"🎓 <b>{escaped_host_name}</b> вызывает тебя на <b>ЕГЭ-дуэль</b>!\n"
-                        f"Режим: <b>{label}</b>\n\n"
-                        f"⚔️ 10 слов. Победа приносит +30 MMR, поражение — до −25 MMR."
-                    )
+                    invite_text = f"🎓 <b>{escaped_host_name}</b> вызывает тебя на <b>ЕГЭ-дуэль</b>!\nРежим: <b>{label}</b>\n\n⚔️ 10 слов. Победа приносит +30 MMR, поражение — до −25 MMR."
                     btn_text = "🎓 Принять ЕГЭ-дуэль"
-                elif game_type == "chess":
-                    game_url = f"{base_url}{separator}room={room.room_id}&game=chess&tg_user_id={opponent_tg_id}"
-                    host_color_actual = getattr(room, "host_color", "white")
-                    if host_color_actual == "black":
-                        color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>"
-                    else:
-                        color_line = "Твой цвет: <b>Черные ⚫</b>"
+                elif game_type in {"chess", "checkers"}:
+                    is_ch = game_type == "chess"
+                    game_url = f"{base_url}{separator}room={room.room_id}&game={game_type}&tg_user_id={opponent_tg_id}"
+                    icon, gname = ("♟️", "Шахматную дуэль") if is_ch else ("⚪⚫", "Партию в шашки")
+                    col = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>" if getattr(room, "host_color", "white") == "black" else "Твой цвет: <b>Черные ⚫</b>"
                     if host_color == "random":
-                        color_line += "\n<i>(Цвета определены случайным образом 🎲)</i>"
-
-                    invite_text = (
-                        f"♟️ <b>{escaped_host_name}</b> вызывает тебя на <b>Шахматную дуэль</b>!\n"
-                        f"{color_line}\n\n"
-                        f"⚡ Готов сыграть партию на перемене?"
-                    )
-                    btn_text = "♟️ Принять вызов и играть"
-                elif game_type == "checkers":
-                    game_url = f"{base_url}{separator}room={room.room_id}&game=checkers&tg_user_id={opponent_tg_id}"
-                    host_color_actual = getattr(room, "host_color", "white")
-                    if host_color_actual == "black":
-                        color_line = "Твой цвет: <b>Белые ⚪</b> <i>(ходишь первым!)</i>"
-                    else:
-                        color_line = "Твой цвет: <b>Черные ⚫</b>"
-                    if host_color == "random":
-                        color_line += "\n<i>(Цвета определены случайным образом 🎲)</i>"
-
-                    invite_text = (
-                        f"⚪⚫ <b>{escaped_host_name}</b> вызывает тебя на <b>Партию в шашки</b>!\n"
-                        f"{color_line}\n\n"
-                        f"⚡ Готов сразиться на перемене?"
-                    )
-                    btn_text = "⚪⚫ Принять вызов и играть"
+                        col += "\n<i>(Цвета определены случайным образом 🎲)</i>"
+                    invite_text = f"{icon} <b>{escaped_host_name}</b> вызывает тебя на <b>{gname}</b>!\n{col}\n\n⚡ Готов сыграть партию на перемене?"
+                    btn_text = f"{icon} Принять вызов и играть"
                 else:
                     game_url = f"{base_url}{separator}room={room.room_id}&game=tictactoe&tg_user_id={opponent_tg_id}"
-                    invite_text = (
-                        f"🎮 <b>{escaped_host_name}</b> бросает тебе вызов в <b>Крестики-нолики</b>!\n\n"
-                        f"⚡ Примешь бой на перемене?"
-                    )
+                    invite_text = f"🎮 <b>{escaped_host_name}</b> бросает тебе вызов в <b>Крестики-нолики</b>!\n\n⚡ Примешь бой на перемене?"
                     btn_text = "⚔️ Принять вызов и играть"
 
-                if game_url.startswith("https://"):
-                    play_btn = InlineKeyboardButton(
-                        text=btn_text,
-                        web_app=WebAppInfo(url=game_url)
-                    )
-                else:
-                    play_btn = InlineKeyboardButton(
-                        text=btn_text,
-                        url=game_url
-                    )
+                play_btn = InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=game_url)) if game_url.startswith("https://") else InlineKeyboardButton(text=btn_text, url=game_url)
+
 
                 kb = InlineKeyboardMarkup(inline_keyboard=[
                     [play_btn],
@@ -350,7 +313,13 @@ async def join_game_room(
     if room:
         from backend.api.routers.games_rpg_hooks import handle_rpg_room_joined
         await handle_rpg_room_joined(room, session, user, user_name)
-    return await build_ege_room_payload(session, room, viewer_tg_id)
+    payload = await build_ege_room_payload(session, room, viewer_tg_id)
+    if room_ws_manager.has_clients(room_id):
+        asyncio.create_task(room_ws_manager.broadcast_room(
+            room_id, {"type": "state", "payload": payload}
+        ))
+    return payload
+
 
 
 @router.post("/games/room/{room_id}/move")
@@ -388,7 +357,9 @@ async def make_game_move(
         from backend.api.routers.games_rpg_hooks import handle_rpg_room_moved
         await handle_rpg_room_moved(room, session, user, viewer_tg_id)
         await settle_ege_duel_rating(session, room)
-    return await build_ege_room_payload(session, room, viewer_tg_id)
-
-
-
+    payload = await build_ege_room_payload(session, room, viewer_tg_id)
+    if room_ws_manager.has_clients(room_id):
+        asyncio.create_task(room_ws_manager.broadcast_room(
+            room_id, {"type": "state", "payload": payload}
+        ))
+    return payload

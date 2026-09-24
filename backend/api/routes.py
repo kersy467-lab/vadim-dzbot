@@ -23,6 +23,7 @@ from backend.api.routers import (
     slots_router,
     coinflip_router,
     rpg_router,
+    games_ws_router,
 )
 from backend.api.routers.pets_system import pets_system_router
 from backend.api.routers.multiplayer_hub import multiplayer_hub_router
@@ -48,6 +49,7 @@ api_router.include_router(dice_router)
 api_router.include_router(slots_router)
 api_router.include_router(coinflip_router)
 api_router.include_router(rpg_router)
+api_router.include_router(games_ws_router)
 api_router.include_router(pets_system_router)
 api_router.include_router(multiplayer_hub_router)
 api_router.include_router(rebirth_engine_router)

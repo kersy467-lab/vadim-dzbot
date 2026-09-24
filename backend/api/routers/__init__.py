@@ -17,6 +17,7 @@ from backend.api.routers.rebirth_engine import rebirth_engine_router
 from backend.api.routers.multiplayer_market import multiplayer_market_router
 from backend.api.routers.creeps_bestiary import creeps_bestiary_router
 from backend.api.routers.talent_tree_router import talent_tree_router
+from backend.api.routers.games_ws import games_ws_router
 import backend.api.routers.bosses_dynamic  # Registers combat routes onto rpg_router
 import backend.api.routers.items_forge  # Registers inventory & shop routes onto rpg_router
 import backend.api.routers.rpg_admin  # Registers admin management routes onto rpg_router
@@ -40,6 +41,7 @@ __all__ = [
     "multiplayer_market_router",
     "creeps_bestiary_router",
     "talent_tree_router",
+    "games_ws_router",
     "debug_router",
 ]
 from backend.api.routers.debug import router as debug_router

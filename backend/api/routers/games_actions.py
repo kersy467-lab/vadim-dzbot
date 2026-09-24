@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from backend.api.auth import get_optional_webapp_user, extract_viewer_tg_id as _
 from backend.api.game_rooms import game_manager
 from backend.api.ege_rating import build_ege_room_payload
 from backend.db.session import get_db_session
+from backend.api.routers.games_ws import room_ws_manager
 
 router = APIRouter(tags=["games"])
 _EGE_TYPES = {"ege_stress_duel", "ege_vocabulary_duel"}
@@ -78,7 +80,10 @@ async def add_bot_to_coop_room(
     ok, msg = game_manager.add_bot_to_coop(room_id)
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
-    return room.to_dict(viewer_tg_id=viewer_tg_id)
+    res = room.to_dict(viewer_tg_id=viewer_tg_id)
+    if room_ws_manager.has_clients(room_id):
+        asyncio.create_task(room_ws_manager.broadcast_room(room_id, {"type": "state", "payload": res}))
+    return res
 
 
 @router.post("/games/room/{room_id}/resign")
@@ -95,7 +100,10 @@ async def resign_game_room(
     ok, msg = game_manager.resign_room(room_id, viewer_tg_id)
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
-    return room.to_dict(viewer_tg_id=viewer_tg_id)
+    res = room.to_dict(viewer_tg_id=viewer_tg_id)
+    if room_ws_manager.has_clients(room_id):
+        asyncio.create_task(room_ws_manager.broadcast_room(room_id, {"type": "state", "payload": res}))
+    return res
 
 
 @router.post("/games/room/{room_id}/rematch")
@@ -111,7 +119,10 @@ async def rematch_game_room(
     ok, msg = game_manager.request_rematch(room_id, viewer_tg_id)
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
-    return await build_ege_room_payload(session, room, viewer_tg_id)
+    payload_data = await build_ege_room_payload(session, room, viewer_tg_id)
+    if room_ws_manager.has_clients(room_id):
+        asyncio.create_task(room_ws_manager.broadcast_room(room_id, {"type": "state", "payload": payload_data}))
+    return payload_data
 
 
 @router.post("/games/room/{room_id}/cancel")
@@ -136,5 +147,8 @@ async def cancel_game_room(
         except Exception:
             pass
     on_opponent_joined_matchmaking(room, keep_participants=False)
+    if room_ws_manager.has_clients(room_id):
+        asyncio.create_task(room_ws_manager.broadcast_room(room_id, {"type": "state", "payload": {"status": "canceled"}}))
     return {"status": "canceled"}
+
 

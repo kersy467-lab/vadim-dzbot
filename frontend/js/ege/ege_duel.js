@@ -7,6 +7,7 @@
   let leaderboard = [];
   let poll = null;
   let leaderboardPoll = null;
+  let _egeWsConn = null; // GameWS connection (primary channel)
   let sending = false;
   let refreshGeneration = 0;
   let sendError = '';
@@ -27,6 +28,7 @@
   function clearPoll() {
     if (poll) clearInterval(poll);
     poll = null;
+    if (_egeWsConn) { _egeWsConn.disconnect(); _egeWsConn = null; }
   }
 
   function clearLeaderboardPoll() {
@@ -249,7 +251,31 @@
     } catch (_) {}
   }
 
-  function startPoll() { clearPoll(); poll = setInterval(() => refresh().catch(() => {}), 3000); }
+  function startPoll() {
+    clearPoll();
+    const roomId = room?.room_id;
+    const userId = window.AppState?.tgUserId || window.api?.getTelegramUserId?.() || 0;
+    if (window.GameWS && roomId && userId) {
+      _egeWsConn = window.GameWS.connect(
+        roomId, userId,
+        (data) => {
+          if (!data || sending) return;
+          if (data.status === 'canceled' || data.status === 'rejected') {
+            clearPoll(); clearTimer(); room = null; initLobby(); return;
+          }
+          room = data;
+          if (room.status === 'finished') clearPoll();
+          syncTimerWithRoom();
+          redraw();
+        },
+        () => { _egeWsConn = null; }
+      );
+    } else {
+      // HTTP fallback
+      poll = setInterval(() => refresh().catch(() => {}), 3000);
+    }
+  }
+
 
   async function invite(id, name) {
     if (Number(id) === Number(window.api?.getTelegramUserId?.())) return;

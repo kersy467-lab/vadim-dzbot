@@ -18,6 +18,7 @@
   let isCheckersLoadingClassmates = false;
   let checkersPollTimer = null;
   let isCheckersPolling = false;
+  let _checkersWsConn = null; // GameWS connection (primary channel)
   let checkersSelectedColor = "white"; // 'white' | 'black' | 'random'
   let checkersIsLocal = false;
   let checkersIsBot = false;
@@ -242,19 +243,27 @@
   function startPolling() {
     if (checkersIsLocal || checkersIsBot) return;
     stopPolling();
-    isCheckersPolling = true;
-    pollState();
+    const userId = window.AppState?.tgUserId || 0;
+    if (window.GameWS && checkersRoomId && userId) {
+      _checkersWsConn = window.GameWS.connect(
+        checkersRoomId, userId,
+        (data) => handleRoomUpdate(data),
+        () => { _checkersWsConn = null; }
+      );
+    } else {
+      isCheckersPolling = true;
+      pollState();
+    }
   }
 
   function stopPolling() {
     isCheckersPolling = false;
-    if (checkersPollTimer) {
-      clearTimeout(checkersPollTimer);
-      checkersPollTimer = null;
-    }
+    if (checkersPollTimer) { clearTimeout(checkersPollTimer); checkersPollTimer = null; }
+    if (_checkersWsConn) { _checkersWsConn.disconnect(); _checkersWsConn = null; }
   }
 
   async function pollState() {
+    // HTTP-fallback (используется только если GameWS недоступен)
     if (!isCheckersPolling || !checkersRoomId || checkersIsLocal || checkersIsBot) return;
     try {
       const data = await api.getGameRoom(checkersRoomId);

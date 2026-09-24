@@ -22,6 +22,7 @@
   let onlineOpponentName = "";
   let onlinePollTimer = null;
   let isOnlinePolling = false;
+  let _tttWsConn = null; // GameWS connection (primary channel)
   let classmatesList = [];
   let classmatesFilter = "";
   let isLoadingClassmates = false;
@@ -630,28 +631,34 @@
 
   function startOnlinePolling() {
     stopOnlinePolling();
-    isOnlinePolling = true;
-    pollRoomState();
+    const userId = window.AppState?.tgUserId || 0;
+    if (window.GameWS && onlineRoomId && userId) {
+      _tttWsConn = window.GameWS.connect(
+        onlineRoomId, userId,
+        (data) => handleRoomUpdate(data),
+        () => { _tttWsConn = null; }
+      );
+    } else {
+      isOnlinePolling = true;
+      pollRoomState();
+    }
   }
 
   function stopOnlinePolling() {
     isOnlinePolling = false;
-    if (onlinePollTimer) {
-      clearTimeout(onlinePollTimer);
-      onlinePollTimer = null;
-    }
+    if (onlinePollTimer) { clearTimeout(onlinePollTimer); onlinePollTimer = null; }
+    if (_tttWsConn) { _tttWsConn.disconnect(); _tttWsConn = null; }
   }
 
   async function pollRoomState() {
+    // HTTP-fallback (используется только если GameWS недоступен)
     if (!isOnlinePolling || !onlineRoomId) return;
-
     try {
       const data = await api.getGameRoom(onlineRoomId);
       handleRoomUpdate(data);
     } catch (e) {
       console.warn("Error polling online room:", e);
     }
-
     if (isOnlinePolling && onlineRoomId) {
       onlinePollTimer = setTimeout(pollRoomState, 1500);
     }

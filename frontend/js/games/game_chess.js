@@ -27,31 +27,19 @@
   let isChessLoadingClassmates = false;
   let chessPollTimer = null;
   let isChessPolling = false;
+  let _chessWsConn = null; // GameWS connection (primary channel)
   let chessSelectedColor = "white"; // 'white' | 'black' | 'random'
   let chessIsLocal = false;
   let chessIsBot = false;
   let chessLocalAutoRotate = true;
   let chessManualFlipped = false;
 
-  function toggleChessAutoRotate() {
-    chessLocalAutoRotate = !chessLocalAutoRotate;
-    haptic('sel');
-    renderGames();
-  }
-
-  function flipChessBoardManual() {
-    chessManualFlipped = !chessManualFlipped;
-    haptic('imp', 'light');
-    renderGames();
-  }
-
+  function toggleChessAutoRotate() { chessLocalAutoRotate = !chessLocalAutoRotate; haptic('sel'); renderGames(); }
+  function flipChessBoardManual() { chessManualFlipped = !chessManualFlipped; haptic('imp', 'light'); renderGames(); }
   function setChessColor(color) {
-    if (["white", "black", "random"].includes(color)) {
-      chessSelectedColor = color;
-      haptic('sel');
-      renderGames();
-    }
+    if (["white", "black", "random"].includes(color)) { chessSelectedColor = color; haptic('sel'); renderGames(); }
   }
+
 
   async function startBotChessGame(color) {
     const chosenColor = color || chessSelectedColor || "white";
@@ -241,25 +229,19 @@
   async function sendChessMove(uci) {
     if (!chessRoomId) return;
     haptic('imp', 'light');
-
     try {
       const updated = await api.sendGameMove(chessRoomId, uci);
       handleChessRoomUpdate(updated);
-    } catch (e) {
-      console.warn("Chess move error:", e);
-    }
+    } catch (e) { console.warn("Chess move error:", e); }
   }
 
   async function resignChessGame() {
     if (!chessRoomId || chessRoomData?.status !== "playing") return;
     if (!confirm("Вы действительно хотите сдаться в этой партии?")) return;
-
     try {
       const updated = await api.resignGame(chessRoomId);
       handleChessRoomUpdate(updated);
-    } catch (e) {
-      alert("Ошибка при сдаче: " + (e.message || "Ошибка"));
-    }
+    } catch (e) { alert("Ошибка при сдаче: " + (e.message || "Ошибка")); }
   }
 
   async function requestChessRematch() {
@@ -268,10 +250,9 @@
       const updated = await api.rematchGame(chessRoomId);
       handleChessRoomUpdate(updated);
       renderGames();
-    } catch (e) {
-      alert("Ошибка реванша: " + (e.message || "Ошибка"));
-    }
+    } catch (e) { alert("Ошибка реванша: " + (e.message || "Ошибка")); }
   }
+
 
   function leaveChessGame() {
     stopChessPolling();
@@ -294,19 +275,28 @@
   function startChessPolling() {
     if (chessIsLocal || chessIsBot) return;
     stopChessPolling();
-    isChessPolling = true;
-    pollChessRoomState();
+    const userId = window.AppState?.tgUserId || 0;
+    if (window.GameWS && chessRoomId && userId) {
+      _chessWsConn = window.GameWS.connect(
+        chessRoomId, userId,
+        (data) => handleChessRoomUpdate(data),   // WS push
+        () => { _chessWsConn = null; }            // final close
+      );
+    } else {
+      // Нет GameWS → прямой HTTP fallback
+      isChessPolling = true;
+      pollChessRoomState();
+    }
   }
 
   function stopChessPolling() {
     isChessPolling = false;
-    if (chessPollTimer) {
-      clearTimeout(chessPollTimer);
-      chessPollTimer = null;
-    }
+    if (chessPollTimer) { clearTimeout(chessPollTimer); chessPollTimer = null; }
+    if (_chessWsConn) { _chessWsConn.disconnect(); _chessWsConn = null; }
   }
 
   async function pollChessRoomState() {
+    // HTTP-fallback (используется только если GameWS недоступен)
     if (!isChessPolling || !chessRoomId || chessIsLocal || chessIsBot) return;
     try {
       const data = await api.getGameRoom(chessRoomId);

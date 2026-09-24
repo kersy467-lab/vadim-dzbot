@@ -18,7 +18,7 @@ router = APIRouter(prefix="/finance/state-loans", tags=["Natbirzha State Credit"
 
 class StateCreditRequest(BaseModel):
     principal: float = Field(gt=0)
-    term_days: int = Field(gt=0)
+    term_days: int = Field(ge=1, le=5)
 
 
 class StateCreditRepaymentRequest(BaseModel):

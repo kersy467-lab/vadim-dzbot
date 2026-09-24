@@ -10,6 +10,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBondHolding, NatStateTreasury
+from backend.natbirzha.services.state_credit_service import StateCreditService
 from backend.natbirzha.services.state_bond_service import StateBondService
 
 
@@ -109,5 +110,71 @@ async def run_async() -> None:
     print("NATBIRZHA bond lifecycle checks: PASS")
 
 
+async def _check_open_state_credit_blocks_primary_and_secondary_bond_buys() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with sessions() as session:
+        borrower = NatCompany(
+            user_id=930_101, name="State Credit Bond Buyer", specialization="miner", cash=20_000,
+        )
+        seller = NatCompany(
+            user_id=930_102, name="Bond Listing Seller", specialization="forester", cash=20_000,
+        )
+        session.add_all([borrower, seller, NatStateTreasury(id=1, cash=1_000_000)])
+        await session.flush()
+        now = datetime(2026, 9, 24, 12)
+        requested = await StateCreditService.request(
+            session, borrower, principal=100, term_days=1, now=now, commit=False,
+        )
+        approved = await StateCreditService.decide(
+            session, requested["loan"]["id"], actor_id=777, approved=True,
+            now=now, commit=False,
+        )
+        issue = await StateBondService.issue(
+            session, actor_id=777, title="Credit Block Test", volume=10,
+            face_value=100, coupon_rate=0, maturity_days=10, purpose="test",
+            now=now, commit=False,
+        )
+        await StateBondService.buy(session, seller, issue["bond_id"], 2, now=now, commit=False)
+        listing = await StateBondService.create_listing(
+            session, seller.id, issue["bond_id"], quantity=1, unit_price=110,
+            operation_key="state-credit-block-listing", now=now,
+        )
+
+        for purchase in (
+            lambda: StateBondService.buy(session, borrower, issue["bond_id"], 1, now=now),
+            lambda: StateBondService.buy_listing(
+                session, borrower.id, listing["listing_id"],
+                operation_key="state-credit-block-secondary", now=now,
+            ),
+        ):
+            try:
+                await purchase()
+            except ValueError as exc:
+                assert "credit" in str(exc).lower() or "loan" in str(exc).lower()
+            else:
+                raise AssertionError("An unpaid government credit must block bond purchases")
+
+        await StateCreditService.repay(
+            session, borrower, requested["loan"]["id"], approved["loan"]["total_due"],
+            now=now, commit=False,
+        )
+        await StateBondService.buy(session, borrower, issue["bond_id"], 1, now=now, commit=False)
+        await StateBondService.buy_listing(
+            session, borrower.id, listing["listing_id"],
+            operation_key="state-credit-block-secondary-after-repay", now=now,
+        )
+
+    await engine.dispose()
+
+
+def test_open_state_credit_blocks_primary_and_secondary_bond_buys() -> None:
+    asyncio.run(_check_open_state_credit_blocks_primary_and_secondary_bond_buys())
+
+
 if __name__ == "__main__":
     asyncio.run(run_async())
+    asyncio.run(_check_open_state_credit_blocks_primary_and_secondary_bond_buys())

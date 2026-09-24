@@ -1,15 +1,15 @@
 from typing import Dict, Any, List, Optional
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.technical_water import scale_catalog_water_inputs
 from backend.natbirzha.services.building_catalog.buildings_part1 import PART1_BUILDINGS
 from backend.natbirzha.services.building_catalog.buildings_part2 import PART2_BUILDINGS
 from backend.natbirzha.services.building_catalog.resolver import (
     BUILDING_ALIASES, resolve_building_type, list_catalog_for_company as _list_catalog
 )
 
-CANONICAL_BUILDINGS: Dict[str, Dict[str, Any]] = {
-    **PART1_BUILDINGS,
-    **PART2_BUILDINGS
-}
+CANONICAL_BUILDINGS: Dict[str, Dict[str, Any]] = scale_catalog_water_inputs(
+    {**PART1_BUILDINGS, **PART2_BUILDINGS}, input_field="inputs"
+)
 
 def get_building_spec(b_type: str) -> Optional[Dict[str, Any]]:
     canonical = resolve_building_type(b_type)

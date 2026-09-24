@@ -16,7 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
-assert(natHtml.includes('app.js?v=20260924_credit_inventory'), 'Natbirzha entrypoint must refresh its cached code after a release');
+assert(natHtml.includes('app.js?v=20260924_state_credit_approval'), 'Natbirzha entrypoint must refresh its cached code after a release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -269,6 +269,18 @@ assert(marketCode.indexOf('data-section=\"tax\"') < marketCode.indexOf('data-sec
 const stateCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
 assert(stateCreditCode.includes('RATE_PCT = 7.5') && stateCreditCode.includes('Срок') && stateCreditCode.includes('Погасить'),
   'state credit screen must show the daily rate, requested term and repayment controls');
+assert(stateCreditCode.includes('max="5"') && stateCreditCode.toLowerCase().includes('одобрения')
+  && stateCreditCode.includes('Подать заявку'),
+  'state credit screen must enforce the five-day limit and explain approval before disbursement');
+const creatorScreenCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/creator.js'), 'utf-8');
+const creatorCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/creator_credit.js'), 'utf-8');
+const creatorPlayersCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/creator_players.js'), 'utf-8');
+assert(creatorScreenCode.includes('data-tab="credits"') && creatorScreenCode.includes('loadCreatorCreditTab'),
+  'creator panel must expose a separate credit-approval tab');
+assert(creatorCreditCode.includes('NatAPI.getCreatorStateCredits') && creatorCreditCode.includes('NatAPI.decideCreatorStateCredit'),
+  'creator credit tab must load and decide pending credit requests');
+assert(creatorPlayersCode.includes('NatAPI.sendCreatorWarning') && creatorPlayersCode.includes('NatAPI.declareCreatorBankruptcy'),
+  'player cards must expose warning and forced-bankruptcy actions');
 assert(marketTaxCode.includes('13%') && marketTaxCode.includes('Производство остановлено') && marketTaxCode.includes('Оплатить всё'),
   'tax screen must explain the rate, production block and payment action');
 assert(marketTaxCode.includes('штраф не начисляется на штраф'),
@@ -375,11 +387,11 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
-assert(appSourceCode.includes('overview.js?v=20260924_credit_inventory'),
+assert(appSourceCode.includes('overview.js?v=20260924_state_credit_approval'),
   'overview inventory fixes must be loaded from a fresh screen module');
-assert(marketCoreCode.includes("market_credit.js?v=20260924_credit_inventory"),
+assert(marketCoreCode.includes("market_credit.js?v=20260924_state_credit_approval"),
   'market credit screen must use a cache-busted module URL');
-assert(marketCreditCode.includes("../api.js?v=20260924_credit_inventory"),
+assert(marketCreditCode.includes("../api.js?v=20260924_state_credit_approval"),
   'credit screen must import the current API module containing state-credit methods');
 const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
@@ -486,8 +498,8 @@ assert(creatorCode.includes('reward_first_pvc') && creatorCode.includes('reward_
   'creator.js must submit all three custom tournament rewards');
 assert(creatorCode.includes('getCreatorPremiumLedger') && creatorCode.includes('Журнал PVC'),
   'creator.js must expose the auditable Pivocoins ledger');
-assert(creatorCode.includes('getCreatorPlayers') && creatorCode.includes('Список игроков'),
-  'creator.js must expose searchable player-company administration');
+assert(creatorPlayersCode.includes('getCreatorPlayers') && creatorPlayersCode.includes('Список игроков'),
+  'creator player module must expose searchable player-company administration');
 
 
 const upgradesCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/upgrades.js'), 'utf-8');

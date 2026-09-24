@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260924_credit_inventory';
+import { NatAPI } from '../api.js?v=20260924_state_credit_approval';
 import { store } from '../state.js';
 import { getSpecializationName } from '../localization.js';
 import { marketChange, renderMarketChart } from '../market_chart.js';

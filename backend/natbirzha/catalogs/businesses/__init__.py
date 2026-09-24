@@ -16,6 +16,7 @@ from .oilgas import OIL_GAS_BUSINESSES
 from .schema import REQUIRED_BUSINESS_SPEC_KEYS
 from .services import SERVICE_BUSINESSES as LEGACY_SERVICE_BUSINESSES
 from .starter import STARTER_BUSINESSES as LEGACY_STARTER_BUSINESSES
+from backend.natbirzha.technical_water import scale_catalog_water_inputs
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
 
@@ -27,20 +28,29 @@ LEGACY_BUSINESSES: dict[str, dict[str, Any]] = {
 }
 for _legacy in LEGACY_BUSINESSES.values():
     _legacy["legacy_hidden"] = True
+LEGACY_BUSINESSES = scale_catalog_water_inputs(
+    LEGACY_BUSINESSES,
+    input_field="inputs_per_hour",
+    resource_production_only=True,
+)
 
-CAREER_BUSINESSES: dict[str, dict[str, Any]] = {
-    **MINING_BUSINESSES,
-    **AGRICULTURE_BUSINESSES,
-    **ENERGY_BUSINESSES,
-    **FORESTRY_BUSINESSES,
-    **WATER_BUSINESSES,
-    **OIL_GAS_BUSINESSES,
-    **METALLURGY_BUSINESSES,
-    **CHEMISTRY_BUSINESSES,
-    **CONSTRUCTION_BUSINESSES,
-    **TECHNOLOGY_BUSINESSES,
-    **LOGISTICS_BUSINESSES,
-}
+CAREER_BUSINESSES: dict[str, dict[str, Any]] = scale_catalog_water_inputs(
+    {
+        **MINING_BUSINESSES,
+        **AGRICULTURE_BUSINESSES,
+        **ENERGY_BUSINESSES,
+        **FORESTRY_BUSINESSES,
+        **WATER_BUSINESSES,
+        **OIL_GAS_BUSINESSES,
+        **METALLURGY_BUSINESSES,
+        **CHEMISTRY_BUSINESSES,
+        **CONSTRUCTION_BUSINESSES,
+        **TECHNOLOGY_BUSINESSES,
+        **LOGISTICS_BUSINESSES,
+    },
+    input_field="inputs_per_hour",
+    resource_production_only=True,
+)
 
 BUSINESS_CATALOG: Mapping[str, dict[str, Any]] = {
     **LEGACY_BUSINESSES,

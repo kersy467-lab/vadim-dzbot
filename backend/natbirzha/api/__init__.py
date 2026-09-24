@@ -23,6 +23,8 @@ from backend.natbirzha.api.tax_routes import router as tax_router
 from backend.natbirzha.api.state_share_routes import creator_router as state_share_creator_router
 from backend.natbirzha.api.state_share_routes import player_router as state_share_player_router
 from backend.natbirzha.api.state_credit_routes import router as state_credit_router
+from backend.natbirzha.api.creator_credit_routes import router as creator_credit_router
+from backend.natbirzha.api.creator_bankruptcy_routes import router as creator_bankruptcy_router
 
 natbirzha_router = APIRouter(prefix="/natbirzha")
 
@@ -49,6 +51,8 @@ natbirzha_router.include_router(tax_router)
 natbirzha_router.include_router(state_share_creator_router)
 natbirzha_router.include_router(state_share_player_router)
 natbirzha_router.include_router(state_credit_router)
+natbirzha_router.include_router(creator_credit_router)
+natbirzha_router.include_router(creator_bankruptcy_router)
 natbirzha_router.include_router(tycoon_company_router)
 
 __all__ = ["natbirzha_router"]

@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260924_credit_inventory';
+import { NatAPI } from '../api.js?v=20260924_state_credit_approval';
 import { store } from '../state.js';
 
 const RATE_PCT = 7.5;
@@ -6,18 +6,18 @@ const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFra
 const dateLabel = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';
 
 function loanCard(loan) {
-  const status = loan.status === 'DEFAULTED' ? 'ПРОСРОЧЕН' : 'АКТИВЕН';
-  const badge = loan.status === 'DEFAULTED' ? 'text-rose-600' : 'text-emerald-600';
+  const labels = { PENDING: 'ОЖИДАЕТ РЕШЕНИЯ', ACTIVE: 'АКТИВЕН', DEFAULTED: 'ПРОСРОЧЕН', PAID: 'ПОГАШЕН', REJECTED: 'ОТКЛОНЁН' };
+  const tones = { PENDING: 'text-amber-600', ACTIVE: 'text-emerald-600', DEFAULTED: 'text-rose-600', PAID: 'text-slate-500', REJECTED: 'text-slate-500' };
+  const canRepay = ['ACTIVE', 'DEFAULTED'].includes(loan.status);
   return `<article class="glass-card rounded-2xl p-4 space-y-2 text-xs">
-    <div class="flex items-center justify-between gap-2"><b>Государственный кредит #${loan.id}</b><b class="${badge}">${status}</b></div>
-    <div class="flex justify-between"><span>Получено</span><b>${money(loan.principal)} cash</b></div>
-    <div class="flex justify-between"><span>К возврату осталось</span><b>${money(loan.remaining_debt)} cash</b></div>
+    <div class="flex items-center justify-between gap-2"><b>Государственный кредит #${loan.id}</b><b class="${tones[loan.status] || 'text-slate-500'}">${labels[loan.status] || loan.status}</b></div>
+    <div class="flex justify-between"><span>Сумма</span><b>${money(loan.principal)} cash</b></div>
+    <div class="flex justify-between"><span>${canRepay ? 'К возврату осталось' : 'К возврату по графику'}</span><b>${money(loan.remaining_debt)} cash</b></div>
     <div class="flex justify-between"><span>Ставка и срок</span><b>${RATE_PCT}%/день · ${Number(loan.term_days)} дн.</b></div>
-    <div class="flex justify-between"><span>Вернуть до</span><b>${dateLabel(loan.due_at)}</b></div>
-    <div class="flex gap-2 pt-1">
-      <input class="state-credit-repay min-w-0 flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900 px-3 py-2" type="number" min="0.01" max="${Number(loan.remaining_debt)}" step="0.01" value="${Number(loan.remaining_debt)}" aria-label="Сумма погашения кредита #${loan.id}">
-      <button class="state-credit-repay-btn rounded-lg bg-emerald-600 px-3 py-2 font-bold text-white" data-id="${loan.id}">Погасить</button>
-    </div>
+    <div class="flex justify-between"><span>${loan.status === 'PENDING' ? 'Срок начнётся после одобрения' : 'Вернуть до'}</span><b>${dateLabel(loan.due_at)}</b></div>
+    ${loan.status === 'PENDING' ? '<p class="text-amber-600">Заявка отправлена. Деньги поступят после решения создателя.</p>' : ''}
+    ${canRepay ? `<div class="flex gap-2 pt-1"><input class="state-credit-repay min-w-0 flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900 px-3 py-2" type="number" min="0.01" max="${Number(loan.remaining_debt)}" step="0.01" value="${Number(loan.remaining_debt)}" aria-label="Сумма погашения кредита #${loan.id}">
+      <button class="state-credit-repay-btn rounded-lg bg-emerald-600 px-3 py-2 font-bold text-white" data-id="${loan.id}">Погасить</button></div>` : ''}
   </article>`;
 }
 
@@ -26,26 +26,28 @@ export async function renderStateCreditSection(container, showToast, onBack) {
   try {
     const data = await NatAPI.getStateCredit();
     const loans = data.loans || [];
-    const outstanding = loans.filter((loan) => ['ACTIVE', 'DEFAULTED'].includes(loan.status));
+    const maxPrincipal = Math.min(Number(data.available_credit_limit || 0), Number(data.available_treasury_cash ?? data.treasury_cash ?? 0));
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24">
       <button class="state-credit-back text-xs font-bold text-blue-600">← Назад к бирже</button>
-      <div><h2 class="text-xl font-black">🏦 Кредит государства</h2><p class="text-xs text-slate-500">Введите сумму и срок. Проценты простые: 7,5% от суммы за каждый день.</p></div>
+      <div><h2 class="text-xl font-black">🏦 Кредит государства</h2><p class="text-xs text-slate-500">Подайте заявку на 1–5 дней. Проценты простые: 7,5% от суммы за каждый день. Кредит выдаётся после одобрения.</p></div>
       <div class="glass-card rounded-2xl p-4 text-xs space-y-2">
         <div class="flex justify-between"><span>Доступно в казне</span><b>${money(data.treasury_cash)} cash</b></div>
-        <div class="flex justify-between"><span>Ставка</span><b>${Number(data.interest_rate_pct || RATE_PCT)}% в день</b></div>
-        <p class="text-slate-500">Стоимость кредита не растёт сложным процентом: проценты рассчитываются один раз по сумме и выбранному сроку.</p>
+        <div class="flex justify-between"><span>Стоимость компании</span><b>${money(data.company_nav)} cash</b></div>
+        <div class="flex justify-between"><span>Лимит кредита (50%)</span><b>${money(data.credit_limit)} cash</b></div>
+        <div class="flex justify-between"><span>Доступно для новой заявки</span><b>${money(maxPrincipal)} cash</b></div>
+        <p class="text-slate-500">Заявки и непогашенный долг занимают лимит. Срок кредита начинается с момента одобрения.</p>
       </div>
       <form class="state-credit-form glass-card rounded-2xl p-4 space-y-3">
         <label class="block text-xs font-bold">Сумма кредита, cash
-          <input class="state-credit-principal mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900 p-3 text-sm" type="number" min="0.01" step="0.01" required placeholder="Например, 100 000">
+          <input class="state-credit-principal mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900 p-3 text-sm" type="number" min="0.01" max="${maxPrincipal}" step="0.01" required placeholder="Например, 100 000">
         </label>
         <label class="block text-xs font-bold">Срок, дней
-          <input class="state-credit-days mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900 p-3 text-sm" type="number" min="1" max="365" step="1" value="1" required>
+          <input class="state-credit-days mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900 p-3 text-sm" type="number" min="1" max="5" step="1" value="1" required>
         </label>
-        <div class="rounded-xl bg-slate-100 dark:bg-slate-900/70 p-3 text-xs">К возврату: <b class="state-credit-total">0 cash</b></div>
-        <button class="state-credit-submit w-full rounded-xl bg-blue-600 py-3 font-black text-white">Получить кредит</button>
+        <div class="rounded-xl bg-slate-100 dark:bg-slate-900/70 p-3 text-xs">К возврату после одобрения: <b class="state-credit-total">0 cash</b></div>
+        <button class="state-credit-submit w-full rounded-xl bg-blue-600 py-3 font-black text-white" ${maxPrincipal < 0.01 ? 'disabled' : ''}>Подать заявку</button>
       </form>
-      <section class="space-y-2"><h3 class="font-black">Мои государственные кредиты</h3>${outstanding.map(loanCard).join('') || '<div class="glass-card rounded-xl p-3 text-xs text-slate-500">Открытых кредитов нет.</div>'}</section>
+      <section class="space-y-2"><h3 class="font-black">Мои государственные кредиты</h3>${loans.map(loanCard).join('') || '<div class="glass-card rounded-xl p-3 text-xs text-slate-500">Заявок и кредитов нет.</div>'}</section>
     </div>`;
 
     container.querySelector('.state-credit-back')?.addEventListener('click', onBack);
@@ -65,18 +67,17 @@ export async function renderStateCreditSection(container, showToast, onBack) {
       event.preventDefault();
       const principal = Number(principalInput.value);
       const termDays = Number(daysInput.value);
-      if (!(principal > 0) || !Number.isInteger(termDays) || termDays < 1 || termDays > 365) {
-        showToast('Введите положительную сумму и срок от 1 до 365 дней', 'error');
+      if (!(principal > 0) || principal > maxPrincipal || !Number.isInteger(termDays) || termDays < 1 || termDays > 5) {
+        showToast(`Введите сумму до ${money(maxPrincipal)} cash и срок от 1 до 5 дней`, 'error');
         return;
       }
       const totalDue = principal * (1 + (RATE_PCT / 100) * termDays);
-      if (!confirm(`Получить ${money(principal)} cash на ${termDays} дн.? К возврату ${money(totalDue)} cash.`)) return;
+      if (!confirm(`Подать заявку на ${money(principal)} cash на ${termDays} дн.? После одобрения к возврату ${money(totalDue)} cash.`)) return;
       const button = form.querySelector('.state-credit-submit');
       button.disabled = true;
       try {
         const result = await NatAPI.requestStateCredit(principal, termDays);
-        if (result.remaining_cash != null) store.updateCompany({ cash: result.remaining_cash });
-        showToast(`Кредит получен: ${money(result.cash_received)} cash. К возврату ${money(result.loan?.total_due ?? totalDue)} cash.`, 'success');
+        showToast(`Заявка #${result.loan?.id} отправлена создателю. Денег пока не перечислено.`, 'success');
         await renderStateCreditSection(container, showToast, onBack);
       } catch (error) {
         showToast(error.message, 'error');

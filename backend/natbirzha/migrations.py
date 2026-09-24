@@ -460,6 +460,16 @@ async def _migrate_v5_state_credit(conn) -> None:
     await conn.run_sync(create_table)
 
 
+async def _migrate_v5_state_credit_approval(conn) -> None:
+    """Add creator decision metadata without rebuilding existing loan history."""
+    if not await _table_exists(conn, "nat_state_credit_loans"):
+        return
+    await _add_columns(conn, "nat_state_credit_loans", {
+        "reviewed_by": "BIGINT",
+        "reviewed_at": "TIMESTAMP",
+    })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -480,6 +490,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v3_001_state_shares", _migrate_v3_state_shares),
     ("natbirzha_v4_capacity_industry_upgrades", _migrate_v4_capacity_and_industry_boosts),
     ("natbirzha_v5_001_state_credit", _migrate_v5_state_credit),
+    ("natbirzha_v5_002_state_credit_approval", _migrate_v5_state_credit_approval),
 )
 
 

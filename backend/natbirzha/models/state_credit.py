@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.models import Base
@@ -29,6 +29,8 @@ class NatStateCreditLoan(Base):
     status: Mapped[str] = mapped_column(
         String(20), default="ACTIVE", nullable=False, index=True
     )
+    reviewed_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )

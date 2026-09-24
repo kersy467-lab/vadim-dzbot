@@ -126,6 +126,9 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
         )
         if not company:
             raise ValueError("Company not found.")
+        from backend.natbirzha.services.state_credit_service import StateCreditService
+        if await StateCreditService.has_open_credit(session, company.id):
+            raise ValueError("Repay the open state credit before buying state bonds.")
         bond = await session.scalar(select(NatStateBond).where(NatStateBond.id == bond_id).with_for_update())
         if not bond or not bond.is_active or (bond.maturity_at and now >= bond.maturity_at):
             raise ValueError("Active bond issue not found.")

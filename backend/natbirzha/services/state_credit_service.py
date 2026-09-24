@@ -13,15 +13,19 @@ from backend.natbirzha.config import game_dt_iso, get_game_now, normalize_dt
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateTreasury
 from backend.natbirzha.models.state_credit import NatStateCreditLoan
+from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.state_credit_approval import StateCreditApprovalMixin
+from backend.natbirzha.services.state_credit_rules import (
+    STATE_CREDIT_DAILY_RATE,
+    STATE_CREDIT_INTEREST_RATE_PCT,
+    STATE_CREDIT_MAX_NAV_PCT,
+    STATE_CREDIT_MAX_TERM_DAYS,
+)
 
 
-STATE_CREDIT_INTEREST_RATE_PCT = 7.5
-STATE_CREDIT_DAILY_RATE = STATE_CREDIT_INTEREST_RATE_PCT / 100
-
-
-class StateCreditService:
+class StateCreditService(StateCreditApprovalMixin):
     @staticmethod
     def _now(value: datetime | None) -> datetime:
         return normalize_dt(value or get_game_now())
@@ -52,8 +56,8 @@ class StateCreditService:
                 raise ValueError("Term days must be a positive integer")
         except (TypeError, ValueError, OverflowError) as exc:
             raise ValueError("Term days must be a positive integer") from exc
-        if term_days <= 0:
-            raise ValueError("Term days must be a positive integer")
+        if not 1 <= term_days <= STATE_CREDIT_MAX_TERM_DAYS:
+            raise ValueError("State credit term must be from 1 to 5 days")
         return term_days
 
     @staticmethod
@@ -63,14 +67,18 @@ class StateCreditService:
 
     @staticmethod
     def serialize(loan: NatStateCreditLoan) -> dict[str, Any]:
+        pending = loan.status == "PENDING"
         return {
             "id": loan.id,
             "principal": round(float(loan.principal), 2),
             "total_due": round(float(loan.total_due), 2),
             "remaining_debt": round(float(loan.remaining_debt), 2),
             "term_days": int(loan.term_days),
-            "due_at": game_dt_iso(loan.due_at),
+            "due_at": None if pending or loan.status == "REJECTED" else game_dt_iso(loan.due_at),
             "status": loan.status,
+            "requested_at": game_dt_iso(loan.created_at),
+            "reviewed_by": loan.reviewed_by,
+            "reviewed_at": game_dt_iso(loan.reviewed_at) if loan.reviewed_at else None,
         }
 
     @classmethod
@@ -109,6 +117,12 @@ class StateCreditService:
             raise ValueError("Company not found")
         if float(treasury.cash) < principal:
             raise ValueError("State Treasury has insufficient cash for this credit")
+        nav, limit, available = await cls._available_limit(session, locked_company)
+        if principal > available + 1e-9:
+            raise ValueError(
+                f"Requested principal exceeds the 50% company-value credit limit. "
+                f"Available: {available:.2f} cash (NAV {nav:.2f}, limit {limit:.2f})."
+            )
 
         loan = NatStateCreditLoan(
             company_id=locked_company.id,
@@ -116,29 +130,23 @@ class StateCreditService:
             total_due=total_due,
             remaining_debt=total_due,
             term_days=term_days,
-            due_at=due_at,
-            status="ACTIVE",
+            # This timestamp is a storage placeholder until creator approval;
+            # the response hides it and approval resets the real due date.
+            due_at=current,
+            status="PENDING",
             created_at=current,
         )
-        treasury.cash = round(float(treasury.cash) - principal, 2)
-        treasury.updated_at = current
-        locked_company.cash = round(float(locked_company.cash) + principal, 2)
         session.add(loan)
-        await EconomyMetricsService.record(
-            session,
-            company_id=locked_company.id,
-            flow="SOURCE",
-            category="state_credit_principal",
-            cash_amount=principal,
-            context={"repayable": True, "term_days": term_days},
-        )
         await session.flush()
         result = {
             "success": True,
-            "cash_received": principal,
+            "cash_received": 0.0,
             "loan": cls.serialize(loan),
             "treasury_cash": round(float(treasury.cash), 2),
             "remaining_cash": round(float(locked_company.cash), 2),
+            "company_nav": nav,
+            "credit_limit": limit,
+            "available_credit_limit": round(max(0.0, available - principal), 2),
         }
         if commit:
             await session.commit()
@@ -177,8 +185,18 @@ class StateCreditService:
         result = {
             "treasury_cash": round(float(treasury.cash), 2),
             "interest_rate_pct": STATE_CREDIT_INTEREST_RATE_PCT,
+            "max_term_days": STATE_CREDIT_MAX_TERM_DAYS,
+            "max_nav_pct": STATE_CREDIT_MAX_NAV_PCT,
+            "company_nav": await CompanyService.calculate_audited_nav(session, locked_company),
+            "credit_limit": 0.0,
+            "booked_principal": await cls._open_principal(session, locked_company.id),
+            "available_treasury_cash": round(float(treasury.cash), 2),
             "loans": [cls.serialize(loan) for loan in loans],
         }
+        result["credit_limit"] = round(result["company_nav"] * STATE_CREDIT_MAX_NAV_PCT / 100, 2)
+        result["available_credit_limit"] = round(
+            max(0.0, result["credit_limit"] - result["booked_principal"]), 2
+        )
         if commit:
             await session.commit()
         return result
@@ -216,6 +234,8 @@ class StateCreditService:
         )
         if locked_company is None or loan is None:
             raise ValueError("State credit loan not found")
+        if loan.status not in {"ACTIVE", "DEFAULTED"}:
+            raise ValueError("Only an approved state credit can be repaid")
         if loan.status == "PAID" or loan.remaining_debt <= 0:
             raise ValueError("State credit loan is already closed")
 
@@ -251,4 +271,9 @@ class StateCreditService:
         return result
 
 
-__all__ = ["STATE_CREDIT_INTEREST_RATE_PCT", "StateCreditService"]
+__all__ = [
+    "STATE_CREDIT_INTEREST_RATE_PCT",
+    "STATE_CREDIT_MAX_TERM_DAYS",
+    "STATE_CREDIT_MAX_NAV_PCT",
+    "StateCreditService",
+]

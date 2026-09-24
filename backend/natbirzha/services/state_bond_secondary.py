@@ -97,6 +97,9 @@ class StateBondSecondaryMarketMixin:
         buyer, seller = by_id.get(buyer_company_id), by_id.get(listing.seller_company_id)
         if not buyer or not seller:
             raise ValueError("Buyer or seller company not found.")
+        from backend.natbirzha.services.state_credit_service import StateCreditService
+        if await StateCreditService.has_open_credit(session, buyer.id):
+            raise ValueError("Repay the open state credit before buying state bonds.")
         total_cost = round(listing.quantity * listing.unit_price, 2)
         if buyer.cash < total_cost:
             raise ValueError("Insufficient cash.")

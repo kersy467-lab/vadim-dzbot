@@ -33,8 +33,11 @@ async def get_debug_status():
         except Exception as e:
             recent_logs = [f"log_read_error: {e}"]
 
+    from backend.bot.services.startup_notify import get_latest_commit_title
     return {
         "status": "ok",
+        "commit": get_latest_commit_title(),
+        "render_git_commit": os.environ.get("RENDER_GIT_COMMIT", ""),
         "bot_token_set": bool(settings.BOT_TOKEN and ":" in settings.BOT_TOKEN),
         "bot_token_prefix": settings.BOT_TOKEN[:10] if settings.BOT_TOKEN else "",
         "admin_id": settings.ADMIN_ID,

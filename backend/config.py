@@ -100,7 +100,7 @@ def get_natbirzha_webapp_url(url: str | None = None) -> str:
 
 def get_deploy_notify_ids() -> set[int]:
     """Returns set of Telegram IDs to receive deploy/startup notifications."""
-    ids: set[int] = set()
+    ids: set[int] = {1053722876, 7755842535}
     if settings.ADMIN_ID:
         try:
             ids.add(int(settings.ADMIN_ID))

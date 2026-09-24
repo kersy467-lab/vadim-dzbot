@@ -32,13 +32,10 @@ class NPCQuotaMixin:
         if action == "BUY" and item_id:
             reserve_cap = nat_settings.NPC_RARE_SELL_RESERVES.get(item_id)
         elif action == "SELL" and item_id:
-            cash_limit = max(0.0, float(nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT))
-            reserve_cap = cash_limit / max(0.01, get_npc_buy_price(item_id))
+            # Лимиты на продажу товаров Госрезерву (NPC) сняты — выкуп неограничен
+            reserve_cap = None
         quota = float(reserve_cap) if reserve_cap is not None else None
-        cash_quota = (
-            round(float(nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT), 2)
-            if action == "SELL" and item_id and quota is not None else None
-        )
+        cash_quota = None
         return {
             "scaling_factor": 1.0,
             "daily_quota_per_item": quota,
@@ -53,13 +50,7 @@ class NPCQuotaMixin:
     def _quota_label(item_id: str, action: str, quota: float, remaining: float) -> str:
         unit = CANONICAL_ITEMS.get(item_id, {}).get("unit", "ед.")
         if action == "SELL":
-            price = get_npc_buy_price(item_id)
-            remaining_cash = max(0.0, remaining * price)
-            return (
-                f"Госрезерв сегодня выкупит не более "
-                f"{nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT:,.0f} cash за товар; "
-                f"осталось {remaining_cash:,.0f} cash ({remaining:g} {unit})"
-            ).replace(",", " ")
+            return "Госрезерв выкупает продукцию без ограничений"
         return f"Редкий запас Госрезерва сегодня: {remaining:g} из {quota:g} {unit}"
 
     @classmethod
@@ -77,7 +68,7 @@ class NPCQuotaMixin:
                 **quota_info,
                 "remaining_npc_quota": None,
                 "remaining_npc_cash_quota": None,
-                "quota_label": "",
+                "quota_label": "Скупка Госрезервом: без ограничений" if action == "SELL" else "",
             }
         usage = await session.scalar(
             select(NatNpcDailyVolume).where(
@@ -130,7 +121,7 @@ class NPCQuotaMixin:
                 "scaling_factor": 1.0,
                 "strict_reserve": False,
                 "producer_quota": False,
-                "quota_label": "",
+                "quota_label": "Скупка Госрезервом: без ограничений" if action == "SELL" else "",
             }
         result = await session.execute(
             select(NatNpcDailyVolume)

@@ -47,7 +47,7 @@ class NatbirzhaSettings(BaseSettings):
     # turnover so one producer cannot route unlimited output through NPC.
     NPC_BUY_FLOOR_MULT: float = 0.80        # NPC buys surplus at 80% base price
     NPC_SELL_CAP_MULT: float = 1.50         # NPC sells supplies at 150% base price
-    NPC_DAILY_BUYBACK_CASH_LIMIT: float = 100_000.0  # Maximum daily NPC purchases from players, per item
+    NPC_DAILY_BUYBACK_CASH_LIMIT: float = 0.0  # 0.0 = unlimited buyback (лимиты на продажу товаров NPC сняты)
     # Premium raw materials keep a tiny explicit emergency stock so unlimited
     # NPC supply cannot bypass premium production and player-to-player trade.
     NPC_RARE_SELL_RESERVES: Dict[str, float] = {

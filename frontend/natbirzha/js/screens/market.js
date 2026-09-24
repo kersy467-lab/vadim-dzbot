@@ -203,8 +203,8 @@ export async function renderMarket(container, showToast) {
               </button>
             </div>
           </div>
-          <div class="rounded-lg bg-amber-50/70 px-2.5 py-2 text-[10px] text-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
-            Лимит скупки этого товара NPC на сегодня: ${Number.isFinite(itemInfo.playerSellRemainingCash) ? `${itemInfo.playerSellRemainingCash.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} cash (${Number(itemInfo.playerSellRemainingQuantity || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${itemInfo.unit})` : 'загрузка'}.
+          <div class="rounded-lg bg-emerald-50/70 px-2.5 py-2 text-[10px] text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-200">
+            Скупка этого товара Госрезервом: ${Number.isFinite(itemInfo.playerSellRemainingCash) ? `${itemInfo.playerSellRemainingCash.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} cash (${Number(itemInfo.playerSellRemainingQuantity || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${itemInfo.unit})` : 'без ограничений'}.
           </div>
           <div class="text-[10px] text-slate-400">
             На вашем складе: <span class="font-mono font-bold text-slate-700 dark:text-slate-200">${userInvQty} ${itemInfo.unit}</span>

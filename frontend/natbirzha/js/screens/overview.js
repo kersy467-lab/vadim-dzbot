@@ -2,6 +2,7 @@ import { NatAPI } from '../api.js';
 import { store } from '../state.js';
 import { getItemInfo } from '../items.js';
 import { getSpecializationName } from '../localization.js';
+import { updateBusinessCapacityCard } from './overview_capacity.js';
 
 export function renderOverview(container, showToast) {
   const company = store.company;
@@ -73,6 +74,7 @@ export function renderOverview(container, showToast) {
             <h2 class="text-lg font-black text-slate-900 dark:text-white mt-1">
               ${company.name}
             </h2>
+            <button id="rename-company-btn" class="mt-1 text-[10px] font-bold text-blue-600 dark:text-blue-300">✏️ Сменить название · 10 000 cash</button>
           </div>
           <div class="text-right">
             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -236,6 +238,23 @@ export function renderOverview(container, showToast) {
   `;
 
   void updateBusinessCapacityCard(container);
+  container.querySelector('#rename-company-btn')?.addEventListener('click', async (event) => {
+    const newName = prompt('Новое название компании (стоимость смены — 10 000 cash):', company.name)?.trim();
+    if (!newName || newName === company.name) return;
+    if (!confirm(`Сменить название на «${newName}» за 10 000 cash?`)) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const result = await NatAPI.renameCompany(newName);
+      const refreshed = await NatAPI.getMyCompany();
+      store.setCompany(refreshed);
+      showToast(`Название изменено на «${result.name || newName}»`, 'success');
+      renderOverview(container, showToast);
+    } catch (err) {
+      showToast(err.message, 'error');
+      button.disabled = false;
+    }
+  });
   container.querySelector('#help-btn')?.addEventListener('click', () => window.NatApp?.navigateTo('help'));
   container.querySelector('#capital-plan-ipo-btn')?.addEventListener('click', () => window.NatApp?.navigateTo('market'));
   container.querySelector('#capital-plan-loan-btn')?.addEventListener('click', async () => {
@@ -361,40 +380,5 @@ export function renderOverview(container, showToast) {
         window.NatApp.navigateTo('creator');
       }
     });
-  }
-}
-
-async function updateBusinessCapacityCard(container) {
-  const card = container.querySelector('#business-capacity-card');
-  const summaryNode = card?.querySelector('#business-capacity-summary');
-  const button = card?.querySelector('#expand-capacity-btn');
-  if (!card || !summaryNode || !button) return;
-  try {
-    const summary = await NatAPI.getEmpireSummary();
-    if (container.querySelector('#business-capacity-card') !== card) return;
-    const slots = summary.slots || {};
-    const expansion = summary.slot_expansion || {};
-    summaryNode.textContent = `Занято ${Number(slots.used || 0)} / ${Number(slots.max || 10)} слотов.`;
-    if (expansion.maxed) {
-      summaryNode.textContent += ' Достигнут предел.';
-      button.disabled = true;
-      button.textContent = 'Лимит';
-    } else if (expansion.is_upgrading) {
-      const seconds = Number(expansion.remaining_seconds || 0);
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      summaryNode.textContent += ` Слот ${expansion.target_capacity} готовится: ${hours} ч ${String(minutes).padStart(2, '0')} мин.`;
-      button.disabled = true;
-      button.textContent = 'Идёт улучшение';
-    } else {
-      const price = Number(expansion.cost || 0).toLocaleString('ru-RU');
-      summaryNode.textContent += ` Следующий слот: ${price} cash · ${expansion.duration_hours} ч.`;
-      const enoughCash = Number(summary.cash || 0) >= Number(expansion.cost || 0);
-      button.disabled = !enoughCash;
-      button.textContent = enoughCash ? '＋ Добавить' : 'Не хватает cash';
-    }
-  } catch (error) {
-    summaryNode.textContent = 'Не удалось загрузить состояние мощностей.';
-    button.disabled = true;
   }
 }

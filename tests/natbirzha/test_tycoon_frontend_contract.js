@@ -23,7 +23,11 @@ const overview = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/overview.js'),
   'utf-8',
 );
-assert(overview.includes('expand-capacity-btn') && overview.includes('slot_expansion'), 'overview must expose timed business-capacity expansion');
+const overviewCapacity = fs.readFileSync(
+  path.join(__dirname, '../../frontend/natbirzha/js/screens/overview_capacity.js'),
+  'utf-8',
+);
+assert(overview.includes('expand-capacity-btn') && overviewCapacity.includes('slot_expansion'), 'overview must expose timed business-capacity expansion');
 assert(!overview.includes('expand-territory-btn'), 'overview must replace territory expansion with business capacity');
 const market = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/market.js'),

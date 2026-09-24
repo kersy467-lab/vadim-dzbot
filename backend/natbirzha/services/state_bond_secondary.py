@@ -31,7 +31,7 @@ class StateBondSecondaryMarketMixin:
                 raise ValueError("Operation key was already used for a different listing.")
             return cls._listing_result(existing)
         bond = await session.scalar(select(NatStateBond).where(NatStateBond.id == bond_id).with_for_update())
-        if not bond or bond.status in ("MATURITY_PENDING", "CLOSED") or (bond.maturity_at and now >= bond.maturity_at):
+        if not bond or bond.status in ("MATURITY_PENDING", "CLOSED", "BANKRUPT") or (bond.maturity_at and now >= bond.maturity_at):
             raise ValueError("Bond is not available for secondary trading.")
         holding = await session.scalar(select(NatStateBondHolding).where(
             NatStateBondHolding.bond_id == bond_id,
@@ -70,18 +70,23 @@ class StateBondSecondaryMarketMixin:
             if replay.buyer_company_id != buyer_company_id or replay.id != listing_id:
                 raise ValueError("Operation key was already used for a different purchase.")
             return cls._listing_result(replay)
+        listing = await session.get(NatBondListing, listing_id)
+        if not listing or listing.status != "OPEN":
+            raise ValueError("Open bond listing not found.")
+        bond = await session.scalar(
+            select(NatStateBond).where(NatStateBond.id == listing.bond_id).with_for_update()
+        )
+        if not bond or bond.status in ("MATURITY_PENDING", "CLOSED", "BANKRUPT") or (bond.maturity_at and now >= bond.maturity_at):
+            raise ValueError("Bond has reached maturity.")
         listing = await session.scalar(
             select(NatBondListing).where(NatBondListing.id == listing_id).with_for_update()
         )
         if not listing or listing.status != "OPEN":
             raise ValueError("Open bond listing not found.")
+        if listing.bond_id != bond.id:
+            raise ValueError("Bond listing is inconsistent.")
         if listing.seller_company_id == buyer_company_id:
             raise ValueError("A company cannot buy its own listing.")
-        bond = await session.scalar(
-            select(NatStateBond).where(NatStateBond.id == listing.bond_id).with_for_update()
-        )
-        if not bond or bond.status in ("MATURITY_PENDING", "CLOSED") or (bond.maturity_at and now >= bond.maturity_at):
-            raise ValueError("Bond has reached maturity.")
         companies = (await session.execute(
             select(NatCompany)
             .where(NatCompany.id.in_(sorted((buyer_company_id, listing.seller_company_id))))

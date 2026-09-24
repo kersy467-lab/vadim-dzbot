@@ -829,12 +829,16 @@ async def main():
         "tests/natbirzha/test_tournament_join_api.py",
         "tests/natbirzha/test_tournament_pvp.py",
         "tests/natbirzha/test_creator_custom_tournaments.py",
+        "tests/natbirzha/test_state_credit.py",
+        "tests/natbirzha/test_bond_bankruptcy.py",
+        "tests/natbirzha/test_company_rename.py",
         "tests/natbirzha/test_premium_production.py",
         "tests/natbirzha/test_premium_military_upgrades.py",
         "tests/natbirzha/test_p2_backend_api.py",
         "tests/natbirzha/test_reference_instruments.py",
         "tests/natbirzha/test_bond_lifecycle.py",
         "tests/test_ege_duel_timer.py",
+        "tests/test_ege_and_frontend.py",
     )
     child_env = os.environ.copy()
     child_env["PYTHONPATH"] = os.path.abspath(".")

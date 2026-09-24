@@ -84,7 +84,7 @@ class StateBondSettlementMixin:
         treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)
         bonds = (await session.execute(
             select(NatStateBond)
-            .where(NatStateBond.status != "CLOSED")
+            .where(NatStateBond.status.notin_(("CLOSED", "BANKRUPT")))
             .order_by(NatStateBond.id)
             .with_for_update()
         )).scalars().all()

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+require('./test_natbirzha_frontend.js');
 
 console.log('=== [1/4] Testing ege_data.js data integrity ===');
 const egeData = require('../frontend/js/ege_data.js');

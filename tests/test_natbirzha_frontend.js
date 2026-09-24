@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 require('./natbirzha/test_tycoon_frontend_contract.js');
+require('./natbirzha/test_creator_bond_bankruptcy_frontend.js');
 
 console.log('=== [Natbirzha Test 1/5] Testing index.html markup & theme sync ===');
 const natHtml = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');
@@ -185,7 +186,8 @@ const requiredMethods = [
   'getReferenceInstruments', 'tradeReferenceInstrument',
   'getStateBonds', 'createBondListing', 'buyBondListing', 'cancelBondListing',
   'getBankruptcyStatus', 'submitRestructuring', 'getIndustryUpgradeCatalog', 'getIndustryUpgrade', 'purchaseIndustryUpgrade',
-  'getCreatorWorldResetPreview', 'resetCreatorWorld'
+  'getCreatorWorldResetPreview', 'resetCreatorWorld',
+  'getStateCredit', 'requestStateCredit', 'repayStateCredit', 'renameCompany'
 ];
 requiredMethods.forEach(m => {
   assert(typeof NatAPI[m] === 'function', `NatAPI.${m} must be defined`);
@@ -248,6 +250,11 @@ const marketCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/j
 const marketTaxCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_tax.js'), 'utf-8');
 assert(marketCode.includes('data-section=\"tax\"') && marketCode.includes('renderTaxSection'),
   'market home must expose the mandatory tax section');
+assert(marketCode.indexOf('data-section=\"tax\"') < marketCode.indexOf('data-section=\"state_credit\"'),
+  'state credit must appear directly after the tax section in the market menu');
+const stateCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
+assert(stateCreditCode.includes('RATE_PCT = 7.5') && stateCreditCode.includes('Срок') && stateCreditCode.includes('Погасить'),
+  'state credit screen must show the daily rate, requested term and repayment controls');
 assert(marketTaxCode.includes('13%') && marketTaxCode.includes('Производство остановлено') && marketTaxCode.includes('Оплатить всё'),
   'tax screen must explain the rate, production block and payment action');
 assert(marketTaxCode.includes('штраф не начисляется на штраф'),
@@ -453,6 +460,8 @@ assert(upgradesCode.includes('max_level') && upgradesCode.includes('Автоза
   'automation upgrade card must show the server max tier and explain the automatic cycle behavior');
 
 const overviewCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/overview.js'), 'utf-8');
+assert(overviewCode.includes('rename-company-btn') && overviewCode.includes('NatAPI.renameCompany'),
+  'overview must expose company renaming for the 10,000 cash fee');
 assert(overviewCode.includes('level_progress_pct') && overviewCode.includes('is_max_level') && overviewCode.includes('max_level'),
   'overview must render server-authoritative long-term level progress');
 assert(!overviewCode.includes("((company.level || 1) * 150)"),

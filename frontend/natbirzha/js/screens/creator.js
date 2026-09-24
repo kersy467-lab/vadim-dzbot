@@ -2,6 +2,7 @@ import { NatAPI } from '../api.js';
 import { loadCreatorOverview } from './creator_overview.js';
 import { loadCreatorModeration } from './creator_moderation.js';
 import { loadCreatorShares } from './creator_shares.js';
+import { declareCreatorBondBankruptcy } from './creator_bond_api.js';
 
 let activeTab = 'overview';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
@@ -180,6 +181,13 @@ async function loadBondsTab(el, showToast) {
               Остаток: ${b.remaining_volume} / ${b.total_volume} шт. по ${b.face_value} ₽ · Срок: ${b.maturity_days} дн.
             </div>
             <div class="text-[9px] text-slate-500 italic mt-0.5">${b.purpose}</div>
+            <div class="mt-2 flex justify-end">
+              ${b.status === 'BANKRUPT'
+                ? '<span class="rounded-lg bg-rose-950/50 px-2.5 py-1 text-[10px] font-bold text-rose-300">Банкротство объявлено</span>'
+                : b.status === 'CLOSED'
+                  ? '<span class="rounded-lg bg-slate-800 px-2.5 py-1 text-[10px] font-bold text-slate-400">Погашена</span>'
+                  : `<button class="bankrupt-bond-btn rounded-lg bg-rose-700 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-rose-600" data-id="${Number(b.id)}">Банкрот</button>`}
+            </div>
           </div>
         `).join('')}
       </div>
@@ -212,6 +220,29 @@ async function loadBondsTab(el, showToast) {
       }
     });
   }
+
+  el.querySelectorAll('.bankrupt-bond-btn').forEach(button => {
+    button.addEventListener('click', async () => {
+      const bond = data.bonds.find(row => Number(row.id) === Number(button.dataset.id));
+      if (!bond) return;
+      const confirmed = confirm(
+        `Объявить выпуск «${bond.title}» банкротом? Каждый текущий держатель получит 30% номинала за облигацию, 70% основного долга будет списано. Будущие купоны и погашение прекратятся.`
+      );
+      if (!confirmed) return;
+      button.disabled = true;
+      try {
+        const result = await declareCreatorBondBankruptcy(bond.id);
+        showToast(
+          `Банкротство объявлено: выплачено ${Number(result.compensation_paid).toLocaleString('ru-RU')} cash; списано ${Number(result.principal_written_off).toLocaleString('ru-RU')} cash.`,
+          'success',
+        );
+        await loadBondsTab(el, showToast);
+      } catch (error) {
+        showToast(error.message, 'error');
+        button.disabled = false;
+      }
+    });
+  });
 }
 
 async function loadTournamentsTab(el, showToast) {

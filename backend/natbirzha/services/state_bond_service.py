@@ -15,11 +15,12 @@ from backend.natbirzha.models.creator import (
     NatStateBondHolding,
 )
 from backend.natbirzha.services.state_bond_secondary import StateBondSecondaryMarketMixin
+from backend.natbirzha.services.state_bond_bankruptcy import StateBondBankruptcyMixin
 from backend.natbirzha.services.state_bond_settlement import StateBondSettlementMixin
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
-class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin):
+class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, StateBondBankruptcyMixin):
     """Treasury-backed state bonds with settlement and a secondary market."""
 
     @staticmethod

@@ -146,6 +146,16 @@ export const NatAPI = {
   getLoans: () => request('/api/natbirzha/finance/loans'),
   borrow: (principal) => request('/api/natbirzha/finance/loans', { method: 'POST', body: JSON.stringify({ principal: Number(principal) }) }),
   repayLoan: (loan_id, amount) => request(`/api/natbirzha/finance/loans/${parseInt(loan_id, 10)}/repay`, { method: 'POST', body: JSON.stringify({ amount: Number(amount) }) }),
+  getStateCredit: () => request('/api/natbirzha/finance/state-loans'),
+  requestStateCredit: (principal, term_days) => request('/api/natbirzha/finance/state-loans', {
+    method: 'POST', body: JSON.stringify({ principal: Number(principal), term_days: parseInt(term_days, 10) })
+  }),
+  repayStateCredit: (loan_id, amount) => request(`/api/natbirzha/finance/state-loans/${parseInt(loan_id, 10)}/repay`, {
+    method: 'POST', body: JSON.stringify({ amount: Number(amount) })
+  }),
+  renameCompany: (name) => request('/api/natbirzha/company/rename', {
+    method: 'POST', body: JSON.stringify({ name: String(name || '').trim() })
+  }),
 
   getIndustryOverview: () => cachedGet('/api/natbirzha/company/industries', 30 * 1000),
 

@@ -429,6 +429,21 @@ async def _migrate_v4_capacity_and_industry_boosts(conn) -> None:
             })
 
 
+async def _migrate_v5_state_credit(conn) -> None:
+    """Create Treasury-backed state credit obligations on existing databases."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    def create_table(sync_connection) -> None:
+        Base.metadata.tables["nat_state_credit_loans"].create(
+            sync_connection, checkfirst=True
+        )
+
+    await conn.run_sync(create_table)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -447,6 +462,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_factory_001_restore_starters", _migrate_restore_factory_starters),
     ("natbirzha_v3_001_state_shares", _migrate_v3_state_shares),
     ("natbirzha_v4_capacity_industry_upgrades", _migrate_v4_capacity_and_industry_boosts),
+    ("natbirzha_v5_001_state_credit", _migrate_v5_state_credit),
 )
 
 

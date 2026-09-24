@@ -9,6 +9,7 @@ from backend.db.models import User
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.auth_service import get_strict_natbirzha_user, get_current_company
 from backend.natbirzha.services.company_service import CompanyService
+from backend.natbirzha.services.company_rename_service import CompanyRenameService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.progression_service import progress_snapshot
 
@@ -32,6 +33,9 @@ class RespecRequest(BaseModel):
 
 class MasteryUnlockRequest(BaseModel):
     branch: str
+
+class RenameCompanyRequest(BaseModel):
+    name: str
 
 @router.post("/create")
 async def create_company(
@@ -184,6 +188,37 @@ async def get_company_status(
         "inventory": inv,
         "factories": factories
     }
+
+
+@router.post("/rename")
+async def rename_company(
+    req: RenameCompanyRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    endpoint = "/api/natbirzha/company/rename"
+    payload = req.model_dump()
+    cached = await IdempotencyService.check_or_conflict(
+        session, company.user_id, endpoint, idempotency_key, payload
+    )
+    if cached:
+        return cached[1]
+
+    try:
+        response = await CompanyRenameService.rename(session, company.id, req.name)
+        return await IdempotencyService.commit_response(
+            session, company.user_id, endpoint, idempotency_key, payload, response
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Это название уже занято другой компанией.",
+        ) from exc
 
 
 @router.post("/mastery/unlock")

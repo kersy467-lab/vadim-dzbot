@@ -54,6 +54,7 @@ from backend.natbirzha.models.state_shares import (
     NatStateShareDailySettlement,
     NatStateShareDividendPayment,
 )
+from backend.natbirzha.models.state_credit import NatStateCreditLoan
 from backend.natbirzha.models.business import (
     BUSINESS_STATUSES,
     NatBusiness,
@@ -128,6 +129,7 @@ __all__ = [
     "NatStateShareOperation",
     "NatStateShareDailySettlement",
     "NatStateShareDividendPayment",
+    "NatStateCreditLoan",
     "BUSINESS_STATUSES",
     "NatBusiness",
     "NatBusinessIncomeDaily",

@@ -254,6 +254,31 @@ async def get_bonds(
 ):
     return {"bonds": await CreatorService.get_bonds(session)}
 
+@router.post("/bonds/{bond_id}/bankrupt")
+async def declare_bond_bankruptcy(
+    bond_id: int,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    admin: User = Depends(get_current_creator),
+    session: AsyncSession = Depends(get_db_session),
+):
+    endpoint = f"/api/natbirzha/creator/bonds/{bond_id}/bankrupt"
+    payload = {"bond_id": bond_id}
+    cached = await IdempotencyService.check_or_conflict(
+        session, admin.id, endpoint, idempotency_key, payload,
+    )
+    if cached:
+        return cached[1]
+    try:
+        result = await CreatorService.declare_bond_bankruptcy(
+            session, actor_id=admin.tg_id, bond_id=bond_id, commit=False,
+        )
+        return await IdempotencyService.commit_response(
+            session, admin.id, endpoint, idempotency_key, payload, result,
+        )
+    except ValueError as error:
+        status_code = 404 if "not found" in str(error).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
+
 @router.post("/tournaments/launch")
 async def launch_tournament(
     req: LaunchTournamentRequest = Body(default=LaunchTournamentRequest()),

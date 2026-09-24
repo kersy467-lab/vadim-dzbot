@@ -255,6 +255,14 @@ class CreatorService:
         return await StateBondService.list_bonds(session)
 
     @staticmethod
+    async def declare_bond_bankruptcy(
+        session: AsyncSession, actor_id: int, bond_id: int, commit: bool = True
+    ) -> Dict[str, Any]:
+        return await StateBondService.declare_bankruptcy(
+            session, actor_id=actor_id, bond_id=bond_id, commit=commit,
+        )
+
+    @staticmethod
     async def launch_early_tournament(
         session: AsyncSession,
         actor_id: int,

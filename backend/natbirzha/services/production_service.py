@@ -14,6 +14,7 @@ from backend.natbirzha.services.premium_service import PremiumLicenseRequired, P
 from backend.natbirzha.services.progression_service import apply_xp
 from backend.natbirzha.services.production_automation import ProductionAutomationMixin
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
+from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 
 
 class ProductionTickEngine(ProductionAutomationMixin):
@@ -55,10 +56,15 @@ class ProductionTickEngine(ProductionAutomationMixin):
         return max(15, int(round((base + level_add) * (1.0 - reduction))))
 
     @staticmethod
-    def output_multiplier(factory: NatFactory) -> float:
+    def output_multiplier(factory: NatFactory, company: NatCompany | None = None) -> float:
         workers_bonus = 1.0 + UpgradeService.workers_level(factory) * 0.05
         technology_bonus = 1.0 + factory.technology_level * 0.08
-        return max(1, factory.level) * workers_bonus * technology_bonus
+        industry_bonus = (
+            IndustryUpgradeService.bonus_multiplier(company, factory.specialization)
+            if company is not None
+            else 1.0
+        )
+        return max(1, factory.level) * workers_bonus * technology_bonus * industry_bonus
 
     @staticmethod
     def upgrade_cost(factory: NatFactory, kind: str) -> float:
@@ -76,7 +82,7 @@ class ProductionTickEngine(ProductionAutomationMixin):
             NatInventory.item_id == item_id,
         )
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -91,7 +97,8 @@ class ProductionTickEngine(ProductionAutomationMixin):
     ) -> Dict[str, Any]:
         async with cls._get_lock(factory.id):
             locked_company = (await session.execute(
-                select(NatCompany).where(NatCompany.id == company.id).with_for_update()
+                select(NatCompany).where(NatCompany.id == company.id)
+                .with_for_update().execution_options(populate_existing=True)
             )).scalar_one_or_none()
             if not locked_company:
                 return {"success": False, "reason": "company_not_found"}
@@ -100,7 +107,7 @@ class ProductionTickEngine(ProductionAutomationMixin):
                 select(NatFactory).where(
                     NatFactory.id == factory.id,
                     NatFactory.company_id == company.id,
-                ).with_for_update()
+                ).with_for_update().execution_options(populate_existing=True)
             )).scalar_one_or_none()
             if not locked:
                 return {"success": False, "reason": "factory_not_found"}
@@ -214,7 +221,8 @@ class ProductionTickEngine(ProductionAutomationMixin):
     ) -> Dict[str, Any]:
         async with cls._get_lock(factory.id):
             locked_company = (await session.execute(
-                select(NatCompany).where(NatCompany.id == company.id).with_for_update()
+                select(NatCompany).where(NatCompany.id == company.id)
+                .with_for_update().execution_options(populate_existing=True)
             )).scalar_one_or_none()
             if not locked_company:
                 return {"success": False, "reason": "company_not_found"}
@@ -223,7 +231,7 @@ class ProductionTickEngine(ProductionAutomationMixin):
                 select(NatFactory).where(
                     NatFactory.id == factory.id,
                     NatFactory.company_id == company.id,
-                ).with_for_update()
+                ).with_for_update().execution_options(populate_existing=True)
             )).scalar_one_or_none()
             if not locked:
                 return {"success": False, "reason": "factory_not_found"}
@@ -254,7 +262,9 @@ class ProductionTickEngine(ProductionAutomationMixin):
             return {"success": False, "reason": "recipe_missing"}
 
         efficiency = cls.get_effective_efficiency(company, factory)
-        multiplier = cls.output_multiplier(factory) * efficiency
+        # Industry production bonuses are sampled on completion. A PVC upgrade
+        # bought during a running cycle therefore affects that cycle's output.
+        multiplier = cls.output_multiplier(factory, company) * efficiency
         outputs = {
             item_id: round(float(quantity) * multiplier, 4)
             for item_id, quantity in recipe["outputs"].items()

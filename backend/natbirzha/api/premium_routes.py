@@ -18,9 +18,15 @@ from backend.natbirzha.services.premium_catalog import (
     serialize_license_catalog,
     serialize_upgrade_catalog,
 )
-from backend.natbirzha.services.premium_service import PremiumError, PremiumService
+from backend.natbirzha.services.premium_service import (
+    PremiumError,
+    PremiumOperationConflict,
+    PremiumService,
+)
 from backend.natbirzha.services.premium_upgrade_service import PremiumUpgradeService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
+from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+from backend.natbirzha.services.production_service import ProductionTickEngine
 
 
 router = APIRouter(prefix="/premium", tags=["Natbirzha Premium"])
@@ -143,6 +149,29 @@ async def purchase_industry_upgrade(
     if cached:
         return cached[1]
     try:
+        # Close old factory cycles before changing the multiplier, then settle
+        # the V2 interval so neither production system applies the upgrade to
+        # output already earned while the player was offline.
+        for _ in range(10):
+            settled_cycles = await ProductionTickEngine.catch_up_company(session, company.id)
+            if not await ProductionTickEngine.has_due_factory_cycles(session, company.id):
+                break
+            made_progress = any(
+                int(row.get("completed_cycles", 0)) > 0
+                or row.get("status") == "completed"
+                for row in settled_cycles
+            )
+            if not made_progress:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Сначала освободите склад или восстановите выпуск; есть незавершённый цикл производства.",
+                )
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail="Производство синхронизируется после долгого отсутствия. Повторите покупку позже.",
+            )
+        await IdleEconomyService.settle_company(session, company.id)
         result = await IndustryUpgradeService.purchase_next_level(
             session,
             company.id,
@@ -152,6 +181,14 @@ async def purchase_industry_upgrade(
         return await IdempotencyService.commit_response(
             session, company.user_id, endpoint, idempotency_key, payload, result
         )
+    except PremiumOperationConflict as exc:
+        await session.rollback()
+        cached = await IdempotencyService.check_or_conflict(
+            session, company.user_id, endpoint, idempotency_key, payload
+        )
+        if cached:
+            return cached[1]
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc

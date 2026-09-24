@@ -35,13 +35,24 @@ function factoryType(factory) {
   return factory?.building_type || factory?.factory_type || '';
 }
 
-function recipeFor(factory, recipes) {
+function recipeFor(factory, recipes, state = {}) {
   const f = factory;
   const bType = f.building_type || f.factory_type;
   const choices = Object.entries(recipes).filter(([, r]) => r.factory_type === bType);
-  const currentRecipe = f.current_recipe;
-  const selected = currentRecipe || f.default_recipe || choices[0]?.[0];
+  const selected = f.current_recipe
+    || state.selectedRecipes?.[f.id]
+    || f.default_recipe
+    || choices[0]?.[0];
   return { id: selected, recipe: selected ? recipes[selected] : null, choices };
+}
+
+function recipeSelector(factory, selected) {
+  if (selected.choices.length < 2) return '';
+  const disabled = cycleState(factory).running || factory.automation_enabled ? 'disabled' : '';
+  const options = selected.choices.map(([id, recipe]) => (
+    `<option value="${escapeHtml(id)}" data-recipe-id="${escapeHtml(id)}" ${id === selected.id ? 'selected' : ''}>${escapeHtml(recipe.name || id)}</option>`
+  )).join('');
+  return `<label class="factory-recipe-picker flex items-center gap-1 text-[9px] text-slate-500"><span>Рецепт</span><select class="factory-recipe-select min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-1 py-1 text-[10px] text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" data-id="${factory.id}" aria-label="Выбрать рецепт для ${escapeHtml(factory.name || factory.building_type)}" ${disabled}>${options}</select></label>`;
 }
 
 function recipeSummary(recipe) {
@@ -79,8 +90,8 @@ function recipeLines(recipe, direction) {
   }).join('');
 }
 
-function detailedFactoryCard(factory, recipes) {
-  const selected = recipeFor(factory, recipes);
+function detailedFactoryCard(factory, recipes, state) {
+  const selected = recipeFor(factory, recipes, state);
   const recipe = selected.recipe;
   const hint = factory.start_hint || {};
   const efficiency = Math.round(Number(factory.efficiency || 1) * 100);
@@ -89,7 +100,7 @@ function detailedFactoryCard(factory, recipes) {
     <div class="flex items-start justify-between gap-2"><div><div class="text-base font-black">${escapeHtml(factory.name || factoryType(factory))}</div><div class="text-xs text-slate-500">Уровень завода: ${factory.level || 1} · эффективность ${efficiency}%</div></div><span class="text-2xl">${factory.icon || '🏭'}</span></div>
     <div class="factory-detail-section"><div class="factory-detail-label">Входные ресурсы</div><div class="factory-detail-resources">${recipeLines(recipe, 'inputs')}</div></div>
     <div class="factory-detail-section"><div class="factory-detail-label">Производит</div><div class="factory-detail-resources">${recipeLines(recipe, 'outputs')}</div></div>
-    <div class="grid grid-cols-2 gap-2 text-xs"><div><span class="text-slate-500">Цикл</span><b class="block">${duration} сек.</b></div><div><span class="text-slate-500">Рабочие</span><b class="block">${factory.workers || 0} чел.</b></div><div><span class="text-slate-500">Рецепт</span><b class="block truncate">${escapeHtml(selected.id || '—')}</b></div><div><span class="text-slate-500">Статус</span><b class="block">${factory.automation_enabled ? '🤖 автомат' : '🖐️ вручную'}</b></div></div>
+    <div class="grid grid-cols-2 gap-2 text-xs"><div><span class="text-slate-500">Цикл</span><b class="block">${duration} сек.</b></div><div><span class="text-slate-500">Рабочие</span><b class="block">${factory.workers || 0} чел.</b></div><div><span class="text-slate-500">Рецепт</span><b class="block truncate">${escapeHtml(selected.recipe?.name || selected.id || '—')}</b></div><div><span class="text-slate-500">Статус</span><b class="block">${factory.automation_enabled ? '🤖 автомат' : '🖐️ вручную'}</b></div></div>
     <div class="rounded-xl bg-pink-50/70 dark:bg-fuchsia-950/30 p-2 text-xs"><b>Что нужно сейчас:</b> ${escapeHtml(hint.message || 'Можно запускать цикл')}</div>
   </article>`;
 }
@@ -140,7 +151,7 @@ function automationStatus(factory) {
   return { label: '🖐️ Ручной режим', cls: 'text-slate-500' };
 }
 
-function factorySlot(factory, recipes) {
+function factorySlot(factory, state) {
   if (!factory) {
     return `<button class="factory-slot factory-slot-empty factory-build-btn" type="button" aria-label="Построить завод">
       <span class="text-3xl leading-none">＋</span><span class="text-[10px] font-bold">Построить завод</span>
@@ -148,7 +159,7 @@ function factorySlot(factory, recipes) {
   }
 
   const { running, ready, remaining } = cycleState(factory);
-  const selected = recipeFor(factory, recipes);
+  const selected = recipeFor(factory, state.recipes, state);
   const hint = factory.start_hint || {};
   const step = nextStep(hint.next_action);
   const duration = Math.max(1, Number(selected.recipe?.duration || selected.recipe?.base_duration || factory.cycle_duration || 60));
@@ -176,6 +187,7 @@ function factorySlot(factory, recipes) {
     <div class="factory-slot-meta">${escapeHtml(status)}</div>
     <div class="factory-slot-progress"><span style="width:${progress}%"></span></div>
     <div class="factory-slot-meta truncate" title="${escapeHtml(recipeSummary(selected.recipe))}">${escapeHtml(recipeSummary(selected.recipe))}</div>
+    ${recipeSelector(factory, selected)}
     <div class="text-[9px] font-semibold ${autoState.cls}" title="${escapeHtml(factory.automation_pause_reason || '')}">${escapeHtml(autoState.label)}</div>
     ${!running && hint.message ? `<div class="text-[9px] text-amber-700 dark:text-amber-300 truncate" title="${escapeHtml(hint.message)}">${escapeHtml(hint.message)}${step ? ` <button type="button" class="factory-next-step underline" data-tab="${step}">Что сделать?</button>` : ''}</div>` : ''}
     ${autoControl}
@@ -189,7 +201,7 @@ function renderMap(root, state, showToast) {
   const page = pages[selectedPage - 1];
   root.innerHTML = `<section class="factory-map ${page.biome.pageClass} space-y-2" data-page="${page.page}">
     <div class="flex items-center justify-between gap-2"><div><div class="text-sm font-black">${page.biome.title}</div><div class="text-[10px] text-slate-600 dark:text-slate-300">Территория ${page.page} · 9 мест</div></div><span class="text-[10px] font-bold px-2 py-1 rounded-full bg-white/55 dark:bg-slate-900/45">${state.factories.length}/${state.maxSlots} заводов</span></div>
-    <div class="factory-map-grid">${page.slots.map((factory) => factorySlot(factory, state.recipes)).join('')}</div>
+    <div class="factory-map-grid">${page.slots.map((factory) => factorySlot(factory, state)).join('')}</div>
     <div class="factory-map-controls"><button type="button" class="factory-prev-page bg-white/60 dark:bg-slate-900/50" ${selectedPage <= 1 ? 'disabled' : ''}>‹</button><div class="factory-map-dots">${pages.map((entry) => `<span class="factory-map-dot ${entry.page === selectedPage ? 'active' : ''}"></span>`).join('')}</div><button type="button" class="factory-next-page bg-white/60 dark:bg-slate-900/50" ${selectedPage >= pages.length ? 'disabled' : ''}>›</button></div>
   </section>`;
   bindMap(root, state, showToast);
@@ -215,6 +227,7 @@ function bindMap(root, state, showToast) {
     button.textContent = '⏳ Сохранение…';
     try {
       await NatAPI.setFactoryAutomation(factoryId, enable);
+      if (enable) delete state.selectedRecipes[factoryId];
       showToast(enable ? 'Автоматизация включена' : 'Автоматизация выключена', 'success');
       await refreshMap(root, state, showToast);
     } catch (error) {
@@ -223,12 +236,20 @@ function bindMap(root, state, showToast) {
       button.textContent = oldText;
     }
   }));
+  root.querySelectorAll('.factory-recipe-select').forEach((select) => {
+    select.addEventListener('click', (event) => event.stopPropagation());
+    select.addEventListener('change', (event) => {
+      event.stopPropagation();
+      state.selectedRecipes[select.dataset.id] = select.value;
+      renderMap(root, state, showToast);
+    });
+  });
   root.querySelectorAll('.factory-start-btn, .factory-collect-btn').forEach((button) => button.addEventListener('click', async (event) => {
     event.stopPropagation();
     await mutateFactory(button, root, state, showToast);
   }));
   root.querySelectorAll('.factory-start-card').forEach((card) => card.addEventListener('click', async (event) => {
-    if (event.target.closest('button')) return;
+    if (event.target.closest('button') || event.target.closest('select')) return;
     const factory = state.factories.find((entry) => String(entry.id) === String(card.dataset.factoryId));
     if (factory && !cycleState(factory).running) await mutateFactory(card, root, state, showToast);
   }));
@@ -238,7 +259,7 @@ async function mutateFactory(button, root, state, showToast) {
   const factoryId = button.dataset?.id || button.closest('[data-factory-id]')?.dataset.factoryId;
   const factory = state.factories.find((entry) => String(entry.id) === String(factoryId));
   if (!factory || button.disabled) return;
-  const selected = recipeFor(factory, state.recipes);
+  const selected = recipeFor(factory, state.recipes, state);
   button.disabled = true;
   const oldText = button.textContent;
   button.textContent = '⏳ Сохранение…';
@@ -271,7 +292,7 @@ function openFactoryDetails(container, state) {
   const modal = container.querySelector('#factory-details-modal');
   if (!modal) return;
   modal.querySelector('.factory-details-list').innerHTML = state.factories.length
-    ? state.factories.map((factory) => detailedFactoryCard(factory, state.recipes)).join('')
+    ? state.factories.map((factory) => detailedFactoryCard(factory, state.recipes, state)).join('')
     : '<div class="text-sm text-slate-500">Заводов пока нет. Откройте Каталог.</div>';
   modal.classList.remove('hidden');
   modal.querySelector('.factory-details-close')?.focus();
@@ -301,7 +322,7 @@ export async function renderProduction(container, showToast) {
   const factories = Array.isArray(data?.factories) ? data.factories : (store.factories || []);
   if (factories.length) store.updateCompany({ factories });
   const maxSlots = Number(data?.factory_slots?.max || store.company?.factory_slots?.max || data?.max_factory_slots || factories.length || 1);
-  const state = { factories, recipes, maxSlots };
+  const state = { factories, recipes, maxSlots, selectedRecipes: {} };
 
   container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24 min-w-0 overflow-hidden">
     <div class="flex justify-between items-center gap-2"><div><h2 class="text-xl font-black">Заводы</h2><p class="text-xs text-slate-500">Нажмите на свободный завод, чтобы запустить цикл</p></div><div class="flex flex-wrap justify-end gap-2"><button id="factory-details-btn" type="button" class="factory-details-btn px-3 py-2 rounded-xl bg-pink-100 text-pink-700 dark:bg-fuchsia-900/70 dark:text-pink-100 text-xs font-bold">📋 Подробнее</button><button id="go-upgrades" type="button" class="px-3 py-2 rounded-xl bg-pink-100 text-pink-700 dark:bg-fuchsia-900/70 dark:text-pink-100 text-xs font-bold">⚡ Прокачка</button><button class="production-help-btn px-2 py-2 rounded-xl bg-pink-100 text-pink-700 dark:bg-fuchsia-900/70 dark:text-pink-100 text-xs font-bold" type="button" aria-label="Помощь по производству">?</button><button id="build" type="button" class="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">＋ Каталог</button></div></div>

@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base
@@ -10,7 +11,7 @@ import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.inventory import NatInventory, get_npc_buy_price
+from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
@@ -46,11 +47,10 @@ async def create_mining_business(session, *, cash: float = 100_000.0, last_settl
     return company, business
 
 
-def expected_cash_per_hour(business: NatBusiness, *, upgrading: bool) -> float:
+def expected_net_cash_per_hour(business: NatBusiness, *, upgrading: bool) -> float:
     spec = get_business_spec(business.business_type)
     rates = resource_business_rates(business, spec, upgrading=upgrading)
-    gross = sum(float(qty) * rates.output_multiplier * get_npc_buy_price(item_id) for item_id, qty in spec["outputs_per_hour"].items())
-    return round(gross - rates.maintenance_per_hour, 2)
+    return round(-rates.maintenance_per_hour, 2)
 
 
 def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
@@ -63,7 +63,7 @@ def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
 
         async with sessions() as session:
             company, business = await create_mining_business(session, last_settled_at=start)
-            hourly = expected_cash_per_hour(business, upgrading=False)
+            hourly = expected_net_cash_per_hour(business, upgrading=False)
             first = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
             assert first["net_cash"] == hourly
             assert first["xp_gained"] == 20
@@ -71,6 +71,10 @@ def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
             assert first["progression"]["xp_to_next"] == 130
             assert company.cash == round(100_000.0 + hourly, 2)
             assert company.xp == 20
+            coal = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "coal"
+            ))
+            assert coal is not None and coal.quantity > 0
             assert business.last_settled_at == start + timedelta(hours=1)
 
             repeated = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
@@ -80,7 +84,9 @@ def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
             capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=50))
             assert capped["settled_hours"] == 24.0
             assert capped["skipped_offline_hours"] == 25.0
-            assert abs(capped["net_cash"] - round(hourly * 24, 2)) <= 0.02
+            # Existing inputs support nine additional production hours; later
+            # time is settled but cannot create warehouse output without inputs.
+            assert abs(capped["net_cash"] - round(hourly * 9, 2)) <= 0.02
             assert business.last_settled_at == start + timedelta(hours=50)
 
         await engine.dispose()
@@ -102,13 +108,13 @@ def test_idle_settlement_completes_upgrade_mid_window() -> None:
             business.upgrade_target_stage = 2
             business.upgrade_started_at = start
             business.upgrade_ready_at = start + timedelta(minutes=30)
-            before = expected_cash_per_hour(business, upgrading=True)
+            before = expected_net_cash_per_hour(business, upgrading=True)
             await session.commit()
 
             # Compute stage-2 active rate on a detached-like copy of the same row.
             business.stage = 2
             business.status = "ACTIVE"
-            after = expected_cash_per_hour(business, upgrading=False)
+            after = expected_net_cash_per_hour(business, upgrading=False)
             business.stage = 1
             business.status = "UPGRADING"
             await session.flush()

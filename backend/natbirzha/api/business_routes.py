@@ -39,7 +39,7 @@ class SupplyPolicyRequest(BaseModel):
 
 
 class SaleModeRequest(BaseModel):
-    mode: str = Field(pattern="^(NPC|HOLD)$")
+    mode: str = Field(pattern="^HOLD$")
 
 
 def _require_tycoon_v2() -> None:

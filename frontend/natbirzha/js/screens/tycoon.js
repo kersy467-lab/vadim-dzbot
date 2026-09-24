@@ -77,7 +77,7 @@ function supplyControls(business, summary) {
     const stockHours = Number(business.stock_hours_by_item?.[itemId] || 0);
     return `<div class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 p-2"><div class="flex items-center justify-between gap-2"><span>${item.icon} ${esc(item.name)}</span><b>${stockHours.toFixed(1)} ч</b></div><div class="grid grid-cols-3 gap-1 mt-1.5"><button type="button" class="tycoon-mini ${policy.mode === 'MANUAL' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="MANUAL">Вручную</button><button type="button" class="tycoon-mini ${policy.mode === 'AUTO_MARKET' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="AUTO_MARKET">Биржа</button><button type="button" class="tycoon-mini ${policy.mode === 'AUTO_MARKET_NPC' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="AUTO_MARKET_NPC">Биржа + гос.</button></div></div>`;
   }).join('');
-  return `<details class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5"><summary class="cursor-pointer text-xs font-black">⚙️ Автоснабжение · ${automation.used || 0}/${automation.max || 0}</summary>${rows}<div class="mt-2 text-[10px] text-slate-400">Авто закупает, когда остаётся меньше 2 часов, и пополняет примерно до 8 часов. Сначала ищет предложения игроков; Госрезерв используется только в смешанном режиме.</div></details>`;
+  return `<details class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5"><summary class="cursor-pointer text-xs font-black">⚙️ Автоснабжение · ${automation.used || 0}/${automation.max || 0}</summary>${rows}<div class="mt-2 text-[10px] text-slate-400">Авто закупает, когда остаётся меньше 2 часов, и пополняет примерно до 8 часов. Сначала ищет предложения игроков. Покупка с рынка требует 1 ед. логистической мощности за каждый успешный заказ. Без мощности режим «Биржа + гос.» может купить остаток из Госрезерва.</div></details>`;
 }
 
 function assetPanel(business, catalog) {
@@ -115,9 +115,8 @@ function businessCard(business, summary, assetCatalog) {
   const upgrade = next && !isUpgrading && !business.contract_expired
     ? `<div><button type="button" class="tycoon-action tycoon-upgrade" data-action="upgrade" data-id="${business.id}">Улучшить до ${next.target_stage} · ${money(next.cost)} cash</button><div class="mt-1 text-center text-[10px] text-indigo-600 dark:text-indigo-300">За завершение: +${50 + Number(next.target_stage) * 10} XP компании</div></div>`
     : '';
-  const saleMode = business.sale_mode || null;
   const saleControl = business.mechanic === 'resource_production'
-    ? `<div class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5"><div class="text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">Реализация продукции</div><div class="grid grid-cols-2 gap-2"><button type="button" class="tycoon-action ${saleMode === 'NPC' ? 'tycoon-upgrade' : 'tycoon-secondary'}" data-action="sale-mode" data-mode="NPC" data-id="${business.id}">💰 Госрезерв</button><button type="button" class="tycoon-action ${saleMode === 'HOLD' ? 'tycoon-upgrade' : 'tycoon-secondary'}" data-action="sale-mode" data-mode="HOLD" data-id="${business.id}">📦 На склад</button></div><div class="mt-1.5 text-[10px] text-slate-400">Госрезерв даёт cash автоматически. «На склад» сохраняет товар для биржи и собственных цепочек.</div></div>`
+    ? '<div class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-xs text-slate-500 dark:text-slate-300">📦 Вся продукция поступает на склад. Продавайте её на бирже или используйте в собственных цепочках.</div>'
     : '';
   const lifecycle = business.contract_expired
     ? ''
@@ -307,7 +306,6 @@ function bind(root, showToast) {
       if (action === 'upgrade') await NatAPI.upgradeBusiness(button.dataset.id);
       if (action === 'pause') await NatAPI.pauseBusiness(button.dataset.id);
       if (action === 'resume') await NatAPI.resumeBusiness(button.dataset.id);
-      if (action === 'sale-mode') await NatAPI.setBusinessSaleMode(button.dataset.id, button.dataset.mode);
       if (action === 'supply-mode') {
         const mode = button.dataset.mode;
         await NatAPI.setBusinessSupplyPolicy(button.dataset.id, button.dataset.item, {

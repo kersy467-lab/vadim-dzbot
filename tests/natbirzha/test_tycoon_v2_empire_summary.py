@@ -33,12 +33,13 @@ def test_empire_summary_exposes_current_business_economy() -> None:
             assert summary["progression"]["xp_to_next"] == 50
             assert summary["progression"]["level_progress_pct"] == 66.67
             assert summary["cash"] == 18_000.0
-            assert summary["income_per_hour"] == 1377.65
+            assert summary["income_per_hour"] == 0.0
             assert summary["expenses_per_hour"] == 8.4
-            assert summary["net_cash_per_hour"] == 1369.25
+            assert summary["net_cash_per_hour"] == -8.4
             assert summary["estimated_profit_per_hour"] == 1200.0
             assert summary["slots"] == {"used": 1, "max": 10, "free": 9}
             assert summary["businesses"][0]["id"] == opened["business"]["id"]
+            assert summary["businesses"][0]["sale_mode"] == "HOLD"
             assert summary["businesses"][0]["next_upgrade"]["cost"] == 600.0
 
         await engine.dispose()

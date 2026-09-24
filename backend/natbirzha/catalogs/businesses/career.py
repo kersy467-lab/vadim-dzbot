@@ -8,6 +8,7 @@ from .schema import business_spec
 
 
 _TARGET_OPEN_ROI_HOURS = (10, 14, 20, 28, 38, 50, 64, 80, 98, 118, 140, 164)
+_MILESTONE_CASH_MULTIPLIERS = (1.14, 1.25, 1.95, 2.30, 2.65)
 
 
 def _target_open_roi_hours(order: int) -> float:
@@ -123,7 +124,7 @@ def milestone_chain(
             "label": titles[index],
             "description": descriptions[index] if index < len(descriptions) else titles[index],
             "resources": resources,
-            "cash_multiplier": round(1.25 + index * 0.35, 2),
+            "cash_multiplier": _MILESTONE_CASH_MULTIPLIERS[index],
             "duration_multiplier": round(1.0 + index * 0.45, 2),
             "output_multiplier": _MILESTONE_OUTPUT_MULTIPLIERS[index],
             "input_multiplier": round(0.99 - index * 0.0125, 3),

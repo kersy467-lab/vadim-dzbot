@@ -94,10 +94,8 @@ class EmpireSummaryService:
             input_cost = cls._resource_value(inputs, selling=False)
             maintenance = rates.maintenance_per_hour
             estimated_profit = revenue - input_cost - maintenance
-            sale_mode = str((business.metadata_json or {}).get("sale_mode", "NPC")).upper()
-            if sale_mode not in {"NPC", "HOLD"}:
-                sale_mode = "NPC"
-            gross = revenue if sale_mode == "NPC" else 0.0
+            sale_mode = "HOLD"
+            gross = 0.0
             net = gross - maintenance
         else:
             sale_mode = None

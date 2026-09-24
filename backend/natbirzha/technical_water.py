@@ -2,6 +2,8 @@
 
 from typing import Any, Mapping
 
+from backend.natbirzha.models.inventory import get_npc_buy_price, get_npc_sell_price
+
 
 TECHNICAL_WATER_DEMAND_MULTIPLIER = 25
 
@@ -26,3 +28,46 @@ def scale_catalog_water_inputs(
         scaled[input_field] = inputs
         scaled_specs[spec_id] = scaled
     return scaled_specs
+
+
+def recalibrate_scaled_water_outputs(
+    specs: Mapping[str, Mapping[str, Any]],
+    *,
+    multiplier: float = TECHNICAL_WATER_DEMAND_MULTIPLIER,
+) -> dict[str, dict[str, Any]]:
+    """Preserve each calibrated career business's NPC fallback margin after scaling water use."""
+    result = {spec_id: dict(spec) for spec_id, spec in specs.items()}
+    factor = max(1.0, float(multiplier))
+    for spec in result.values():
+        inputs = dict(spec.get("inputs_per_hour") or {})
+        outputs = dict(spec.get("outputs_per_hour") or {})
+        water_rate = max(0.0, float(inputs.get("water", 0.0)))
+        if (
+            water_rate <= 0
+            or not outputs
+            or "target_open_roi_hours" not in spec
+            or factor <= 1.0
+        ):
+            continue
+
+        # Catalog outputs were calibrated before the live 25x technical-water
+        # multiplier. Add the resulting NPC input cost back into output value,
+        # leaving water prices and the business's target ROI unchanged.
+        added_water_cost = water_rate * (1.0 - 1.0 / factor) * get_npc_sell_price("water")
+        output_revenue = sum(
+            max(0.0, float(quantity)) * get_npc_buy_price(item_id)
+            for item_id, quantity in outputs.items()
+        )
+        if added_water_cost <= 0 or output_revenue <= 0:
+            continue
+
+        output_factor = 1.0 + added_water_cost / output_revenue
+        spec["outputs_per_hour"] = {
+            item_id: round(float(quantity) * output_factor, 4)
+            for item_id, quantity in outputs.items()
+        }
+        spec["output_balance_factor"] = round(
+            float(spec.get("output_balance_factor", 1.0)) * output_factor,
+            6,
+        )
+    return result

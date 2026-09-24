@@ -95,7 +95,8 @@ class PremiumService:
             return existing
 
         company = await session.scalar(
-            select(NatCompany).where(NatCompany.id == company_id).with_for_update()
+            select(NatCompany).where(NatCompany.id == company_id)
+            .with_for_update().execution_options(populate_existing=True)
         )
         if company is None:
             raise PremiumError("Company not found")

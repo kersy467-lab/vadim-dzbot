@@ -16,7 +16,10 @@ from .oilgas import OIL_GAS_BUSINESSES
 from .schema import REQUIRED_BUSINESS_SPEC_KEYS
 from .services import SERVICE_BUSINESSES as LEGACY_SERVICE_BUSINESSES
 from .starter import STARTER_BUSINESSES as LEGACY_STARTER_BUSINESSES
-from backend.natbirzha.technical_water import scale_catalog_water_inputs
+from backend.natbirzha.technical_water import (
+    recalibrate_scaled_water_outputs,
+    scale_catalog_water_inputs,
+)
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
 
@@ -51,6 +54,7 @@ CAREER_BUSINESSES: dict[str, dict[str, Any]] = scale_catalog_water_inputs(
     input_field="inputs_per_hour",
     resource_production_only=True,
 )
+CAREER_BUSINESSES = recalibrate_scaled_water_outputs(CAREER_BUSINESSES)
 
 BUSINESS_CATALOG: Mapping[str, dict[str, Any]] = {
     **LEGACY_BUSINESSES,

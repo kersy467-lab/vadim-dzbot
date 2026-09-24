@@ -166,8 +166,16 @@ class IdleEconomyService:
 
     @staticmethod
     def _sale_mode(business: NatBusiness) -> str:
-        mode = str((business.metadata_json or {}).get("sale_mode", "NPC")).upper()
-        return mode if mode in {"NPC", "HOLD"} else "NPC"
+        """Outputs from resource businesses always go to company inventory.
+
+        Normalize old rows as they are settled; the legacy NPC mode is ignored.
+        Input procurement modes are configured separately and remain unchanged.
+        """
+        metadata = dict(business.metadata_json or {})
+        if metadata.get("sale_mode") != "HOLD":
+            metadata["sale_mode"] = "HOLD"
+            business.metadata_json = metadata
+        return "HOLD"
 
     @classmethod
     async def _settle_resource_segment(

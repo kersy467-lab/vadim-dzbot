@@ -1,7 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
@@ -31,6 +31,95 @@ from backend.natbirzha.services.state_bond_service import StateBondService
 
 
 router = APIRouter(prefix="/portfolio", tags=["Natbirzha Portfolio"])
+
+
+async def build_payout_history(session: AsyncSession, company_id: int, limit: int = 100) -> list[dict]:
+    """Aggregate immutable payout ledgers into a bounded, newest-first history."""
+    limit = max(1, min(int(limit), 100))
+    rows: list[dict] = []
+
+    def hour_parts(column):
+        return (
+            extract("year", column),
+            extract("month", column),
+            extract("day", column),
+            extract("hour", column),
+        )
+
+    def append_grouped(result_rows, kind: str, title_for_row):
+        for year, month, day, hour, amount, *metadata in result_rows:
+            paid_hour = datetime(int(year), int(month), int(day), int(hour))
+            rows.append({
+                "kind": kind,
+                "title": title_for_row(*metadata),
+                "payout_cash": round(float(amount or 0.0), 2),
+                "paid_at": paid_hour.isoformat(),
+                "hour_start": paid_hour.isoformat(),
+                "settlement_date": paid_hour.date().isoformat(),
+            })
+
+    def order_by_newest(parts):
+        return [part.desc() for part in parts]
+
+    # Group minute coupon settlements in SQL before applying LIMIT. Filtering only
+    # by the investor company keeps receipts visible after a bond is sold.
+    bond_paid_at = NatBondSettlement.paid_at
+    bond_hours = hour_parts(bond_paid_at)
+    bond_coupon_rows = (await session.execute(
+        select(
+            *bond_hours,
+            func.sum(NatBondSettlement.amount_rub),
+        )
+        .where(
+            NatBondSettlement.company_id == company_id,
+            NatBondSettlement.settlement_type == "COUPON",
+            NatBondSettlement.status == "PAID",
+            bond_paid_at.is_not(None),
+        )
+        .group_by(*bond_hours)
+        .order_by(*order_by_newest(bond_hours))
+        .limit(limit)
+    )).all()
+    append_grouped(bond_coupon_rows, "bond_coupon", lambda: "Купоны по облигациям")
+
+    # Company shares pay hourly; group any duplicate receipts for the same
+    # issuer/hour into one history item. Legacy daily-payment rows are included too.
+    for payment_model, holder_column, amount_column, paid_column in (
+        (NatHourlyDividendPayment, NatHourlyDividendPayment.holder_company_id,
+         NatHourlyDividendPayment.payout_cash, NatHourlyDividendPayment.paid_at),
+        (NatDividendPayment, NatDividendPayment.holder_company_id,
+         NatDividendPayment.payout_cash, NatDividendPayment.paid_at),
+    ):
+        dividend_hours = hour_parts(paid_column)
+        issuer_name = NatCompany.name
+        dividend_rows = (await session.execute(
+            select(*dividend_hours, func.sum(amount_column), issuer_name)
+            .join(NatStock, NatStock.id == payment_model.stock_id)
+            .join(NatCompany, NatCompany.id == NatStock.company_id)
+            .where(holder_column == company_id, paid_column.is_not(None))
+            .group_by(*dividend_hours, issuer_name)
+            .order_by(*order_by_newest(dividend_hours))
+            .limit(limit)
+        )).all()
+        append_grouped(dividend_rows, "company_dividend", lambda name: f"Дивиденды: {name}")
+
+    state_paid_at = NatStateShareDividendPayment.paid_at
+    state_hours = hour_parts(state_paid_at)
+    state_share_rows = (await session.execute(
+        select(*state_hours, func.sum(NatStateShareDividendPayment.amount_paid), NatStateShare.title)
+        .join(NatStateShare, NatStateShare.id == NatStateShareDividendPayment.share_id)
+        .where(
+            NatStateShareDividendPayment.company_id == company_id,
+            state_paid_at.is_not(None),
+        )
+        .group_by(*state_hours, NatStateShare.title)
+        .order_by(*order_by_newest(state_hours))
+        .limit(limit)
+    )).all()
+    append_grouped(state_share_rows, "state_share_dividend", lambda title: f"Госакции: {title}")
+
+    rows.sort(key=lambda row: row["paid_at"], reverse=True)
+    return rows[:limit]
 
 
 @router.get("")
@@ -278,8 +367,15 @@ async def get_unified_portfolio(
     )
     state_share_dividends_earned = round(sum(row["payout_cash"] for row in state_share_dividend_payments), 2)
     dividends_earned = round(sum(row["payout_cash"] for row in dividend_payments) + state_share_dividends_earned, 2)
-    coupons_earned = round(sum(row["coupons_earned"] for row in bonds), 2)
+    coupons_earned = round(float(await session.scalar(
+        select(func.coalesce(func.sum(NatBondSettlement.amount_rub), 0.0)).where(
+            NatBondSettlement.company_id == company.id,
+            NatBondSettlement.settlement_type == "COUPON",
+            NatBondSettlement.status == "PAID",
+        )
+    ) or 0.0), 2)
     realized_pnl = round(sum(instrument_realized.values()), 2)
+    payout_history = await build_payout_history(session, company.id)
     return {
         "as_of": get_game_now().isoformat(),
         "cash": round(company.cash, 2),
@@ -300,6 +396,7 @@ async def get_unified_portfolio(
         "bonds": bonds,
         "state_shares": state_shares,
         "instruments": instruments,
+        "payout_history": payout_history,
         "dividend_payments": dividend_payments,
         "state_share_dividend_payments": state_share_dividend_payments,
     }

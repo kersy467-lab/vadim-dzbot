@@ -497,8 +497,8 @@ assert(marketCode.includes('market-contrast-surface'), 'every market surface mus
 assert(marketFinanceCode.includes('createBondListing'), 'market finance module must expose secondary bond listings');
 assert(marketFinanceCode.includes('getPortfolio') && marketFinanceCode.includes('renderPortfolio'),
   'market finance module must expose a unified portfolio for stocks, bonds, currencies and metals');
-assert(marketFinanceCode.includes('dividend_payments') && marketFinanceCode.includes('next_dividend_at'),
-  'portfolio must show dividend history and the next expected payout');
+assert(marketFinanceCode.includes('payout_history') && marketFinanceCode.includes('История выплат') && marketFinanceCode.includes('next_dividend_at'),
+  'portfolio must show payout history and the next expected share payout');
 assert(marketCode.includes('market-section-btn') && marketFinanceCode.includes('renderStockDetail') && marketFinanceCode.includes('renderBondDetail'),
   'market modules must expose the agreed vertical market sections and drill-down cards');
 assert((natHtml.match(/data-tab="stocks"/g) || []).length === 0,

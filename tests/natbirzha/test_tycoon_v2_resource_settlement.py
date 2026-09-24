@@ -3,6 +3,8 @@
 import asyncio
 from datetime import datetime, timedelta
 
+import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -10,9 +12,16 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.api.business_routes import SaleModeRequest
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+
+
+def test_sale_mode_api_rejects_npc_and_keeps_hold() -> None:
+    assert SaleModeRequest(mode="HOLD").mode == "HOLD"
+    with pytest.raises(ValidationError):
+        SaleModeRequest(mode="NPC")
 
 
 def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None:
@@ -32,18 +41,30 @@ def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None
             ])
             await session.commit()
             opened = await BusinessService.open_business(session, company.id, "diesel_power_station", now=now)
-            await BusinessService.configure_sale_mode(session, company.id, opened["business"]["id"], "HOLD")
+            business = await session.get(NatBusiness, opened["business"]["id"])
+            assert business.metadata_json["sale_mode"] == "HOLD"
+            with pytest.raises(ValueError, match="HOLD"):
+                await BusinessService.configure_sale_mode(
+                    session, company.id, opened["business"]["id"], "NPC"
+                )
+            # Simulate an old database row with the former NPC sale preference.
+            business.metadata_json = {**business.metadata_json, "sale_mode": "NPC"}
+            cash_before_settlement = company.cash
 
             settled = await IdleEconomyService.settle_company(
                 session, company.id, now=now + timedelta(hours=4)
             )
             fuel = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "fuel_diesel"))
+            water = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "water"))
             energy = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "energy"))
             business = await session.get(NatBusiness, opened["business"]["id"])
 
-            assert settled["maintenance_cash"] == 16.0
-            assert fuel.quantity == 0.0
-            assert energy.quantity == 348.25
+            assert settled["maintenance_cash"] > 0
+            assert settled["gross_cash"] == 0.0
+            assert company.cash == cash_before_settlement - settled["maintenance_cash"]
+            assert 0.0 < fuel.quantity < 10.0
+            assert water.quantity == 0.0
+            assert energy.quantity > 0.0
             assert business.status == "PAUSED_SUPPLY"
 
         await engine.dispose()

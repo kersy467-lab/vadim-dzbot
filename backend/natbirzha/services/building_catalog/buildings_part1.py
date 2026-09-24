@@ -172,7 +172,19 @@ PART1_BUILDINGS: Dict[str, Dict[str, Any]] = {
         'workers_required': 35, 'energy_required': 4, 'cycle_duration': 60,
         'description': 'Выплавка стали из руды и угля',
         'inputs': {'iron_ore': 2.0, 'coal': 1.0, 'energy': 4.0}, 'outputs': {'steel': 1.5},
-        'recipe_id': 'smelt_steel_mill'
+        'recipe_id': 'smelt_steel_mill', 'recipe_name': 'Стандартная плавка',
+        'alternate_recipes': [
+            {
+                'recipe_id': 'smelt_steel_electric', 'name': 'Электроплавка без угля',
+                'inputs': {'iron_ore': 2.0, 'energy': 7.0}, 'outputs': {'steel': 1.5},
+                'energy_cost': 7,
+            },
+            {
+                'recipe_id': 'smelt_steel_coal_heavy', 'name': 'Угольная плавка (экономия энергии)',
+                'inputs': {'iron_ore': 2.0, 'coal': 2.0, 'energy': 1.0}, 'outputs': {'steel': 1.5},
+                'energy_cost': 1,
+            },
+        ],
     },
     'rolling_mill': {
         'id': 'rolling_mill', 'name': '🏗️ Прокатный завод', 'specialization': 'metallurgist',

@@ -193,7 +193,7 @@ class BusinessService:
             base_maintenance_per_hour=float(spec["base_maintenance_per_hour"]),
             last_settled_at=current,
             slot_weight=int(spec["slot_weight"]),
-            metadata_json={"sale_mode": "NPC"},
+            metadata_json={"sale_mode": "HOLD"},
         )
         session.add(business)
         await session.flush()
@@ -296,8 +296,8 @@ class BusinessService:
         mode: str,
     ) -> dict[str, Any]:
         normalized = (mode or "").strip().upper()
-        if normalized not in {"NPC", "HOLD"}:
-            raise ValueError("Режим продажи должен быть NPC или HOLD")
+        if normalized != "HOLD":
+            raise ValueError("Продукция ресурсных предприятий всегда поступает на склад (HOLD)")
         business = await session.scalar(
             select(NatBusiness).where(
                 NatBusiness.id == business_id, NatBusiness.company_id == company_id
@@ -311,7 +311,7 @@ class BusinessService:
         metadata = dict(business.metadata_json or {})
         metadata["sale_mode"] = normalized
         business.metadata_json = metadata
-        if business.status == "PAUSED_STORAGE" and normalized == "NPC":
+        if business.status == "PAUSED_STORAGE":
             business.status = "ACTIVE"
         await session.flush()
         return {"success": True, "business_id": business.id, "sale_mode": normalized}

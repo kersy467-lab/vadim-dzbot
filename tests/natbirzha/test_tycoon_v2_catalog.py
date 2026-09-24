@@ -78,6 +78,27 @@ def test_every_career_business_is_viable_through_state_fallback() -> None:
         assert abs(actual_roi - target_roi) <= target_roi * 0.02, spec["id"]
 
 
+def test_water_demand_multiplier_preserves_water_processor_fallback_margin() -> None:
+    for business_id in ("water_treatment", "deep_water_treatment"):
+        spec = CAREER_BUSINESSES[business_id]
+        revenue = sum(
+            float(quantity) * get_npc_buy_price(item_id)
+            for item_id, quantity in spec["outputs_per_hour"].items()
+        )
+        input_cost = sum(
+            float(quantity) * get_npc_sell_price(item_id)
+            for item_id, quantity in spec["inputs_per_hour"].items()
+        )
+        net = revenue - input_cost - float(spec["base_maintenance_per_hour"])
+        actual_roi = (float(spec["open_cost"]) + sum(
+            float(quantity) * get_npc_sell_price(item_id)
+            for item_id, quantity in spec["open_resources"].items()
+        )) / net
+        target_roi = float(spec["target_open_roi_hours"])
+        assert net > 0, business_id
+        assert abs(actual_roi - target_roi) <= target_roi * 0.02, business_id
+
+
 def _career_profit_per_hour(spec: dict, stage: int) -> float:
     input_multiplier = float(spec["input_growth"]) ** (stage - 1)
     output_multiplier = float(spec["output_growth"]) ** (stage - 1)

@@ -120,8 +120,8 @@ def setup_scheduler(bot: Bot):
         )
 
 
-        # Natbirzha: глобальный почасовой тик производства в :00
-        async def run_natbirzha_hourly_tick():
+        # Natbirzha: минутный тик завершает циклы и догоняет просроченную автоматику.
+        async def run_natbirzha_production_tick():
             try:
                 from backend.db.session import async_session_factory
                 from backend.natbirzha.services.production_service import ProductionTickEngine
@@ -134,9 +134,9 @@ def setup_scheduler(bot: Bot):
                 logger.error(f"Error in natbirzha hourly tick: {ex}")
 
         scheduler.add_job(
-            run_natbirzha_hourly_tick,
-            trigger=CronTrigger(minute=0, timezone=settings.TIMEZONE),
-            id="natbirzha_hourly_tick_job",
+            run_natbirzha_production_tick,
+            trigger=CronTrigger(minute="*", timezone=settings.TIMEZONE),
+            id="natbirzha_production_tick_job",
             replace_existing=True
         )
 

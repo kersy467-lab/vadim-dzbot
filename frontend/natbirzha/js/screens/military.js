@@ -266,7 +266,10 @@ export async function renderMilitary(container, showToast) {
       heading.textContent = industry.title + ' · ур. ' + industry.level + '/' + industry.max_level;
       const description = document.createElement('div');
       description.className = 'text-[10px] text-slate-500';
-      description.textContent = industry.description + ' Текущий бонус: ' + industry.bonus_pct + '%.';
+      description.textContent = industry.description
+        + ' Текущий бонус: +' + industry.bonus_pct + '%.'
+        + ' Максимум: +' + industry.max_bonus_pct + '%.'
+        + ' ' + industry.price_schedule;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'premium-industry-upgrade-btn w-full py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-bold disabled:opacity-50';

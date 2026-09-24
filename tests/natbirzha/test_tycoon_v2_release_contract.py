@@ -58,7 +58,7 @@ def test_frontend_enforces_industry_branch_and_tax_navigation() -> None:
     market = (ROOT / "frontend/natbirzha/js/screens/market.js").read_text(encoding="utf-8")
     onboarding = (ROOT / "frontend/natbirzha/js/screens/onboarding.js").read_text(encoding="utf-8")
     assert ".filter((item) => item.specialization === specialization)" in tycoon
-    assert "Чужие отрасли здесь не смешиваются" in tycoon
+    assert "Ваша отрасль — отдельная карьерная ветка" in tycoon
     assert "Каждые ${business.resource_tick_minutes || 15} мин" in tycoon
     assert 'data-section="tax"' in market and "renderTaxSection" in market
     assert "company-count" in onboarding and "status_color" in onboarding

@@ -117,6 +117,33 @@ class SupplyPolicyService:
             "allow_state_reserve": policy.allow_state_reserve,
         }
 
+    @staticmethod
+    async def _reserve_market_freight(
+        session: AsyncSession, company_id: int
+    ) -> NatInventory | None:
+        """Lock one available logistics unit while an automatic market buy runs."""
+        inventory = await session.scalar(
+            select(NatInventory)
+            .where(
+                NatInventory.company_id == company_id,
+                NatInventory.item_id == "logistics_capacity",
+            )
+            .with_for_update()
+        )
+        if inventory is None or float(inventory.available_quantity) < 1.0:
+            return None
+        inventory.reserved_quantity = round(float(inventory.reserved_quantity) + 1.0, 6)
+        await session.flush()
+        return inventory
+
+    @staticmethod
+    def _release_market_freight(inventory: NatInventory, *, consume: bool) -> None:
+        inventory.reserved_quantity = round(
+            max(0.0, float(inventory.reserved_quantity) - 1.0), 6
+        )
+        if consume:
+            inventory.quantity = round(max(0.0, float(inventory.quantity) - 1.0), 6)
+
     @classmethod
     async def auto_procure(
         cls,
@@ -157,10 +184,32 @@ class SupplyPolicyService:
             if need <= 0:
                 continue
 
-            market_result = await MarketProcurementService.buy_available(
-                session, company, policy.item_id, need,
-                max_unit_price=policy.max_unit_price,
-            )
+            freight_inventory = None
+            needs_freight = policy.mode in {"AUTO_MARKET", "AUTO_MARKET_NPC"}
+            if needs_freight:
+                freight_inventory = await cls._reserve_market_freight(session, company.id)
+            if needs_freight and freight_inventory is None:
+                market_result = {
+                    "success": False,
+                    "item_id": policy.item_id,
+                    "requested": need,
+                    "purchased": 0.0,
+                    "reason": "logistics_capacity",
+                }
+            else:
+                try:
+                    market_result = await MarketProcurementService.buy_available(
+                        session, company, policy.item_id, need,
+                        max_unit_price=policy.max_unit_price,
+                    )
+                except Exception:
+                    if freight_inventory is not None:
+                        cls._release_market_freight(freight_inventory, consume=False)
+                    raise
+                if freight_inventory is not None:
+                    filled = float(market_result.get("purchased", 0.0) or 0.0) > 1e-9
+                    cls._release_market_freight(freight_inventory, consume=filled)
+                    await session.flush()
             purchased = float(market_result.get("purchased", 0.0))
             results.append({"source": "MARKET", **market_result})
             remaining = round(max(0.0, need - purchased), 6)

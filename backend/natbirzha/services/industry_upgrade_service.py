@@ -11,9 +11,13 @@ from backend.natbirzha.services.company_constants import VALID_SPECIALIZATIONS
 from backend.natbirzha.services.premium_service import PremiumService
 
 
-MAX_LEVEL = 3
+MAX_LEVEL = 40
 BONUS_PER_LEVEL = 0.05
-LEVEL_COSTS = (80, 160, 320)
+LEGACY_LEVEL_COSTS = (80, 160, 320)
+LATER_LEVEL_COST = 320
+PRICE_SCHEDULE_DESCRIPTION = (
+    "Первые уровни: 80 / 160 / 320 PVC; с 4-го по 40-й — 320 PVC за уровень."
+)
 INDUSTRY_PERKS: dict[str, tuple[str, str]] = {
     "agrarian": ("Точное земледелие", "Повышает выпуск сельскохозяйственных предприятий на 5% за уровень."),
     "miner": ("Умная добыча", "Повышает выпуск горнодобывающих предприятий на 5% за уровень."),
@@ -30,6 +34,23 @@ INDUSTRY_PERKS: dict[str, tuple[str, str]] = {
 
 
 class IndustryUpgradeService:
+    @staticmethod
+    def level_costs() -> list[int]:
+        """Return the complete, bounded schedule while retaining legacy prices."""
+        return [
+            LEGACY_LEVEL_COSTS[level - 1] if level <= len(LEGACY_LEVEL_COSTS)
+            else LATER_LEVEL_COST
+            for level in range(1, MAX_LEVEL + 1)
+        ]
+
+    @classmethod
+    def cost_for_level(cls, target_level: int) -> int:
+        if target_level < 1 or target_level > MAX_LEVEL:
+            raise ValueError("Уровень отраслевого улучшения вне допустимого диапазона")
+        if target_level <= len(LEGACY_LEVEL_COSTS):
+            return LEGACY_LEVEL_COSTS[target_level - 1]
+        return LATER_LEVEL_COST
+
     @classmethod
     def catalog(cls) -> list[dict[str, Any]]:
         return [
@@ -40,7 +61,9 @@ class IndustryUpgradeService:
                 "description": INDUSTRY_PERKS[specialization][1],
                 "max_level": MAX_LEVEL,
                 "bonus_per_level_pct": BONUS_PER_LEVEL * 100,
-                "level_costs": list(LEVEL_COSTS),
+                "max_bonus_pct": MAX_LEVEL * BONUS_PER_LEVEL * 100,
+                "level_costs": cls.level_costs(),
+                "price_schedule": PRICE_SCHEDULE_DESCRIPTION,
             }
             for specialization in VALID_SPECIALIZATIONS
         ]
@@ -71,8 +94,10 @@ class IndustryUpgradeService:
             "level": level,
             "max_level": MAX_LEVEL,
             "bonus_pct": round(level * BONUS_PER_LEVEL * 100, 2),
+            "max_bonus_pct": MAX_LEVEL * BONUS_PER_LEVEL * 100,
+            "price_schedule": PRICE_SCHEDULE_DESCRIPTION,
             "next_bonus_pct": round(next_level * BONUS_PER_LEVEL * 100, 2) if level < MAX_LEVEL else None,
-            "next_level_cost": LEVEL_COSTS[level] if level < MAX_LEVEL else None,
+            "next_level_cost": cls.cost_for_level(next_level) if level < MAX_LEVEL else None,
             "pvc_balance": int(company.pvc_balance),
         }
 
@@ -87,7 +112,8 @@ class IndustryUpgradeService:
         actor_user_id: int | None = None,
     ) -> dict[str, Any]:
         company = await session.scalar(
-            select(NatCompany).where(NatCompany.id == company_id).with_for_update()
+            select(NatCompany).where(NatCompany.id == company_id)
+            .with_for_update().execution_options(populate_existing=True)
         )
         if company is None:
             raise ValueError("Компания не найдена")

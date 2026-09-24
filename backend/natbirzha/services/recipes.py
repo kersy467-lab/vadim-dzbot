@@ -29,27 +29,39 @@ LEGACY_RECIPE_ALIASES: Dict[str, str] = {
 def _build_recipes() -> Dict[str, Dict[str, Any]]:
     recipes: Dict[str, Dict[str, Any]] = {}
     for building_id, building in CANONICAL_BUILDINGS.items():
-        recipe_id = building["recipe_id"]
-        if recipe_id in recipes:
-            raise ValueError(f"Duplicate canonical recipe_id: {recipe_id}")
-        for item_id in (*building["inputs"].keys(), *building["outputs"].keys()):
-            if item_id not in CANONICAL_ITEMS:
-                raise ValueError(f"Unknown canonical item_id {item_id!r} in recipe {recipe_id}")
-        recipes[recipe_id] = {
-            "recipe_id": recipe_id,
-            "factory_type": building_id,
-            "specialization": building["specialization"],
-            "level_req": building["level_required"],
-            "unlock_level": building["level_required"],
-            "name": building["name"],
-            "inputs": dict(building["inputs"]),
-            "outputs": dict(building["outputs"]),
-            "base_duration": building["cycle_duration"],
-            "duration": building["cycle_duration"],
-            "energy_cost": building["energy_required"],
-            "labor_demand": building["workers_required"],
-            "required_license": building.get("required_license"),
-        }
+        definitions = [
+            {
+                "recipe_id": building["recipe_id"],
+                "name": building.get("recipe_name", building["name"]),
+                "inputs": building["inputs"],
+                "outputs": building["outputs"],
+            },
+            *building.get("alternate_recipes", ()),
+        ]
+        for definition in definitions:
+            recipe_id = definition["recipe_id"]
+            if recipe_id in recipes:
+                raise ValueError(f"Duplicate canonical recipe_id: {recipe_id}")
+            inputs = definition.get("inputs", building["inputs"])
+            outputs = definition.get("outputs", building["outputs"])
+            for item_id in (*inputs.keys(), *outputs.keys()):
+                if item_id not in CANONICAL_ITEMS:
+                    raise ValueError(f"Unknown canonical item_id {item_id!r} in recipe {recipe_id}")
+            recipes[recipe_id] = {
+                "recipe_id": recipe_id,
+                "factory_type": building_id,
+                "specialization": building["specialization"],
+                "level_req": building["level_required"],
+                "unlock_level": building["level_required"],
+                "name": definition.get("name", building["name"]),
+                "inputs": dict(inputs),
+                "outputs": dict(outputs),
+                "base_duration": building["cycle_duration"],
+                "duration": building["cycle_duration"],
+                "energy_cost": definition.get("energy_cost", building["energy_required"]),
+                "labor_demand": building["workers_required"],
+                "required_license": building.get("required_license"),
+            }
     return recipes
 
 

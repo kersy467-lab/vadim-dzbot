@@ -536,6 +536,62 @@ async def _migrate_v7_bankruptcy_market(conn) -> None:
         })
 
 
+async def _migrate_v8_reconcile_resource_gross_profit(conn) -> None:
+    """Backfill missing gross_income for resource businesses settled under HOLD mode."""
+    if not await _table_exists(conn, "nat_business_income_daily") or not await _table_exists(conn, "nat_businesses"):
+        return
+    import json
+    from backend.natbirzha.catalogs.businesses import get_business_spec
+    from backend.natbirzha.models.business import NatBusiness
+    from backend.natbirzha.models.inventory import get_npc_buy_price
+    from backend.natbirzha.services.business_rates import resource_business_rates
+
+    rows = (await conn.execute(text("""
+        SELECT d.id, d.business_id, d.maintenance, d.resource_cost, d.salary,
+               b.business_type, b.stage, b.efficiency, b.health, b.base_maintenance_per_hour, b.metadata_json
+        FROM nat_business_income_daily d
+        JOIN nat_businesses b ON b.id = d.business_id
+        WHERE d.gross_income <= 0 AND (d.maintenance > 0 OR d.resource_cost > 0)
+    """))).fetchall()
+
+    for row in rows:
+        spec = get_business_spec(row.business_type)
+        if not spec or not spec.get("outputs_per_hour"):
+            continue
+        meta = row.metadata_json
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                meta = {}
+        dummy_biz = NatBusiness(
+            business_type=row.business_type,
+            stage=row.stage or 1,
+            efficiency=row.efficiency if row.efficiency is not None else 1.0,
+            health=row.health if row.health is not None else 100.0,
+            base_maintenance_per_hour=row.base_maintenance_per_hour or spec.get("base_maintenance_per_hour", 0.0),
+            metadata_json=meta or {},
+        )
+        rates = resource_business_rates(dummy_biz, spec, upgrading=False)
+        maint_rate = float(rates.maintenance_per_hour)
+        if maint_rate <= 0:
+            continue
+        worked_hours = float(row.maintenance) / maint_rate
+        if worked_hours <= 0:
+            continue
+        hourly_val = sum(
+            float(qty) * rates.output_multiplier * get_npc_buy_price(item_id)
+            for item_id, qty in spec.get("outputs_per_hour", {}).items()
+        )
+        gross = round(hourly_val * worked_hours, 2)
+        net = round(gross - float(row.maintenance) - float(row.resource_cost) - float(row.salary), 2)
+        await conn.execute(text("""
+            UPDATE nat_business_income_daily
+            SET gross_income = :gross, net_profit = :net
+            WHERE id = :id
+        """), {"gross": gross, "net": net, "id": row.id})
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -559,6 +615,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v5_002_state_credit_approval", _migrate_v5_state_credit_approval),
     ("natbirzha_v6_001_hourly_returns", _migrate_v6_hourly_returns),
     ("natbirzha_v7_001_bankruptcy_market", _migrate_v7_bankruptcy_market),
+    ("natbirzha_v8_001_reconcile_resource_gross_profit", _migrate_v8_reconcile_resource_gross_profit),
 )
 
 

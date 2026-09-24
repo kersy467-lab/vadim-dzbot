@@ -135,7 +135,8 @@ async def settle_company(
         if prospective < effective_current:
             effective_current = prospective
 
-    gross = maintenance = settled_hours = skipped_hours = 0.0
+    gross_cash = maintenance = settled_hours = skipped_hours = 0.0
+    gross_value = 0.0
     hourly_cash_income: dict[datetime, float] = defaultdict(float)
     listed_stock = await session.scalar(
         select(NatStock).where(NatStock.company_id == company.id, NatStock.is_listed == True)
@@ -178,7 +179,9 @@ async def settle_company(
         else:
             continue
 
-        gross += result["gross"]
+        biz_gross_cash = float(result.get("gross_cash", result["gross"]))
+        gross_cash += biz_gross_cash
+        gross_value += result["gross"]
         maintenance += result["maintenance"]
         settled_hours = max(settled_hours, result["hours"])
         skipped_hours = max(skipped_hours, float(result.get("skipped_hours", 0.0)))
@@ -200,7 +203,7 @@ async def settle_company(
         for hour_start, cash_income in BusinessIncomeLedgerService.split_interval_by_hour(
             work_started_at,
             worked_hours,
-            float(result["gross"]),
+            biz_gross_cash,
             eligible_after=dividend_eligible_after,
         ).items():
             hourly_cash_income[hour_start] += cash_income
@@ -212,7 +215,7 @@ async def settle_company(
     dividend_withheld = await DividendService.accrue_hourly_income(
         session, company, dict(hourly_cash_income), now=current
     )
-    net_cash = round(gross - maintenance - dividend_withheld, 2)
+    net_cash = round(gross_cash - maintenance - dividend_withheld, 2)
     if net_cash:
         company.cash = round(float(company.cash) + net_cash, 2)
     tax = await TaxService.summary(session, company.id, today=current.date())
@@ -224,7 +227,8 @@ async def settle_company(
     await session.flush()
     return {
         "company_id": company.id,
-        "gross_cash": round(gross, 2),
+        "gross_cash": round(gross_cash, 2),
+        "gross_value": round(gross_value, 2),
         "maintenance_cash": round(maintenance, 2),
         "net_cash": net_cash,
         "dividend_withheld_cash": round(dividend_withheld, 8),

@@ -90,13 +90,14 @@ class IdleEconomyService:
         settle_until = min(now, max_end)
         skipped_hours = max(0.0, (now - settle_until).total_seconds() / 3600)
         if settle_until <= last_settled:
-            return {"gross": 0.0, "maintenance": 0.0, "hours": 0.0, "worked_hours": 0.0, "upgrade_completed": False}
+            return {"gross": 0.0, "gross_cash": 0.0, "maintenance": 0.0, "hours": 0.0, "worked_hours": 0.0, "upgrade_completed": False}
         if business.status in {"PAUSED_MANUAL", "PAUSED_SUPPLY", "PAUSED_MAINTENANCE", "PAUSED_STORAGE", "BANKRUPT", "MERGING"}:
             # Advance the cursor while stopped: resuming must never back-pay an
             # intentionally paused interval.
             business.last_settled_at = now if skipped_hours > 0 else settle_until
             return {
                 "gross": 0.0,
+                "gross_cash": 0.0,
                 "maintenance": 0.0,
                 "hours": (settle_until - last_settled).total_seconds() / 3600,
                 "worked_hours": 0.0,
@@ -142,6 +143,7 @@ class IdleEconomyService:
         business.last_settled_at = now if skipped_hours > 0 else settle_until
         return {
             "gross": gross,
+            "gross_cash": gross,
             "maintenance": maintenance,
             "hours": (settle_until - last_settled).total_seconds() / 3600,
             "worked_hours": (settle_until - last_settled).total_seconds() / 3600,
@@ -246,8 +248,10 @@ class IdleEconomyService:
             produced = float(base_rate) * rates.output_multiplier * actual_hours
             if produced <= 0:
                 continue
+            item_val = produced * get_npc_buy_price(item_id)
+            revenue += item_val
             if sale_mode == "NPC":
-                revenue += produced * get_npc_buy_price(item_id)
+                pass
             else:
                 output = output_rows[item_id]
                 output.quantity = round(float(output.quantity) + produced, 6)
@@ -267,7 +271,7 @@ class IdleEconomyService:
     ) -> dict[str, Any]:
         last_settled = normalize_dt(business.last_settled_at)
         if last_settled is None or now <= last_settled:
-            return {"gross": 0.0, "maintenance": 0.0, "hours": 0.0, "worked_hours": 0.0, "upgrade_completed": False}
+            return {"gross": 0.0, "gross_cash": 0.0, "maintenance": 0.0, "hours": 0.0, "worked_hours": 0.0, "upgrade_completed": False}
         settle_until = min(now, last_settled + timedelta(hours=max(1, int(cap_hours))))
         skipped_hours = max(0.0, (now - settle_until).total_seconds() / 3600)
         if business.status in {"PAUSED_SUPPLY", "PAUSED_STORAGE"}:
@@ -310,8 +314,11 @@ class IdleEconomyService:
             if business.status == "UPGRADING" and late_ready is not None and late_ready <= now:
                 completed = cls._finish_due_upgrade(business, spec) or completed
         business.last_settled_at = now if skipped_hours > 0 else settle_until
+        sale_mode = cls._sale_mode(business)
+        gross_cash = gross if sale_mode == "NPC" else 0.0
         return {
             "gross": gross,
+            "gross_cash": gross_cash,
             "maintenance": maintenance,
             "hours": (settle_until - last_settled).total_seconds() / 3600,
             "worked_hours": worked_hours,

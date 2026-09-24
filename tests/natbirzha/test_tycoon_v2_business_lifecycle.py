@@ -28,7 +28,7 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
             await session.flush()
             session.add_all([
                 NatInventory(company_id=company.id, item_id="energy", quantity=88),
-                NatInventory(company_id=company.id, item_id="water", quantity=4),
+                NatInventory(company_id=company.id, item_id="water", quantity=100),
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=2),
                 NatInventory(company_id=company.id, item_id="food", quantity=1),
             ])
@@ -41,7 +41,7 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
             resumed = await BusinessService.resume(session, company.id, business_id, now=now + timedelta(hours=2))
             assert resumed["status"] == "ACTIVE"
             settled = await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=3))
-            assert settled["net_cash"] == 1369.25
+            assert settled["net_cash"] == -8.4
 
             await BusinessService.start_upgrade(session, company.id, business_id, now=now + timedelta(hours=3))
             with pytest.raises(ValueError, match="улучшения"):

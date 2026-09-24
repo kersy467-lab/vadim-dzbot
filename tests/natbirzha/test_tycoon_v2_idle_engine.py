@@ -84,9 +84,9 @@ def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
             capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=50))
             assert capped["settled_hours"] == 24.0
             assert capped["skipped_offline_hours"] == 25.0
-            # Existing inputs support nine additional production hours; later
+            # Existing inputs support fourteen additional production hours; later
             # time is settled but cannot create warehouse output without inputs.
-            assert abs(capped["net_cash"] - round(hourly * 9, 2)) <= 0.02
+            assert abs(capped["net_cash"] - round(hourly * 14, 2)) <= 0.02
             assert business.last_settled_at == start + timedelta(hours=50)
 
         await engine.dispose()

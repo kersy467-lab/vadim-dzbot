@@ -15,6 +15,7 @@ from backend.natbirzha.models.state_shares import (
     NatStateShareDividendPayment,
     NatStateShareHolding,
 )
+from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
@@ -125,7 +126,12 @@ class StateShareSettlementMixin:
         for index, (holding, share, due) in enumerate(obligations):
             company = companies_by_id[holding.company_id]
             paid = Decimal(payouts[index]) / 100
-            company.cash = round(float(company.cash) + float(paid), 2)
+            reinvested_dividend = await DividendService.accrue_cash_inflow(
+                session, company, float(paid), now=get_game_now()
+            )
+            company.cash = round(
+                float(company.cash) + float(paid) - reinvested_dividend, 2
+            )
             holding.dividends_earned = round(float(holding.dividends_earned) + float(paid), 2)
             session.add(NatStateShareDividendPayment(
                 operation_key=f"state-share-dividend:{settlement_date.isoformat()}:{share.id}:{company.id}",

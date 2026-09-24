@@ -7,6 +7,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory, CANONICAL_ITEMS
 from backend.natbirzha.models.market import NatMarketOrder, NatMarketTrade
 from backend.natbirzha.models.restructuring import NatDailyFinancials
+from backend.natbirzha.services.dividend_service import DividendService
 
 class MarketService:
     @staticmethod
@@ -261,7 +262,13 @@ class MarketService:
             price_diff = round((buy_order.price - trade_price) * trade_qty, 2)
             if price_diff > 0:
                 buyer_comp.cash = round(buyer_comp.cash + price_diff, 2)
-            seller_comp.cash = round(seller_comp.cash + total_amount - fee, 2)
+            seller_proceeds = round(total_amount - fee, 2)
+            dividend_withheld = await DividendService.accrue_cash_inflow(
+                session, seller_comp, seller_proceeds, now=now
+            )
+            seller_comp.cash = round(
+                seller_comp.cash + seller_proceeds - dividend_withheld, 2
+            )
 
             seller_inv.quantity = round(seller_inv.quantity - trade_qty, 4)
             seller_inv.reserved_quantity = round(max(0.0, seller_inv.reserved_quantity - trade_qty), 4)

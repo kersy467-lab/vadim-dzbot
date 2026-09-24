@@ -17,6 +17,7 @@ from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.services.npc_quota_service import NPCQuotaMixin
 from backend.natbirzha.services.progression_service import apply_xp
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
+from backend.natbirzha.services.dividend_service import DividendService
 
 
 class NPCReserveService(NPCQuotaMixin):
@@ -209,7 +210,10 @@ class NPCReserveService(NPCQuotaMixin):
             }
 
         inv.quantity = round(inv.quantity - quantity, 2)
-        company.cash = round(company.cash + total_payout, 2)
+        dividend_withheld = await DividendService.accrue_cash_inflow(
+            session, company, total_payout
+        )
+        company.cash = round(company.cash + total_payout - dividend_withheld, 2)
         fin.gross_revenue = round(fin.gross_revenue + total_payout, 2)
         fin.closed_profit = round(fin.gross_revenue - fin.opex, 2)
         xp_gain = max(1, int(quantity * 2))

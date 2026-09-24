@@ -14,6 +14,7 @@ from backend.natbirzha.models.stocks import (
 )
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
+from backend.natbirzha.services.hourly_dividend_accrual import HourlyDividendAccrualService
 
 class DividendService:
     @classmethod
@@ -25,59 +26,38 @@ class DividendService:
         *,
         now: datetime | None = None,
     ) -> float:
-        """Reconcile hourly issuer profits into a hidden dividend holdback."""
-        if not hourly_profit:
-            return 0.0
-        stock = await session.scalar(
-            select(NatStock)
-            .where(NatStock.company_id == issuer.id, NatStock.is_listed == True)
-            .with_for_update()
+        """Compatibility adapter for legacy ledger corrections and callers."""
+        return await HourlyDividendAccrualService.accrue_hourly_amounts(
+            session, issuer, hourly_profit, now=now, allow_negative_adjustments=True
         )
-        if stock is None:
-            return 0.0
 
-        current = normalize_dt(now or get_game_now())
-        eligible_after = (
-            normalize_dt(stock.dividend_eligible_from)
-            or normalize_dt(stock.ipo_date)
-            or normalize_dt(stock.created_at)
-            or current
+    @classmethod
+    async def accrue_hourly_income(
+        cls,
+        session: AsyncSession,
+        issuer: NatCompany,
+        hourly_income: dict[datetime, float],
+        *,
+        now: datetime | None = None,
+    ) -> float:
+        """Accrue hourly operating receipts before costs or daily profit are applied."""
+        return await HourlyDividendAccrualService.accrue_hourly_amounts(
+            session, issuer, hourly_income, now=now
         )
-        total_delta = 0.0
-        for hour_start, profit_delta in sorted(hourly_profit.items()):
-            hour = normalize_dt(hour_start)
-            if hour is None or float(profit_delta) == 0 or hour >= current:
-                continue
-            row = await session.scalar(
-                select(NatHourlyDividendAccrual)
-                .where(
-                    NatHourlyDividendAccrual.stock_id == stock.id,
-                    NatHourlyDividendAccrual.hour_start == hour,
-                )
-                .with_for_update()
-            )
-            if row is not None and row.status != "OPEN":
-                continue
-            if row is None:
-                row = NatHourlyDividendAccrual(
-                    stock_id=stock.id,
-                    hour_start=hour,
-                    dividend_rate_pct=max(0.0, min(100.0, float(stock.dividend_rate_pct or 0))),
-                )
-                session.add(row)
-                await session.flush()
-            # Hourly splits already exclude production before IPO/rollout. This
-            # guard also protects callers that pass a whole hour directly.
-            if hour + timedelta(hours=1) <= eligible_after:
-                continue
-            old_pool = float(row.dividend_pool or 0.0)
-            row.closed_profit = round(float(row.closed_profit or 0.0) + float(profit_delta), 8)
-            row.dividend_pool = round(
-                max(0.0, row.closed_profit) * float(row.dividend_rate_pct) / 100.0, 2
-            )
-            total_delta += float(row.dividend_pool) - old_pool
-        await session.flush()
-        return round(total_delta, 8)
+
+    @classmethod
+    async def accrue_cash_inflow(
+        cls,
+        session: AsyncSession,
+        issuer: NatCompany,
+        amount: float,
+        *,
+        now: datetime | None = None,
+    ) -> float:
+        """Accrue one received dividend, coupon, or sale-proceeds amount."""
+        return await HourlyDividendAccrualService.accrue_cash_inflow(
+            session, issuer, amount, now=now
+        )
 
     @classmethod
     async def settle_due_hourly(
@@ -135,7 +115,10 @@ class DividendService:
                 holder = await session.get(NatCompany, holding.holder_company_id)
                 if holder is None:
                     continue
-                holder.cash = round(float(holder.cash) + payout, 2)
+                reinvested_dividend = await cls.accrue_cash_inflow(
+                    session, holder, payout, now=current
+                )
+                holder.cash = round(float(holder.cash) + payout - reinvested_dividend, 2)
                 session.add(NatHourlyDividendPayment(
                     accrual_id=row.id,
                     stock_id=stock.id,
@@ -283,7 +266,13 @@ class DividendService:
             if payout > 0:
                 holder_comp = await session.get(NatCompany, h.holder_company_id)
                 if holder_comp:
-                    holder_comp.cash = round(holder_comp.cash + payout, 2)
+                    paid_at = get_game_now()
+                    reinvested_dividend = await cls.accrue_cash_inflow(
+                        session, holder_comp, payout, now=paid_at
+                    )
+                    holder_comp.cash = round(
+                        holder_comp.cash + payout - reinvested_dividend, 2
+                    )
                     session.add(NatDividendPayment(
                         dividend_id=div_record.id,
                         stock_id=stock.id,
@@ -291,7 +280,7 @@ class DividendService:
                         shares_count=h.shares_count,
                         payout_cash=payout,
                         settlement_date=settlement_date,
-                        paid_at=get_game_now(),
+                        paid_at=paid_at,
                     ))
         await session.commit()
 

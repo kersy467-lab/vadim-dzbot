@@ -70,8 +70,8 @@ def test_state_credit_uses_fixed_simple_interest_and_defaults_once() -> None:
             assert issued["treasury_cash"] == 1_000
             assert issued["remaining_cash"] == 500
             assert issued["loan"]["status"] == "PENDING"
-            assert issued["loan"]["total_due"] == 700
-            assert issued["loan"]["remaining_debt"] == 700
+            assert issued["loan"]["total_due"] == 800
+            assert issued["loan"]["remaining_debt"] == 800
             assert issued["loan"]["due_at"] is None
 
             approved_at = started + timedelta(hours=3)
@@ -82,7 +82,7 @@ def test_state_credit_uses_fixed_simple_interest_and_defaults_once() -> None:
             assert approved["treasury_cash"] == 600
             assert approved["remaining_cash"] == 900
             assert approved["loan"]["status"] == "ACTIVE"
-            assert approved["loan"]["total_due"] == 700
+            assert approved["loan"]["total_due"] == 800
             assert approved["loan"]["due_at"] == game_dt_iso(approved_at + timedelta(days=5))
 
             # One status read applies the overdue state; later reads do not add interest.
@@ -94,7 +94,7 @@ def test_state_credit_uses_fixed_simple_interest_and_defaults_once() -> None:
             )
             assert first_default["loans"][0]["status"] == "DEFAULTED"
             assert second_default["loans"][0]["status"] == "DEFAULTED"
-            assert second_default["loans"][0]["remaining_debt"] == 700
+            assert second_default["loans"][0]["remaining_debt"] == 800
 
             loan_id = issued["loan"]["id"]
             partial = await StateCreditService.repay(
@@ -102,21 +102,21 @@ def test_state_credit_uses_fixed_simple_interest_and_defaults_once() -> None:
             )
             assert partial["paid"] == 250
             assert partial["loan"]["status"] == "DEFAULTED"
-            assert partial["loan"]["remaining_debt"] == 450
+            assert partial["loan"]["remaining_debt"] == 550
             assert partial["treasury_cash"] == 850
             assert partial["remaining_cash"] == 650
 
             final = await StateCreditService.repay(
-                session, company, loan_id, amount=450, now=approved_at + timedelta(days=7)
+                session, company, loan_id, amount=550, now=approved_at + timedelta(days=7)
             )
             assert final["loan"]["status"] == "PAID"
             assert final["loan"]["remaining_debt"] == 0
-            assert final["treasury_cash"] == 1_300
-            assert final["remaining_cash"] == 200
+            assert final["treasury_cash"] == 1_400
+            assert final["remaining_cash"] == 100
 
             try:
                 await StateCreditService.repay(
-                    session, company, loan_id, amount=450, now=approved_at + timedelta(days=7)
+                    session, company, loan_id, amount=550, now=approved_at + timedelta(days=7)
                 )
             except ValueError as exc:
                 assert "closed" in str(exc).lower() or "paid" in str(exc).lower()
@@ -229,12 +229,12 @@ def test_state_credit_api_is_separate_and_mutations_are_idempotent() -> None:
             assert issue_data["treasury_cash"] == 1_000
             assert issue_data["remaining_cash"] == 500
             assert issue_data["loan"]["status"] == "PENDING"
-            assert issue_data["loan"]["total_due"] == 700
+            assert issue_data["loan"]["total_due"] == 800
 
             status = await client.get(status_path, headers=headers)
             assert status.status_code == 200, status.text
             assert status.json()["treasury_cash"] == 1_000
-            assert status.json()["interest_rate_pct"] == 15.0
+            assert status.json()["interest_rate_pct"] == 20.0
             assert status.json()["loans"][0]["term_days"] == 5
             assert status.json()["loans"][0]["status"] == "PENDING"
 
@@ -267,7 +267,7 @@ def test_state_credit_api_is_separate_and_mutations_are_idempotent() -> None:
             )
             assert repaid.status_code == 200, repaid.text
             assert repaid.json() == repay_replay.json()
-            assert repaid.json()["loan"]["remaining_debt"] == 450
+            assert repaid.json()["loan"]["remaining_debt"] == 550
             assert repaid.json()["treasury_cash"] == 850
             assert repaid.json()["remaining_cash"] == 650
 

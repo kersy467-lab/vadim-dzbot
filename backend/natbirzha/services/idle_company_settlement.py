@@ -136,7 +136,7 @@ async def settle_company(
             effective_current = prospective
 
     gross = maintenance = settled_hours = skipped_hours = 0.0
-    hourly_net_profit: dict[datetime, float] = defaultdict(float)
+    hourly_cash_income: dict[datetime, float] = defaultdict(float)
     listed_stock = await session.scalar(
         select(NatStock).where(NatStock.company_id == company.id, NatStock.is_listed == True)
     )
@@ -194,25 +194,23 @@ async def settle_company(
             maintenance=result["maintenance"],
             resource_cost=float(result.get("resource_cost", 0.0)),
         )
-        business_net = (
-            float(result["gross"])
-            - float(result["maintenance"])
-            - float(result.get("resource_cost", 0.0))
-        )
-        for hour_start, profit in BusinessIncomeLedgerService.split_interval_by_hour(
+        # Dividends are a share of cash receipts, even when operating expenses
+        # make the company's net result negative. Resource output held in
+        # inventory reports no cash gross until a later sale.
+        for hour_start, cash_income in BusinessIncomeLedgerService.split_interval_by_hour(
             work_started_at,
             worked_hours,
-            business_net,
+            float(result["gross"]),
             eligible_after=dividend_eligible_after,
         ).items():
-            hourly_net_profit[hour_start] += profit
+            hourly_cash_income[hour_start] += cash_income
         if result["upgrade_completed"]:
             completed_upgrades.append(business.id)
             xp_gain += 50 + int(business.stage) * 10
 
     progression = apply_xp(company, xp_gain) if xp_gain > 0 else None
-    dividend_withheld = await DividendService.accrue_hourly_profit(
-        session, company, dict(hourly_net_profit), now=current
+    dividend_withheld = await DividendService.accrue_hourly_income(
+        session, company, dict(hourly_cash_income), now=current
     )
     net_cash = round(gross - maintenance - dividend_withheld, 2)
     if net_cash:

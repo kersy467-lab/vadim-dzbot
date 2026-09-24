@@ -1,6 +1,7 @@
 """Regression checks for order visibility and crossed commodity order matching."""
 
 import asyncio
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -11,6 +12,8 @@ from backend.natbirzha.api.market_routes import CancelOrderRequest, cancel_order
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.models.market import NatMarketTrade
+from backend.natbirzha.models.stocks import NatHourlyDividendAccrual, NatStock
+from backend.natbirzha.config import get_game_now
 from backend.natbirzha.services.market_service import MarketService
 
 
@@ -120,7 +123,58 @@ def test_matching_skips_top_bid_when_only_its_own_ask_is_available() -> None:
     asyncio.run(check())
 
 
+def test_ipo_company_withholds_dividends_from_net_market_sale_proceeds() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        now = get_game_now()
+        async with sessions() as session:
+            seller = NatCompany(user_id=70_021, name="IPO Seller", specialization="miner", cash=100)
+            buyer = NatCompany(user_id=70_022, name="Market Buyer", specialization="agrarian", cash=100)
+            session.add_all([seller, buyer])
+            await session.flush()
+            stock = NatStock(
+                company_id=seller.id, total_shares=100, founder_shares=100,
+                float_shares=0, current_price=10, last_valuation=1_000,
+                dividend_rate_pct=10, is_listed=True,
+                ipo_date=now - timedelta(hours=1),
+                dividend_eligible_from=now - timedelta(hours=1),
+                created_at=now - timedelta(hours=1),
+            )
+            seller_inventory = NatInventory(
+                company_id=seller.id, item_id="steel", quantity=1,
+                reserved_quantity=0, avg_cost_basis=5,
+            )
+            session.add_all([stock, seller_inventory])
+            await session.flush()
+
+            await MarketService.create_order(
+                session, seller, "SELL", "steel", 10, 1, commit=False
+            )
+            await MarketService.create_order(
+                session, buyer, "BUY", "steel", 10, 1, commit=False
+            )
+            accrual = await session.scalar(select(NatHourlyDividendAccrual).where(
+                NatHourlyDividendAccrual.stock_id == stock.id
+            ))
+
+            # A 1% exchange fee is charged first; the configured 10% share is
+            # withheld from the 9.90 actually credited to the seller.
+            assert accrual is not None
+            assert accrual.closed_profit == 9.9
+            assert accrual.dividend_pool == 0.99
+            assert seller.cash == 108.91
+
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
 if __name__ == "__main__":
     test_market_orderbook_returns_active_orders_for_authenticated_company()
     test_matching_skips_top_bid_when_only_its_own_ask_is_available()
+    test_ipo_company_withholds_dividends_from_net_market_sale_proceeds()
     print("NATBIRZHA market orderbook regressions: PASS")

@@ -12,7 +12,9 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateBond
+from backend.natbirzha.models.stocks import NatHourlyDividendAccrual, NatStock, NatStockHolding
 from backend.natbirzha.services.state_bond_service import StateBondService
+from backend.natbirzha.services.dividend_service import DividendService
 
 
 def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
@@ -25,8 +27,21 @@ def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
         issued_at = datetime(2026, 9, 24, 12)
         async with sessions() as session:
             buyer = NatCompany(user_id=952001, name="Minute Bond Buyer", specialization="miner", cash=20_000)
-            session.add(buyer)
+            investor = NatCompany(user_id=952003, name="Bond Coupon Investor", specialization="miner", cash=5_000)
+            session.add_all([buyer, investor])
             await session.flush()
+            stock = NatStock(
+                company_id=buyer.id, total_shares=100, founder_shares=0,
+                float_shares=100, current_price=10, last_valuation=1_000,
+                dividend_rate_pct=10, is_listed=True, ipo_date=issued_at,
+                dividend_eligible_from=issued_at, created_at=issued_at,
+            )
+            session.add(stock)
+            await session.flush()
+            session.add(NatStockHolding(
+                stock_id=stock.id, holder_company_id=investor.id,
+                shares_count=100, avg_price=10,
+            ))
             issue = await StateBondService.issue(
                 session,
                 actor_id=777,
@@ -49,8 +64,21 @@ def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
                 session, now=issued_at + timedelta(minutes=1)
             )
             one_minute = 1_000 * 0.15 / 1_440
+            coupon_accrual = await session.scalar(select(NatHourlyDividendAccrual))
             assert first_tick["coupon_payments"] == 1
             assert first_tick["coupon_paid_rub"] == round(one_minute, 2)
+            assert coupon_accrual is not None
+            assert coupon_accrual.closed_profit == round(one_minute, 8)
+            assert coupon_accrual.dividend_pool == 0.01
+            refreshed_buyer = await session.get(NatCompany, buyer.id)
+            assert refreshed_buyer.cash == round(19_000 + one_minute - 0.01, 8)
+
+            paid_coupon_dividend = await DividendService.settle_due_hourly(
+                session, now=issued_at + timedelta(hours=1)
+            )
+            assert paid_coupon_dividend["total_paid"] == 0.01
+            refreshed_investor = await session.get(NatCompany, investor.id)
+            assert refreshed_investor.cash == 5_000.01
 
             replay = await StateBondService.settle_due(
                 session, now=issued_at + timedelta(minutes=1)

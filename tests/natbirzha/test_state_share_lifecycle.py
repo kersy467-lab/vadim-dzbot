@@ -13,6 +13,7 @@ import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateTreasury
 from backend.natbirzha.models.state_shares import NatStateShare
+from backend.natbirzha.models.stocks import NatHourlyDividendAccrual, NatStock
 
 
 def test_state_share_service_lifecycle_and_global_dividend_proration() -> None:
@@ -113,6 +114,14 @@ def test_state_share_service_lifecycle_and_global_dividend_proration() -> None:
             # 95 held shares create 47.50 of daily obligations. With only 9.50
             # available, every holder receives exactly 20% of the formula amount.
             treasury.cash = 9.5
+            ipo_at = datetime(2026, 9, 23, 12)
+            session.add(NatStock(
+                company_id=first.id, total_shares=100, founder_shares=100,
+                float_shares=0, current_price=10, last_valuation=1_000,
+                dividend_rate_pct=10, is_listed=True, ipo_date=ipo_at,
+                dividend_eligible_from=ipo_at, created_at=ipo_at,
+            ))
+            await session.flush()
             settlement_date = date(2026, 9, 23)
             settled = await StateShareService.settle_daily_dividends(
                 session, settlement_date=settlement_date, commit=False
@@ -120,14 +129,18 @@ def test_state_share_service_lifecycle_and_global_dividend_proration() -> None:
             assert settled["total_due"] == 47.5
             assert settled["total_paid"] == 9.5
             assert settled["proration_ratio"] == 0.2
-            assert first.cash == 9_902 and second.cash == 9_632.5
+            assert first.cash == 9_901.8 and second.cash == 9_632.5
             assert treasury.cash == 0
+            cash_dividend_accrual = await session.scalar(select(NatHourlyDividendAccrual))
+            assert cash_dividend_accrual is not None
+            assert cash_dividend_accrual.closed_profit == 2
+            assert cash_dividend_accrual.dividend_pool == 0.2
 
             replay = await StateShareService.settle_daily_dividends(
                 session, settlement_date=settlement_date, commit=False
             )
             assert replay["status"] == "already_settled"
-            assert first.cash == 9_902 and second.cash == 9_632.5
+            assert first.cash == 9_901.8 and second.cash == 9_632.5
             assert await session.scalar(select(NatStateShareDailySettlement.id).where(
                 NatStateShareDailySettlement.settlement_date == settlement_date
             )) is not None

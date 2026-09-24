@@ -267,7 +267,7 @@ assert(marketCode.includes('data-section=\"tax\"') && marketCode.includes('rende
 assert(marketCode.indexOf('data-section=\"tax\"') < marketCode.indexOf('data-section=\"state_credit\"'),
   'state credit must appear directly after the tax section in the market menu');
 const stateCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
-assert((stateCreditCode.includes('RATE_PCT = 15') || stateCreditCode.includes('RATE_PCT = 7.5')) && stateCreditCode.includes('Срок') && stateCreditCode.includes('Погасить'),
+assert(stateCreditCode.includes('RATE_PCT = 20') && stateCreditCode.includes('Срок') && stateCreditCode.includes('Погасить'),
   'state credit screen must show the daily rate, requested term and repayment controls');
 assert(stateCreditCode.includes('max="5"') && stateCreditCode.toLowerCase().includes('одобрения')
   && stateCreditCode.includes('Подать заявку'),

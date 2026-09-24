@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond, NatStateBondHolding
+from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
@@ -115,7 +116,14 @@ class StateBondSettlementMixin:
             if not company or treasury.cash < settlement.amount_rub:
                 continue
             treasury.cash = round(treasury.cash - settlement.amount_rub, 8)
-            company.cash = round(company.cash + settlement.amount_rub, 8)
+            dividend_withheld = 0.0
+            if settlement.settlement_type == "COUPON":
+                dividend_withheld = await DividendService.accrue_cash_inflow(
+                    session, company, settlement.amount_rub, now=now
+                )
+            company.cash = round(
+                company.cash + settlement.amount_rub - dividend_withheld, 8
+            )
             settlement.status = "PAID"
             settlement.paid_at = now
             if settlement.settlement_type == "COUPON":

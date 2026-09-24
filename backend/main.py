@@ -25,6 +25,7 @@ from backend.config import settings
 from backend.db.session import init_db, async_session_factory
 from backend.db.seed import seed_initial_data
 from backend.api.routes import api_router
+from backend.api.asset_versioning import serve_page_versioned
 from backend.bot.bot import create_bot_and_dispatcher
 from backend.bot.services.scheduler import setup_scheduler
 
@@ -289,10 +290,7 @@ _NO_CACHE_HEADERS = {
 }
 
 def _serve_page(filename: str, fallback_msg: str):
-    file_path = os.path.join(frontend_path, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, headers=_NO_CACHE_HEADERS)
-    return {"message": fallback_msg}
+    return serve_page_versioned(frontend_path, filename, fallback_msg, _NO_CACHE_HEADERS)
 
 @app.get("/")
 @app.get("/app")

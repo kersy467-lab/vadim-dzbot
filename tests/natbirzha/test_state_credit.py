@@ -1,14 +1,29 @@
 """Fixed simple-interest state credit remains Treasury-backed and idempotent."""
 
 import asyncio
+import os
+import sys
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+
 from fastapi import Depends, FastAPI, Header, HTTPException
 from httpx import ASGITransport, AsyncClient
-import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+class _SimpleMonkeyPatch:
+    def __init__(self):
+        self._undo = []
+    def setattr(self, target, name, value):
+        self._undo.append((target, name, getattr(target, name)))
+        setattr(target, name, value)
+    def undo(self):
+        for target, name, old in reversed(self._undo):
+            setattr(target, name, old)
+
 
 from backend.db.models import Base, User
 import backend.natbirzha.models as nat_models  # noqa: F401
@@ -307,7 +322,8 @@ def test_state_credit_migration_is_registered_and_repeatable() -> None:
     asyncio.run(run())
 
 
-def test_repayment_replays_winner_if_same_key_closes_loan_concurrently(monkeypatch) -> None:
+def test_repayment_replays_winner_if_same_key_closes_loan_concurrently(monkeypatch=None) -> None:
+    mp = monkeypatch or _SimpleMonkeyPatch()
     async def run() -> None:
         winner = {
             "success": True,
@@ -332,24 +348,29 @@ def test_repayment_replays_winner_if_same_key_closes_loan_concurrently(monkeypat
         async def lose_race(_cls, *_args, **_kwargs):
             raise ValueError("State credit loan is already closed")
 
-        monkeypatch.setattr(
-            IdempotencyService, "check_or_conflict", classmethod(check_or_conflict)
-        )
-        monkeypatch.setattr(StateCreditService, "repay", classmethod(lose_race))
-        session = FakeSession()
-        response = await state_credit_routes.repay_state_credit(
-            loan_id=5,
-            request=state_credit_routes.StateCreditRepaymentRequest(amount=700),
-            idempotency_key="same-repayment-key",
-            company=SimpleNamespace(id=9, user_id=11),
-            session=session,
-        )
+        try:
+            mp.setattr(
+                IdempotencyService, "check_or_conflict", classmethod(check_or_conflict)
+            )
+            mp.setattr(StateCreditService, "repay", classmethod(lose_race))
+            session = FakeSession()
+            response = await state_credit_routes.repay_state_credit(
+                loan_id=5,
+                request=state_credit_routes.StateCreditRepaymentRequest(amount=700),
+                idempotency_key="same-repayment-key",
+                company=SimpleNamespace(id=9, user_id=11),
+                session=session,
+            )
 
-        assert response == winner
-        assert checks == 2
-        assert session.rollbacks == 1
+            assert response == winner
+            assert checks == 2
+            assert session.rollbacks == 1
+        finally:
+            if hasattr(mp, "undo"):
+                mp.undo()
 
     asyncio.run(run())
+
 
 
 def test_company_reset_removes_state_credit_records() -> None:
@@ -392,4 +413,10 @@ def test_company_reset_removes_state_credit_records() -> None:
 
 
 if __name__ == "__main__":
-    raise SystemExit(pytest.main(["-q", __file__]))
+    test_state_credit_uses_fixed_simple_interest_and_defaults_once()
+    test_state_credit_api_is_separate_and_mutations_are_idempotent()
+    test_state_credit_migration_is_registered_and_repeatable()
+    test_repayment_replays_winner_if_same_key_closes_loan_concurrently()
+    test_company_reset_removes_state_credit_records()
+    print("NATBIRZHA state credit checks: PASS")
+

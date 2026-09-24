@@ -7,6 +7,8 @@ class NatStateStore {
     this.user = null;
     this.company = null;
     this.inventory = {};
+    this.inventoryTotal = {};
+    this.inventoryReserved = {};
     this.factories = [];
     this.nav = 0;
     this.currentTab = 'overview';
@@ -37,6 +39,8 @@ class NatStateStore {
     if (!companyData) {
       this.company = null;
       this.inventory = {};
+      this.inventoryTotal = {};
+      this.inventoryReserved = {};
       this.factories = [];
       this.nav = 0;
     } else {
@@ -45,7 +49,9 @@ class NatStateStore {
       if (companyData.company_id && !companyData.id) {
         this.company.id = companyData.company_id;
       }
-      this.inventory = companyData.inventory || {};
+      this.inventory = companyData.inventory_available || companyData.inventory || {};
+      this.inventoryTotal = companyData.inventory_total || companyData.inventory || {};
+      this.inventoryReserved = companyData.inventory_reserved || {};
       if (Array.isArray(companyData.factories) && companyData.factories.length > 0) {
         this.factories = companyData.factories;
       }
@@ -61,7 +67,11 @@ class NatStateStore {
           this.company[k] = v;
         }
       }
-      if (partial.inventory !== undefined) this.inventory = partial.inventory;
+      if (partial.inventory_available !== undefined) this.inventory = partial.inventory_available;
+      else if (partial.inventory !== undefined) this.inventory = partial.inventory;
+      if (partial.inventory_total !== undefined) this.inventoryTotal = partial.inventory_total;
+      else if (partial.inventory !== undefined) this.inventoryTotal = partial.inventory;
+      if (partial.inventory_reserved !== undefined) this.inventoryReserved = partial.inventory_reserved;
       if (Array.isArray(partial.factories) && partial.factories.length > 0) {
         this.factories = partial.factories;
       }

@@ -9,7 +9,8 @@ export function renderOverview(container, showToast) {
   if (!company) { container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка данных компании...</div>'; return; }
 
   const inv = store.inventory || {};
-  const items = Object.entries(inv).filter(([_, qty]) => Number(qty) > 0);
+  const reservedInventory = store.inventoryReserved || {};
+  const items = Object.entries(inv).filter(([itemId, qty]) => Number(qty) > 0 || Number(reservedInventory[itemId]) > 0);
 
   const xpCurrent = Number(company.xp || 0);
   const isMaxLevel = Boolean(company.is_max_level);
@@ -181,6 +182,7 @@ export function renderOverview(container, showToast) {
           <div class="grid grid-cols-2 gap-2">
             ${items.map(([itemId, qty]) => {
               const info = getItemInfo(itemId);
+              const reservedQty = Number(reservedInventory[itemId] || 0);
               return `
               <div class="resource-pill p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
                 <div class="flex items-center gap-2 min-w-0 pr-1">
@@ -194,6 +196,8 @@ export function renderOverview(container, showToast) {
                   <div class="text-sm font-black font-mono text-slate-900 dark:text-white">
                     ${Number(qty).toLocaleString('ru-RU')}
                   </div>
+                  <div class="text-[9px] text-slate-400">доступно</div>
+                  ${reservedQty > 0 ? `<div class="text-[9px] text-amber-600 dark:text-amber-400">В заявках: ${reservedQty.toLocaleString('ru-RU')} ${info.unit}</div>` : ''}
                 </div>
               </div>
             `;}).join('')}

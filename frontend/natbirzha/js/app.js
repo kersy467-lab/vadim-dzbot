@@ -1,10 +1,10 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260924_ipo_terms';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260924_credit_inventory';
 import { store } from './state.js';
 import { renderOnboarding } from './screens/onboarding.js?v=20260920_reset_v8';
-import { renderOverview } from './screens/overview.js';
+import { renderOverview } from './screens/overview.js?v=20260924_credit_inventory';
 import { renderTycoon } from './screens/tycoon.js?v=20260921_tycoon1';
 import { renderUpgrades } from './screens/upgrades.js';
-import { renderMarket } from './screens/market.js?v=20260924_ipo_terms';
+import { renderMarket } from './screens/market.js?v=20260924_credit_inventory';
 import { renderStocks } from './screens/stocks.js?v=20260924_ipo_terms';
 import { renderMilitary } from './screens/military.js';
 import { renderCreator } from './screens/creator.js';

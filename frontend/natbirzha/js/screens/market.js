@@ -1,10 +1,10 @@
-import { NatAPI } from '../api.js?v=20260924_ipo_terms';
+import { NatAPI } from '../api.js?v=20260924_credit_inventory';
 import { store } from '../state.js';
 import { getItemInfo } from '../items.js';
 import { renderMarketChart } from '../market_chart.js';
 import { renderTaxSection } from './market_tax.js';
-import { renderStateCreditSection } from './market_credit.js';
-import { createMarketFinance } from './market_finance.js?v=20260924_ipo_terms';
+import { renderStateCreditSection } from './market_credit.js?v=20260924_credit_inventory';
+import { createMarketFinance } from './market_finance.js?v=20260924_credit_inventory';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js';
 
 const MARKET_ITEMS = [

@@ -97,7 +97,15 @@ async def get_company_status(
     nav = await CompanyService.calculate_audited_nav(session, company)
     from backend.natbirzha.models.inventory import NatInventory
     inv_res = await session.execute(select(NatInventory).where(NatInventory.company_id == company.id))
-    inv = {row.item_id: row.quantity for row in inv_res.scalars().all()}
+    inventory_rows = inv_res.scalars().all()
+    inv = {row.item_id: row.quantity for row in inventory_rows}
+    available_inventory = {
+        row.item_id: round(float(row.available_quantity), 6) for row in inventory_rows
+    }
+    reserved_inventory = {
+        row.item_id: round(min(max(0.0, float(row.quantity)), max(0.0, float(row.reserved_quantity))), 6)
+        for row in inventory_rows
+    }
     from backend.natbirzha.models.company import NatFactory
     fac_res = await session.execute(select(NatFactory).where(NatFactory.company_id == company.id))
     factory_rows = fac_res.scalars().all()
@@ -186,6 +194,9 @@ async def get_company_status(
         "is_public": is_public,
         "capital_plan": capital_plan,
         "inventory": inv,
+        "inventory_total": inv,
+        "inventory_available": available_inventory,
+        "inventory_reserved": reserved_inventory,
         "factories": factories
     }
 

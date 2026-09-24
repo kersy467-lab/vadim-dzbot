@@ -16,6 +16,7 @@ from backend.db.session import get_db_session
 from backend.main import app
 import backend.natbirzha.models  # noqa: F401 - register all NAT tables
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.auth_service import get_current_company
 
 
@@ -33,11 +34,22 @@ def test_company_rename_charges_once_and_replays_idempotently():
             session.add_all([user, rival, poor])
             await session.flush()
             owner_id = user.id
+            owner_company = NatCompany(
+                user_id=user.id, name="Original Name", specialization="miner", cash=30_000
+            )
             session.add_all([
-                NatCompany(user_id=user.id, name="Original Name", specialization="miner", cash=30_000),
+                owner_company,
                 NatCompany(user_id=rival.id, name="Already Used", specialization="miner", cash=30_000),
                 NatCompany(user_id=poor.id, name="Poor Company", specialization="miner", cash=9_999),
             ])
+            await session.flush()
+            session.add(NatInventory(
+                company_id=owner_company.id,
+                item_id="steel",
+                quantity=152.934,
+                reserved_quantity=148.934,
+                avg_cost_basis=90.0,
+            ))
             await session.commit()
 
         async def override_db():
@@ -84,6 +96,9 @@ def test_company_rename_charges_once_and_replays_idempotently():
                 assert readback.status_code == 200
                 assert readback.json()["name"] == "New Company"
                 assert readback.json()["cash"] == 20_000
+                assert readback.json()["inventory_available"]["steel"] == 4.0
+                assert readback.json()["inventory_reserved"]["steel"] == 148.934
+                assert readback.json()["inventory_total"]["steel"] == 152.934
 
                 invalid_headers = {"X-Telegram-User-Id": headers["X-Telegram-User-Id"]}
                 missing_name = await client.post(

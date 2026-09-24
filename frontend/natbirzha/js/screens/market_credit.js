@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js';
+import { NatAPI } from '../api.js?v=20260924_credit_inventory';
 import { store } from '../state.js';
 
 const RATE_PCT = 7.5;

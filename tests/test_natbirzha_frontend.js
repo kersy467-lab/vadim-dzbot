@@ -16,6 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
+assert(natHtml.includes('app.js?v=20260924_credit_inventory'), 'Natbirzha entrypoint must refresh its cached code after a release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -42,6 +43,8 @@ const princessTheme = fs.readFileSync(path.join(__dirname, '../frontend/natbirzh
     'capital plan must offer a direct, reachable IPO action');
   assert(overviewScreen.includes('mastery-progress'),
     'overview must display the unbounded mastery track after level 60');
+  assert(overviewScreen.includes('inventoryReserved') && overviewScreen.includes('В заявках:'),
+    'overview must distinguish available inventory from quantities reserved in active sale orders');
 
   const militaryScreen = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/military.js'), 'utf-8');
   assert(militaryScreen.includes('target.cooldown_until'),
@@ -80,6 +83,17 @@ store.updateCompany({ factories: [{ id: 1, building_type: 'smelter', level: 2 }]
 assert(store.inventory.steel === 10, 'inventory must NOT be wiped when undefined is passed to updateCompany');
 assert(store.factories[0].level === 2, 'factories must be updated');
 assert(store.company.name === 'Северсталь 11 Б', 'other company fields must be preserved');
+
+store.setCompany({
+  id: 101,
+  inventory: { steel: 152.934 },
+  inventory_total: { steel: 152.934 },
+  inventory_available: { steel: 4 },
+  inventory_reserved: { steel: 148.934 },
+});
+assert(store.inventory.steel === 4, 'market and overview inventory must expose only unreserved material as available');
+assert(store.inventoryTotal.steel === 152.934, 'total inventory must remain available for stock breakdowns');
+assert(store.inventoryReserved.steel === 148.934, 'reserved material must remain visible as a separate amount');
 
 store.setTab('production');
 assert(store.currentTab === 'production', 'setTab must update currentTab');
@@ -323,8 +337,10 @@ assert(startedFactory.cycle_ready_at === startResult.ready_at && startedFactory.
   'successful production start must copy the server deadline so the timer starts without tab navigation');
 
 const marketCoreCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
+const appSourceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8');
 const marketCommodityCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_commodities.js'), 'utf-8');
 const marketFinanceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_finance.js'), 'utf-8');
+const marketCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
 const stockScreenCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/stocks.js'), 'utf-8');
 const natApiCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/api.js'), 'utf-8');
 assert(marketCoreCode.includes('finally'), 'market.js place order must have finally block to re-enable button');
@@ -359,6 +375,12 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
+assert(appSourceCode.includes('overview.js?v=20260924_credit_inventory'),
+  'overview inventory fixes must be loaded from a fresh screen module');
+assert(marketCoreCode.includes("market_credit.js?v=20260924_credit_inventory"),
+  'market credit screen must use a cache-busted module URL');
+assert(marketCreditCode.includes("../api.js?v=20260924_credit_inventory"),
+  'credit screen must import the current API module containing state-credit methods');
 const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
   .replace(/export\s+function\s+mergeNpcRatesIntoMarketItems/, 'function mergeNpcRatesIntoMarketItems')

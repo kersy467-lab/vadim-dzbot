@@ -38,10 +38,11 @@ class CancelOrderRequest(BaseModel):
 @router.get("/orderbook")
 async def get_orderbook(
     item_id: str = Query(..., description="Item canonical ID"),
+    company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session),
 ):
     try:
-        return await MarketService.get_orderbook(session, item_id)
+        return await MarketService.get_orderbook(session, item_id, company.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

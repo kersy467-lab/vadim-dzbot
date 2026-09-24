@@ -10,7 +10,9 @@ from backend.natbirzha.models.restructuring import NatDailyFinancials
 
 class MarketService:
     @staticmethod
-    async def get_orderbook(session: AsyncSession, item_id: str) -> Dict[str, Any]:
+    async def get_orderbook(
+        session: AsyncSession, item_id: str, company_id: Optional[int] = None
+    ) -> Dict[str, Any]:
         if item_id not in CANONICAL_ITEMS:
             raise ValueError(f"Unknown item: {item_id}")
 
@@ -57,7 +59,35 @@ class MarketService:
             for trade in reversed(trades_res.scalars().all())
         ]
 
-        return {"item_id": item_id, "bids": bids, "asks": asks, "history": history}
+        user_orders = []
+        if company_id is not None:
+            orders_res = await session.execute(
+                select(NatMarketOrder)
+                .where(
+                    NatMarketOrder.item_id == item_id,
+                    NatMarketOrder.company_id == company_id,
+                    NatMarketOrder.status == "ACTIVE",
+                    NatMarketOrder.remaining_qty > 0,
+                )
+                .order_by(NatMarketOrder.created_at.asc(), NatMarketOrder.id.asc())
+            )
+            user_orders = [
+                {
+                    "id": order.id,
+                    "order_type": order.order_type,
+                    "price": order.price,
+                    "remaining_quantity": order.remaining_qty,
+                }
+                for order in orders_res.scalars().all()
+            ]
+
+        return {
+            "item_id": item_id,
+            "bids": bids,
+            "asks": asks,
+            "history": history,
+            "user_orders": user_orders,
+        }
 
     @classmethod
     async def create_order(
@@ -135,7 +165,7 @@ class MarketService:
         now = get_game_now()
 
         while True:
-            # Get best buy order (highest price, earliest timestamp)
+            # Walk bids in priority order until one has an executable ask.
             buy_res = await session.execute(
                 select(NatMarketOrder)
                 .where(
@@ -146,31 +176,36 @@ class MarketService:
                 )
                 .order_by(NatMarketOrder.price.desc(), NatMarketOrder.created_at.asc())
                 .with_for_update(skip_locked=True)
-                .limit(1)
             )
-            buy_order = buy_res.scalar_one_or_none()
-            if not buy_order:
+            buy_orders = buy_res.scalars().all()
+            if not buy_orders:
                 break
 
-            # Get best sell order (lowest price, earliest timestamp), excluding self-trades.
-            sell_res = await session.execute(
-                select(NatMarketOrder)
-                .where(
-                    NatMarketOrder.item_id == item_id,
-                    NatMarketOrder.order_type == "SELL",
-                    NatMarketOrder.status == "ACTIVE",
-                    NatMarketOrder.remaining_qty > 0,
-                    NatMarketOrder.company_id != buy_order.company_id
+            buy_order = None
+            sell_order = None
+            for candidate_buy in buy_orders:
+                # Self-trade exclusion is per pair. A blocked top bid must not
+                # prevent a lower bid from trading against that company's ask.
+                sell_res = await session.execute(
+                    select(NatMarketOrder)
+                    .where(
+                        NatMarketOrder.item_id == item_id,
+                        NatMarketOrder.order_type == "SELL",
+                        NatMarketOrder.status == "ACTIVE",
+                        NatMarketOrder.remaining_qty > 0,
+                        NatMarketOrder.company_id != candidate_buy.company_id,
+                    )
+                    .order_by(NatMarketOrder.price.asc(), NatMarketOrder.created_at.asc())
+                    .with_for_update(skip_locked=True)
+                    .limit(1)
                 )
-                .order_by(NatMarketOrder.price.asc(), NatMarketOrder.created_at.asc())
-                .with_for_update(skip_locked=True)
-                .limit(1)
-            )
-            sell_order = sell_res.scalar_one_or_none()
+                candidate_sell = sell_res.scalar_one_or_none()
+                if candidate_sell and candidate_buy.price >= candidate_sell.price:
+                    buy_order = candidate_buy
+                    sell_order = candidate_sell
+                    break
 
-            if not sell_order:
-                break
-            if buy_order.price < sell_order.price:
+            if not buy_order or not sell_order:
                 break
 
             # Determine execution price (maker price: earlier order's price)

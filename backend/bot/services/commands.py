@@ -36,6 +36,11 @@ TESTER_COMMANDS = [
     BotCommand(command="nick", description="✏️ Сменить игровой ник"),
 ]
 
+ADMIN_COMMANDS = [
+    *TESTER_COMMANDS,
+    BotCommand(command="natnotice", description="📣 Уведомить игроков НАТБИРЖИ"),
+]
+
 # Обратная совместимость
 FULL_COMMANDS = STUDENT_COMMANDS
 
@@ -48,11 +53,13 @@ async def set_user_command_scope(
     is_admin: bool = False,
     full_access: bool = True
 ) -> None:
-    """Give a private chat the right command list: testers/admins see /natbirzha."""
+    """Give private chats commands appropriate to their Natbirzha access."""
     try:
         if not full_access:
             cmds = PUBLIC_COMMANDS
-        elif is_tester or is_admin:
+        elif is_admin:
+            cmds = ADMIN_COMMANDS
+        elif is_tester:
             cmds = TESTER_COMMANDS
         else:
             cmds = STUDENT_COMMANDS
@@ -86,10 +93,15 @@ async def setup_bot_commands(bot: Bot):
 
         # Персональный скоуп для главного администратора и создателей
         from backend.natbirzha.services.access_control import get_creator_tg_ids
+        from backend.config import settings
         for uid in get_creator_tg_ids():
             try:
                 await bot.set_my_commands(
-                    commands=TESTER_COMMANDS,
+                    commands=(
+                        ADMIN_COMMANDS
+                        if settings.ADMIN_ID and int(uid) == int(settings.ADMIN_ID)
+                        else TESTER_COMMANDS
+                    ),
                     scope=BotCommandScopeChat(chat_id=uid)
                 )
             except Exception:

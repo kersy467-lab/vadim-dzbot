@@ -816,6 +816,8 @@ async def main():
     await test_database_and_crud()
     test_keyboards_and_fastapi()
     p2_scripts = (
+        "tests/natbirzha/test_market_orderbook_regressions.py",
+        "tests/test_natbirzha_broadcast.py",
         "tests/natbirzha/test_p2_models.py",
         "tests/natbirzha/test_p2_migrations.py",
         "tests/natbirzha/test_combat_resolver.py",

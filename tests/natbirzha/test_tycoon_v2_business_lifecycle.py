@@ -27,7 +27,7 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
             session.add(company)
             await session.flush()
             session.add_all([
-                NatInventory(company_id=company.id, item_id="energy", quantity=8),
+                NatInventory(company_id=company.id, item_id="energy", quantity=88),
                 NatInventory(company_id=company.id, item_id="water", quantity=4),
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=2),
                 NatInventory(company_id=company.id, item_id="food", quantity=1),

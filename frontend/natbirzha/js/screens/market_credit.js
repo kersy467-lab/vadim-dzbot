@@ -1,7 +1,7 @@
 import { NatAPI } from '../api.js?v=20260924_state_credit_approval';
 import { store } from '../state.js';
 
-const RATE_PCT = 7.5;
+const RATE_PCT = 15;
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const dateLabel = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';
 
@@ -29,7 +29,7 @@ export async function renderStateCreditSection(container, showToast, onBack) {
     const maxPrincipal = Math.min(Number(data.available_credit_limit || 0), Number(data.available_treasury_cash ?? data.treasury_cash ?? 0));
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24">
       <button class="state-credit-back text-xs font-bold text-blue-600">← Назад к бирже</button>
-      <div><h2 class="text-xl font-black">🏦 Кредит государства</h2><p class="text-xs text-slate-500">Подайте заявку на 1–5 дней. Проценты простые: 7,5% от суммы за каждый день. Кредит выдаётся после одобрения.</p></div>
+      <div><h2 class="text-xl font-black">🏦 Кредит государства</h2><p class="text-xs text-slate-500">Подайте заявку на 1–5 дней. Проценты простые: 15% от суммы за каждый день. Кредит выдаётся после одобрения.</p></div>
       <div class="glass-card rounded-2xl p-4 text-xs space-y-2">
         <div class="flex justify-between"><span>Доступно в казне</span><b>${money(data.treasury_cash)} cash</b></div>
         <div class="flex justify-between"><span>Стоимость компании</span><b>${money(data.company_nav)} cash</b></div>

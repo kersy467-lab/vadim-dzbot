@@ -1,4 +1,4 @@
-"""Technical-water consumption increases while prices and supply output stay fixed."""
+"""Technical-water and electricity consumption multipliers affect live catalogs."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -23,9 +23,21 @@ def test_water_inputs_are_multiplied_in_both_live_production_catalogs() -> None:
     water_utility = get_business_spec("water_utility")
     assert factory_spec is not None and factory_spec["inputs"]["water"] == 25
     assert business_spec is not None and business_spec["inputs_per_hour"]["water"] == 12.5
-    assert business_spec["inputs_per_hour"]["energy"] == 0.25
+    assert business_spec["inputs_per_hour"]["energy"] == 2.75
     assert water_utility is not None and water_utility["outputs_per_hour"]["water"] == 12
     assert get_item_base_price("water") == 2
+
+
+def test_energy_inputs_are_multiplied_elevenfold_in_all_live_catalogs() -> None:
+    factory_spec = get_building_spec("steel_mill")
+    business_spec = get_business_spec("steel_plant_v2")
+    wind_park = get_business_spec("wind_park_v2")
+    assert factory_spec is not None and factory_spec["inputs"]["energy"] == 44
+    assert factory_spec["alternate_recipes"][0]["inputs"]["energy"] == 77
+    assert factory_spec["alternate_recipes"][1]["inputs"]["energy"] == 11
+    assert business_spec is not None and business_spec["inputs_per_hour"]["energy"] == 154
+    assert wind_park is not None and wind_park["outputs_per_hour"]["energy"] == 498.8363
+    assert get_item_base_price("energy") == 10
 
 
 def test_factory_cycle_consumes_twenty_five_units_of_technical_water() -> None:

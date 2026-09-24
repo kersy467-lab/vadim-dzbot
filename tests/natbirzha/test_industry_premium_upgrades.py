@@ -184,7 +184,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 reserved_quantity=0, avg_cost_basis=0,
             )
             energy = NatInventory(
-                company_id=company.id, item_id="energy", quantity=10,
+                company_id=company.id, item_id="energy", quantity=88,
                 reserved_quantity=0, avg_cost_basis=0,
             )
             session.add_all((factory, steel, energy))
@@ -196,7 +196,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
             )
             assert started["success"] is True
             assert steel.quantity == 8
-            assert energy.quantity == 6
+            assert energy.quantity == 44
             factory = await session.scalar(
                 select(NatFactory).where(NatFactory.id == factory.id)
             )
@@ -216,7 +216,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
             )
             assert second_started["success"] is True
             assert steel.quantity == 6
-            assert energy.quantity == 2
+            assert energy.quantity == 0
             company.industry_upgrade_levels_json = {"metallurgist": 1}
             factory = await session.scalar(
                 select(NatFactory).where(NatFactory.id == factory.id)

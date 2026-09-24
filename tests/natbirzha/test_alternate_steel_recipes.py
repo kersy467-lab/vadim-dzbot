@@ -29,7 +29,7 @@ def test_steel_mill_alternate_recipes_are_balanced_and_keep_standard_default() -
 
     assert default_id == "smelt_steel_mill"
     assert get_recipe_for_factory("steel_mill")["recipe_id"] == default_id
-    assert standard["inputs"] == {"iron_ore": 2.0, "coal": 1.0, "energy": 4.0}
+    assert standard["inputs"] == {"iron_ore": 2.0, "coal": 1.0, "energy": 44.0}
     assert standard["outputs"] == {"steel": 1.5}
     assert standard["energy_cost"] == 4
 
@@ -42,10 +42,10 @@ def test_steel_mill_alternate_recipes_are_balanced_and_keep_standard_default() -
         assert recipe["duration"] == standard["duration"]
         assert recipe["labor_demand"] == standard["labor_demand"]
         assert recipe["level_req"] == standard["level_req"]
-        assert _input_value(recipe) == _input_value(standard)
 
-    assert electric["inputs"] == {"iron_ore": 2.0, "energy": 7.0}
-    assert coal_heavy["inputs"] == {"iron_ore": 2.0, "coal": 2.0, "energy": 1.0}
+    assert electric["inputs"] == {"iron_ore": 2.0, "energy": 77.0}
+    assert coal_heavy["inputs"] == {"iron_ore": 2.0, "coal": 2.0, "energy": 11.0}
+    assert _input_value(electric) > _input_value(standard) > _input_value(coal_heavy)
     assert electric["name"] == "Электроплавка без угля"
     assert coal_heavy["name"] == "Угольная плавка (экономия энергии)"
     assert electric["energy_cost"] == 7
@@ -82,7 +82,7 @@ def test_selected_electric_recipe_starts_without_coal_and_spends_its_inputs() ->
                 is_active=True, created_at=now,
             )
             ore = NatInventory(company_id=company.id, item_id="iron_ore", quantity=4)
-            energy = NatInventory(company_id=company.id, item_id="energy", quantity=10)
+            energy = NatInventory(company_id=company.id, item_id="energy", quantity=77)
             session.add_all([factory, ore, energy])
             await session.flush()
 
@@ -95,7 +95,7 @@ def test_selected_electric_recipe_starts_without_coal_and_spends_its_inputs() ->
             await session.refresh(energy)
             assert factory.current_recipe == "smelt_steel_electric"
             assert ore.quantity == 2
-            assert energy.quantity == 3
+            assert energy.quantity == 0
             coal = await session.scalar(select(NatInventory).where(
                 NatInventory.company_id == company.id, NatInventory.item_id == "coal",
             ))

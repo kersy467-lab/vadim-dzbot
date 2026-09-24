@@ -13,7 +13,7 @@ export async function loadCreatorCreditTab(el, showToast) {
     const requests = data.requests || [];
     el.innerHTML = `<div class="space-y-3">
       <div class="glass-card rounded-2xl p-3 space-y-2"><div class="text-xs font-bold text-amber-400 uppercase">Заявки на государственный кредит</div>
-        <p class="text-[10px] text-slate-400">Лимит — 50% текущей стоимости компании, срок до 5 дней, ставка 7,5% в день. Средства перечисляются после одобрения.</p>
+        <p class="text-[10px] text-slate-400">Лимит — 50% текущей стоимости компании, срок до 5 дней, ставка 15% в день. Средства перечисляются после одобрения.</p>
         <div class="flex gap-2"><button class="creator-credit-filter rounded-lg px-3 py-2 text-xs font-bold ${status === 'PENDING' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}" data-status="PENDING">Ожидают</button>
           <button class="creator-credit-filter rounded-lg px-3 py-2 text-xs font-bold ${status === 'ALL' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}" data-status="ALL">Все</button></div>
       </div>
@@ -22,7 +22,7 @@ export async function loadCreatorCreditTab(el, showToast) {
         const tone = pending ? 'text-amber-400' : loan.status === 'ACTIVE' ? 'text-emerald-400' : 'text-slate-400';
         return `<article class="glass-card rounded-2xl p-3 space-y-1.5 text-xs"><div class="flex justify-between gap-2"><b>${escapeHtml(loan.company_name)} · заявка #${loan.id}</b><b class="${tone}">${escapeHtml(loan.status)}</b></div>
           <div class="flex justify-between"><span>Сумма / к возврату</span><b>${money(loan.principal)} / ${money(loan.total_due)} cash</b></div>
-          <div class="flex justify-between"><span>Срок / ставка</span><b>${loan.term_days} дн. · 7,5% в день</b></div>
+          <div class="flex justify-between"><span>Срок / ставка</span><b>${loan.term_days} дн. · 15% в день</b></div>
           <div class="flex justify-between"><span>Стоимость компании</span><b>${money(loan.company_nav)} cash</b></div>
           <div class="flex justify-between"><span>Лимит 50% · занято другими займами</span><b>${money(loan.credit_limit)} · ${money(loan.other_open_principal)} cash</b></div>
           <div class="text-[10px] text-slate-500">Подана: ${dateLabel(loan.requested_at)}${loan.reviewed_at ? ` · рассмотрена: ${dateLabel(loan.reviewed_at)}` : ''}</div>

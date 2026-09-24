@@ -124,7 +124,7 @@ def test_listed_company_withholds_hourly_profit_and_pays_at_hour_close() -> None
             )
             session.add_all([
                 business,
-                NatInventory(company_id=issuer.id, item_id="energy", quantity=50),
+                NatInventory(company_id=issuer.id, item_id="energy", quantity=88),
                 NatInventory(company_id=issuer.id, item_id="water", quantity=500),
                 NatInventory(company_id=issuer.id, item_id="fuel_diesel", quantity=20),
                 NatInventory(company_id=issuer.id, item_id="food", quantity=20),

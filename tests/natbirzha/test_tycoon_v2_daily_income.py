@@ -28,7 +28,7 @@ def test_idle_settlements_accumulate_business_daily_profit() -> None:
             session.add(company)
             await session.flush()
             session.add_all([
-                NatInventory(company_id=company.id, item_id="energy", quantity=24),
+                NatInventory(company_id=company.id, item_id="energy", quantity=264),
                 NatInventory(company_id=company.id, item_id="water", quantity=12),
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=6),
                 NatInventory(company_id=company.id, item_id="food", quantity=3),

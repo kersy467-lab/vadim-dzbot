@@ -20,6 +20,10 @@ from backend.natbirzha.technical_water import (
     recalibrate_scaled_water_outputs,
     scale_catalog_water_inputs,
 )
+from backend.natbirzha.technical_energy import (
+    recalibrate_scaled_energy_outputs,
+    scale_catalog_energy_inputs,
+)
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
 
@@ -32,6 +36,11 @@ LEGACY_BUSINESSES: dict[str, dict[str, Any]] = {
 for _legacy in LEGACY_BUSINESSES.values():
     _legacy["legacy_hidden"] = True
 LEGACY_BUSINESSES = scale_catalog_water_inputs(
+    LEGACY_BUSINESSES,
+    input_field="inputs_per_hour",
+    resource_production_only=True,
+)
+LEGACY_BUSINESSES = scale_catalog_energy_inputs(
     LEGACY_BUSINESSES,
     input_field="inputs_per_hour",
     resource_production_only=True,
@@ -54,7 +63,13 @@ CAREER_BUSINESSES: dict[str, dict[str, Any]] = scale_catalog_water_inputs(
     input_field="inputs_per_hour",
     resource_production_only=True,
 )
+CAREER_BUSINESSES = scale_catalog_energy_inputs(
+    CAREER_BUSINESSES,
+    input_field="inputs_per_hour",
+    resource_production_only=True,
+)
 CAREER_BUSINESSES = recalibrate_scaled_water_outputs(CAREER_BUSINESSES)
+CAREER_BUSINESSES = recalibrate_scaled_energy_outputs(CAREER_BUSINESSES)
 
 BUSINESS_CATALOG: Mapping[str, dict[str, Any]] = {
     **LEGACY_BUSINESSES,

@@ -81,21 +81,21 @@ def setup_scheduler(bot: Bot):
             replace_existing=True
         )
 
-        # Автоматическая генерация интересного факта каждые полчаса (:00 и :30)
-        async def run_half_hour_fact_generation():
+        # Автоматическая генерация интересного факта раз в день (в 07:00)
+        async def run_daily_fact_generation():
             try:
                 from backend.db.session import async_session_factory
                 from backend.bot.services.facts import get_or_generate_slot_fact
                 async with async_session_factory() as session:
                     fact = await get_or_generate_slot_fact(session)
-                    logger.info(f"Interesting fact ready for {fact.date} {fact.hour:02d}:{fact.minute:02d}: '{fact.title}' ({fact.category})")
+                    logger.info(f"Daily interesting fact ready for {fact.date}: '{fact.title}' ({fact.category})")
             except Exception as ex:
-                logger.error(f"Error pre-generating fact: {ex}")
+                logger.error(f"Error pre-generating daily fact: {ex}")
 
         scheduler.add_job(
-            run_half_hour_fact_generation,
-            trigger=CronTrigger(minute="0,30", timezone=settings.TIMEZONE),
-            id="half_hour_fact_generation_job",
+            run_daily_fact_generation,
+            trigger=CronTrigger(hour=7, minute=0, timezone=settings.TIMEZONE),
+            id="daily_fact_generation_job",
             replace_existing=True
         )
 
@@ -163,9 +163,7 @@ def setup_scheduler(bot: Bot):
             replace_existing=True
         )
 
-        # Natbirzha: cache official CBR reference prices. A failed refresh does
-        # not overwrite the last known good snapshots; the trade service applies
-        # its own 72-hour staleness circuit breaker.
+        # Natbirzha: cache official CBR reference prices once per day (at 16:00 after CBR publishes daily fix).
         async def run_natbirzha_reference_rate_refresh():
             try:
                 from backend.db.session import async_session_factory
@@ -179,7 +177,7 @@ def setup_scheduler(bot: Bot):
 
         scheduler.add_job(
             run_natbirzha_reference_rate_refresh,
-            trigger=CronTrigger(minute="*/30", timezone=settings.TIMEZONE),
+            trigger=CronTrigger(hour=16, minute=0, timezone=settings.TIMEZONE),
             id="natbirzha_reference_rate_refresh_job",
             replace_existing=True,
         )

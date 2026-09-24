@@ -179,12 +179,8 @@ async def get_or_generate_slot_fact(
     else:
         target_minute = 30 if target_minute >= 30 else 0
 
-    # 1. Check if fact already exists for this (date, hour, minute)
-    stmt = select(DailyFact).where(
-        DailyFact.date == target_date,
-        DailyFact.hour == target_hour,
-        DailyFact.minute == target_minute
-    )
+    # 1. Check if fact already exists for this date (daily fact)
+    stmt = select(DailyFact).where(DailyFact.date == target_date).order_by(DailyFact.id.desc())
     result = await session.execute(stmt)
     fact = result.scalars().first()
     if fact:
@@ -220,11 +216,7 @@ async def get_or_generate_slot_fact(
     except IntegrityError:
         # Another process generated and saved the fact concurrently
         await session.rollback()
-        stmt = select(DailyFact).where(
-            DailyFact.date == target_date,
-            DailyFact.hour == target_hour,
-            DailyFact.minute == target_minute
-        )
+        stmt = select(DailyFact).where(DailyFact.date == target_date).order_by(DailyFact.id.desc())
         res = await session.execute(stmt)
         existing = res.scalars().first()
         if existing:

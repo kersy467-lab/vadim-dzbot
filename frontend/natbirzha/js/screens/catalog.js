@@ -154,12 +154,16 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
             <div class="text-xs font-black text-white flex items-center gap-1.5">
               <span>${b.name}</span>
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5">${b.description || ''}</div>
-          </div>
+        <div class="text-[10px] text-slate-400 mt-0.5">${b.description || ''}</div>
+      </div>
           <div class="flex flex-col items-end gap-1">
             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isOwn ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'} whitespace-nowrap">${efficiencyLabel}</span>
             ${recommendation}
           </div>
+        </div>
+
+        <div class="text-[11px] font-bold text-amber-300 px-1">
+          🏗 Цена строительства: ${Math.round(Number(b.build_cost || 0)).toLocaleString('ru-RU')} ₽
         </div>
 
         <div class="rounded-lg bg-slate-950/40 p-2 text-[10px] ${Number(profitability.net_per_cycle) > 0 ? 'text-emerald-300' : 'text-amber-300'}">

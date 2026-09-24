@@ -24,6 +24,7 @@ class NatStock(Base):
     is_listed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     
     ipo_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    dividend_eligible_from: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_spo_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -112,4 +113,49 @@ class NatDividendPayment(Base):
     shares_count: Mapped[int] = mapped_column(Integer, nullable=False)
     payout_cash: Mapped[float] = mapped_column(Float, nullable=False)
     settlement_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    paid_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class NatHourlyDividendAccrual(Base):
+    """Hidden issuer-side dividend holdback accumulated during one game hour."""
+
+    __tablename__ = "nat_hourly_dividend_accruals"
+    __table_args__ = (
+        UniqueConstraint("stock_id", "hour_start", name="uq_nat_hourly_dividend_stock_hour"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stock_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nat_stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    hour_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    closed_profit: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    dividend_rate_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    dividend_pool: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="OPEN", nullable=False, index=True)
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class NatHourlyDividendPayment(Base):
+    """Immutable receipt for a shareholder's hourly dividend payout."""
+
+    __tablename__ = "nat_hourly_dividend_payments"
+    __table_args__ = (
+        UniqueConstraint("accrual_id", "holder_company_id", name="uq_nat_hourly_dividend_holder"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    accrual_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nat_hourly_dividend_accruals.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    stock_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nat_stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    holder_company_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nat_companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    shares_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    payout_cash: Mapped[float] = mapped_column(Float, nullable=False)
+    hour_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     paid_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

@@ -15,7 +15,7 @@ from backend.natbirzha.services.state_treasury_service import StateTreasuryServi
 class StateBondSettlementMixin:
     @classmethod
     async def _ensure_due_rows(cls, session: AsyncSession, bond: NatStateBond, now: datetime) -> None:
-        interval = timedelta(hours=1)
+        interval = timedelta(minutes=1)
         maturity_at = bond.maturity_at or bond.created_at + timedelta(days=bond.maturity_days)
         next_coupon = bond.next_coupon_at or bond.created_at + interval
         holdings = (await session.execute(
@@ -25,16 +25,18 @@ class StateBondSettlementMixin:
             .with_for_update()
         )).scalars().all()
         while next_coupon <= now and next_coupon <= maturity_at:
-            period = max(1, int((next_coupon - bond.created_at).total_seconds() // 3600))
+            period = max(1, int((next_coupon - bond.created_at).total_seconds() // 60))
             for holding in holdings:
-                key = f"bond:{bond.id}:coupon-hour:{period}:company:{holding.company_id}"
+                key = f"bond:{bond.id}:coupon-minute:{period}:company:{holding.company_id}"
                 exists = await session.scalar(
                     select(NatBondSettlement.id).where(NatBondSettlement.operation_key == key)
                 )
                 if exists:
                     continue
                 amount = round(
-                    bond.face_value * holding.quantity * (bond.coupon_rate / 100.0) / (365 * 24), 12
+                    bond.face_value * holding.quantity
+                    * (bond.coupon_rate / 100.0 / 2.0) / 1_440,
+                    12,
                 )
                 if amount > 0:
                     session.add(NatBondSettlement(

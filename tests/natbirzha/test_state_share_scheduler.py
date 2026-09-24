@@ -1,4 +1,4 @@
-"""The scheduled daily state share settlement uses the durable dividend service."""
+"""Daily state-share settlement is separate from hourly public-stock dividends."""
 
 import asyncio
 from importlib.util import find_spec
@@ -10,7 +10,6 @@ def test_daily_financial_job_calls_state_share_settlement(monkeypatch) -> None:
     assert find_spec("backend.natbirzha.services.state_share_service") is not None
     from backend.db import session as db_session
     from backend.natbirzha.services.bankruptcy_service import BankruptcyService
-    from backend.natbirzha.services.dividend_service import DividendService
     from backend.natbirzha.services.state_share_service import StateShareService
 
     class FakeSessionContext:
@@ -26,17 +25,12 @@ def test_daily_financial_job_calls_state_share_settlement(monkeypatch) -> None:
         calls.append("shares")
         return {"status": "settled", "total_paid": 0}
 
-    async def record_public_dividends(_session):
-        calls.append("stocks")
-        return 0
-
     async def record_liquidations(_session):
         calls.append("liquidations")
         return 0
 
     monkeypatch.setattr(db_session, "async_session_factory", lambda: FakeSessionContext())
     monkeypatch.setattr(StateShareService, "settle_daily_dividends", record_share_settlement)
-    monkeypatch.setattr(DividendService, "settle_all_public_dividends", record_public_dividends)
     monkeypatch.setattr(BankruptcyService, "process_daily_liquidations", record_liquidations)
     scheduler = scheduler_module.scheduler
     scheduler.remove_all_jobs()
@@ -48,13 +42,12 @@ def test_daily_financial_job_calls_state_share_settlement(monkeypatch) -> None:
         asyncio.run(job.func())
     finally:
         scheduler.remove_all_jobs()
-    assert calls == ["shares", "stocks", "liquidations"]
+    assert calls == ["shares", "liquidations"]
 
 
 def test_share_settlement_failure_does_not_skip_other_daily_jobs(monkeypatch) -> None:
     from backend.db import session as db_session
     from backend.natbirzha.services.bankruptcy_service import BankruptcyService
-    from backend.natbirzha.services.dividend_service import DividendService
     from backend.natbirzha.services.state_share_service import StateShareService
 
     class FakeSessionContext:
@@ -70,17 +63,12 @@ def test_share_settlement_failure_does_not_skip_other_daily_jobs(monkeypatch) ->
         calls.append("shares")
         raise RuntimeError("simulated state-share ledger failure")
 
-    async def record_public_dividends(_session):
-        calls.append("stocks")
-        return 0
-
     async def record_liquidations(_session):
         calls.append("liquidations")
         return 0
 
     monkeypatch.setattr(db_session, "async_session_factory", lambda: FakeSessionContext())
     monkeypatch.setattr(StateShareService, "settle_daily_dividends", fail_share_settlement)
-    monkeypatch.setattr(DividendService, "settle_all_public_dividends", record_public_dividends)
     monkeypatch.setattr(BankruptcyService, "process_daily_liquidations", record_liquidations)
     scheduler = scheduler_module.scheduler
     scheduler.remove_all_jobs()
@@ -92,7 +80,7 @@ def test_share_settlement_failure_does_not_skip_other_daily_jobs(monkeypatch) ->
         asyncio.run(job.func())
     finally:
         scheduler.remove_all_jobs()
-    assert calls == ["shares", "stocks", "liquidations"]
+    assert calls == ["shares", "liquidations"]
 
 
 if __name__ == "__main__":

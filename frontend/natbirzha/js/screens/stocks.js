@@ -111,7 +111,7 @@ export async function renderStocks(container, showToast) {
               <div class="flex items-start justify-between gap-2">
                 <div>
                   <div class="font-bold text-xs text-slate-900 dark:text-white">${b.title}</div>
-                  <div class="text-[10px] text-slate-400">${b.coupon_rate}% · ${b.maturity_days} дн. · остаток ${b.remaining_volume}/${b.total_volume}</div>
+                  <div class="text-[10px] text-slate-400">${b.coupon_rate}% · ${Number(b.coupon_rate / 2).toLocaleString('ru-RU')}% в день, выплата раз в минуту · ${b.maturity_days} дн. · остаток ${b.remaining_volume}/${b.total_volume}</div>
                 </div>
                 <div class="text-right shrink-0">
                   <div class="font-mono font-black text-xs">${Number(b.face_value).toLocaleString('ru-RU')} cash</div>

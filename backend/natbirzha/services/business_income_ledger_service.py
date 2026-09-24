@@ -10,6 +10,33 @@ from backend.natbirzha.models.business import NatBusinessIncomeDaily
 
 class BusinessIncomeLedgerService:
     @staticmethod
+    def split_interval_by_hour(
+        start: datetime,
+        worked_hours: float,
+        net_profit: float,
+        *,
+        eligible_after: datetime | None = None,
+    ) -> dict[datetime, float]:
+        """Split an operating result proportionally across eligible game hours."""
+        total_seconds = max(0.0, float(worked_hours)) * 3600.0
+        if total_seconds <= 1e-9:
+            return {}
+        end = start + timedelta(seconds=total_seconds)
+        cursor = max(start, eligible_after) if eligible_after is not None else start
+        if cursor >= end:
+            return {}
+
+        result: dict[datetime, float] = {}
+        while cursor < end:
+            hour_start = cursor.replace(minute=0, second=0, microsecond=0)
+            hour_end = hour_start + timedelta(hours=1)
+            segment_end = min(end, hour_end)
+            seconds = (segment_end - cursor).total_seconds()
+            result[hour_start] = result.get(hour_start, 0.0) + float(net_profit) * seconds / total_seconds
+            cursor = segment_end
+        return result
+
+    @staticmethod
     async def record(
         session: AsyncSession,
         business_id: int,

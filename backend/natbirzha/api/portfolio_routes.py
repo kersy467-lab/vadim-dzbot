@@ -1,11 +1,11 @@
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
-from backend.natbirzha.config import get_game_now, get_game_today
+from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond, NatStateBondHolding
 from backend.natbirzha.models.instruments import (
@@ -13,7 +13,13 @@ from backend.natbirzha.models.instruments import (
     NatInstrumentTrade,
     NatReferenceRateSnapshot,
 )
-from backend.natbirzha.models.stocks import NatDividend, NatDividendPayment, NatStock, NatStockHolding
+from backend.natbirzha.models.stocks import (
+    NatDividend,
+    NatDividendPayment,
+    NatHourlyDividendPayment,
+    NatStock,
+    NatStockHolding,
+)
 from backend.natbirzha.models.state_shares import (
     NatStateShare,
     NatStateShareDividendPayment,
@@ -53,10 +59,23 @@ async def get_unified_portfolio(
         .where(NatDividendPayment.holder_company_id == company.id)
         .order_by(NatDividendPayment.settlement_date.desc(), NatDividendPayment.id.desc())
     )).all()
+    hourly_payment_rows = (await session.execute(
+        select(NatHourlyDividendPayment, NatStock, NatCompany)
+        .join(NatStock, NatHourlyDividendPayment.stock_id == NatStock.id)
+        .join(NatCompany, NatStock.company_id == NatCompany.id)
+        .where(NatHourlyDividendPayment.holder_company_id == company.id)
+        .order_by(NatHourlyDividendPayment.hour_start.desc(), NatHourlyDividendPayment.id.desc())
+    )).all()
     for payment, _, _ in payment_rows:
         payment_totals[payment.stock_id] = round(
             payment_totals.get(payment.stock_id, 0.0) + payment.payout_cash, 2
         )
+    latest_hourly_dividends: dict[int, NatHourlyDividendPayment] = {}
+    for payment, _, _ in hourly_payment_rows:
+        payment_totals[payment.stock_id] = round(
+            payment_totals.get(payment.stock_id, 0.0) + payment.payout_cash, 2
+        )
+        latest_hourly_dividends.setdefault(payment.stock_id, payment)
     latest_dividends: dict[int, NatDividend] = {}
     if stock_ids:
         dividend_rows = (await session.execute(
@@ -67,14 +86,16 @@ async def get_unified_portfolio(
         for dividend in dividend_rows:
             latest_dividends.setdefault(dividend.stock_id, dividend)
 
-    next_dividend_at = datetime.combine(
-        get_game_today() + timedelta(days=1), time(0, 1)
+    current_time = get_game_now()
+    next_dividend_at = (
+        current_time.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
     ).isoformat()
     stocks = []
     for holding, stock, issuer in stock_rows:
         invested = round(holding.shares_count * holding.avg_price, 2)
         market_value = round(holding.shares_count * stock.current_price, 2)
         latest = latest_dividends.get(stock.id)
+        latest_hourly = latest_hourly_dividends.get(stock.id)
         stocks.append({
             "stock_id": stock.id,
             "issuer_company": issuer.name,
@@ -86,8 +107,14 @@ async def get_unified_portfolio(
             "market_value": market_value,
             "unrealized_pnl": round(market_value - invested, 2),
             "dividends_earned": payment_totals.get(stock.id, 0.0),
-            "latest_dividend_per_share": latest.per_share_amount if latest else 0.0,
-            "latest_dividend_date": str(latest.settlement_date) if latest else None,
+            "latest_dividend_per_share": (
+                round(latest_hourly.payout_cash / max(1, latest_hourly.shares_count), 6)
+                if latest_hourly else (latest.per_share_amount if latest else 0.0)
+            ),
+            "latest_dividend_date": (
+                latest_hourly.hour_start.isoformat()
+                if latest_hourly else (str(latest.settlement_date) if latest else None)
+            ),
             "next_dividend_at": next_dividend_at if stock.is_listed else None,
         })
 
@@ -229,6 +256,15 @@ async def get_unified_portfolio(
         "settlement_date": str(payment.settlement_date),
         "paid_at": payment.paid_at.isoformat(),
     } for payment, _, issuer in payment_rows]
+    dividend_payments.extend({
+        "stock_id": payment.stock_id,
+        "issuer_company": issuer.name,
+        "shares_count": payment.shares_count,
+        "payout_cash": payment.payout_cash,
+        "settlement_date": str(payment.hour_start.date()),
+        "hour_start": payment.hour_start.isoformat(),
+        "paid_at": payment.paid_at.isoformat(),
+    } for payment, _, issuer in hourly_payment_rows)
 
     stock_value = round(sum(row["market_value"] for row in stocks), 2)
     bond_value = round(sum(row["market_value"] for row in bonds), 2)

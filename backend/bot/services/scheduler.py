@@ -220,8 +220,50 @@ def setup_scheduler(bot: Bot):
 
         scheduler.add_job(
             run_natbirzha_bond_settlement,
-            trigger=CronTrigger(minute="*/5", timezone=settings.TIMEZONE),
+            trigger=CronTrigger(minute="*", timezone=settings.TIMEZONE),
             id="natbirzha_bond_settlement_job",
+            replace_existing=True,
+        )
+
+        async def run_natbirzha_hourly_stock_dividends():
+            try:
+                from backend.db.session import async_session_factory
+                from backend.natbirzha.config import get_game_now
+                from backend.natbirzha.models.stocks import NatStock
+                from backend.natbirzha.services.dividend_service import DividendService
+                from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+                from sqlalchemy import select
+
+                current = get_game_now()
+                async with async_session_factory() as session:
+                    issuer_ids = list((await session.execute(
+                        select(NatStock.company_id).where(NatStock.is_listed == True)
+                    )).scalars().all())
+                for issuer_id in issuer_ids:
+                    try:
+                        async with async_session_factory() as session:
+                            await IdleEconomyService.settle_company(
+                                session, issuer_id, now=current
+                            )
+                            await session.commit()
+                    except Exception:
+                        logger.exception(
+                            "Error settling listed Natbirzha company %s for hourly dividends",
+                            issuer_id,
+                        )
+                async with async_session_factory() as session:
+                    result = await DividendService.settle_due_hourly(
+                        session, now=current, commit=True
+                    )
+                    if result["accruals_settled"]:
+                        logger.info("Natbirzha hourly stock dividends: %s", result)
+            except Exception as ex:
+                logger.error(f"Error settling Natbirzha hourly stock dividends: {ex}")
+
+        scheduler.add_job(
+            run_natbirzha_hourly_stock_dividends,
+            trigger=CronTrigger(minute="*", timezone=settings.TIMEZONE),
+            id="natbirzha_hourly_stock_dividends_job",
             replace_existing=True,
         )
 
@@ -240,16 +282,11 @@ def setup_scheduler(bot: Bot):
                 from backend.natbirzha.services.state_share_service import StateShareService
                 return await StateShareService.settle_daily_dividends(session)
 
-            async def settle_public_stocks(session):
-                from backend.natbirzha.services.dividend_service import DividendService
-                return await DividendService.settle_all_public_dividends(session)
-
             async def settle_liquidations(session):
                 from backend.natbirzha.services.bankruptcy_service import BankruptcyService
                 return await BankruptcyService.process_daily_liquidations(session)
 
             await run_step("state shares", settle_state_shares)
-            await run_step("public stocks", settle_public_stocks)
             await run_step("liquidations", settle_liquidations)
 
         scheduler.add_job(

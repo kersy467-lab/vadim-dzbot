@@ -304,5 +304,7 @@ async def settle_dividends_endpoint(
     company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session)
 ):
-    count = await DividendService.settle_all_public_dividends(session)
-    return {"success": True, "settled_stocks_count": count}
+    result = await DividendService.settle_due_hourly(
+        session, now=get_game_now(), commit=True
+    )
+    return {"success": True, **result}

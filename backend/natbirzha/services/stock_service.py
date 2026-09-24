@@ -206,6 +206,7 @@ class StockService:
             valuation_updated_at=now,
             is_listed=True,
             ipo_date=now,
+            dividend_eligible_from=now,
             created_at=now
         )
         session.add(stock)

@@ -13,7 +13,16 @@ from backend.natbirzha.models.inventory import (
     get_npc_sell_price
 )
 from backend.natbirzha.models.market import NatMarketOrder, NatMarketTrade
-from backend.natbirzha.models.stocks import NatStock, NatStockPriceSnapshot, NatStockHolding, NatStockOrder, NatDividend, NatDividendPayment
+from backend.natbirzha.models.stocks import (
+    NatStock,
+    NatStockPriceSnapshot,
+    NatStockHolding,
+    NatStockOrder,
+    NatDividend,
+    NatDividendPayment,
+    NatHourlyDividendAccrual,
+    NatHourlyDividendPayment,
+)
 from backend.natbirzha.models.contracts import NatContract, NatLoan
 from backend.natbirzha.models.military import NatArmy, NatTournament, NatTournamentParticipant
 from backend.natbirzha.models.alliances import NatAlliance, NatAllianceMember
@@ -90,6 +99,8 @@ __all__ = [
     "NatStockOrder",
     "NatDividend",
     "NatDividendPayment",
+    "NatHourlyDividendAccrual",
+    "NatHourlyDividendPayment",
     "NatContract",
     "NatLoan",
     "NatArmy",

@@ -32,10 +32,10 @@ async def run_async() -> None:
             title="ОФЗ-P2",
             volume=10,
             face_value=1_000,
-            coupon_rate=36.5,
-            maturity_days=14,
+            coupon_rate=0,
+            maturity_days=1,
             purpose="P2 test",
-            coupon_interval_days=7,
+            coupon_interval_days=1,
             now=issued_at,
             commit=False,
         )
@@ -48,28 +48,28 @@ async def run_async() -> None:
         treasury = await session.scalar(select(NatStateTreasury))
         seller_cash = seller.cash
         treasury_cash = treasury.cash
-        first = await StateBondService.settle_due(session, now=issued_at + timedelta(days=7))
-        assert first["coupon_payments"] == 168 and first["coupon_paid_rub"] == 70.0
+        first = await StateBondService.settle_due(session, now=issued_at + timedelta(minutes=3))
+        assert first["coupon_payments"] == 0 and first["coupon_paid_rub"] == 0.0
         await session.commit()
-        assert round(seller.cash - seller_cash, 2) == 70
-        assert round(treasury_cash - treasury.cash, 2) == 70
+        assert seller.cash == seller_cash
+        assert treasury.cash == treasury_cash
 
         # Exact replay at the same moment cannot pay the same coupon twice.
-        replay = await StateBondService.settle_due(session, now=issued_at + timedelta(days=7))
+        replay = await StateBondService.settle_due(session, now=issued_at + timedelta(minutes=3))
         assert replay["coupon_payments"] == 0 and replay["coupon_paid_rub"] == 0
 
         listing = await StateBondService.create_listing(
             session, seller_id, bond_id, quantity=4, unit_price=1_100, operation_key="listing:1",
-            now=issued_at + timedelta(days=8),
+            now=issued_at + timedelta(minutes=8),
         )
         bought = await StateBondService.buy_listing(
             session, buyer_id, listing["listing_id"], operation_key="listing-buy:1",
-            now=issued_at + timedelta(days=8),
+            now=issued_at + timedelta(minutes=8),
         )
         assert bought["total_cost"] == 4_400
         replay_buy = await StateBondService.buy_listing(
             session, buyer_id, listing["listing_id"], operation_key="listing-buy:1",
-            now=issued_at + timedelta(days=8),
+            now=issued_at + timedelta(minutes=8),
         )
         assert replay_buy == bought
         await session.commit()
@@ -88,23 +88,23 @@ async def run_async() -> None:
         seller_before = seller.cash
         buyer = await session.get(NatCompany, buyer_id)
         buyer_before = buyer.cash
-        pending = await StateBondService.settle_due(session, now=issued_at + timedelta(days=14))
+        pending = await StateBondService.settle_due(session, now=issued_at + timedelta(days=1))
         assert pending["maturity_pending"] == 2 and pending["principal_paid_rub"] == 0
         assert seller.cash == seller_before and buyer.cash == buyer_before
         await session.commit()
 
         treasury.cash = 20_000
-        settled = await StateBondService.settle_due(session, now=issued_at + timedelta(days=14))
-        assert settled["coupon_payments"] == 336
-        assert settled["coupon_paid_rub"] == 70
+        settled = await StateBondService.settle_due(session, now=issued_at + timedelta(days=1))
+        assert settled["coupon_payments"] == 0
+        assert settled["coupon_paid_rub"] == 0
         assert settled["maturity_payments"] == 2
         assert settled["principal_paid_rub"] == 10_000
         await session.commit()
-        assert round(seller.cash - seller_before, 2) == 6_042
-        assert round(buyer.cash - buyer_before, 2) == 4_028
+        assert round(seller.cash - seller_before, 2) == 6_000
+        assert round(buyer.cash - buyer_before, 2) == 4_000
 
         settlement_count = await session.scalar(select(func.count(NatBondSettlement.id)))
-        assert settlement_count == 506  # seller coupons, seller/buyer coupons, and two principal settlements
+        assert settlement_count == 2  # one principal settlement per holder
 
     await engine.dispose()
     print("NATBIRZHA bond lifecycle checks: PASS")

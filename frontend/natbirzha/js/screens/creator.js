@@ -145,6 +145,7 @@ async function loadBondsTab(el, showToast) {
           <input id="bond-rate" type="number" placeholder="Купон (%)" class="p-2 rounded-xl bg-slate-900 border border-slate-700 text-white" />
           <input id="bond-days" type="number" placeholder="Срок (дней)" class="p-2 rounded-xl bg-slate-900 border border-slate-700 text-white" />
         </div>
+        <div class="text-[10px] text-slate-400">Купон выплачивается каждую минуту. Например, ставка 30% даёт суммарно 15% от номинала в день.</div>
         <input id="bond-purpose" placeholder="Цель привлечения средств" class="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-white" />
         <button id="issue-bond-btn" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white text-xs transition-all shadow-md">
           Выпустить облигации
@@ -159,7 +160,7 @@ async function loadBondsTab(el, showToast) {
           <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 text-[11px] font-mono">
             <div class="flex justify-between font-bold text-white">
               <span>${b.title}</span>
-              <span class="text-amber-400">${b.coupon_rate}% годовых</span>
+              <span class="text-amber-400">${b.coupon_rate}% · ${Number(b.coupon_rate / 2).toLocaleString('ru-RU')}% в день</span>
             </div>
             <div class="text-[10px] text-slate-400 mt-1">
               Остаток: ${b.remaining_volume} / ${b.total_volume} шт. по ${b.face_value} ₽ · Срок: ${b.maturity_days} дн.

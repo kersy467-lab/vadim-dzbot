@@ -59,7 +59,7 @@ class NatStateBond(Base):
     face_value: Mapped[float] = mapped_column(Float, nullable=False)
     coupon_rate: Mapped[float] = mapped_column(Float, nullable=False)
     maturity_days: Mapped[int] = mapped_column(Integer, nullable=False)
-    # Coupon cadence is daily by default; explicit legacy intervals remain supported.
+    # Legacy API field; active issues now accrue coupons once per minute.
     coupon_interval_days: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     purpose: Mapped[str] = mapped_column(String(255), nullable=False)
     actor_id: Mapped[int] = mapped_column(BigInteger, nullable=False)

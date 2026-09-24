@@ -58,8 +58,8 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             raise ValueError("Coupon rate cannot be negative.")
         if coupon_interval_days is not None and (coupon_interval_days <= 0 or coupon_interval_days > maturity_days):
             raise ValueError("Coupon interval must be positive and not exceed maturity.")
-        # Keep the legacy field/API argument for compatibility; all bond issues
-        # now pay hourly coupons.
+        # Keep the legacy field/API argument for compatibility; coupons now
+        # settle every minute at half the configured rate per game day.
         coupon_interval_days = 1
         treasury = await StateTreasuryService.get_or_create(session, commit=False)
         now = now or get_game_now()
@@ -75,7 +75,7 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             actor_id=actor_id,
             is_active=True,
             status="OFFERING",
-            next_coupon_at=now + timedelta(hours=1),
+            next_coupon_at=now + timedelta(minutes=1),
             maturity_at=now + timedelta(days=maturity_days),
             created_at=now,
         )
@@ -117,6 +117,9 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
         if quantity <= 0:
             raise ValueError("Bond quantity must be positive.")
         now = now or get_game_now()
+        # Settle all elapsed coupon periods before adding a new holder. This
+        # prevents a buyer from collecting minutes that elapsed before purchase.
+        await cls.settle_due(session, now=now, commit=False)
         # Cash-moving state instruments all lock Treasury before companies to
         # keep the shared Treasury/holder lock order consistent.
         treasury = await StateTreasuryService.get_or_create(session, commit=False, for_update=True)

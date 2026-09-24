@@ -1,14 +1,167 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from backend.natbirzha.config import nat_settings, get_game_today, get_game_now
+from backend.natbirzha.config import nat_settings, get_game_today, get_game_now, normalize_dt
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.stocks import NatStock, NatStockHolding, NatDividend, NatDividendPayment
+from backend.natbirzha.models.stocks import (
+    NatStock,
+    NatStockHolding,
+    NatDividend,
+    NatDividendPayment,
+    NatHourlyDividendAccrual,
+    NatHourlyDividendPayment,
+)
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
 
 class DividendService:
+    @classmethod
+    async def accrue_hourly_profit(
+        cls,
+        session: AsyncSession,
+        issuer: NatCompany,
+        hourly_profit: dict[datetime, float],
+        *,
+        now: datetime | None = None,
+    ) -> float:
+        """Reconcile hourly issuer profits into a hidden dividend holdback."""
+        if not hourly_profit:
+            return 0.0
+        stock = await session.scalar(
+            select(NatStock)
+            .where(NatStock.company_id == issuer.id, NatStock.is_listed == True)
+            .with_for_update()
+        )
+        if stock is None:
+            return 0.0
+
+        current = normalize_dt(now or get_game_now())
+        eligible_after = (
+            normalize_dt(stock.dividend_eligible_from)
+            or normalize_dt(stock.ipo_date)
+            or normalize_dt(stock.created_at)
+            or current
+        )
+        total_delta = 0.0
+        for hour_start, profit_delta in sorted(hourly_profit.items()):
+            hour = normalize_dt(hour_start)
+            if hour is None or float(profit_delta) == 0 or hour >= current:
+                continue
+            row = await session.scalar(
+                select(NatHourlyDividendAccrual)
+                .where(
+                    NatHourlyDividendAccrual.stock_id == stock.id,
+                    NatHourlyDividendAccrual.hour_start == hour,
+                )
+                .with_for_update()
+            )
+            if row is not None and row.status != "OPEN":
+                continue
+            if row is None:
+                row = NatHourlyDividendAccrual(
+                    stock_id=stock.id,
+                    hour_start=hour,
+                    dividend_rate_pct=max(0.0, min(100.0, float(stock.dividend_rate_pct or 0))),
+                )
+                session.add(row)
+                await session.flush()
+            # Hourly splits already exclude production before IPO/rollout. This
+            # guard also protects callers that pass a whole hour directly.
+            if hour + timedelta(hours=1) <= eligible_after:
+                continue
+            old_pool = float(row.dividend_pool or 0.0)
+            row.closed_profit = round(float(row.closed_profit or 0.0) + float(profit_delta), 8)
+            row.dividend_pool = round(
+                max(0.0, row.closed_profit) * float(row.dividend_rate_pct) / 100.0, 2
+            )
+            total_delta += float(row.dividend_pool) - old_pool
+        await session.flush()
+        return round(total_delta, 8)
+
+    @classmethod
+    async def settle_due_hourly(
+        cls,
+        session: AsyncSession,
+        *,
+        now: datetime | None = None,
+        commit: bool = False,
+    ) -> Dict[str, Any]:
+        """Pay closed-hour dividends once, refunding unowned shares to issuers."""
+        current = normalize_dt(now or get_game_now())
+        open_rows = (await session.execute(
+            select(NatHourlyDividendAccrual)
+            .where(NatHourlyDividendAccrual.status == "OPEN")
+            .order_by(NatHourlyDividendAccrual.hour_start, NatHourlyDividendAccrual.id)
+            .with_for_update()
+        )).scalars().all()
+        due_rows = [row for row in open_rows if row.hour_start + timedelta(hours=1) <= current]
+        result: Dict[str, Any] = {
+            "accruals_settled": 0,
+            "payment_count": 0,
+            "total_paid": 0.0,
+            "total_refunded": 0.0,
+        }
+        for row in due_rows:
+            stock = await session.get(NatStock, row.stock_id)
+            issuer = await session.get(NatCompany, stock.company_id) if stock else None
+            if stock is None:
+                row.status = "SETTLED"
+                row.paid_at = current
+                result["accruals_settled"] += 1
+                continue
+            holdings = (await session.execute(
+                select(NatStockHolding)
+                .where(
+                    NatStockHolding.stock_id == stock.id,
+                    NatStockHolding.shares_count > 0,
+                    NatStockHolding.holder_company_id != stock.company_id,
+                )
+                .order_by(NatStockHolding.holder_company_id)
+                .with_for_update()
+            )).scalars().all()
+            investor_shares = sum(max(0, int(holding.shares_count)) for holding in holdings)
+            eligible_shares = min(investor_shares, max(0, int(stock.total_shares)))
+            distributable = (
+                float(row.dividend_pool) * eligible_shares / max(1, int(stock.total_shares))
+            )
+            per_share = distributable / investor_shares if investor_shares else 0.0
+            paid = 0.0
+            for holding in holdings:
+                remaining = max(0.0, distributable - paid)
+                payout = round(min(per_share * int(holding.shares_count), remaining), 2)
+                if payout <= 0:
+                    continue
+                holder = await session.get(NatCompany, holding.holder_company_id)
+                if holder is None:
+                    continue
+                holder.cash = round(float(holder.cash) + payout, 2)
+                session.add(NatHourlyDividendPayment(
+                    accrual_id=row.id,
+                    stock_id=stock.id,
+                    holder_company_id=holder.id,
+                    shares_count=holding.shares_count,
+                    payout_cash=payout,
+                    hour_start=row.hour_start,
+                    paid_at=current,
+                ))
+                paid += payout
+                result["payment_count"] += 1
+            refund = round(max(0.0, float(row.dividend_pool) - paid), 2)
+            if issuer is not None and refund:
+                issuer.cash = round(float(issuer.cash) + refund, 2)
+            row.status = "SETTLED"
+            row.paid_at = current
+            result["accruals_settled"] += 1
+            result["total_paid"] += paid
+            result["total_refunded"] += refund
+        result["total_paid"] = round(result["total_paid"], 2)
+        result["total_refunded"] = round(result["total_refunded"], 2)
+        await session.flush()
+        if commit:
+            await session.commit()
+        return result
+
     @classmethod
     async def settle_daily_dividends_for_stock(
         cls,

@@ -470,6 +470,50 @@ async def _migrate_v5_state_credit_approval(conn) -> None:
     })
 
 
+async def _migrate_v6_hourly_returns(conn) -> None:
+    """Start hourly IPO dividends and switch outstanding bonds to minute coupons."""
+    from datetime import timedelta
+    from backend.natbirzha.config import get_game_now
+
+    await _add_columns(conn, "nat_stocks", {
+        "dividend_eligible_from": "TIMESTAMP",
+    })
+    now = get_game_now()
+    if await _table_exists(conn, "nat_stocks"):
+        await conn.execute(text("""
+            UPDATE nat_stocks
+            SET dividend_eligible_from=:now
+            WHERE is_listed = TRUE AND dividend_eligible_from IS NULL
+        """), {"now": now})
+
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    def create_hourly_tables(sync_connection) -> None:
+        Base.metadata.tables["nat_hourly_dividend_accruals"].create(
+            sync_connection, checkfirst=True
+        )
+        Base.metadata.tables["nat_hourly_dividend_payments"].create(
+            sync_connection, checkfirst=True
+        )
+
+    await conn.run_sync(create_hourly_tables)
+
+    if await _table_exists(conn, "nat_state_bonds"):
+        if await _table_exists(conn, "nat_bond_settlements"):
+            await conn.execute(text("""
+                UPDATE nat_bond_settlements
+                SET status='CANCELLED'
+                WHERE settlement_type='COUPON' AND status='PENDING' AND due_at > :now
+            """), {"now": now})
+        await conn.execute(text("""
+            UPDATE nat_state_bonds
+            SET next_coupon_at=:next_coupon_at
+            WHERE status NOT IN ('CLOSED', 'BANKRUPT')
+              AND (maturity_at IS NULL OR maturity_at > :now)
+        """), {"next_coupon_at": now + timedelta(minutes=1), "now": now})
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -491,6 +535,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v4_capacity_industry_upgrades", _migrate_v4_capacity_and_industry_boosts),
     ("natbirzha_v5_001_state_credit", _migrate_v5_state_credit),
     ("natbirzha_v5_002_state_credit_approval", _migrate_v5_state_credit_approval),
+    ("natbirzha_v6_001_hourly_returns", _migrate_v6_hourly_returns),
 )
 
 

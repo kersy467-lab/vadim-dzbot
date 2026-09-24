@@ -1,5 +1,6 @@
 """Company-level orchestration for lazy V2 settlement and tax enforcement."""
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Type
 
@@ -10,12 +11,14 @@ from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import get_game_tz, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.stocks import NatStock
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
 from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
 from backend.natbirzha.services.progression_service import apply_xp
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.tax_service import TaxService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
+from backend.natbirzha.services.dividend_service import DividendService
 
 
 def _empty_result(company: NatCompany, cap_hours: int, projects: list, tax: dict) -> dict[str, Any]:
@@ -24,6 +27,7 @@ def _empty_result(company: NatCompany, cap_hours: int, projects: list, tax: dict
         "gross_cash": 0.0,
         "maintenance_cash": 0.0,
         "net_cash": 0.0,
+        "dividend_withheld_cash": 0.0,
         "settled_hours": 0.0,
         "offline_cap_hours": cap_hours,
         "skipped_offline_hours": 0.0,
@@ -132,6 +136,17 @@ async def settle_company(
             effective_current = prospective
 
     gross = maintenance = settled_hours = skipped_hours = 0.0
+    hourly_net_profit: dict[datetime, float] = defaultdict(float)
+    listed_stock = await session.scalar(
+        select(NatStock).where(NatStock.company_id == company.id, NatStock.is_listed == True)
+    )
+    dividend_eligible_after = None
+    if listed_stock is not None:
+        dividend_eligible_after = (
+            normalize_dt(listed_stock.dividend_eligible_from)
+            or normalize_dt(listed_stock.ipo_date)
+            or normalize_dt(listed_stock.created_at)
+        )
     completed_upgrades: list[int] = []
     xp_gain = 0
     for business in businesses:
@@ -179,12 +194,27 @@ async def settle_company(
             maintenance=result["maintenance"],
             resource_cost=float(result.get("resource_cost", 0.0)),
         )
+        business_net = (
+            float(result["gross"])
+            - float(result["maintenance"])
+            - float(result.get("resource_cost", 0.0))
+        )
+        for hour_start, profit in BusinessIncomeLedgerService.split_interval_by_hour(
+            work_started_at,
+            worked_hours,
+            business_net,
+            eligible_after=dividend_eligible_after,
+        ).items():
+            hourly_net_profit[hour_start] += profit
         if result["upgrade_completed"]:
             completed_upgrades.append(business.id)
             xp_gain += 50 + int(business.stage) * 10
 
     progression = apply_xp(company, xp_gain) if xp_gain > 0 else None
-    net_cash = round(gross - maintenance, 2)
+    dividend_withheld = await DividendService.accrue_hourly_profit(
+        session, company, dict(hourly_net_profit), now=current
+    )
+    net_cash = round(gross - maintenance - dividend_withheld, 2)
     if net_cash:
         company.cash = round(float(company.cash) + net_cash, 2)
     tax = await TaxService.summary(session, company.id, today=current.date())
@@ -199,6 +229,7 @@ async def settle_company(
         "gross_cash": round(gross, 2),
         "maintenance_cash": round(maintenance, 2),
         "net_cash": net_cash,
+        "dividend_withheld_cash": round(dividend_withheld, 8),
         "settled_hours": round(settled_hours, 4),
         "offline_cap_hours": cap_hours,
         "skipped_offline_hours": round(skipped_hours, 4),

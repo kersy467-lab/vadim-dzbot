@@ -63,6 +63,8 @@ class StateBondSecondaryMarketMixin:
         operation_key: str, now: datetime | None = None, commit: bool = False,
     ) -> dict[str, Any]:
         now = now or get_game_now()
+        # Accrue elapsed coupons to the seller before ownership changes.
+        await cls.settle_due(session, now=now, commit=False)
         replay = await session.scalar(
             select(NatBondListing).where(NatBondListing.filled_operation_key == operation_key)
         )

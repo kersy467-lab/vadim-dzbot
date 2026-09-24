@@ -24,7 +24,8 @@ async def _get_natbirzha_recipient_ids(db_session: AsyncSession) -> list[int]:
     return list(dict.fromkeys(int(tg_id) for tg_id in result.scalars().all() if tg_id is not None))
 
 
-@router.message(Command("natnotice"))
+# Accept the typo used by the admin as a backwards-compatible alias.
+@router.message(Command("natnotice", "natnoice"))
 async def cmd_natbirzha_notice(
     message: Message,
     bot: Bot,

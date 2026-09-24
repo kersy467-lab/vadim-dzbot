@@ -258,16 +258,33 @@ class CompanyService:
             NatMarketTrade, NatMarketWarning, NatMilitaryRatingEvent,
             NatMilitaryUpgrade, NatPremiumLedgerEntry, NatPremiumLicense,
             NatPveVictory, NatPvpCooldown, NatRestructuring, NatStateBondHolding,
-            NatStock, NatStockHolding, NatStockOrder, NatTournamentParticipant,
+            NatBankruptcyMarketLot, NatStock, NatStockHolding, NatStockOrder, NatTournamentParticipant,
             NatStateCreditLoan,
         )
 
-        res = await session.execute(select(NatCompany).where(NatCompany.user_id == user_id))
+        res = await session.execute(
+            select(NatCompany).where(NatCompany.user_id == user_id).with_for_update()
+        )
         comp = res.scalar_one_or_none()
         if not comp:
             return False
 
         cid = comp.id
+
+        # Do not leave marketplace entries pointing at factories, businesses,
+        # or stock records removed by a company reset.
+        reset_factory_ids = select(NatFactory.id).where(NatFactory.company_id == cid)
+        reset_business_ids = select(NatBusiness.id).where(NatBusiness.company_id == cid)
+        reset_stock_ids = select(NatStock.id).where(NatStock.company_id == cid)
+        await session.execute(update(NatBankruptcyMarketLot).where(
+            NatBankruptcyMarketLot.status == "ACTIVE",
+            or_(
+                NatBankruptcyMarketLot.former_company_id == cid,
+                (NatBankruptcyMarketLot.asset_kind == "FACTORY") & NatBankruptcyMarketLot.asset_id.in_(reset_factory_ids),
+                (NatBankruptcyMarketLot.asset_kind == "BUSINESS") & NatBankruptcyMarketLot.asset_id.in_(reset_business_ids),
+                (NatBankruptcyMarketLot.asset_kind == "STOCK") & NatBankruptcyMarketLot.asset_id.in_(reset_stock_ids),
+            ),
+        ).values(status="CANCELLED"))
 
         # Delete explicit dependants instead of trusting database cascades. This
         # keeps resets complete on SQLite test/dev deployments where foreign-key

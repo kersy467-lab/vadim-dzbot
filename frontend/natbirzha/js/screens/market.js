@@ -6,6 +6,7 @@ import { renderTaxSection } from './market_tax.js';
 import { renderStateCreditSection } from './market_credit.js?v=20260924_state_credit_approval';
 import { createMarketFinance } from './market_finance.js?v=20260924_state_credit_approval';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js';
+import { renderBankruptcyMarket } from './bankruptcy_market.js';
 
 const MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },
@@ -35,6 +36,8 @@ export function mergeNpcRatesIntoMarketItems(rates, seedItems = MARKET_ITEMS) {
       base: Number(rate.base_price),
       buy: Number(rate.npc_buy_price),
       sell: Number(rate.npc_sell_price),
+      playerSellRemainingCash: Number(rate.player_sell_remaining_cash),
+      playerSellRemainingQuantity: Number(rate.player_sell_remaining_quota),
     };
     if (item) {
       Object.assign(item, Object.fromEntries(
@@ -149,12 +152,12 @@ export async function renderMarket(container, showToast) {
   }
 
   function renderMarketHome() {
-    container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_shares"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Акции государства</div><div class="text-xs text-slate-500">Фиксированная цена, доступная эмиссия, дивиденды и выкуп казной</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% дневной прибыли, задолженность и штрафы</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_credit"><div class="text-2xl">🏦</div><div class="font-black mt-2">Кредит государства</div><div class="text-xs text-slate-500">Займ компании под 7,5% в день</div></button></div></div>`;
+    container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bankruptcy_market"><div class="text-2xl">🏭</div><div class="font-black mt-2">Рынок банкротов</div><div class="text-xs text-slate-500">Заводы конфискованных компаний, наценка государства 30%</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% дневной прибыли, задолженность и штрафы</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_credit"><div class="text-2xl">🏦</div><div class="font-black mt-2">Кредит государства</div><div class="text-xs text-slate-500">Займ компании под 7,5% в день</div></button></div></div>`;
     container.querySelectorAll('.market-section-btn').forEach((button) => button.addEventListener('click', () => {
       const section = button.dataset.section;
       if (section === 'portfolio') finance.renderPortfolio();
       else if (section === 'stocks') finance.renderStocks();
-      else if (section === 'state_shares') finance.renderStateShares();
+      else if (section === 'bankruptcy_market') renderBankruptcyMarket(container, showToast, renderMarketHome);
       else if (section === 'bonds') finance.renderBonds();
       else if (section === 'reference') finance.renderReference();
       else if (section === 'tax') renderTaxSection(container, showToast, renderMarketHome);
@@ -199,6 +202,9 @@ export async function renderMarket(container, showToast) {
                 Купить у NPC
               </button>
             </div>
+          </div>
+          <div class="rounded-lg bg-amber-50/70 px-2.5 py-2 text-[10px] text-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+            Лимит скупки этого товара NPC на сегодня: ${Number.isFinite(itemInfo.playerSellRemainingCash) ? `${itemInfo.playerSellRemainingCash.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} cash (${Number(itemInfo.playerSellRemainingQuantity || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${itemInfo.unit})` : 'загрузка'}.
           </div>
           <div class="text-[10px] text-slate-400">
             На вашем складе: <span class="font-mono font-bold text-slate-700 dark:text-slate-200">${userInvQty} ${itemInfo.unit}</span>

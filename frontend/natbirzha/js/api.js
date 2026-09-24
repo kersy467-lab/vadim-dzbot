@@ -277,6 +277,10 @@ export const NatAPI = {
     method: 'POST', body: JSON.stringify({ quantity: parseInt(quantity, 10) })
   }),
 
+  // Confiscated factories from forced bankruptcies; buyers may come from any industry.
+  getBankruptcyMarketLots: () => request('/api/natbirzha/bankruptcy-market'),
+  buyBankruptcyMarketLot: (lot_id) => request(`/api/natbirzha/bankruptcy-market/lots/${parseInt(lot_id, 10)}/buy`, { method: 'POST' }),
+
   // Pivocoins and time-limited premium branch
   getPremiumWallet: () => request('/api/natbirzha/premium/wallet'),
   getPremiumLedger: () => request('/api/natbirzha/premium/ledger'),

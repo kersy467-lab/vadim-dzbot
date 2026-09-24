@@ -39,7 +39,7 @@ export async function loadCreatorPlayersTab(el, showToast) {
           <span>PVC <b class="text-amber-400">${player.pvc_balance}</b></span></div>
         <div class="mt-1 text-[9px] text-slate-500">Последняя игровая активность: ${new Date(player.last_activity_at).toLocaleString('ru-RU')}</div>
         <div class="mt-2 grid grid-cols-2 gap-2"><button data-id="${player.company_id}" class="creator-player-warning rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-2 text-[10px] font-bold text-amber-300">⚠️ Предупредить</button>
-          <button data-id="${player.company_id}" data-name="${escapeHtml(player.company_name)}" class="creator-player-bankruptcy rounded-lg border border-rose-500/40 bg-rose-950/30 px-2 py-2 text-[10px] font-bold text-rose-300">Банкротство −70%</button></div>
+          <button data-id="${player.company_id}" data-name="${escapeHtml(player.company_name)}" class="creator-player-bankruptcy rounded-lg border border-rose-500/40 bg-rose-950/30 px-2 py-2 text-[10px] font-bold text-rose-300">Банкротство</button></div>
       </article>`).join('') || '<div class="glass-card rounded-2xl p-5 text-center text-xs text-slate-500">Ничего не найдено.</div>'}</div>
       <div class="flex justify-between"><button id="creator-players-prev" class="rounded-lg bg-slate-800 px-3 py-2 text-xs disabled:opacity-40" ${page <= 1 ? 'disabled' : ''}>← Назад</button>
         <button id="creator-players-next" class="rounded-lg bg-slate-800 px-3 py-2 text-xs disabled:opacity-40" ${page >= pages ? 'disabled' : ''}>Далее →</button></div>
@@ -74,11 +74,11 @@ export async function loadCreatorPlayersTab(el, showToast) {
     }));
     el.querySelectorAll('.creator-player-bankruptcy').forEach((button) => button.addEventListener('click', async () => {
       const name = button.dataset.name || 'компании';
-      if (!confirm(`Устроить банкротство компании «${name}»? Будет изъято около 70% учтённых активов и создано 10 000 гос.акций без дивидендов.`)) return;
+      if (!confirm(`Объявить компанию «${name}» банкротом? 70% заводов и предприятий выставятся на рынок банкротов; деньги и вложенные акции перейдут государству; 70% сырья продадутся по активным заявкам.`)) return;
       button.disabled = true;
       try {
         const result = await NatAPI.declareCreatorBankruptcy(button.dataset.id);
-        showToast(`Изъято ${Number(result.seized_value).toLocaleString('ru-RU')} cash. Гос.акции «${result.share_title}» выставлены на рынок.`, 'success');
+        showToast(`Банкротство оформлено: ${Number(result.cash_transferred).toLocaleString('ru-RU')} cash передано казне, ${Number(result.lots_created)} предприятий выставлено на рынок банкротов.`, 'success');
         await reload();
       } catch (error) {
         showToast(error.message, 'error');

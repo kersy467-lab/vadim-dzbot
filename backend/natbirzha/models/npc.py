@@ -17,6 +17,7 @@ class NatNpcDailyVolume(Base):
     item_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     action: Mapped[str] = mapped_column(String(8), nullable=False)
     used_quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    used_cash: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
 
 __all__ = ["NatNpcDailyVolume"]

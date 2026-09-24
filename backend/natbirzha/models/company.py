@@ -78,6 +78,7 @@ class NatFactory(Base):
     automation_status: Mapped[str] = mapped_column(String(32), default="MANUAL", nullable=False)
     automation_pause_reason: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     technology_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    bankruptcy_acquired: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     current_recipe: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     cycle_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

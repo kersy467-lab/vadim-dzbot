@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20260924_ipo_terms';
 import { store } from '../state.js';
-import { renderStateShareMarket } from './state_share_market.js';
+import { renderBankruptcyMarket } from './bankruptcy_market.js';
 
 const IPO_MIN_LEVEL_FALLBACK = 7;
 
@@ -87,9 +87,9 @@ export async function renderStocks(container, showToast) {
         ` : ''}
       </div>
 
-      <button id="open-state-share-market" class="glass-card w-full rounded-2xl p-3 text-left shadow-sm border border-emerald-500/30">
-        <div class="text-xs font-bold text-emerald-600 dark:text-emerald-300">🏛️ Акции государства</div>
-        <div class="mt-1 text-[10px] text-slate-500">Фиксированная цена, покупки из казны и дивиденды</div>
+      <button id="open-bankruptcy-market" class="glass-card w-full rounded-2xl p-3 text-left shadow-sm border border-amber-500/30">
+        <div class="text-xs font-bold text-amber-700 dark:text-amber-300">🏭 Рынок банкротов</div>
+        <div class="mt-1 text-[10px] text-slate-500">Конфискованные заводы, предприятия и акции — покупки идут в казну</div>
       </button>
 
       <!-- State Bonds -->
@@ -207,8 +207,8 @@ export async function renderStocks(container, showToast) {
   `;
 
   // IPO Modal handlers
-  container.querySelector('#open-state-share-market')?.addEventListener('click', () => {
-    renderStateShareMarket(container, showToast, () => renderStocks(container, showToast));
+  container.querySelector('#open-bankruptcy-market')?.addEventListener('click', () => {
+    renderBankruptcyMarket(container, showToast, () => renderStocks(container, showToast));
   });
 
   const ipoModal = container.querySelector('#ipo-modal');

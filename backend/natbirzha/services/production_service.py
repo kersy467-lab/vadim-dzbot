@@ -39,6 +39,8 @@ class ProductionTickEngine(ProductionAutomationMixin):
 
     @staticmethod
     def get_effective_efficiency(company: NatCompany, factory: NatFactory) -> float:
+        if factory.bankruptcy_acquired:
+            return min(1.0, nat_settings.OWN_SPEC_EFFICIENCY)
         if factory.specialization == company.specialization:
             return min(1.0, nat_settings.OWN_SPEC_EFFICIENCY)
         if company.licensed_foreign_spec == factory.specialization:

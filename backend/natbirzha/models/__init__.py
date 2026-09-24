@@ -4,6 +4,7 @@ All models inherit from Base and are automatically discovered by SQLAlchemy.
 """
 
 from backend.natbirzha.models.company import NatCompany, NatFactory
+from backend.natbirzha.models.bankruptcy_market import NatBankruptcyMarketLot
 from backend.natbirzha.models.inventory import (
     CANONICAL_ITEMS,
     NatInventory,
@@ -85,6 +86,7 @@ from backend.natbirzha.models.tax import NatTaxDaily
 __all__ = [
     "NatCompany",
     "NatFactory",
+    "NatBankruptcyMarketLot",
     "CANONICAL_ITEMS",
     "NatInventory",
     "get_item_base_price",

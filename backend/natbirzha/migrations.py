@@ -514,6 +514,28 @@ async def _migrate_v6_hourly_returns(conn) -> None:
         """), {"next_coupon_at": now + timedelta(minutes=1), "now": now})
 
 
+async def _migrate_v7_bankruptcy_market(conn) -> None:
+    """Create bankruptcy listings and daily NPC buyback cash counters."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    await _add_columns(conn, "nat_factories", {
+        "bankruptcy_acquired": "BOOLEAN NOT NULL DEFAULT FALSE",
+    })
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+        "nat_bankruptcy_market_lots"
+    ].create(sync_conn, checkfirst=True))
+    await _add_columns(conn, "nat_bankruptcy_market_lots", {
+        "quantity": "FLOAT NOT NULL DEFAULT 0",
+    })
+    if await _table_exists(conn, "nat_npc_daily_volume"):
+        await _add_columns(conn, "nat_npc_daily_volume", {
+            "used_cash": "FLOAT NOT NULL DEFAULT 0",
+        })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -536,6 +558,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v5_001_state_credit", _migrate_v5_state_credit),
     ("natbirzha_v5_002_state_credit_approval", _migrate_v5_state_credit_approval),
     ("natbirzha_v6_001_hourly_returns", _migrate_v6_hourly_returns),
+    ("natbirzha_v7_001_bankruptcy_market", _migrate_v7_bankruptcy_market),
 )
 
 

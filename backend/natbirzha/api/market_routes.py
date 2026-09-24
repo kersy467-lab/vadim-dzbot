@@ -129,15 +129,18 @@ async def get_npc_rates(session: AsyncSession = Depends(get_db_session)):
         sell_status = await NPCReserveService.get_quota_status(session, item_id, "SELL")
         rates.append({
             **NPCReserveService.get_npc_quote(item_id),
-            # Regular-resource NPC liquidity is unlimited in both directions.
-            # Keep the old response keys as null for backward compatibility.
             "scaling_factor": 1.0,
-            "liquidity_unlimited": True,
-            "daily_quota": None,
-            "remaining_npc_quota": None,
-            "quota_label": "",
-            "player_sell_daily_quota": None,
-            "player_sell_remaining_quota": None,
+            "liquidity_unlimited": bool(
+                buy_status["liquidity_unlimited"] and sell_status["liquidity_unlimited"]
+            ),
+            "daily_quota": buy_status["daily_quota"],
+            "remaining_npc_quota": buy_status["remaining_npc_quota"],
+            "quota_label": buy_status["quota_label"],
+            "player_sell_daily_quota": sell_status["daily_quota"],
+            "player_sell_remaining_quota": sell_status["remaining_npc_quota"],
+            "player_sell_daily_cash_limit": sell_status["daily_quota_cash"],
+            "player_sell_remaining_cash": sell_status["remaining_npc_cash_quota"],
+            "player_sell_quota_label": sell_status["quota_label"],
             # Premium raw materials have a separate emergency stock only when
             # the player buys them from NPC. This is not general liquidity.
             "strict_reserve": bool(buy_status["strict_reserve"]),
@@ -169,7 +172,7 @@ async def trade_with_npc(
     )
     if not result.get("success"):
         reason = result.get("reason")
-        code = 409 if reason in {"npc_rare_reserve_empty", "market_restricted", "inventory_overflow"} else 400
+        code = 409 if reason in {"npc_rare_reserve_empty", "npc_daily_quota_exceeded", "market_restricted", "inventory_overflow"} else 400
         raise HTTPException(status_code=code, detail=result)
 
     return await IdempotencyService.commit_response(

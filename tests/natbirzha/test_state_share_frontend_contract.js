@@ -15,6 +15,7 @@ const stocks = read('frontend/natbirzha/js/screens/stocks.js');
 const marketShares = read('frontend/natbirzha/js/screens/state_share_market.js');
 const marketFinance = read('frontend/natbirzha/js/screens/market_finance.js');
 const market = read('frontend/natbirzha/js/screens/market.js');
+const bankruptcyMarket = read('frontend/natbirzha/js/screens/bankruptcy_market.js');
 
 [
   'getStateShares', 'buyStateShares', 'sellStateShares',
@@ -37,14 +38,19 @@ assert(creatorShares.includes('NatAPI.issueCreatorShares') && creatorShares.incl
 assert(creatorShares.includes('не пополняет казну') && creatorShares.includes('confirm('),
   'issuance must explain and confirm that shares themselves do not create Treasury cash');
 
-assert(stocks.includes('renderStateShareMarket'),
-  'the stock market must include a separate state share market module');
+assert(stocks.includes('renderBankruptcyMarket') && stocks.includes('Рынок банкротов'),
+  'the securities screen must link to the bankruptcy asset market');
 assert(marketShares.includes('NatAPI.getStateShares') && marketShares.includes('NatAPI.getPortfolio'),
   'the player screen must load state share issues and portfolio holdings');
 assert(marketFinance.includes('renderStateShareMarket') && marketFinance.includes('state_shares'),
   'the reachable Market screen must open the state share market and portfolio section');
-assert(market.includes('data-section="state_shares"') && market.includes('finance.renderStateShares'),
-  'the main Market menu must provide a route to the state share market');
+assert(market.includes('data-section="bankruptcy_market"') && market.includes('renderBankruptcyMarket'),
+  'the main Market menu must provide a route to the bankruptcy asset market');
+assert(api.includes('getBankruptcyMarketLots:') && api.includes('buyBankruptcyMarketLot:'),
+  'NatAPI must expose bankruptcy market listing and purchase methods');
+assert(bankruptcyMarket.includes('cost_basis') && bankruptcyMarket.includes('state_premium')
+  && bankruptcyMarket.includes('buyBankruptcyMarketLot') && bankruptcyMarket.includes('Рынок банкротов'),
+  'the bankruptcy market must show cost basis, state premium, and purchase controls');
 assert(marketShares.includes('NatAPI.buyStateShares') && marketShares.includes('NatAPI.sellStateShares'),
   'the player screen must let players buy from and redeem shares with the Treasury');
 assert(marketShares.includes('remaining_volume') && marketShares.includes('dividends_earned'),

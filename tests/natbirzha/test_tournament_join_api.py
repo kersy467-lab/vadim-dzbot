@@ -70,7 +70,7 @@ async def run_async() -> None:
     app.dependency_overrides[get_db_session] = test_session
     app.dependency_overrides[get_current_company] = test_company
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         joined = await client.post(
             f"/api/natbirzha/military/tournaments/{tournament_id}/join",
@@ -84,7 +84,21 @@ async def run_async() -> None:
         )
         assert replay.status_code == 200 and replay.json() == joined.json()
 
+        async with sessions() as session:
+            # Old deployments may leave a unit type in the normalized army table
+            # that is no longer in the current unit catalog. Opening the
+            # tournament must still work for every participant.
+            session.add(
+                NatArmyUnit(
+                    company_id=company_ids[0],
+                    unit_type="legacy_infantry",
+                    quantity=3,
+                )
+            )
+            await session.commit()
+
         tournament_state = await client.get("/api/natbirzha/military/tournaments/current")
+        assert tournament_state.status_code == 200, tournament_state.text
         assert tournament_state.json()["tournament"]["is_participant"] is True
         async with sessions() as session:
             participants = (

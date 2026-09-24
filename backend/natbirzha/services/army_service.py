@@ -67,7 +67,11 @@ class ArmyService:
     def _strengths(rows: list[NatArmyUnit]) -> tuple[dict[str, int], int]:
         phases = {"recon": 0, "air": 0, "air_defense": 0, "ground": 0}
         for row in rows:
-            spec = UNIT_CATALOG[row.unit_type]
+            spec = UNIT_CATALOG.get(row.unit_type)
+            if spec is None:
+                # Ignore stale unit codes left by earlier game versions. A
+                # legacy row must not make every tournament/API read fail.
+                continue
             level_multiplier = 1.0 + min(max(row.level, 0), 20) * 0.03
             readiness_multiplier = min(1.0, max(0.25, row.readiness / 10_000))
             strength = round(row.quantity * spec.base_power * level_multiplier * readiness_multiplier)
@@ -182,6 +186,7 @@ class ArmyService:
         cls, session: AsyncSession, company_id: int, *, for_update: bool = False
     ) -> ArmySnapshot:
         rows = await cls._unit_rows(session, company_id, for_update=for_update)
+        rows = [row for row in rows if row.unit_type in UNIT_CATALOG]
         return ArmySnapshot(
             units={row.unit_type: row.quantity for row in rows},
             levels={row.unit_type: row.level for row in rows},
@@ -221,6 +226,7 @@ class ArmyService:
     @classmethod
     async def compatibility_status(cls, session: AsyncSession, company_id: int) -> dict[str, Any]:
         rows = await cls._unit_rows(session, company_id)
+        rows = [row for row in rows if row.unit_type in UNIT_CATALOG]
         quantities = {unit_type: 0 for unit_type in UNIT_CATALOG}
         quantities.update({row.unit_type: row.quantity for row in rows})
         levels = {row.unit_type: row.level for row in rows}

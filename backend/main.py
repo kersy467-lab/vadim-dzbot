@@ -262,11 +262,20 @@ class SmartCacheStaticFiles(StaticFiles):
         norm_path = str(path).replace("\\", "/").lower()
         if norm_path.endswith((".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff2", ".woff", ".mp3")):
             response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+        elif norm_path.endswith((".js", ".css")):
+            qs = scope.get("query_string", b"")
+            if isinstance(qs, bytes):
+                qs = qs.decode("utf-8", errors="ignore")
+            if "v=" in qs:
+                response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+            else:
+                response.headers["Cache-Control"] = "no-cache"
         else:
             response.headers["Cache-Control"] = "no-cache"
         if "pragma" in response.headers:
             del response.headers["pragma"]
         return response
+
 
 # Static files for Telegram Mini App
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")

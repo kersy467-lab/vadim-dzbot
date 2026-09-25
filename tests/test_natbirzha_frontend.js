@@ -281,7 +281,7 @@ assert(creatorScreenCode.includes('grid grid-cols-3') && !creatorScreenCode.incl
   'government controls must be visible in a wrapping grid instead of hidden in a horizontal tab strip');
 assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"') && creatorScreenCode.includes('data-tab="sabotages"'),
   'player bankruptcy, bond bankruptcy and sabotages sections must remain directly navigable');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260925_deals_v6')
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260925_deals_v9')
   || fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260925_multisab_v4'),
   'app.js must reload the updated creator panel module');
 assert(/creator_credit\.js\?v=20260925_/.test(creatorScreenCode)
@@ -399,7 +399,7 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
-assert(appSourceCode.includes('overview.js?v=20260925_deals_v6') || appSourceCode.includes('overview.js?v=20260925_multisab_v4'),
+assert(appSourceCode.includes('overview.js?v=20260925_deals_v9') || appSourceCode.includes('overview.js?v=20260925_multisab_v4'),
   'overview inventory fixes must be loaded from a fresh screen module');
 assert(/market_credit\.js\?v=20260925_/.test(marketCoreCode),
   'market credit screen must use a cache-busted module URL');

@@ -1,12 +1,12 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
-import { store } from '../state.js?v=20260925_deals_v6';
-import { getItemInfo } from '../items.js?v=20260925_deals_v6';
-import { renderMarketChart } from '../market_chart.js?v=20260925_deals_v6';
-import { renderTaxSection } from './market_tax.js?v=20260925_deals_v6';
-import { renderStateCreditSection } from './market_credit.js?v=20260925_deals_v6';
-import { createMarketFinance } from './market_finance.js?v=20260925_deals_v6';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_deals_v6';
-import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { store } from '../state.js?v=20260925_deals_v9';
+import { getItemInfo } from '../items.js?v=20260925_deals_v9';
+import { renderMarketChart } from '../market_chart.js?v=20260925_deals_v9';
+import { renderTaxSection } from './market_tax.js?v=20260925_deals_v9';
+import { renderStateCreditSection } from './market_credit.js?v=20260925_deals_v9';
+import { createMarketFinance } from './market_finance.js?v=20260925_deals_v9';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_deals_v9';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_deals_v9';
 import { renderMarketDeals } from './market_deals.js?v=20260925_supply_deals';
 
 const MARKET_ITEMS = [

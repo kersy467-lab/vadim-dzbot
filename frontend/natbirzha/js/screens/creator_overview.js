@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
 
 export async function loadCreatorOverview(el, showToast) {
   const [data, metrics] = await Promise.all([

@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
-import { store } from '../state.js?v=20260925_deals_v6';
-import { getItemInfo } from '../items.js?v=20260925_deals_v6';
-import { getSpecializationName } from '../localization.js?v=20260925_deals_v6';
-import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { store } from '../state.js?v=20260925_deals_v9';
+import { getItemInfo } from '../items.js?v=20260925_deals_v9';
+import { getSpecializationName } from '../localization.js?v=20260925_deals_v9';
+import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_deals_v9';
 
 export function renderOverview(container, showToast) {
   const company = store.company;

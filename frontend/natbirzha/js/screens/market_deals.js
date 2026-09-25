@@ -1,6 +1,6 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
 import { formatNumber } from '../format.js';
-import { store } from '../state.js?v=20260925_deals_v6';
+import { store } from '../state.js?v=20260925_deals_v9';
 
 const TERMS = [
   [600, '10 минут'], [1800, '30 минут'], [3600, '1 час'], [7200, '2 часа'],

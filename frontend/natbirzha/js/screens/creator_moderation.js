@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
-import { ITEMS, getItemInfo } from '../items.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { ITEMS, getItemInfo } from '../items.js?v=20260925_deals_v9';
 
 export async function loadCreatorModeration(el, showToast) {
   const [data, resetPreview] = await Promise.all([

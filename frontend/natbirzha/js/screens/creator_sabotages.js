@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
 
 export async function loadCreatorSabotages(el, showToast) {
   const [activeRes, catalogRes] = await Promise.all([

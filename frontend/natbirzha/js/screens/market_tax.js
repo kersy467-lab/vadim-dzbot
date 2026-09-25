@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
-import { store } from '../state.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { store } from '../state.js?v=20260925_deals_v9';
 
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const fmtDate = (value) => {

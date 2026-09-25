@@ -1,11 +1,11 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v6';
-import { loadCreatorOverview } from './creator_overview.js?v=20260925_deals_v6';
-import { loadCreatorModeration } from './creator_moderation.js?v=20260925_deals_v6';
-import { loadCreatorShares } from './creator_shares.js?v=20260925_deals_v6';
-import { loadCreatorPlayersTab } from './creator_players.js?v=20260925_deals_v6';
-import { loadCreatorCreditTab } from './creator_credit.js?v=20260925_deals_v6';
-import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260925_deals_v6';
-import { loadCreatorSabotages } from './creator_sabotages.js?v=20260925_deals_v6';
+import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { loadCreatorOverview } from './creator_overview.js?v=20260925_deals_v9';
+import { loadCreatorModeration } from './creator_moderation.js?v=20260925_deals_v9';
+import { loadCreatorShares } from './creator_shares.js?v=20260925_deals_v9';
+import { loadCreatorPlayersTab } from './creator_players.js?v=20260925_deals_v9';
+import { loadCreatorCreditTab } from './creator_credit.js?v=20260925_deals_v9';
+import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260925_deals_v9';
+import { loadCreatorSabotages } from './creator_sabotages.js?v=20260925_deals_v9';
 
 let activeTab = 'overview';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({

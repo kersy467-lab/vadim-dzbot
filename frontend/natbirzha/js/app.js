@@ -1,5 +1,5 @@
 import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_deals_v9';
-import { store } from './state.js?v=20260925_deals_v9';
+import { store } from './state.js?v=20260925_maint_v1';
 import { renderOnboarding } from './screens/onboarding.js?v=20260925_deals_v9';
 import { renderOverview } from './screens/overview.js?v=20260925_deals_v9';
 import { renderTycoon } from './screens/tycoon.js?v=20260925_deals_v9';

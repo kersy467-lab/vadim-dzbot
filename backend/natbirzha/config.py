@@ -28,7 +28,7 @@ class NatbirzhaSettings(BaseSettings):
     TYCOON_V2_WORK_XP_PER_HOUR: int = 20
     TYCOON_V2_IPO_MIN_LEVEL: int = 7
     EVENTS_CHAT_ID: int = Field(
-        default=-5495179388,
+        default=-1004491945174,
         validation_alias=AliasChoices("NATBIRZHA_EVENTS_CHAT_ID", "EVENTS_CHAT_ID"),
         description="Public Telegram chat ID for broadcasting Natbirzha game events",
     )

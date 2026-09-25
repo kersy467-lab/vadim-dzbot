@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     )
 
     NATBIRZHA_EVENTS_CHAT_ID: int = Field(
-        default=-5495179388,
+        default=-1004491945174,
         description="Public Telegram chat ID for broadcasting Natbirzha game events"
     )
 

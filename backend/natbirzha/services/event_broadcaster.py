@@ -31,12 +31,12 @@ class EventBroadcaster:
 
     @classmethod
     def get_configured_chat_id(cls) -> int:
-        configured = getattr(nat_settings, "EVENTS_CHAT_ID", -5495179388)
+        configured = getattr(nat_settings, "EVENTS_CHAT_ID", -1004491945174)
         try:
             val = int(configured)
-            return val if val != 0 else -5495179388
+            return val if val != 0 else -1004491945174
         except Exception:
-            return -5495179388
+            return -1004491945174
 
     @classmethod
     def get_chat_id(cls) -> int:
@@ -52,38 +52,79 @@ class EventBroadcaster:
     def _get_bot() -> Optional[Any]:
         try:
             from backend.bot.bot import get_current_bot
-            return get_current_bot()
-        except Exception:
+            b = get_current_bot()
+            if b is not None:
+                return b
+            from backend.bot.bot import create_bot_and_dispatcher
+            b, _ = create_bot_and_dispatcher()
+            return b
+        except Exception as exc:
+            logger.warning("Error resolving bot for EventBroadcaster: %s", exc)
             return None
+
+    @staticmethod
+    async def _get_approved_group_ids() -> list[int]:
+        try:
+            from backend.db.session import async_session_factory
+            from backend.db.models import GroupChat
+            from sqlalchemy import select
+            async with async_session_factory() as session:
+                res = await session.execute(
+                    select(GroupChat.chat_id).where(
+                        GroupChat.role == "approved",
+                        GroupChat.notifications_enabled == True
+                    )
+                )
+                return [int(row[0]) for row in res.fetchall()]
+        except Exception as exc:
+            logger.warning("Could not query approved groups for EventBroadcaster: %s", exc)
+            return []
 
     @classmethod
     async def send_message(cls, text: str) -> bool:
         """
         Sends an HTML formatted message to the events group with automatic
-        fallback between regular group (-ID) and supergroup (-100ID).
+        fallback between configured ID, known target IDs, and approved DB groups.
         """
         try:
             # Short yield to allow surrounding database commit to conclude
             await asyncio.sleep(0.05)
             bot = cls._get_bot()
             if not bot:
-                logger.debug("Bot instance not available, skipping event broadcast: %s", text[:60])
+                logger.warning("Bot instance not available, skipping event broadcast: %s", text[:60])
                 return False
 
-            chat_id = cls.get_chat_id()
-            success = await cls._try_send(bot, chat_id, text)
-            if success:
-                return True
+            candidates: list[int] = []
+            if cls._cached_chat_id is not None:
+                candidates.append(cls._cached_chat_id)
 
-            # Fallback logic for group vs supergroup prefix
-            alt_chat_id = cls._get_alternative_chat_id(chat_id)
-            if alt_chat_id and alt_chat_id != chat_id:
-                logger.info("Attempting fallback chat ID %s for event broadcast", alt_chat_id)
-                success_alt = await cls._try_send(bot, alt_chat_id, text)
-                if success_alt:
-                    cls._cached_chat_id = alt_chat_id
+            cfg_id = cls.get_configured_chat_id()
+            if cfg_id not in candidates:
+                candidates.append(cfg_id)
+
+            for known_id in (-1004491945174, -4491945174, -5495179388, -1005495179388):
+                if known_id not in candidates:
+                    candidates.append(known_id)
+
+            for cid in list(candidates):
+                alt = cls._get_alternative_chat_id(cid)
+                if alt and alt not in candidates:
+                    candidates.append(alt)
+
+            for target_id in candidates:
+                if await cls._try_send(bot, target_id, text):
+                    cls._cached_chat_id = target_id
                     return True
 
+            # If none of the static targets worked, try approved groups from DB
+            db_chat_ids = await cls._get_approved_group_ids()
+            for db_id in db_chat_ids:
+                if db_id not in candidates:
+                    if await cls._try_send(bot, db_id, text):
+                        cls._cached_chat_id = db_id
+                        return True
+
+            logger.warning("Event broadcast failed for all target chat candidates")
             return False
         except Exception as exc:
             logger.warning("Unexpected error during event broadcast: %s", exc)
@@ -93,6 +134,7 @@ class EventBroadcaster:
     async def _try_send(cls, bot: Any, target_chat_id: int, text: str) -> bool:
         try:
             await bot.send_message(chat_id=target_chat_id, text=text, parse_mode="HTML")
+            logger.info("Successfully delivered event broadcast to chat %s", target_chat_id)
             return True
         except Exception as exc:
             logger.warning("Failed sending event broadcast to chat %s: %s", target_chat_id, exc)
@@ -102,12 +144,10 @@ class EventBroadcaster:
     def _get_alternative_chat_id(chat_id: int) -> Optional[int]:
         s = str(chat_id)
         if s.startswith("-100"):
-            # Supergroup -> basic group: -1005495179388 -> -5495179388
             remainder = s[4:]
             if remainder.isdigit():
                 return -int(remainder)
         elif s.startswith("-"):
-            # Basic group -> supergroup: -5495179388 -> -1005495179388
             remainder = s[1:]
             if remainder.isdigit():
                 return int(f"-100{remainder}")

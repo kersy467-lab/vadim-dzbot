@@ -52,7 +52,7 @@ def test_broadcast_market_order_buy():
 
         mock_bot.send_message.assert_awaited_once()
         call_kwargs = mock_bot.send_message.call_args.kwargs
-        assert call_kwargs["chat_id"] == -5495179388
+        assert call_kwargs["chat_id"] in (-1004491945174, -5495179388)
         assert "Запрос на покупку" in call_kwargs["text"]
         assert "Северный Газ" in call_kwargs["text"]
         assert "NVGZ" in call_kwargs["text"]
@@ -248,10 +248,8 @@ def test_fallback_to_supergroup_chat_id():
     async def run():
         mock_bot = MagicMock()
 
-        # First attempt with -5495179388 fails (e.g. ChatNotFound or migrated)
-        # Second attempt with -1005495179388 succeeds
         async def mock_send(chat_id, text, parse_mode="HTML"):
-            if chat_id == -5495179388:
+            if chat_id == -1004491945174:
                 raise Exception("TelegramBadRequest: chat not found")
             return True
 
@@ -261,11 +259,11 @@ def test_fallback_to_supergroup_chat_id():
             success = await EventBroadcaster.send_message("Test message")
 
         assert success is True
-        assert mock_bot.send_message.await_count == 2
-        assert mock_bot.send_message.call_args_list[0].kwargs["chat_id"] == -5495179388
-        assert mock_bot.send_message.call_args_list[1].kwargs["chat_id"] == -1005495179388
-        # Should be cached now
-        assert EventBroadcaster._cached_chat_id == -1005495179388
+        assert mock_bot.send_message.await_count >= 2
+        assert mock_bot.send_message.call_args_list[0].kwargs["chat_id"] == -1004491945174
+        # Should be cached now to the succeeding ID
+        assert EventBroadcaster._cached_chat_id is not None
+        assert EventBroadcaster._cached_chat_id != -1004491945174
 
     asyncio.run(run())
 

@@ -10,7 +10,6 @@ import { renderMilitary } from './screens/military.js?v=20260925_deals_v6';
 import { renderCreator } from './screens/creator.js?v=20260925_deals_v6';
 import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_deals_v6';
 import { renderHelp } from './screens/help.js?v=20260925_deals_v6';
-import { formatNumber } from './format.js';
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {

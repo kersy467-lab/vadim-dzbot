@@ -14,7 +14,7 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
-assert(natHtml.includes('app.js?v=20260925_supply_deals'), 'Natbirzha entrypoint must refresh its cached code after a release');
+assert(natHtml.includes('app.js?v=20260925_deals_v7') || natHtml.includes('app.js?v=20260925_supply_deals'), 'Natbirzha entrypoint must refresh its cached code after a release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');

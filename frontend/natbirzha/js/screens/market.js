@@ -8,7 +8,6 @@ import { createMarketFinance } from './market_finance.js?v=20260925_deals_v6';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_deals_v6';
 import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_deals_v6';
 import { renderMarketDeals } from './market_deals.js?v=20260925_supply_deals';
-import { formatNumber } from '../format.js';
 
 const MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },

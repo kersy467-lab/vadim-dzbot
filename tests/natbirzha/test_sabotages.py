@@ -81,8 +81,10 @@ def test_two_concurrent_sabotages_and_compounded_multipliers():
             actives = await SabotageService.get_active_sabotages(session, now=now)
             assert len(actives) == 1
             assert SabotageService.get_income_multiplier("oilman") == 1.30
-            assert SabotageService.get_income_multiplier("logistics") == 0.75
-            assert SabotageService.get_income_multiplier("miner") == 1.0
+            # logistics now 0.70 (fuel_crisis income_multiplier, overrides other_income_mult 0.85)
+            assert SabotageService.get_income_multiplier("logistics") == 0.70
+            # miner has no specific multiplier -> gets other_income_mult = 0.85
+            assert SabotageService.get_income_multiplier("miner") == 0.85
             base_diesel = get_item_base_price("fuel_diesel")
             assert base_diesel == round(1.2 * 1.50, 2)
 
@@ -96,13 +98,14 @@ def test_two_concurrent_sabotages_and_compounded_multipliers():
             actives = await SabotageService.get_active_sabotages(session, now=now)
             assert len(actives) == 2
 
-            # Compounded income multipliers:
-            # oilman: 1.30 * 1.30 = 1.69
-            # logistics: 0.75 * 1.30 = 0.975
-            # miner: 1.0 * 1.30 = 1.30
+            # Compounded income multipliers with economic_boom (other_income_mult=1.30):
+            # oilman: 1.30 (fuel_crisis) * 1.30 (boom) = 1.69
+            # logistics: 0.70 (fuel_crisis explicit) * 1.30 (boom) = 0.91
+            # miner: 0.85 (fuel_crisis other) * 1.30 (boom) = 1.105
             assert SabotageService.get_income_multiplier("oilman") == 1.69
-            assert SabotageService.get_income_multiplier("logistics") == 0.975
-            assert SabotageService.get_income_multiplier("miner") == 1.30
+            assert SabotageService.get_income_multiplier("logistics") == round(0.70 * 1.30, 4)
+            assert SabotageService.get_income_multiplier("miner") == round(0.85 * 1.30, 4)
+
 
             # Additive credit rate delta: 0.0 + (-0.05) = -0.05
             assert SabotageService.get_credit_rate_delta() == -0.05

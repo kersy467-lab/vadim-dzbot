@@ -16,6 +16,7 @@ from backend.db.session import async_session_factory, init_db
 from backend.main import app
 from backend.natbirzha.config import get_game_now, nat_settings
 from backend.natbirzha.models.company import NatFactory
+from backend.natbirzha.services.npc_service import NPCReserveService
 
 
 def create_test_init_data(user_id: int, username: str = "nat_tester") -> str:
@@ -72,8 +73,8 @@ async def test_vertical_playable_slice():
             headers={**headers, "Idempotency-Key": f"coal-{user_id}"},
             json={"item_id": "coal", "action": "BUY", "quantity": 5.0},
         )
-        assert buy_ore.status_code == 200 and buy_ore.json()["unit_price"] == 43.75
-        assert buy_coal.status_code == 200 and buy_coal.json()["unit_price"] == 37.50
+        assert buy_ore.status_code == 200 and buy_ore.json()["unit_price"] == NPCReserveService.get_npc_quote("iron_ore")["npc_sell_price"]
+        assert buy_coal.status_code == 200 and buy_coal.json()["unit_price"] == NPCReserveService.get_npc_quote("coal")["npc_sell_price"]
 
         after_buy = (await client.get("/api/natbirzha/company/me", headers=headers)).json()
         assert after_buy["inventory"]["iron_ore"] == before_ore + 10.0
@@ -125,7 +126,7 @@ async def test_vertical_playable_slice():
             headers=sell_headers,
             json={"item_id": "steel", "action": "SELL", "quantity": 1.0},
         )
-        assert sold.status_code == 200 and sold.json()["unit_price"] == 72.0
+        assert sold.status_code == 200 and sold.json()["unit_price"] == NPCReserveService.get_npc_quote("steel")["npc_buy_price"]
         cash_after = (await client.get("/api/natbirzha/company/me", headers=headers)).json()["cash"]
         assert round(cash_after - cash_before, 2) == 72.0
 

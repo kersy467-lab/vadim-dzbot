@@ -71,7 +71,7 @@ async def run() -> None:
             created = await client.post("/api/natbirzha/company/create", headers=create_headers, json=payload)
             replay_created = await client.post("/api/natbirzha/company/create", headers=create_headers, json=payload)
             assert created.status_code == 200 and replay_created.json() == created.json()
-            assert created.json()["cash"] == 10000.0
+            assert created.json()["cash"] == nat_settings.STARTING_CASH
 
             state = await client.get("/api/natbirzha/company/me", headers=auth)
             assert state.status_code == 200

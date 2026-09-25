@@ -127,22 +127,11 @@ async def settle_company(
 
     cap_hours = engine.offline_cap_hours(company)
     tax = await TaxService.summary(session, company.id, now=current)
-    if tax["blocked"]:
-        for business in visible:
-            spec = get_business_spec(business.business_type)
-            ready_at = normalize_dt(business.upgrade_ready_at)
-            if spec and business.status == "UPGRADING" and ready_at and ready_at <= current:
-                engine._finish_due_upgrade(business, spec)
-            business.last_settled_at = current
-        if process_deals:
-            await SupplyDealService.advance_buyer_cursor(session, company.id, through=current)
-            await SupplyDealService.settle_expired(session, company.id, now=current)
-        await session.flush()
-        return _empty_result(company, cap_hours, completed_projects, tax)
-
-    # When no tax row exists yet, a very long first offline settlement may not
-    # silently earn past the first possible tax-block date. If that first window
-    # produced no positive profit, a later request can continue normally.
+    # Always settle only through the first unpaid tax deadline. If a company
+    # returns after that deadline, the already-earned portion before the stop
+    # time still counts; the final cursor advance below discards later hours.
+    # This also covers the first offline window, before its income has created a
+    # tax row: it cannot silently earn past its first possible tax-block date.
     effective_current = current
     unpaid_date = tax.get("oldest_unpaid_date")
     if unpaid_date:

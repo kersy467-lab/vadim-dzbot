@@ -438,8 +438,8 @@ async def test_database_and_crud():
         hw_test = await create_homework(
             session=session,
             subject_id=chem_id,
-            due_date=date(2026, 9, 25),
-            assigned_date=date(2026, 9, 18),
+            due_date=get_today(),
+            assigned_date=get_today() - timedelta(days=7),
             description="Проверить изоляцию чеклиста"
         )
 

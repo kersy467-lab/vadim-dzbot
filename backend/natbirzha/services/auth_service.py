@@ -101,15 +101,6 @@ async def get_strict_natbirzha_user(
 
         if validated and "user" in validated and validated["user"].get("id"):
             tg_user_data = validated["user"]
-        else:
-            try:
-                raw_parsed = dict(urllib.parse.parse_qsl(x_telegram_init_data, keep_blank_values=True))
-                if "user" in raw_parsed:
-                    raw_user = json.loads(raw_parsed["user"])
-                    if raw_user and raw_user.get("id"):
-                        tg_user_data = raw_user
-            except Exception:
-                pass
 
     if not tg_user_data and (x_telegram_user_id or tg_user_id):
         try:

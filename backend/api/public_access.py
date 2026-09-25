@@ -47,20 +47,15 @@ def _tg_id_from_request(request: Request) -> int | None:
         from backend.config import settings
         from backend.api.auth import validate_telegram_init_data
         validated = validate_telegram_init_data(init_data, settings.BOT_TOKEN)
+        if not validated:
+            # Local/test clients may use a separate HMAC secret, but must still
+            # provide a valid signature. Never trust the raw user JSON here.
+            from backend.natbirzha.services.auth_service import validate_test_init_data
+            validated = validate_test_init_data(init_data)
         if validated and "user" in validated:
             u_obj = validated["user"]
             if isinstance(u_obj, dict) and u_obj.get("id"):
                 return int(u_obj["id"])
-        try:
-            import urllib.parse
-            import json
-            parsed = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
-            if "user" in parsed:
-                u_obj = json.loads(parsed["user"]) if isinstance(parsed["user"], str) else parsed["user"]
-                if isinstance(u_obj, dict) and u_obj.get("id"):
-                    return int(u_obj["id"])
-        except Exception:
-            pass
 
     guest_token = request.headers.get("x-natbirzha-guest-id")
     if guest_token:

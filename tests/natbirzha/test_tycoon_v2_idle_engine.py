@@ -53,7 +53,7 @@ def expected_net_cash_per_hour(business: NatBusiness, *, upgrading: bool) -> flo
     return round(-rates.maintenance_per_hour, 2)
 
 
-def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
+def test_idle_settlement_applies_once_and_stops_after_tax_grace() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -80,14 +80,19 @@ def test_idle_settlement_applies_once_and_caps_offline_window() -> None:
             repeated = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
             assert repeated["net_cash"] == 0.0
 
-            # 49 hours are requested from the cursor; only the 24-hour offline cap may settle.
+            # The closed 12-hour tax period gets 12 hours of grace. Production
+            # may settle only through that deadline, even though the requested
+            # offline window is longer.
             capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=50))
-            assert capped["settled_hours"] == 24.0
-            assert capped["skipped_offline_hours"] == 25.0
-            # Existing inputs support fourteen additional production hours; later
-            # time is settled but cannot create warehouse output without inputs.
-            assert abs(capped["net_cash"] - round(hourly * 14, 2)) <= 0.02
+            assert 0.0 < capped["settled_hours"] <= 23.0
+            assert capped["tax_blocked"] is True
             assert business.last_settled_at == start + timedelta(hours=50)
+
+            blocked_repeat = await IdleEconomyService.settle_company(
+                session, company.id, now=start + timedelta(hours=50)
+            )
+            assert blocked_repeat["settled_hours"] == 0.0
+            assert blocked_repeat["net_cash"] == 0.0
 
         await engine.dispose()
 

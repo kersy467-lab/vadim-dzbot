@@ -44,7 +44,9 @@ def test_all_industries_bootstrap_with_starter_business_and_supply() -> None:
                 )).scalars().all())
                 by_item = {row.item_id: row.quantity for row in inventory}
                 for item_id, hourly in expected["inputs_per_hour"].items():
-                    assert by_item.get(item_id, 0.0) >= float(hourly) * 4.0
+                    # Catalog values such as scaled water demand are
+                    # non-terminating decimals; tolerate storage rounding.
+                    assert by_item.get(item_id, 0.0) + 1e-6 >= float(hourly) * 4.0
 
                 if index == 1:
                     settled_at = business.last_settled_at

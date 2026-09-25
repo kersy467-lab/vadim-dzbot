@@ -152,7 +152,7 @@ async def test_audit_fixes():
 
         # The public quote must expose the remaining free-float supply. Buying
         # 500 of the initial 4,000 shares cannot leave the quote unchanged.
-        market_after_buy = await client.get("/api/natbirzha/stocks/market")
+        market_after_buy = await client.get("/api/natbirzha/stocks/market", headers=headers_2)
         assert market_after_buy.status_code == 200
         listed_after_buy = next(row for row in market_after_buy.json()["stocks"] if row["stock_id"] == stock_id)
         assert listed_after_buy["float_shares"] == 3500
@@ -163,7 +163,24 @@ async def test_audit_fixes():
         assert len(port_res.json()["portfolio"]) == 1
         assert port_res.json()["portfolio"][0]["shares_count"] == 500
 
-        # Company 2 sells 200 shares back to the market
+        # Company 3 leaves a bid below the IPO ask; company 2 can then sell
+        # into that real counterparty order instead of assuming an NPC buyer.
+        tg_id_3 = int(time.time()) % 1000000 + 860000
+        headers_3 = make_test_auth_headers(tg_id_3)
+        await client.post("/api/natbirzha/auth/login", headers=headers_3)
+        await client.post(
+            "/api/natbirzha/company/create",
+            headers=headers_3,
+            json={"name": f"Покупатель {tg_id_3}", "specialization": "technoprom"}
+        )
+        bid_res = await client.post(
+            f"/api/natbirzha/stocks/{stock_id}/orders",
+            headers=headers_3,
+            json={"side": "BUY", "quantity": 200, "price": round(float(listed_after_buy["current_price"]) * 0.99, 2)}
+        )
+        assert bid_res.status_code == 200 and bid_res.json()["remaining"] == 200
+
+        # Company 2 sells 200 shares into company 3's resting bid.
         sell_res = await client.post(
             "/api/natbirzha/stocks/sell",
             headers=headers_2,
@@ -171,10 +188,10 @@ async def test_audit_fixes():
         )
         assert sell_res.status_code == 200
         assert sell_res.json()["shares_sold"] == 200
-        assert sell_res.json()["remaining_shares"] == 300
-        market_after_sell = await client.get("/api/natbirzha/stocks/market")
+        assert sell_res.json()["remaining_order_shares"] == 0
+        market_after_sell = await client.get("/api/natbirzha/stocks/market", headers=headers_2)
         listed_after_sell = next(row for row in market_after_sell.json()["stocks"] if row["stock_id"] == stock_id)
-        assert listed_after_sell["float_shares"] == 3700
+        assert listed_after_sell["float_shares"] == 3500
         unified_portfolio = await client.get("/api/natbirzha/portfolio", headers=headers_2)
         assert unified_portfolio.status_code == 200
         portfolio_payload = unified_portfolio.json()

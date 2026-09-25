@@ -15,7 +15,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock
 from backend.natbirzha.models.inventory import get_item_base_price, get_npc_buy_price
 from backend.natbirzha.catalogs.sabotages import SABOTAGES_CATALOG, get_sabotage_spec
-from backend.natbirzha.config import nat_settings
+from backend.natbirzha.config import get_game_now, nat_settings
 from backend.natbirzha.services.sabotage_service import SabotageService
 from backend.natbirzha.services.state_credit_service import StateCreditService
 
@@ -202,7 +202,9 @@ def test_stock_shock_positive_and_negative():
             session.add(stock)
             await session.commit()
 
-            now = datetime(2026, 9, 25, 12, 0, 0)
+            # Keep the crisis active when synchronous cache readers use the
+            # actual game clock later in this test run.
+            now = get_game_now().replace(microsecond=0)
 
             # 1. Economic boom shock (+15%)
             res = await SabotageService.start_sabotage(

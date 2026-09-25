@@ -42,7 +42,9 @@ async def test_full_part1_and_creator_checklist():
     # 1. Expanded progression keeps at least 10 enterprises per each of 8 industries,
     # and every canonical enterprise has exactly one active canonical recipe.
     assert len(CANONICAL_BUILDINGS) >= 80
-    assert len(RECIPES) == len(CANONICAL_BUILDINGS)
+    # Alternate recipes add valid production paths; every building still has
+    # exactly one canonical/default recipe id.
+    assert len(RECIPES) >= len(CANONICAL_BUILDINGS)
     assert len(set(RECIPES)) == len(RECIPES)
     for building_id, spec in CANONICAL_BUILDINGS.items():
         assert spec["id"] == building_id

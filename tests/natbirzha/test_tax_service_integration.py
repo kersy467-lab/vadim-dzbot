@@ -9,9 +9,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.config import get_game_now
+from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomePeriod
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateTreasury
+from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.tax_service import TaxService
 
 
@@ -114,6 +117,79 @@ def test_overdue_tax_penalty_block_and_payment() -> None:
             treasury = await session.scalar(select(NatStateTreasury))
             assert treasury is not None
             assert treasury.cash >= 169.0
+
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_offline_settlement_keeps_production_before_tax_stop_deadline() -> None:
+    """A late login settles work through the exact stop time, then discards later hours."""
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        period_start = datetime(2026, 9, 25, 0, 0)
+        period_end = datetime(2026, 9, 25, 12, 0)
+        stop_at = datetime(2026, 9, 26, 0, 0)
+        settled_at = datetime(2026, 9, 26, 6, 0)
+        work_started = datetime(2026, 9, 25, 18, 0)
+
+        async with sessions() as session:
+            company = NatCompany(
+                user_id=77_003, name="Deadline Corp", specialization="miner", cash=1_000.0
+            )
+            session.add(company)
+            await session.flush()
+            spec = get_business_spec("coal_open_pit")
+            assert spec is not None
+            business = NatBusiness(
+                company_id=company.id,
+                business_type="coal_open_pit",
+                specialization="miner",
+                stage=1,
+                status="ACTIVE",
+                capital_invested=float(spec["open_cost"]),
+                base_income_per_hour=0.0,
+                base_maintenance_per_hour=float(spec["base_maintenance_per_hour"]),
+                health=100.0,
+                efficiency=1.0,
+                metadata_json={"sale_mode": "HOLD"},
+                last_settled_at=work_started,
+            )
+            session.add(business)
+            session.add_all(
+                NatInventory(
+                    company_id=company.id,
+                    item_id=item_id,
+                    quantity=100_000.0,
+                    avg_cost_basis=1.0,
+                )
+                for item_id in spec["inputs_per_hour"]
+            )
+            await session.flush()
+            session.add(NatBusinessIncomePeriod(
+                business_id=business.id,
+                period_start=period_start,
+                period_end=period_end,
+                gross_income=1_000.0,
+                maintenance=0.0,
+                salary=0.0,
+                resource_cost=0.0,
+                net_profit=1_000.0,
+            ))
+            await session.commit()
+
+            result = await IdleEconomyService.settle_company(
+                session, company.id, now=settled_at
+            )
+
+            assert result["tax_blocked"] is True
+            assert result["settled_hours"] == 6.0
+            assert result["gross_value"] > 0.0
+            assert business.last_settled_at == settled_at
 
         await engine.dispose()
 

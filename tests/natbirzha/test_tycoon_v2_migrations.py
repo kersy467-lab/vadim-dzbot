@@ -19,7 +19,8 @@ def test_tycoon_v2_rollout_and_tax_migrations_are_registered() -> None:
     assert "natbirzha_v2_001_business_foundation" in versions
     assert "natbirzha_v2_002_daily_profit_tax" in versions
     assert "natbirzha_v4_capacity_industry_upgrades" in versions
-    assert "natbirzha_v8_001_player_supply_deals" in versions
+    assert "natbirzha_v10_001_player_supply_deals" in versions
+    assert "natbirzha_v11_001_tax_12h_periods" in versions
 
 
 def test_tycoon_v2_business_foundation_migration_is_repeatable() -> None:

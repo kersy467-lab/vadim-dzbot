@@ -60,12 +60,15 @@ async def test_idempotency_and_stocks():
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        login = await client.post("/api/natbirzha/auth/login", headers=headers)
+        assert login.status_code == 200, login.text
         # Create company
-        await client.post(
+        created = await client.post(
             "/api/natbirzha/company/create",
             headers=headers,
             json={"name": f"Холдинг {u_id}", "specialization": "power_engineer"}
         )
+        assert created.status_code == 200, created.text
 
         idemp_key = f"idemp-conflict-test-{u_id}"
         # Request 1: Trade 5 units of energy
@@ -116,11 +119,11 @@ async def test_idempotency_and_stocks():
         session.add(fin)
         await session.commit()
 
-        # Distribute daily dividends
+        # Distribute only the portion belonging to shares currently held.
         res_div = await DividendService.settle_daily_dividends_for_stock(session, stock, today)
         assert res_div["status"] == "settled"
         assert res_div["closed_profit"] == 50000.0
-        assert res_div["dividend_pool"] == 2500.0, "Default dividend pool must be 5% (2,500 cash)"
+        assert res_div["dividend_pool"] == 1500.0, "Only 6,000 of 10,000 shares are held; 60% of the 5% pool is payable"
         payment = await session.scalar(select(NatDividendPayment).where(
             NatDividendPayment.stock_id == stock.id,
             NatDividendPayment.holder_company_id == comp_ipo.id,

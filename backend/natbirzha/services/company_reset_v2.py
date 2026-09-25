@@ -14,6 +14,8 @@ from backend.natbirzha.models import (
     NatCompanyEconomyState,
     NatMilitaryInfrastructure,
     NatTaxDaily,
+    NatTaxPeriod,
+    NatBusinessIncomePeriod,
 )
 
 
@@ -36,12 +38,16 @@ async def delete_v2_company_state(session: AsyncSession, company_id: int) -> Non
     await session.execute(
         delete(NatBusinessIncomeDaily).where(NatBusinessIncomeDaily.business_id.in_(business_ids))
     )
+    await session.execute(
+        delete(NatBusinessIncomePeriod).where(NatBusinessIncomePeriod.business_id.in_(business_ids))
+    )
     await session.execute(delete(NatBusiness).where(NatBusiness.company_id == company_id))
 
     await session.execute(
         delete(NatCompanyEconomyState).where(NatCompanyEconomyState.company_id == company_id)
     )
     await session.execute(delete(NatTaxDaily).where(NatTaxDaily.company_id == company_id))
+    await session.execute(delete(NatTaxPeriod).where(NatTaxPeriod.company_id == company_id))
     await session.execute(
         delete(NatMilitaryInfrastructure).where(NatMilitaryInfrastructure.company_id == company_id)
     )

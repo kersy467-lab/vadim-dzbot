@@ -69,6 +69,7 @@ from backend.natbirzha.models.business import (
     BUSINESS_STATUSES,
     NatBusiness,
     NatBusinessIncomeDaily,
+    NatBusinessIncomePeriod,
     NatCompanyEconomyState,
 )
 from backend.natbirzha.models.business_assets import (
@@ -81,7 +82,7 @@ from backend.natbirzha.models.military_infrastructure import (
     NatArmyTraining,
     NatMilitaryInfrastructure,
 )
-from backend.natbirzha.models.tax import NatTaxDaily
+from backend.natbirzha.models.tax import NatTaxDaily, NatTaxPeriod
 from backend.natbirzha.models.sabotage import NatActiveSabotage
 from backend.natbirzha.models.player_deals import NatSupplyDeal, NatSupplyDealSettlement
 
@@ -148,6 +149,7 @@ __all__ = [
     "BUSINESS_STATUSES",
     "NatBusiness",
     "NatBusinessIncomeDaily",
+    "NatBusinessIncomePeriod",
     "NatCompanyEconomyState",
     "NatBusinessSupplyPolicy",
     "NatBusinessVehicle",
@@ -156,6 +158,7 @@ __all__ = [
     "NatMilitaryInfrastructure",
     "NatArmyTraining",
     "NatTaxDaily",
+    "NatTaxPeriod",
     "NatActiveSabotage",
     "NatSupplyDeal",
     "NatSupplyDealSettlement",

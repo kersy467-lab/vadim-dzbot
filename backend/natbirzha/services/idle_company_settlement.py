@@ -126,7 +126,7 @@ async def settle_company(
         expired_contract_ids.add(business.id)
 
     cap_hours = engine.offline_cap_hours(company)
-    tax = await TaxService.summary(session, company.id, today=current.date())
+    tax = await TaxService.summary(session, company.id, now=current)
     if tax["blocked"]:
         for business in visible:
             spec = get_business_spec(business.business_type)
@@ -146,13 +146,13 @@ async def settle_company(
     effective_current = current
     unpaid_date = tax.get("oldest_unpaid_date")
     if unpaid_date:
-        deadline = TaxService.production_deadline(datetime.fromisoformat(unpaid_date).date())
+        deadline = TaxService.production_deadline(datetime.fromisoformat(unpaid_date))
         effective_current = min(effective_current, deadline)
     elif visible:
         oldest_cursor = min(
             (normalize_dt(b.last_settled_at) or current for b in visible), default=current
         )
-        prospective = TaxService.production_deadline(oldest_cursor.date())
+        prospective = TaxService.production_deadline(oldest_cursor)
         if prospective < effective_current:
             effective_current = prospective
 
@@ -305,7 +305,7 @@ async def settle_company(
         await SupplyDealService.advance_buyer_cursor(
             session, company.id, through=effective_current
         )
-    tax = await TaxService.summary(session, company.id, today=current.date())
+    tax = await TaxService.summary(session, company.id, now=current)
     await SupplyDealService.settle_expired(session, company.id, now=current)
     if tax["blocked"] and effective_current < current:
         # The tax became overdue inside this offline window. Discard future

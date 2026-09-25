@@ -33,12 +33,15 @@ class NatbirzhaSettings(BaseSettings):
         description="Public Telegram chat ID for broadcasting Natbirzha game events",
     )
 
-    # Mandatory company income tax. A closed game day is taxed on positive
-    # operating profit only. Three unpaid days are tolerated; after that
-    # production is blocked and a non-compounding daily penalty is assessed.
+    # Mandatory company income tax. Tax is assessed every 12 hours on positive
+    # operating profit. A 12-hour grace period is granted; if unpaid after 12 hours,
+    # production is blocked and a non-compounding +3% hourly penalty is assessed.
     TAX_RATE: float = 0.13
-    TAX_GRACE_DAYS: int = 3
-    TAX_DAILY_PENALTY_RATE: float = 0.50
+    TAX_PERIOD_HOURS: int = 12
+    TAX_GRACE_HOURS: int = 12
+    TAX_HOURLY_PENALTY_RATE: float = 0.03
+    TAX_GRACE_DAYS: int = 3  # legacy compatibility alias
+    TAX_DAILY_PENALTY_RATE: float = 0.50  # legacy compatibility alias
 
     # Specialization efficiency limits (strict)
     OWN_SPEC_EFFICIENCY: float = 1.00       # 100%

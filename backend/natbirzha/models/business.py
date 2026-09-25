@@ -83,6 +83,27 @@ class NatBusinessIncomeDaily(Base):
     net_profit: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
 
+class NatBusinessIncomePeriod(Base):
+    """12-hour period operating profit aggregates used for mandatory taxation."""
+
+    __tablename__ = "nat_business_income_periods"
+    __table_args__ = (
+        UniqueConstraint("business_id", "period_start", name="uq_nat_business_income_period"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    business_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nat_businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    period_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    period_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    gross_income: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    maintenance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    salary: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    resource_cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    net_profit: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+
+
 class NatCompanyEconomyState(Base):
     """Non-authoritative cache for fast empire summaries."""
 
@@ -97,4 +118,10 @@ class NatCompanyEconomyState(Base):
     cached_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
-__all__ = ["BUSINESS_STATUSES", "NatBusiness", "NatBusinessIncomeDaily", "NatCompanyEconomyState"]
+__all__ = [
+    "BUSINESS_STATUSES",
+    "NatBusiness",
+    "NatBusinessIncomeDaily",
+    "NatBusinessIncomePeriod",
+    "NatCompanyEconomyState",
+]

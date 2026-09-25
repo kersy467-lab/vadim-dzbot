@@ -627,6 +627,21 @@ async def _migrate_v10_player_supply_deals(conn) -> None:
     })
 
 
+async def _migrate_v11_tax_12h_periods(conn) -> None:
+    """Create 12-hour period tax tables nat_tax_periods and nat_business_income_periods."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+        "nat_tax_periods"
+    ].create(sync_conn, checkfirst=True))
+    await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+        "nat_business_income_periods"
+    ].create(sync_conn, checkfirst=True))
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -653,6 +668,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v8_001_reconcile_resource_gross_profit", _migrate_v8_reconcile_resource_gross_profit),
     ("natbirzha_v9_001_sabotages_and_tournament_bigint", _migrate_v9_sabotages_and_tournament_bigint),
     ("natbirzha_v10_001_player_supply_deals", _migrate_v10_player_supply_deals),
+    ("natbirzha_v11_001_tax_12h_periods", _migrate_v11_tax_12h_periods),
 )
 
 

@@ -68,6 +68,43 @@ class BusinessIncomeLedgerService:
         )
         await session.flush()
 
+    @staticmethod
+    async def record_period(
+        session: AsyncSession,
+        business_id: int,
+        p_start: datetime,
+        p_end: datetime,
+        *,
+        gross: float,
+        maintenance: float,
+        salary: float = 0.0,
+        resource_cost: float = 0.0,
+    ) -> None:
+        """Upsert one 12-hour operating period result."""
+        if not any((gross, maintenance, salary, resource_cost)):
+            return
+        from backend.natbirzha.models.business import NatBusinessIncomePeriod
+        row = await session.scalar(
+            select(NatBusinessIncomePeriod)
+            .where(
+                NatBusinessIncomePeriod.business_id == business_id,
+                NatBusinessIncomePeriod.period_start == p_start,
+            )
+            .with_for_update()
+        )
+        if row is None:
+            row = NatBusinessIncomePeriod(business_id=business_id, period_start=p_start, period_end=p_end)
+            session.add(row)
+        row.gross_income = round(float(row.gross_income or 0.0) + gross, 2)
+        row.maintenance = round(float(row.maintenance or 0.0) + maintenance, 2)
+        row.salary = round(float(row.salary or 0.0) + salary, 2)
+        row.resource_cost = round(float(row.resource_cost or 0.0) + resource_cost, 2)
+        row.net_profit = round(
+            float(row.gross_income or 0.0) - float(row.maintenance or 0.0)
+            - float(row.salary or 0.0) - float(row.resource_cost or 0.0), 2
+        )
+        await session.flush()
+
     @classmethod
     async def record_interval(
         cls,
@@ -81,11 +118,13 @@ class BusinessIncomeLedgerService:
         salary: float = 0.0,
         resource_cost: float = 0.0,
     ) -> None:
-        """Split one lazy-settlement result across the actual calendar days worked."""
+        """Split one lazy-settlement result across the actual calendar days and 12-hour periods worked."""
         total_seconds = max(0.0, float(worked_hours)) * 3600.0
         if total_seconds <= 1e-9:
             return
         end = start + timedelta(seconds=total_seconds)
+
+        # 1. Record daily ledger (for analytics and dividends)
         cursor = start
         allocated = 0.0
         while cursor < end:
@@ -94,7 +133,6 @@ class BusinessIncomeLedgerService:
             seconds = max(0.0, (segment_end - cursor).total_seconds())
             fraction = seconds / total_seconds
             allocated += fraction
-            # Give the final segment the rounding remainder so totals stay exact.
             if segment_end >= end:
                 fraction += max(0.0, 1.0 - allocated)
             await cls.record(
@@ -107,6 +145,30 @@ class BusinessIncomeLedgerService:
                 resource_cost=resource_cost * fraction,
             )
             cursor = segment_end
+
+        # 2. Record 12-hour period ledger (for mandatory taxation)
+        from backend.natbirzha.tax_rules import get_period_bounds
+        p_cursor = start
+        p_allocated = 0.0
+        while p_cursor < end:
+            p_start, p_end = get_period_bounds(p_cursor)
+            segment_end = min(end, p_end)
+            seconds = max(0.0, (segment_end - p_cursor).total_seconds())
+            fraction = seconds / total_seconds
+            p_allocated += fraction
+            if segment_end >= end:
+                fraction += max(0.0, 1.0 - p_allocated)
+            await cls.record_period(
+                session,
+                business_id,
+                p_start,
+                p_end,
+                gross=gross * fraction,
+                maintenance=maintenance * fraction,
+                salary=salary * fraction,
+                resource_cost=resource_cost * fraction,
+            )
+            p_cursor = segment_end
 
 
 __all__ = ["BusinessIncomeLedgerService"]

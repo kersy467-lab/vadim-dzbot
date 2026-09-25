@@ -15,8 +15,10 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock
 from backend.natbirzha.models.inventory import get_item_base_price, get_npc_buy_price
 from backend.natbirzha.catalogs.sabotages import SABOTAGES_CATALOG, get_sabotage_spec
+from backend.natbirzha.config import nat_settings
 from backend.natbirzha.services.sabotage_service import SabotageService
 from backend.natbirzha.services.state_credit_service import StateCreditService
+
 
 
 def test_sabotages_catalog_completeness():
@@ -313,11 +315,72 @@ def test_sabotage_tax_rates():
     asyncio.run(run())
 
 
+def test_npc_prices_change_during_sabotage():
+    """Verify NPC prices actually change when resource_multipliers are active.
+
+    get_item_base_price() already embeds crisis multipliers via SabotageService,
+    so get_npc_buy_price() and get_npc_sell_price() are automatically crisis-adjusted.
+    """
+    async def run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            now = datetime(2026, 9, 25, 17, 0, 0)
+
+            from backend.natbirzha.models.inventory import CANONICAL_ITEMS, get_npc_sell_price
+            from backend.natbirzha.services.npc_service import NPCReserveService
+
+            raw_base = float(CANONICAL_ITEMS["fuel_diesel"]["base_price"])
+            sell_cap_mult = float(nat_settings.NPC_SELL_CAP_MULT)
+            base_sell = round(raw_base * sell_cap_mult, 2)
+
+            # Before sabotage — multiplier is 1.0, prices are base
+            quote_before = NPCReserveService.get_npc_quote("fuel_diesel")
+            assert quote_before["crisis_multiplier"] == 1.0
+            assert quote_before["npc_sell_price"] == base_sell
+
+            # Start fuel_crisis: fuel_diesel +50%
+            await SabotageService.start_sabotage(
+                session, sabotage_id="fuel_crisis", actor_id=1, now=now
+            )
+            quote_during = NPCReserveService.get_npc_quote("fuel_diesel")
+            assert quote_during["crisis_multiplier"] == 1.50
+            # NPC sell price should now be base * 1.5 * NPC_SELL_CAP_MULT
+            expected_sell_during = round(raw_base * 1.50 * sell_cap_mult, 2)
+            assert quote_during["npc_sell_price"] == expected_sell_during, (
+                f"Expected NPC sell {expected_sell_during}, got {quote_during['npc_sell_price']}"
+            )
+
+            # energy_crisis: energy +50% — diesel should NOT be affected
+            await SabotageService.stop_sabotage(session, actor_id=1, sabotage_id="fuel_crisis", now=now)
+            await SabotageService.start_sabotage(
+                session, sabotage_id="energy_crisis", actor_id=1, now=now
+            )
+            quote_energy = NPCReserveService.get_npc_quote("fuel_diesel")
+            assert quote_energy["crisis_multiplier"] == 1.0  # diesel not in energy_crisis mults
+            assert quote_energy["npc_sell_price"] == base_sell
+
+            await SabotageService.stop_sabotage(session, actor_id=1, sabotage_id="energy_crisis", now=now)
+
+            # After all stopped — back to base
+            quote_after = NPCReserveService.get_npc_quote("fuel_diesel")
+            assert quote_after["crisis_multiplier"] == 1.0
+            assert quote_after["npc_sell_price"] == base_sell
+
+        await engine.dispose()
+
+    asyncio.run(run())
+
+
 if __name__ == "__main__":
     test_sabotages_catalog_completeness()
     test_two_concurrent_sabotages_and_compounded_multipliers()
     test_stock_shock_positive_and_negative()
     test_loss_for_all_crises()
     test_sabotage_tax_rates()
+    test_npc_prices_change_during_sabotage()
     print("NATBIRZHA sabotages and crises (multi-active + crisis/boom catalog + tax shocks): PASS")
 

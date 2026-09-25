@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20260925_multisab_v4';
+import { getItemInfo } from '../items.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
 
 export function getCompanyInputIds(businesses, factories, recipes) {
   const inputs = new Set();

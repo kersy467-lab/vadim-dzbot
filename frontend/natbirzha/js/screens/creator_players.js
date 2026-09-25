@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_multisab_v4';
+import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',

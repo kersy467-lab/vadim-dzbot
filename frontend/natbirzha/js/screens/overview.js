@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260925_multisab_v4';
-import { store } from '../state.js?v=20260925_multisab_v4';
-import { getItemInfo } from '../items.js?v=20260925_multisab_v4';
-import { getSpecializationName } from '../localization.js?v=20260925_multisab_v4';
-import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_multisab_v4';
+import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { getItemInfo } from '../items.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { getSpecializationName } from '../localization.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
 
 export function renderOverview(container, showToast) {
   const company = store.company;

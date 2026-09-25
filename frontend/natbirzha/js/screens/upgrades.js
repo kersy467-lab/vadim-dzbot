@@ -1,6 +1,6 @@
-import { NatAPI } from '../api.js?v=20260925_multisab_v4';
-import { store } from '../state.js?v=20260925_multisab_v4';
-import { getBuildingName, getSpecializationName } from '../localization.js?v=20260925_multisab_v4';
+import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { getBuildingName, getSpecializationName } from '../localization.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
 
 const LABELS = {
   workers: '👷 Работники',

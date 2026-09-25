@@ -1,12 +1,12 @@
-import { NatAPI } from '../api.js?v=20260925_multisab_v4';
-import { store } from '../state.js?v=20260925_multisab_v4';
-import { getItemInfo } from '../items.js?v=20260925_multisab_v4';
-import { renderMarketChart } from '../market_chart.js?v=20260925_multisab_v4';
-import { renderTaxSection } from './market_tax.js?v=20260925_multisab_v4';
-import { renderStateCreditSection } from './market_credit.js?v=20260925_multisab_v4';
-import { createMarketFinance } from './market_finance.js?v=20260925_multisab_v4';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_multisab_v4';
-import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_multisab_v4';
+import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { getItemInfo } from '../items.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { renderMarketChart } from '../market_chart.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { renderTaxSection } from './market_tax.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { renderStateCreditSection } from './market_credit.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { createMarketFinance } from './market_finance.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
 
 const MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },

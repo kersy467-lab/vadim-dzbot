@@ -27,9 +27,16 @@ class NPCReserveService(NPCQuotaMixin):
     def get_npc_quote(item_id: str) -> Dict[str, Any]:
         if item_id not in CANONICAL_ITEMS:
             raise ValueError(f"Unknown item: {item_id}")
-        base = get_item_base_price(item_id)
-        buy_floor = get_npc_buy_price(item_id)
-        sell_cap = get_npc_sell_price(item_id)
+        # Lazy import to avoid circular dependency
+        from backend.natbirzha.services.sabotage_service import SabotageService
+
+        base = get_item_base_price(item_id)  # already includes crisis multiplier
+        buy_floor = get_npc_buy_price(item_id)  # derived from base, also crisis-adjusted
+        sell_cap = get_npc_sell_price(item_id)  # same
+
+        # Informational only — actual prices already include crisis via get_item_base_price
+        crisis_mult = SabotageService.get_resource_multiplier_sync(item_id)
+
         return {
             "item_id": item_id,
             "name": CANONICAL_ITEMS[item_id]["name"],
@@ -37,8 +44,11 @@ class NPCReserveService(NPCQuotaMixin):
             "base_price": base,
             "npc_buy_price": buy_floor,
             "npc_sell_price": sell_cap,
-            "spread_pct": round(((sell_cap - buy_floor) / base) * 100, 1),
+            "spread_pct": round(((sell_cap - buy_floor) / base) * 100, 1) if base else 0.0,
+            "crisis_multiplier": crisis_mult,
         }
+
+
 
     @staticmethod
     async def _daily_financials(session: AsyncSession, company_id: int) -> NatDailyFinancials:

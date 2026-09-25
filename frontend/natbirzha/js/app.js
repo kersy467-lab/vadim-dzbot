@@ -1,4 +1,4 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_deals_v9';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_grant_v1';
 import { store } from './state.js?v=20260925_maint_v1';
 import { renderOnboarding } from './screens/onboarding.js?v=20260925_deals_v9';
 import { renderOverview } from './screens/overview.js?v=20260925_deals_v9';
@@ -7,7 +7,7 @@ import { renderUpgrades } from './screens/upgrades.js?v=20260925_deals_v9';
 import { renderMarket } from './screens/market.js?v=20260925_deals_v9';
 import { renderStocks } from './screens/stocks.js?v=20260925_deals_v9';
 import { renderMilitary } from './screens/military.js?v=20260925_deals_v9';
-import { renderCreator } from './screens/creator.js?v=20260925_deals_v9';
+import { renderCreator } from './screens/creator.js?v=20260925_grant_v1';
 import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_deals_v9';
 import { renderHelp } from './screens/help.js?v=20260925_deals_v9';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260925_maint_v1';

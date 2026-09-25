@@ -3,7 +3,7 @@ services:
   # blueprint so a new push also refreshes a stale Render webhook (v8 tax fix).
   - type: web
     name: class-tg-bot
-    env: python
+    runtime: python
     region: frankfurt
     plan: free
     branch: main
@@ -12,6 +12,8 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python -m backend.main"
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: BOT_TOKEN
         sync: false
       - key: ADMIN_ID

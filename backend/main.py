@@ -264,13 +264,9 @@ class SmartCacheStaticFiles(StaticFiles):
         if norm_path.endswith((".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff2", ".woff", ".mp3")):
             response.headers["Cache-Control"] = "public, max-age=604800, immutable"
         elif norm_path.endswith((".js", ".css")):
-            qs = scope.get("query_string", b"")
-            if isinstance(qs, bytes):
-                qs = qs.decode("utf-8", errors="ignore")
-            if "v=" in qs:
-                response.headers["Cache-Control"] = "public, max-age=604800, immutable"
-            else:
-                response.headers["Cache-Control"] = "no-cache"
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            return response
         else:
             response.headers["Cache-Control"] = "no-cache"
         if "pragma" in response.headers:

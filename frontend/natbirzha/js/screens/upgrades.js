@@ -1,6 +1,6 @@
-import { NatAPI } from '../api.js';
-import { store } from '../state.js';
-import { getBuildingName, getSpecializationName } from '../localization.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { store } from '../state.js?v=20260925_sabotages_v2';
+import { getBuildingName, getSpecializationName } from '../localization.js?v=20260925_sabotages_v2';
 
 const LABELS = {
   workers: '👷 Работники',

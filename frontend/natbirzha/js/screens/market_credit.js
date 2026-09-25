@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260924_state_credit_approval';
-import { store } from '../state.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { store } from '../state.js?v=20260925_sabotages_v2';
 
 const RATE_PCT = 20;
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });

@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js';
-import { getSpecializationName } from '../localization.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { getSpecializationName } from '../localization.js?v=20260925_sabotages_v2';
 
 const CATEGORIES = [
   ['assets', 'Активы'],

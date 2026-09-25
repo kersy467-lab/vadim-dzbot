@@ -1,15 +1,15 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260924_state_credit_approval';
-import { store } from './state.js';
-import { renderOnboarding } from './screens/onboarding.js?v=20260920_reset_v8';
-import { renderOverview } from './screens/overview.js?v=20260924_state_credit_approval';
-import { renderTycoon } from './screens/tycoon.js?v=20260921_tycoon1';
-import { renderUpgrades } from './screens/upgrades.js';
-import { renderMarket } from './screens/market.js?v=20260924_credit20';
-import { renderStocks } from './screens/stocks.js?v=20260924_ipo_terms';
-import { renderMilitary } from './screens/military.js';
-import { renderCreator } from './screens/creator.js?v=20260924_credit20';
-import { renderLeaderboard } from './screens/leaderboard.js';
-import { renderHelp } from './screens/help.js?v=20260920_liquidity1';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_sabotages_v2';
+import { store } from './state.js?v=20260925_sabotages_v2';
+import { renderOnboarding } from './screens/onboarding.js?v=20260925_sabotages_v2';
+import { renderOverview } from './screens/overview.js?v=20260925_sabotages_v2';
+import { renderTycoon } from './screens/tycoon.js?v=20260925_sabotages_v2';
+import { renderUpgrades } from './screens/upgrades.js?v=20260925_sabotages_v2';
+import { renderMarket } from './screens/market.js?v=20260925_sabotages_v2';
+import { renderStocks } from './screens/stocks.js?v=20260925_sabotages_v2';
+import { renderMilitary } from './screens/military.js?v=20260925_sabotages_v2';
+import { renderCreator } from './screens/creator.js?v=20260925_sabotages_v2';
+import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_sabotages_v2';
+import { renderHelp } from './screens/help.js?v=20260925_sabotages_v2';
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {

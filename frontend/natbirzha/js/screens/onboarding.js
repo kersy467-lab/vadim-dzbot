@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js';
-import { store } from '../state.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { store } from '../state.js?v=20260925_sabotages_v2';
 
 const INDUSTRIES = [
   { id: 'miner', name: 'Горнодобывающая', icon: '⛏️', desc: 'Уголь, руда, золото, литий и стратегическое сырьё.', starter: 'Угольный разрез' },

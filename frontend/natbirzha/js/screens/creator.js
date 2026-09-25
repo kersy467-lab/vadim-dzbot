@@ -1,11 +1,11 @@
-import { NatAPI } from '../api.js?v=20260924_creator_controls';
-import { loadCreatorOverview } from './creator_overview.js';
-import { loadCreatorModeration } from './creator_moderation.js';
-import { loadCreatorShares } from './creator_shares.js';
-import { loadCreatorPlayersTab } from './creator_players.js?v=20260924_creator_controls';
-import { loadCreatorCreditTab } from './creator_credit.js?v=20260924_credit20';
-import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260924_creator_controls';
-import { loadCreatorSabotages } from './creator_sabotages.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { loadCreatorOverview } from './creator_overview.js?v=20260925_sabotages_v2';
+import { loadCreatorModeration } from './creator_moderation.js?v=20260925_sabotages_v2';
+import { loadCreatorShares } from './creator_shares.js?v=20260925_sabotages_v2';
+import { loadCreatorPlayersTab } from './creator_players.js?v=20260925_sabotages_v2';
+import { loadCreatorCreditTab } from './creator_credit.js?v=20260925_sabotages_v2';
+import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260925_sabotages_v2';
+import { loadCreatorSabotages } from './creator_sabotages.js?v=20260925_sabotages_v2';
 
 let activeTab = 'overview';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({

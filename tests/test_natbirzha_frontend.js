@@ -16,7 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
-assert(natHtml.includes('app.js?v=20260924_credit20'), 'Natbirzha entrypoint must refresh its cached code after a release');
+assert(natHtml.includes('app.js?v=20260925_sabotages_v2'), 'Natbirzha entrypoint must refresh its cached code after a release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -279,13 +279,14 @@ assert(creatorScreenCode.includes('data-tab="credits"') && creatorScreenCode.inc
   'creator panel must expose a separate credit-approval tab');
 assert(creatorScreenCode.includes('grid grid-cols-3') && !creatorScreenCode.includes('overflow-x-auto pb-1 text-xs font-bold'),
   'government controls must be visible in a wrapping grid instead of hidden in a horizontal tab strip');
-assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"'),
-  'player bankruptcy and bond bankruptcy sections must remain directly navigable');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260924_credit20'),
+assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"') && creatorScreenCode.includes('data-tab="sabotages"'),
+  'player bankruptcy, bond bankruptcy and sabotages sections must remain directly navigable');
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260925_sabotages_v2'),
   'app.js must reload the updated creator panel module');
-assert(creatorScreenCode.includes('creator_credit.js?v=20260924_credit20')
-  && creatorScreenCode.includes('creator_players.js?v=20260924_creator_controls')
-  && creatorScreenCode.includes('creator_bond_api.js?v=20260924_creator_controls'),
+assert(creatorScreenCode.includes('creator_credit.js?v=20260925_sabotages_v2')
+  && creatorScreenCode.includes('creator_players.js?v=20260925_sabotages_v2')
+  && creatorScreenCode.includes('creator_bond_api.js?v=20260925_sabotages_v2')
+  && creatorScreenCode.includes('creator_sabotages.js?v=20260925_sabotages_v2'),
   'creator tabs and bankruptcy actions must load their current screen modules');
 assert(creatorCreditCode.includes('NatAPI.getCreatorStateCredits') && creatorCreditCode.includes('NatAPI.decideCreatorStateCredit'),
   'creator credit tab must load and decide pending credit requests');
@@ -306,7 +307,7 @@ assert(stocksCode.includes('NatAPI.issueIPO({') && stocksCode.includes('company_
   'stocks screen must submit dividend, company sale percentage and share count to the backend');
 
 const prodCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/production.js'), 'utf-8');
-assert(prodCode.includes("from '../factory_map.js'"), 'production.js must use the pure factory map projection');
+assert(prodCode.includes("from '../factory_map.js"), 'production.js must use the pure factory map projection');
 ['factory-map', 'factory-slot', 'factory-next-page', 'factory-collect-btn', 'factory-build-btn'].forEach((hook) => {
   assert(prodCode.includes(hook), `production.js must render ${hook}`);
 });
@@ -397,11 +398,11 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
-assert(appSourceCode.includes('overview.js?v=20260924_state_credit_approval'),
+assert(appSourceCode.includes('overview.js?v=20260925_sabotages_v2'),
   'overview inventory fixes must be loaded from a fresh screen module');
-assert(marketCoreCode.includes("market_credit.js?v=20260924_credit20"),
+assert(marketCoreCode.includes("market_credit.js?v=20260925_sabotages_v2"),
   'market credit screen must use a cache-busted module URL');
-assert(marketCreditCode.includes("../api.js?v=20260924_state_credit_approval"),
+assert(marketCreditCode.includes("../api.js?v=20260925_sabotages_v2"),
   'credit screen must import the current API module containing state-credit methods');
 const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
@@ -490,7 +491,7 @@ assert(helpCode.includes('Pivocoins') && helpCode.includes('IPO') && helpCode.in
 
 assert(marketFinanceCode.includes('getReferenceInstruments'), 'market finance module must load official reference instruments');
 assert(marketFinanceCode.includes('tradeReferenceInstrument'), 'market finance module must wire reference trades');
-assert(marketFinanceCode.includes("from '../market_chart.js'") && marketCode.includes("from '../market_chart.js'"), 'market modules must use the shared market chart renderer');
+assert(marketFinanceCode.includes("from '../market_chart.js") && marketCode.includes("from '../market_chart.js"), 'market modules must use the shared market chart renderer');
 assert(marketFinanceCode.includes('item.history') && marketFinanceCode.includes('stock.history') && marketFinanceCode.includes('bond.history'),
   'market charts must use server-provided history for currencies, stocks and bonds');
 assert(marketCode.includes('market-contrast-surface'), 'every market surface must use the readable princess contrast layer');

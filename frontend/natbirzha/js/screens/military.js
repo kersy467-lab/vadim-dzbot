@@ -1,7 +1,7 @@
-import { NatAPI } from '../api.js';
-import { store } from '../state.js';
-import { getItemInfo } from '../items.js';
-import { renderTournamentSection } from './military_tournament.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { store } from '../state.js?v=20260925_sabotages_v2';
+import { getItemInfo } from '../items.js?v=20260925_sabotages_v2';
+import { renderTournamentSection } from './military_tournament.js?v=20260925_sabotages_v2';
 
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },

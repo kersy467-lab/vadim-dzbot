@@ -1,12 +1,12 @@
-import { NatAPI } from '../api.js?v=20260924_state_credit_approval';
-import { store } from '../state.js';
-import { getItemInfo } from '../items.js';
-import { renderMarketChart } from '../market_chart.js';
-import { renderTaxSection } from './market_tax.js';
-import { renderStateCreditSection } from './market_credit.js?v=20260924_credit20';
-import { createMarketFinance } from './market_finance.js?v=20260924_state_credit_approval';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js';
-import { renderBankruptcyMarket } from './bankruptcy_market.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { store } from '../state.js?v=20260925_sabotages_v2';
+import { getItemInfo } from '../items.js?v=20260925_sabotages_v2';
+import { renderMarketChart } from '../market_chart.js?v=20260925_sabotages_v2';
+import { renderTaxSection } from './market_tax.js?v=20260925_sabotages_v2';
+import { renderStateCreditSection } from './market_credit.js?v=20260925_sabotages_v2';
+import { createMarketFinance } from './market_finance.js?v=20260925_sabotages_v2';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_sabotages_v2';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_sabotages_v2';
 
 const MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },

@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js';
-import { store } from '../state.js';
-import { getItemInfo } from '../items.js';
-import { getSpecializationName } from '../localization.js';
-import { updateBusinessCapacityCard } from './overview_capacity.js';
+import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { store } from '../state.js?v=20260925_sabotages_v2';
+import { getItemInfo } from '../items.js?v=20260925_sabotages_v2';
+import { getSpecializationName } from '../localization.js?v=20260925_sabotages_v2';
+import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_sabotages_v2';
 
 export function renderOverview(container, showToast) {
   const company = store.company;

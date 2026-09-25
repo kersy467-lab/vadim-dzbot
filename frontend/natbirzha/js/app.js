@@ -339,22 +339,25 @@ export async function initApp() {
 
     // 2. Check company existence from auth response first
     if (authData.has_company) {
+      store.setCompany({
+        id: authData.company_id,
+        company_id: authData.company_id,
+        name: authData.company_name,
+        specialization: authData.specialization,
+        level: authData.level || 1,
+        xp: authData.xp || 0,
+        cash: authData.cash || 0,
+        is_public: Boolean(authData.is_public),
+        ticker: authData.company_name ? authData.company_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 5) : 'CORP'
+      });
+
       try {
-        const company = await NatAPI.getMyCompany();
-        if (company) {
-          store.setCompany(company);
+        const fullCompany = await NatAPI.getMyCompany();
+        if (fullCompany) {
+          store.setCompany(fullCompany);
         }
       } catch (e) {
-        // If getMyCompany fails but auth says has_company=true,
-        // create minimal company from auth data
-        store.setCompany({
-          id: authData.company_id,
-          company_id: authData.company_id,
-          name: authData.company_name,
-          specialization: authData.specialization,
-          cash: 0,
-          ticker: authData.company_name ? authData.company_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 5) : 'CORP'
-        });
+        console.error('Failed to load full company details in initApp:', e);
       }
     }
     // If has_company is false, store.company stays null -> onboarding

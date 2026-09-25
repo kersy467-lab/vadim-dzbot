@@ -1,6 +1,6 @@
-import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { store } from '../state.js?v=20260925_deals_v6';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_deals_v6';
 
 const IPO_MIN_LEVEL_FALLBACK = 7;
 
@@ -20,13 +20,20 @@ export async function renderStocks(container, showToast) {
     console.error('Failed to load securities:', err);
   }
 
+  if (!store.company || store.company.level == null) {
+    try {
+      const refreshed = await NatAPI.getMyCompany();
+      if (refreshed) store.setCompany(refreshed);
+    } catch (_) {}
+  }
+
   const myCompany = store.company || {};
-  const isPublic = myCompany.is_public;
   const companyId = Number(myCompany.id || myCompany.company_id || 0);
   const ownStock = stocksList.find((stock) => Number(stock.company_id) === companyId);
-  const companyLevel = Number(myCompany.level || 1);
+  const isPublic = Boolean(myCompany.is_public || ownStock);
+  const companyLevel = Number(myCompany.level || (ownStock ? 7 : 1));
   const ipoMinLevel = Number(myCompany.capital_plan?.ipo_available_from_level || IPO_MIN_LEVEL_FALLBACK);
-  const ipoUnlocked = companyLevel >= ipoMinLevel;
+  const ipoUnlocked = companyLevel >= ipoMinLevel && !isPublic;
   const dividendRate = Number(ownStock?.dividend_rate_pct || myCompany.stock?.dividend_rate_pct || 5);
   const totalShares = Number(ownStock?.total_shares || 0);
   const floatShares = Number(ownStock?.float_shares || 0);
@@ -251,6 +258,9 @@ export async function renderStocks(container, showToast) {
   container.querySelector('#confirm-ipo-btn')?.addEventListener('click', async () => {
     const btn = container.querySelector('#confirm-ipo-btn');
     try {
+      if (isPublic || ownStock) {
+        throw new Error('Ваша компания уже провела IPO и торгуется на бирже.');
+      }
       btn.disabled = true;
       btn.innerText = 'Размещение...';
       const rate = Number(container.querySelector('#ipo-dividend-rate')?.value || 5);

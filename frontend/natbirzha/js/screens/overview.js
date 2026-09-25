@@ -1,12 +1,23 @@
-import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { getItemInfo } from '../items.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { getSpecializationName } from '../localization.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { store } from '../state.js?v=20260925_deals_v6';
+import { getItemInfo } from '../items.js?v=20260925_deals_v6';
+import { getSpecializationName } from '../localization.js?v=20260925_deals_v6';
+import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_deals_v6';
 
 export function renderOverview(container, showToast) {
   const company = store.company;
-  if (!company) { container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка данных компании...</div>'; return; }
+  if (!company) {
+    container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка данных компании...</div>';
+    NatAPI.getMyCompany().then((refreshed) => {
+      if (refreshed) {
+        store.setCompany(refreshed);
+        renderOverview(container, showToast);
+      }
+    }).catch((err) => {
+      container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500">Не удалось загрузить данные компании: ${err.message || 'Ошибка сети'}</div>`;
+    });
+    return;
+  }
 
   const inv = store.inventory || {};
   const reservedInventory = store.inventoryReserved || {};

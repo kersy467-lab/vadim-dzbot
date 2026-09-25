@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { getSpecializationName } from '../localization.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { marketChange, renderMarketChart } from '../market_chart.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderStateShareMarket } from './state_share_market.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { store } from '../state.js?v=20260925_deals_v6';
+import { getSpecializationName } from '../localization.js?v=20260925_deals_v6';
+import { marketChange, renderMarketChart } from '../market_chart.js?v=20260925_deals_v6';
+import { renderStateShareMarket } from './state_share_market.js?v=20260925_deals_v6';
 
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
 const money = (value) => `${Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash`;

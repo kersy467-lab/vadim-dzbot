@@ -50,6 +50,14 @@ async def login_user(
         except Exception:
             await session.rollback()
 
+    is_public = False
+    if company:
+        from backend.natbirzha.models.stocks import NatStock
+        stock_res = await session.execute(
+            select(NatStock.id).where(NatStock.company_id == company.id, NatStock.is_listed == True)
+        )
+        is_public = stock_res.scalar_one_or_none() is not None
+
     return {
         "authenticated": True,
         "user": {
@@ -63,7 +71,11 @@ async def login_user(
         "has_company": company is not None,
         "company_id": company.id if company else None,
         "company_name": company.name if company else None,
-        "specialization": company.specialization if company else None
+        "specialization": company.specialization if company else None,
+        "level": int(company.level or 1) if company else 1,
+        "xp": int(company.xp or 0) if company else 0,
+        "cash": float(company.cash or 0) if company else 0.0,
+        "is_public": is_public,
     }
 
 @router.get("/me")

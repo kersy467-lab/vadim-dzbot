@@ -1,6 +1,6 @@
-import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { getItemInfo } from '../items.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { store } from '../state.js?v=20260925_deals_v6';
+import { getItemInfo } from '../items.js?v=20260925_deals_v6';
 
 let activeFilter = 'all';
 

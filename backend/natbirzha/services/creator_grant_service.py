@@ -66,5 +66,64 @@ class CreatorGrantService:
             "pvc_after": company.pvc_balance,
         }
 
+    @classmethod
+    async def grant_to_player(
+        cls,
+        session: AsyncSession,
+        actor: User,
+        *,
+        target_company_id: int,
+        cash: float = 0.0,
+        pvc: int = 0,
+        reason: str = "",
+    ) -> dict:
+        """Выдать cash/PVC любой компании от имени государства."""
+        cash = round(float(cash or 0.0), 2)
+        pvc = int(pvc or 0)
+        if cash < 0 or pvc < 0 or (cash == 0 and pvc == 0):
+            raise ValueError("Укажите положительное начисление cash или PVC")
+        if cash > cls.MAX_CASH_PER_GRANT or pvc > cls.MAX_PVC_PER_GRANT:
+            raise ValueError("Начисление превышает безопасный лимит одной операции")
+
+        company = await session.scalar(
+            select(NatCompany).where(NatCompany.id == target_company_id).with_for_update()
+        )
+        if company is None:
+            raise ValueError("Компания не найдена")
+
+        cash_before = float(company.cash or 0.0)
+        pvc_before = int(company.pvc_balance or 0)
+        company.cash = round(cash_before + cash, 2)
+        company.pvc_balance = pvc_before + pvc
+
+        if cash:
+            await EconomyMetricsService.record(
+                session,
+                company_id=company.id,
+                flow="SOURCE",
+                category="state_grant",
+                cash_amount=cash,
+                context={"actor_tg_id": actor.tg_id, "reason": reason},
+            )
+        note = reason or "без причины"
+        session.add(NatCreatorAuditLog(
+            actor_id=actor.tg_id,
+            action="PLAYER_GRANT",
+            target_type="company",
+            target_id=str(company.id),
+            details=f"cash +{cash:.2f}; PVC +{pvc}; причина: {note}",
+            created_at=get_game_now(),
+        ))
+        await session.flush()
+        return {
+            "success": True,
+            "company_id": company.id,
+            "company_name": company.name,
+            "cash_granted": cash,
+            "pvc_granted": pvc,
+            "cash_after": company.cash,
+            "pvc_after": company.pvc_balance,
+        }
+
 
 __all__ = ["CreatorGrantService"]

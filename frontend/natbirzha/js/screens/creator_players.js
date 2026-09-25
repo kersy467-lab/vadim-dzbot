@@ -4,6 +4,24 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char]));
 
+function renderPlayerCard(player) {
+  return `<article class="glass-card rounded-2xl p-3 text-[10px]">
+    <div class="flex justify-between gap-2"><div class="min-w-0"><div class="truncate text-xs font-black text-white">${escapeHtml(player.company_name)}</div>
+      <div class="truncate text-slate-400">${escapeHtml(player.telegram_name || player.telegram_username || 'Telegram не указан')} · ур. ${player.level}</div></div>
+      <div class="text-right font-mono text-amber-400">${Math.round(player.assets).toLocaleString('ru-RU')}<div class="text-[9px] text-slate-500">активы</div></div></div>
+    <div class="mt-2 grid grid-cols-3 gap-1.5 text-slate-400"><span>Cash <b class="text-slate-100">${Math.round(player.cash).toLocaleString('ru-RU')}</b></span>
+      <span>Земля <b class="text-slate-100">${player.territory}</b></span><span>Заводы <b class="text-slate-100">${player.factory_count}</b></span>
+      <span>Армия <b class="text-slate-100">${Math.round(player.army).toLocaleString('ru-RU')}</b></span><span>Рейтинг <b class="text-slate-100">${player.military_rating}</b></span>
+      <span>PVC <b class="text-amber-400">${player.pvc_balance}</b></span></div>
+    <div class="mt-1 text-[9px] text-slate-500">Последняя игровая активность: ${new Date(player.last_activity_at).toLocaleString('ru-RU')}</div>
+    <div class="mt-2 grid grid-cols-3 gap-2">
+      <button data-id="${player.company_id}" class="creator-player-grant rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-2 py-2 text-[10px] font-bold text-emerald-300">💰 Выдать</button>
+      <button data-id="${player.company_id}" class="creator-player-warning rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-2 text-[10px] font-bold text-amber-300">⚠️ Предупредить</button>
+      <button data-id="${player.company_id}" data-name="${escapeHtml(player.company_name)}" class="creator-player-bankruptcy rounded-lg border border-rose-500/40 bg-rose-950/30 px-2 py-2 text-[10px] font-bold text-rose-300">Банкротство</button>
+    </div>
+  </article>`;
+}
+
 export async function loadCreatorPlayersTab(el, showToast) {
   let search = '';
   let sort = 'last_activity_at';
@@ -29,18 +47,7 @@ export async function loadCreatorPlayersTab(el, showToast) {
         </form>
         <div class="text-[10px] text-slate-500">${data.total} компаний · стр. ${data.page}/${pages}</div>
       </div>
-      <div class="space-y-2">${data.players.map((player) => `<article class="glass-card rounded-2xl p-3 text-[10px]">
-        <div class="flex justify-between gap-2"><div class="min-w-0"><div class="truncate text-xs font-black text-white">${escapeHtml(player.company_name)}</div>
-          <div class="truncate text-slate-400">${escapeHtml(player.telegram_name || player.telegram_username || 'Telegram не указан')} · ур. ${player.level}</div></div>
-          <div class="text-right font-mono text-amber-400">${Math.round(player.assets).toLocaleString('ru-RU')}<div class="text-[9px] text-slate-500">активы</div></div></div>
-        <div class="mt-2 grid grid-cols-3 gap-1.5 text-slate-400"><span>Cash <b class="text-slate-100">${Math.round(player.cash).toLocaleString('ru-RU')}</b></span>
-          <span>Земля <b class="text-slate-100">${player.territory}</b></span><span>Заводы <b class="text-slate-100">${player.factory_count}</b></span>
-          <span>Армия <b class="text-slate-100">${Math.round(player.army).toLocaleString('ru-RU')}</b></span><span>Рейтинг <b class="text-slate-100">${player.military_rating}</b></span>
-          <span>PVC <b class="text-amber-400">${player.pvc_balance}</b></span></div>
-        <div class="mt-1 text-[9px] text-slate-500">Последняя игровая активность: ${new Date(player.last_activity_at).toLocaleString('ru-RU')}</div>
-        <div class="mt-2 grid grid-cols-2 gap-2"><button data-id="${player.company_id}" class="creator-player-warning rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-2 text-[10px] font-bold text-amber-300">⚠️ Предупредить</button>
-          <button data-id="${player.company_id}" data-name="${escapeHtml(player.company_name)}" class="creator-player-bankruptcy rounded-lg border border-rose-500/40 bg-rose-950/30 px-2 py-2 text-[10px] font-bold text-rose-300">Банкротство</button></div>
-      </article>`).join('') || '<div class="glass-card rounded-2xl p-5 text-center text-xs text-slate-500">Ничего не найдено.</div>'}</div>
+      <div class="space-y-2">${data.players.map(renderPlayerCard).join('') || '<div class="glass-card rounded-2xl p-5 text-center text-xs text-slate-500">Ничего не найдено.</div>'}</div>
       <div class="flex justify-between"><button id="creator-players-prev" class="rounded-lg bg-slate-800 px-3 py-2 text-xs disabled:opacity-40" ${page <= 1 ? 'disabled' : ''}>← Назад</button>
         <button id="creator-players-next" class="rounded-lg bg-slate-800 px-3 py-2 text-xs disabled:opacity-40" ${page >= pages ? 'disabled' : ''}>Далее →</button></div>
     </div>`;
@@ -60,6 +67,30 @@ export async function loadCreatorPlayersTab(el, showToast) {
       page += 1;
       try { await reload(); } catch (error) { showToast(error.message, 'error'); }
     });
+
+    el.querySelectorAll('.creator-player-grant').forEach((button) => button.addEventListener('click', async () => {
+      const cashStr = prompt('Сумма cash для выдачи (0 = не выдавать):')?.trim();
+      if (cashStr === null) return;
+      const pvcStr = prompt('Количество PVC для выдачи (0 = не выдавать):')?.trim();
+      if (pvcStr === null) return;
+      const cash = parseFloat(cashStr) || 0;
+      const pvc = parseInt(pvcStr, 10) || 0;
+      if (cash <= 0 && pvc <= 0) { showToast('Укажите cash или PVC больше нуля', 'error'); return; }
+      const reason = prompt('Причина выдачи (необязательно):')?.trim() || '';
+      button.disabled = true;
+      try {
+        const result = await NatAPI.grantToPlayer(button.dataset.id, cash, pvc, reason);
+        const parts = [];
+        if (result.cash_granted > 0) parts.push(`${Number(result.cash_granted).toLocaleString('ru-RU')} cash`);
+        if (result.pvc_granted > 0) parts.push(`${result.pvc_granted} PVC`);
+        showToast(`✅ Выдано ${parts.join(' и ')} компании «${result.company_name}»`, 'success');
+        await reload();
+      } catch (error) {
+        showToast(error.message, 'error');
+        button.disabled = false;
+      }
+    }));
+
     el.querySelectorAll('.creator-player-warning').forEach((button) => button.addEventListener('click', async () => {
       const reason = prompt('Причина предупреждения игроку:')?.trim();
       if (!reason) return;
@@ -72,6 +103,7 @@ export async function loadCreatorPlayersTab(el, showToast) {
         button.disabled = false;
       }
     }));
+
     el.querySelectorAll('.creator-player-bankruptcy').forEach((button) => button.addEventListener('click', async () => {
       const name = button.dataset.name || 'компании';
       if (!confirm(`Объявить компанию «${name}» банкротом? 70% заводов и предприятий выставятся на рынок банкротов; деньги и вложенные акции перейдут государству; 70% сырья продадутся по активным заявкам.`)) return;

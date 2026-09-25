@@ -324,6 +324,7 @@ export const NatAPI = {
   getCreatorStateCredits: (status = 'PENDING') => request(`/api/natbirzha/creator/state-credits?status=${encodeURIComponent(status)}`),
   decideCreatorStateCredit: (loan_id, approved) => request(`/api/natbirzha/creator/state-credits/${parseInt(loan_id, 10)}/decision`, { method: 'POST', body: JSON.stringify({ approved: Boolean(approved) }) }),
   declareCreatorBankruptcy: (company_id) => request(`/api/natbirzha/creator/players/${parseInt(company_id, 10)}/bankruptcy`, { method: 'POST', body: JSON.stringify({}) }),
+  grantToPlayer: (company_id, cash, pvc, reason = '') => request(`/api/natbirzha/creator/players/${parseInt(company_id, 10)}/grant`, { method: 'POST', body: JSON.stringify({ cash: Number(cash) || 0, pvc: parseInt(pvc, 10) || 0, reason }) }),
   getCreatorWorldResetPreview: () => request('/api/natbirzha/creator/world-reset/preview'),
   resetCreatorWorld: (confirmation) => request('/api/natbirzha/creator/world-reset', { method: 'POST', body: JSON.stringify({ confirmation }) }),
   resetSelf: () => request('/api/natbirzha/creator/me/reset', { method: 'POST' }),

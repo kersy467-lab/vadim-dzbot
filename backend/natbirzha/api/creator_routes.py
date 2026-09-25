@@ -66,6 +66,11 @@ class SeasonResetRequest(BaseModel):
 class WorldResetRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=64)
 
+class PlayerGrantRequest(BaseModel):
+    cash: float = Field(default=0.0, ge=0, le=10_000_000)
+    pvc: int = Field(default=0, ge=0, le=10_000)
+    reason: str = Field(default="", max_length=255)
+
 class SelfGrantRequest(BaseModel):
     cash: float = Field(default=0.0, ge=0, le=10_000_000)
     pvc: int = Field(default=0, ge=0, le=10_000)
@@ -85,6 +90,36 @@ async def grant_to_self(
     from backend.natbirzha.services.creator_grant_service import CreatorGrantService
     try:
         response = await CreatorGrantService.grant_to_self(session, admin, cash=req.cash, pvc=req.pvc)
+    except (ValueError, PermissionError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await IdempotencyService.commit_response(
+        session, admin.id, endpoint, idempotency_key, payload, response
+    )
+
+
+@router.post("/players/{company_id}/grant")
+async def grant_to_player(
+    company_id: int,
+    req: PlayerGrantRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    admin: User = Depends(get_current_creator),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Выдать cash/PVC компании любого игрока от имени государства."""
+    endpoint = f"/api/natbirzha/creator/players/{company_id}/grant"
+    payload = {**req.model_dump(), "company_id": company_id}
+    cached = await IdempotencyService.check_or_conflict(session, admin.id, endpoint, idempotency_key, payload)
+    if cached:
+        return cached[1]
+    from backend.natbirzha.services.creator_grant_service import CreatorGrantService
+    try:
+        response = await CreatorGrantService.grant_to_player(
+            session, admin,
+            target_company_id=company_id,
+            cash=req.cash,
+            pvc=req.pvc,
+            reason=req.reason,
+        )
     except (ValueError, PermissionError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return await IdempotencyService.commit_response(

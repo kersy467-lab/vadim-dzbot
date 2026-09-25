@@ -12,6 +12,7 @@ class NatStateStore {
     this.factories = [];
     this.nav = 0;
     this.currentTab = 'overview';
+    this.maintenanceMode = false;
     this.listeners = new Set();
   }
 
@@ -32,6 +33,11 @@ class NatStateStore {
 
   setUser(user) {
     this.user = user;
+    this.notify();
+  }
+
+  setMaintenanceMode(mode) {
+    this.maintenanceMode = Boolean(mode);
     this.notify();
   }
 

@@ -333,6 +333,10 @@ export const NatAPI = {
   getActiveSabotage: () => request('/api/natbirzha/sabotages/active'),
   launchCreatorSabotage: (sabotage_id) => request('/api/natbirzha/creator/sabotages/launch', { method: 'POST', body: JSON.stringify({ sabotage_id }) }),
   stopCreatorSabotage: (sabotage_id = null, reason = 'CREATOR_ABORT') => request('/api/natbirzha/creator/sabotages/stop', { method: 'POST', body: JSON.stringify({ sabotage_id, reason }) }),
+
+  // Maintenance Break Mode
+  getMaintenanceStatus: () => request('/api/natbirzha/maintenance'),
+  toggleMaintenance: () => request('/api/natbirzha/creator/maintenance/toggle', { method: 'POST' }),
 };
 
 

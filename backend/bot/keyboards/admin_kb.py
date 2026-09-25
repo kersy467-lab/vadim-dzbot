@@ -36,7 +36,8 @@ def get_admin_panel_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📊 Опросы класса", callback_data="admin_polls_menu")
         ],
         [
-            InlineKeyboardButton(text="🎭 Саботажи (НАТБИРЖА)", callback_data="admin_sabotages_menu")
+            InlineKeyboardButton(text="🎭 Саботажи (НБ)", callback_data="admin_sabotages_menu"),
+            InlineKeyboardButton(text="🛠 Техперерыв (НБ)", callback_data="set_natbirzha_maint_toggle")
         ]
     ]
     try:

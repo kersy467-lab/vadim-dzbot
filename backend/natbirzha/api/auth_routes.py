@@ -58,6 +58,9 @@ async def login_user(
         )
         is_public = stock_res.scalar_one_or_none() is not None
 
+    from backend.natbirzha.services.maintenance_service import MaintenanceService
+    maintenance_mode = await MaintenanceService.is_maintenance_active(session)
+
     return {
         "authenticated": True,
         "user": {
@@ -76,6 +79,7 @@ async def login_user(
         "xp": int(company.xp or 0) if company else 0,
         "cash": float(company.cash or 0) if company else 0.0,
         "is_public": is_public,
+        "maintenance_mode": maintenance_mode,
     }
 
 @router.get("/me")

@@ -10,6 +10,7 @@ import { renderMilitary } from './screens/military.js?v=20260925_deals_v9';
 import { renderCreator } from './screens/creator.js?v=20260925_deals_v9';
 import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_deals_v9';
 import { renderHelp } from './screens/help.js?v=20260925_deals_v9';
+import { updateMaintenanceBanner } from './maintenance.js?v=20260925_maint_v1';
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {
@@ -129,7 +130,8 @@ async function renderScreenOnce() {
   if (!container) return;
   const renderContainer = document.createElement('div');
 
-  checkAndRevealCreatorAccess();
+  const isCreator = checkAndRevealCreatorAccess();
+  updateMaintenanceBanner(store.maintenanceMode, isCreator);
 
   // If no company exists yet, always route to Onboarding (unless creator panel is requested)
   if (!store.hasCompany() && renderTab !== 'creator') {
@@ -262,18 +264,10 @@ function setupNavigation() {
   document.querySelectorAll('.nav-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
-      if (tab && tab !== store.currentTab) {
-        navigateTo(tab);
-      }
+      if (tab && tab !== store.currentTab) navigateTo(tab);
     });
   });
-
-  const creatorBtn = document.getElementById('creator-nav-btn');
-  if (creatorBtn) {
-    creatorBtn.addEventListener('click', () => {
-      navigateTo('creator');
-    });
-  }
+  document.getElementById('creator-nav-btn')?.addEventListener('click', () => navigateTo('creator'));
 }
 
 function waitForTelegramWebApp(timeoutMs = 1500) {
@@ -316,7 +310,8 @@ export async function initApp() {
 
   // Subscribe to state updates
   store.subscribe(() => {
-    checkAndRevealCreatorAccess();
+    const isCreator = checkAndRevealCreatorAccess();
+    updateMaintenanceBanner(store.maintenanceMode, isCreator);
     const company = store.company;
     const cashEl = document.getElementById('header-cash');
     const tickerEl = document.getElementById('header-ticker');
@@ -329,6 +324,10 @@ export async function initApp() {
     // 1. Authenticate user
     const authData = await NatAPI.login();
     store.setUser(authData.user);
+    if (typeof authData?.maintenance_mode === 'boolean') {
+      store.setMaintenanceMode(authData.maintenance_mode);
+    }
+    updateMaintenanceBanner(store.maintenanceMode, checkAndRevealCreatorAccess());
 
     // Reveal Creator button for admin / state creator
     const user = authData.user;

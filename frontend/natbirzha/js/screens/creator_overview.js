@@ -1,15 +1,31 @@
 import { NatAPI } from '../api.js?v=20260925_deals_v9';
 
 export async function loadCreatorOverview(el, showToast) {
-  const [data, metrics] = await Promise.all([
+  const [data, metrics, maintData] = await Promise.all([
     NatAPI.getCreatorOverview(),
     NatAPI.getCreatorEconomyMetrics(7),
+    NatAPI.getMaintenanceStatus().catch(() => ({ maintenance_mode: false })),
   ]);
+  const isMaint = Boolean(maintData?.maintenance_mode);
+
   el.innerHTML = `
     <div class="glass-card rounded-2xl p-4 border border-amber-500/30 bg-amber-950/20 space-y-2">
       <div class="text-xs text-amber-400 font-bold uppercase tracking-wider">Государственная Казна</div>
       <div class="text-2xl font-black text-white font-mono">${Math.round(data.treasury_cash).toLocaleString('ru-RU')} ₽</div>
       <div class="text-[10px] text-slate-400">Изолированный баланс государства (не смешивается с игроками)</div>
+    </div>
+    <div class="glass-card rounded-2xl p-4 border ${isMaint ? 'border-amber-500/60 bg-amber-950/30' : 'border-slate-800'} space-y-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-xs font-black text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+            <span>🛠️</span> Технический перерыв
+          </div>
+          <div class="text-[10px] text-slate-400">Плашка видна всем игрокам, кроме админов</div>
+        </div>
+        <button id="creator-toggle-maint-btn" class="px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${isMaint ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+          ${isMaint ? '🔴 ВКЛЮЧЕН' : '⚪ ВЫКЛЮЧЕН'}
+        </button>
+      </div>
     </div>
     <div class="grid grid-cols-2 gap-2">
       ${stat('Компаний в игре', data.total_companies, 'text-white')}
@@ -33,6 +49,16 @@ export async function loadCreatorOverview(el, showToast) {
       <button id="creator-self-grant" class="w-full rounded-xl bg-amber-500 py-2 text-xs font-black text-slate-950">Начислить себе</button>
     </div>
     <div class="glass-card rounded-2xl p-4 space-y-1"><div class="text-xs text-slate-400 font-bold">Денежная масса в обороте</div><div class="text-base font-black font-mono text-blue-400">${Math.round(data.cash_in_circulation).toLocaleString('ru-RU')} ₽</div></div>`;
+
+  el.querySelector('#creator-toggle-maint-btn')?.addEventListener('click', async () => {
+    try {
+      const res = await NatAPI.toggleMaintenance();
+      showToast(res.maintenance_mode ? 'Технический перерыв включен' : 'Технический перерыв выключен', 'info');
+      await loadCreatorOverview(el, showToast);
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 
   el.querySelector('#creator-self-grant')?.addEventListener('click', async () => {
     const cash = Number(el.querySelector('#creator-self-cash')?.value || 0);

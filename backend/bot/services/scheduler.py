@@ -294,6 +294,26 @@ def setup_scheduler(bot: Bot):
             replace_existing=True
         )
 
+        # Natbirzha: проверка и завершение истекших саботажей/кризисов каждую минуту
+        async def run_natbirzha_sabotage_expiration_check():
+            try:
+                from backend.db.session import async_session_factory
+                from backend.natbirzha.services.sabotage_service import SabotageService
+                async with async_session_factory() as session:
+                    result = await SabotageService.check_and_expire(session, bot=bot)
+                    if result and result.get("expired"):
+                        await session.commit()
+                        logger.info("Natbirzha sabotage auto-expired: %s", result)
+            except Exception as ex:
+                logger.error(f"Error checking Natbirzha sabotage expiration: {ex}")
+
+        scheduler.add_job(
+            run_natbirzha_sabotage_expiration_check,
+            trigger=CronTrigger(minute="*", timezone=settings.TIMEZONE),
+            id="natbirzha_sabotage_expiration_job",
+            replace_existing=True,
+        )
+
         scheduler.start()
         logger.info(f"Scheduler started with evening digest ({settings.NOTIFICATION_TIME_EVENING}), canteen reminder, duty check (07:30), Monday duty reminder (06:00), fact rotation (every 30m), daily cleanup (00:05), and Natbirzha tick/settlement ({settings.TIMEZONE})")
 

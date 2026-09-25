@@ -95,9 +95,15 @@ class StateCreditService(StateCreditApprovalMixin):
         principal = cls._amount(principal, "Principal")
         term_days = cls._term_days(term_days)
         current = cls._now(now)
+
+        from backend.natbirzha.services.sabotage_service import SabotageService
+        if SabotageService.are_new_credits_blocked():
+            raise ValueError("Выдача новых государственных кредитов временно приостановлена из-за дефолта.")
+
+        daily_rate = STATE_CREDIT_DAILY_RATE + SabotageService.get_credit_rate_delta()
         try:
             due_at = current + timedelta(days=term_days)
-            total_due = round(principal * (1 + STATE_CREDIT_DAILY_RATE * term_days), 2)
+            total_due = round(principal * (1 + daily_rate * term_days), 2)
         except OverflowError as exc:
             raise ValueError("Term creates an unsupported repayment amount or due date") from exc
         if not math.isfinite(total_due):

@@ -10,6 +10,7 @@ from backend.natbirzha.models.alliances import NatAllianceMember
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.military import NatTournament, NatTournamentParticipant
 from backend.natbirzha.services.army_service import ArmyService
+from backend.natbirzha.config import normalize_dt
 from backend.natbirzha.services.tournament_combat import TournamentError
 
 
@@ -30,7 +31,7 @@ class TournamentRegistrationMixin:
         )
         if tournament is None:
             raise TournamentError("tournament_not_found", "Tournament not found")
-        if tournament.status not in {"PENDING", "SCHEDULED", "ACTIVE"} or now >= tournament.finish_time:
+        if tournament.status not in {"PENDING", "SCHEDULED", "ACTIVE"} or normalize_dt(now) >= normalize_dt(tournament.finish_time):
             raise TournamentError("tournament_not_active", "Tournament registration is closed")
 
         existing = await session.scalar(

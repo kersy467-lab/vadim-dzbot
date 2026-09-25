@@ -870,6 +870,7 @@ async def main():
         "tests/natbirzha/test_p2_backend_api.py",
         "tests/natbirzha/test_reference_instruments.py",
         "tests/natbirzha/test_bond_lifecycle.py",
+        "tests/natbirzha/test_sabotages.py",
         "tests/test_ege_duel_timer.py",
         "tests/test_ege_and_frontend.py",
     )

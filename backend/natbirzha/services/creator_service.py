@@ -21,6 +21,43 @@ from backend.natbirzha.services.tournament_service import TournamentService
 from backend.natbirzha.services.state_bond_service import StateBondService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
+
+def resolve_canonical_item(item_input: Optional[str]) -> Optional[str]:
+    if not item_input:
+        return None
+    raw = item_input.strip()
+    if not raw:
+        return None
+    if raw in CANONICAL_ITEMS:
+        return raw
+    low = raw.lower()
+    if low in CANONICAL_ITEMS:
+        return low
+    for cid, spec in CANONICAL_ITEMS.items():
+        if spec.get("name", "").strip().lower() == low:
+            return cid
+    SYNONYMS = {
+        "нефть": "oil_crude", "сырая нефть": "oil_crude", "газ": "gas_natural",
+        "электроэнергия": "energy", "энергия": "energy", "свет": "energy", "электричество": "energy",
+        "вода": "water", "техническая вода": "water", "очищенная вода": "clean_water", "сверхчистая вода": "ultrapure_water",
+        "сталь": "steel", "уголь": "coal", "железо": "iron_ore", "железная руда": "iron_ore",
+        "медь": "copper", "медная руда": "copper_ore", "алюминий": "aluminum", "бокситы": "bauxite",
+        "дизель": "fuel_diesel", "топливо": "fuel_diesel", "солярка": "fuel_diesel", "бензин": "gasoline",
+        "кирпич": "brick", "цемент": "cement", "бетон": "concrete", "прокат": "rolled_metal",
+        "древесина": "wood_raw", "лес": "wood_raw", "кругляк": "wood_raw", "пиломатериалы": "lumber", "доски": "lumber",
+        "еда": "food", "пайки": "food", "продовольствие": "food", "зерно": "grain",
+        "микрочипы": "chips", "чипы": "chips", "электроника": "electronics",
+        "логистика": "logistics_capacity", "перевозка": "logistics_capacity",
+    }
+    if low in SYNONYMS:
+        return SYNONYMS[low]
+    for cid, spec in CANONICAL_ITEMS.items():
+        name_low = spec.get("name", "").strip().lower()
+        if low in name_low or name_low in low:
+            return cid
+    return None
+
+
 class CreatorService:
     @staticmethod
     async def get_or_create_treasury(
@@ -138,8 +175,11 @@ class CreatorService:
     ) -> Dict[str, Any]:
         if company_id is not None and not await session.get(NatCompany, company_id):
             raise ValueError("Company not found.")
-        if item_id is not None and item_id not in CANONICAL_ITEMS:
-            raise ValueError(f"Unknown item: {item_id}")
+        if item_id is not None:
+            resolved = resolve_canonical_item(item_id)
+            if not resolved:
+                raise ValueError(f"Unknown item: {item_id}")
+            item_id = resolved
         if min_price is not None and min_price < 0:
             raise ValueError("Minimum price cannot be negative.")
         if max_price is not None and max_price < 0:

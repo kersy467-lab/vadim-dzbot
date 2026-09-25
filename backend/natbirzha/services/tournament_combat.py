@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.config import game_dt_iso
+from backend.natbirzha.config import game_dt_iso, normalize_dt
 from backend.natbirzha.models.combat import NatBattle, NatBattleSnapshot, NatPvpCooldown
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.military import NatTournament, NatTournamentParticipant
@@ -61,7 +61,10 @@ class TournamentCombatMixin:
         )
         if tournament is None:
             raise TournamentError("tournament_not_found", "Tournament not found")
-        if tournament.status != "ACTIVE" or not (tournament.start_time <= now < tournament.finish_time):
+        t_start = normalize_dt(tournament.start_time)
+        t_finish = normalize_dt(tournament.finish_time)
+        current_time = normalize_dt(now)
+        if tournament.status != "ACTIVE" or not (t_start <= current_time < t_finish):
             raise TournamentError("tournament_not_active", "PvP is available only during an active tournament")
         attacker_participant = await cls._participant(session, tournament_id, attacker_company.id, for_update=True)
         defender_participant = await cls._participant(session, tournament_id, defender_company_id, for_update=True)
@@ -85,7 +88,7 @@ class TournamentCombatMixin:
                 NatPvpCooldown.defender_company_id == defender_company_id,
             ).with_for_update()
         )
-        if cooldown is not None and cooldown.available_at > now:
+        if cooldown is not None and normalize_dt(cooldown.available_at) > current_time:
             raise TournamentError("cooldown", f"Target is unavailable until {cooldown.available_at.isoformat()}")
 
         for company_id in (attacker_company.id, defender_company_id):
@@ -216,7 +219,7 @@ class TournamentCombatMixin:
                 "rating": company.military_rating, "approximate_strength": status["army_strength"],
                 "wins": participant.wins, "losses": participant.losses,
                 "cooldown_until": game_dt_iso(cooldown_until),
-                "attack_available": cooldown_until is None or cooldown_until <= now,
+                "attack_available": cooldown_until is None or normalize_dt(cooldown_until) <= normalize_dt(now),
             })
         return targets
 

@@ -68,6 +68,16 @@ class DividendService:
         commit: bool = False,
     ) -> Dict[str, Any]:
         """Pay closed-hour dividends once, refunding unowned shares to issuers."""
+        from backend.natbirzha.services.sabotage_service import SabotageService
+        if SabotageService.are_dividends_blocked():
+            return {
+                "accruals_settled": 0,
+                "payment_count": 0,
+                "total_paid": 0.0,
+                "total_refunded": 0.0,
+                "blocked": True,
+            }
+
         current = normalize_dt(now or get_game_now())
         open_rows = (await session.execute(
             select(NatHourlyDividendAccrual)
@@ -161,6 +171,10 @@ class DividendService:
           - Distributes pro-rata to all shareholders in NatStockHolding
           - Idempotent per (stock_id, settlement_date)
         """
+        from backend.natbirzha.services.sabotage_service import SabotageService
+        if SabotageService.are_dividends_blocked():
+            return {"status": "blocked", "reason": "state_default_active", "stock_id": stock.id}
+
         settlement_date = settlement_date or get_game_today()
 
         # Idempotency check: already settled for this date?

@@ -292,16 +292,23 @@ async def launch_tournament(
     if cached:
         return cached[1]
 
-    res = await CreatorService.launch_early_tournament(
-        session,
-        admin.tg_id,
-        (req.reward_first_pvc, req.reward_second_pvc, req.reward_third_pvc),
-        commit=False,
-    )
-    return await IdempotencyService.commit_response(
-        session, admin.id, "/api/natbirzha/creator/tournaments/launch",
-        idempotency_key, req.model_dump(), res
-    )
+    try:
+        res = await CreatorService.launch_early_tournament(
+            session,
+            admin.tg_id,
+            (req.reward_first_pvc, req.reward_second_pvc, req.reward_third_pvc),
+            commit=False,
+        )
+        return await IdempotencyService.commit_response(
+            session, admin.id, "/api/natbirzha/creator/tournaments/launch",
+            idempotency_key, req.model_dump(), res
+        )
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=f"Не удалось запустить турнир: {e}")
 
 @router.get("/audit-log")
 async def get_audit_log(

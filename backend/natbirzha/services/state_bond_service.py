@@ -139,7 +139,9 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             raise ValueError(
                 f"Insufficient bond supply. Remaining: {bond.remaining_volume}, requested: {quantity}."
             )
-        total_cost = round(float(bond.face_value) * quantity, 2)
+        from backend.natbirzha.services.sabotage_service import SabotageService
+        bond_mult = SabotageService.get_bond_price_multiplier()
+        total_cost = round(float(bond.face_value) * quantity * bond_mult, 2)
         if company.cash < total_cost:
             raise ValueError(f"Insufficient cash. Required: {total_cost}, Available: {company.cash}")
         holding = await session.scalar(select(NatStateBondHolding).where(

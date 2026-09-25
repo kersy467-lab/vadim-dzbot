@@ -1,5 +1,5 @@
 import { NatAPI } from '../api.js';
-import { getItemInfo } from '../items.js';
+import { ITEMS, getItemInfo } from '../items.js';
 
 export async function loadCreatorModeration(el, showToast) {
   const [data, resetPreview] = await Promise.all([
@@ -18,13 +18,87 @@ export async function loadCreatorModeration(el, showToast) {
   const testerPvc = Number(resetPreview?.tester_starting_pvc || 200).toLocaleString('ru-RU');
   const resetPhrase = String(resetPreview?.confirmation_phrase || 'СБРОСИТЬ НАТБИРЖУ');
 
+  const itemOptions = Object.entries(ITEMS)
+    .sort((a, b) => a[1].name.localeCompare(b[1].name, 'ru'))
+    .map(([id, itm]) => `<option value="${id}">${itm.icon || '📦'} ${itm.name} (${itm.unit})</option>`)
+    .join('');
+
   el.innerHTML = `
     <div class="grid grid-cols-2 gap-2">
-      <button id="open-warn-btn" class="py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold transition-all">
+      <button id="toggle-warn-btn" class="py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold transition-all cursor-pointer">
         ⚠️ Предупреждение
       </button>
-      <button id="open-restr-btn" class="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all">
+      <button id="toggle-restr-btn" class="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all cursor-pointer">
         🛑 Ограничение цен
+      </button>
+    </div>
+
+    <!-- Inline Form: Price Restriction -->
+    <div id="restr-form-card" class="hidden glass-card rounded-2xl p-4 border border-rose-500/40 bg-rose-950/20 space-y-3">
+      <div class="flex justify-between items-center">
+        <div class="text-xs font-black text-rose-300 uppercase tracking-wide">🛑 Установка ценового ограничения</div>
+        <button id="close-restr-form" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-[10px] text-slate-300 font-bold uppercase">Товар:</label>
+        <select id="restr-item-select" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white">
+          <option value="">Все товары (Глобальное ограничение)</option>
+          ${itemOptions}
+        </select>
+        <div id="restr-base-hint" class="text-[10px] text-slate-400 font-mono"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-[10px] text-slate-300 font-bold uppercase">Мин. цена (₽):</label>
+          <input id="restr-min-price" type="number" step="0.1" placeholder="Нижняя планка" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-mono text-white" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-300 font-bold uppercase">Макс. цена (₽):</label>
+          <input id="restr-max-price" type="number" step="0.1" placeholder="Верхняя планка" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-mono text-white" />
+        </div>
+      </div>
+
+      <div>
+        <div class="text-[10px] text-slate-400 font-bold mb-1">Быстрое повышение мин. цены:</div>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button type="button" class="preset-btn py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-amber-300 cursor-pointer" data-mult="1.25">+25%</button>
+          <button type="button" class="preset-btn py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-orange-300 cursor-pointer" data-mult="1.50">+50%</button>
+          <button type="button" class="preset-btn py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-rose-300 cursor-pointer" data-mult="2.00">+100%</button>
+          <button type="button" class="preset-btn py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 cursor-pointer" data-mult="reset">Сброс</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[10px] text-slate-300 font-bold uppercase">Причина ограничения:</label>
+        <input id="restr-reason" type="text" placeholder="Напр.: Защита рынка от демпинга" value="Регулирование рынка" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white" />
+      </div>
+
+      <button id="submit-restr-btn" class="w-full rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 py-2.5 text-xs font-black text-white transition-all cursor-pointer">
+        ✅ Применить ограничение цен
+      </button>
+    </div>
+
+    <!-- Inline Form: Warning -->
+    <div id="warn-form-card" class="hidden glass-card rounded-2xl p-4 border border-amber-500/40 bg-amber-950/20 space-y-3">
+      <div class="flex justify-between items-center">
+        <div class="text-xs font-black text-amber-300 uppercase tracking-wide">⚠️ Выдача официального предупреждения</div>
+        <button id="close-warn-form" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded cursor-pointer">✕</button>
+      </div>
+
+      <div>
+        <label class="block text-[10px] text-slate-300 font-bold uppercase">ID Компании:</label>
+        <input id="warn-comp-id" type="number" placeholder="Например: 12" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-mono text-white" />
+      </div>
+
+      <div>
+        <label class="block text-[10px] text-slate-300 font-bold uppercase">Причина предупреждения:</label>
+        <input id="warn-reason" type="text" placeholder="Напр.: Манипулирование ценами на бирже" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white" />
+      </div>
+
+      <button id="submit-warn-btn" class="w-full rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 py-2.5 text-xs font-black text-slate-950 transition-all cursor-pointer">
+        ⚠️ Отправить предупреждение
       </button>
     </div>
 
@@ -36,9 +110,9 @@ export async function loadCreatorModeration(el, showToast) {
           <div class="rounded-xl border border-rose-500/30 bg-rose-950/20 p-2 text-[11px] flex justify-between items-center">
             <div>
               <div class="font-bold text-white">${r.item_id ? getItemInfo(r.item_id).name : 'Все товары'} ${r.company_id ? `(Комп. #${r.company_id})` : '(Весь рынок)'}</div>
-              <div class="text-[10px] text-rose-300">Диапазон: [${r.min_price ?? '—'}, ${r.max_price ?? '—'}] ₽ · ${r.reason}</div>
+              <div class="text-[10px] text-rose-300">Диапазон: [${r.min_price != null ? r.min_price + ' ₽' : '—'}, ${r.max_price != null ? r.max_price + ' ₽' : '—'}] · ${r.reason}</div>
             </div>
-            <button class="remove-restr-btn px-2 py-1 rounded bg-rose-800 hover:bg-rose-700 text-white text-[10px] font-bold" data-id="${r.id}">Снять</button>
+            <button class="remove-restr-btn px-2.5 py-1 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-[10px] font-bold cursor-pointer" data-id="${r.id}">Снять</button>
           </div>
         `).join('')}
       </div>
@@ -102,6 +176,124 @@ export async function loadCreatorModeration(el, showToast) {
     </div>
   `;
 
+  // Restriction form toggle & logic
+  const restrCard = el.querySelector('#restr-form-card');
+  const warnCard = el.querySelector('#warn-form-card');
+  const itemSelect = el.querySelector('#restr-item-select');
+  const minPriceInput = el.querySelector('#restr-min-price');
+  const maxPriceInput = el.querySelector('#restr-max-price');
+  const baseHint = el.querySelector('#restr-base-hint');
+
+  const updateBaseHint = async () => {
+    const itemId = itemSelect?.value;
+    if (!itemId) {
+      baseHint.textContent = '';
+      return;
+    }
+    try {
+      const quote = await NatAPI.getNpcQuote(itemId);
+      if (quote?.base_price != null) {
+        baseHint.textContent = `Базовая цена: ${quote.base_price} ₽ (NPC выкуп: ${quote.npc_buy_price} ₽, NPC продажа: ${quote.npc_sell_price} ₽)`;
+        baseHint.dataset.basePrice = String(quote.base_price);
+      }
+    } catch {
+      baseHint.textContent = '';
+    }
+  };
+
+  itemSelect?.addEventListener('change', updateBaseHint);
+
+  el.querySelector('#toggle-restr-btn')?.addEventListener('click', () => {
+    restrCard?.classList.toggle('hidden');
+    warnCard?.classList.add('hidden');
+    if (!restrCard?.classList.contains('hidden')) {
+      updateBaseHint();
+    }
+  });
+
+  el.querySelector('#close-restr-form')?.addEventListener('click', () => {
+    restrCard?.classList.add('hidden');
+  });
+
+  el.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mult = btn.dataset.mult;
+      if (mult === 'reset') {
+        minPriceInput.value = '';
+        maxPriceInput.value = '';
+        return;
+      }
+      const base = parseFloat(baseHint?.dataset?.basePrice || '0');
+      if (base > 0) {
+        const factor = parseFloat(mult);
+        minPriceInput.value = (Math.round(base * factor * 10) / 10).toFixed(1);
+      } else {
+        const cur = parseFloat(minPriceInput.value || '10');
+        minPriceInput.value = (Math.round(cur * parseFloat(mult) * 10) / 10).toFixed(1);
+      }
+    });
+  });
+
+  el.querySelector('#submit-restr-btn')?.addEventListener('click', async (event) => {
+    const btn = event.currentTarget;
+    const itemVal = itemSelect?.value?.trim() || null;
+    const minVal = minPriceInput?.value ? parseFloat(minPriceInput.value) : null;
+    const maxVal = maxPriceInput?.value ? parseFloat(maxPriceInput.value) : null;
+    const reasonVal = el.querySelector('#restr-reason')?.value?.trim() || 'Регулирование рынка';
+
+    if (minVal == null && maxVal == null) {
+      showToast('Укажите хотя бы минимальную или максимальную цену', 'error');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Сохраняю…';
+    try {
+      await NatAPI.setCreatorRestriction({
+        item_id: itemVal,
+        min_price: minVal,
+        max_price: maxVal,
+        reason: reasonVal,
+      });
+      showToast('Ценовое ограничение успешно установлено!', 'success');
+      await loadCreatorModeration(el, showToast);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '✅ Применить ограничение цен';
+      showToast(e.message, 'error');
+    }
+  });
+
+  // Warning form toggle & logic
+  el.querySelector('#toggle-warn-btn')?.addEventListener('click', () => {
+    warnCard?.classList.toggle('hidden');
+    restrCard?.classList.add('hidden');
+  });
+
+  el.querySelector('#close-warn-form')?.addEventListener('click', () => {
+    warnCard?.classList.add('hidden');
+  });
+
+  el.querySelector('#submit-warn-btn')?.addEventListener('click', async (event) => {
+    const btn = event.currentTarget;
+    const compId = el.querySelector('#warn-comp-id')?.value?.trim();
+    const reason = el.querySelector('#warn-reason')?.value?.trim();
+    if (!compId || !reason) {
+      showToast('Укажите ID компании и причину предупреждения', 'error');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Отправляю…';
+    try {
+      await NatAPI.sendCreatorWarning(Number(compId), reason);
+      showToast(`Предупреждение выдано компании #${compId}`, 'success');
+      await loadCreatorModeration(el, showToast);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '⚠️ Отправить предупреждение';
+      showToast(e.message, 'error');
+    }
+  });
+
   el.querySelectorAll('.remove-restr-btn').forEach(b => {
     b.addEventListener('click', async () => {
       try {
@@ -127,40 +319,6 @@ export async function loadCreatorModeration(el, showToast) {
     } catch (e) {
       button.disabled = false;
       button.textContent = '🔄 Сбросить только мой аккаунт';
-      showToast(e.message, 'error');
-    }
-  });
-
-  el.querySelector('#open-warn-btn')?.addEventListener('click', async () => {
-    const compId = prompt('Введите ID компании:');
-    if (!compId) return;
-    const reason = prompt('Причина официального предупреждения:');
-    if (!reason) return;
-    try {
-      await NatAPI.sendCreatorWarning(Number(compId), reason);
-      showToast(`Предупреждение выдано компании #${compId}`, 'success');
-      await loadCreatorModeration(el, showToast);
-    } catch (e) {
-      showToast(e.message, 'error');
-    }
-  });
-
-  el.querySelector('#open-restr-btn')?.addEventListener('click', async () => {
-    const item = prompt('Товар (оставьте пустым для всех):', '') || null;
-    const minP = prompt('Минимальная цена (₽):', '');
-    const maxP = prompt('Максимальная цена (₽):', '');
-    const reason = prompt('Официальная причина ограничения цен:');
-    if (!reason) return;
-    try {
-      await NatAPI.setCreatorRestriction({
-        item_id: item ? item.trim() : null,
-        min_price: minP ? parseFloat(minP) : null,
-        max_price: maxP ? parseFloat(maxP) : null,
-        reason: reason.trim(),
-      });
-      showToast('Ценовое ограничение установлено на сервере', 'success');
-      await loadCreatorModeration(el, showToast);
-    } catch (e) {
       showToast(e.message, 'error');
     }
   });

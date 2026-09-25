@@ -592,6 +592,23 @@ async def _migrate_v8_reconcile_resource_gross_profit(conn) -> None:
         """), {"gross": gross, "net": net, "id": row.id})
 
 
+async def _migrate_v9_sabotages_and_tournament_bigint(conn) -> None:
+    """Create active sabotages table and ensure tournament created_by_user_id is BIGINT."""
+    if conn.dialect.name != "sqlite" and await _table_exists(conn, "nat_tournaments"):
+        try:
+            await conn.execute(text("ALTER TABLE nat_tournaments ALTER COLUMN created_by_user_id TYPE BIGINT"))
+        except Exception:
+            pass
+
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    if "nat_active_sabotages" in Base.metadata.tables:
+        await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+            "nat_active_sabotages"
+        ].create(sync_conn, checkfirst=True))
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -616,6 +633,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v6_001_hourly_returns", _migrate_v6_hourly_returns),
     ("natbirzha_v7_001_bankruptcy_market", _migrate_v7_bankruptcy_market),
     ("natbirzha_v8_001_reconcile_resource_gross_profit", _migrate_v8_reconcile_resource_gross_profit),
+    ("natbirzha_v9_001_sabotages_and_tournament_bigint", _migrate_v9_sabotages_and_tournament_bigint),
 )
 
 

@@ -287,12 +287,19 @@ async def attack_tournament_player(
         return await IdempotencyService.commit_response(
             session, company.user_id, endpoint, idempotency_key, payload, response
         )
-    except TournamentError as exc:
+    except (TournamentError, ValueError) as exc:
         await session.rollback()
-        status_code = 409 if exc.reason in {"cooldown", "operation_conflict"} else 400
+        reason = getattr(exc, "reason", "invalid_attack")
+        status_code = 409 if reason in {"cooldown", "operation_conflict"} else 400
         raise HTTPException(
             status_code=status_code,
-            detail={"reason": exc.reason, "message": str(exc)},
+            detail={"reason": reason, "message": str(exc)},
+        ) from exc
+    except Exception as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail={"reason": "attack_failed", "message": str(exc)},
         ) from exc
 
 @router.post("/recruit")

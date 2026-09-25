@@ -121,7 +121,13 @@ def get_item_base_price(item_id: str) -> float:
     item = CANONICAL_ITEMS.get(item_id)
     if not item:
         raise ValueError(f"Unknown canonical item: {item_id}")
-    return float(item["base_price"])
+    base = float(item["base_price"])
+    try:
+        from backend.natbirzha.services.sabotage_service import SabotageService
+        mult = SabotageService.get_resource_multiplier_sync(item_id)
+        return round(base * mult, 2)
+    except Exception:
+        return base
 
 
 def get_item_name(item_id: str) -> str:

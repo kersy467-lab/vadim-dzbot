@@ -15,7 +15,7 @@ from backend.natbirzha.services.army_service import ArmyService
 from backend.natbirzha.services.premium_service import PremiumService
 from backend.natbirzha.services.tournament_combat import TournamentCombatMixin, TournamentError
 from backend.natbirzha.services.tournament_registration import TournamentRegistrationMixin
-from backend.natbirzha.config import game_dt_iso
+from backend.natbirzha.config import game_dt_iso, normalize_dt
 
 
 TOURNAMENT_CADENCE = timedelta(hours=72)
@@ -309,7 +309,7 @@ class TournamentService(TournamentRegistrationMixin, TournamentCombatMixin):
             raise ValueError("Tournament not found")
         if tournament.status == "COMPLETED":
             return await cls._serialize_result(session, tournament)
-        if not force and now < tournament.finish_time:
+        if not force and normalize_dt(now) < normalize_dt(tournament.finish_time):
             raise ValueError("Tournament is still active")
         if tournament.status in {"SCHEDULED", "PENDING"}:
             await cls._snapshot_participants(session, tournament, tournament.start_time)

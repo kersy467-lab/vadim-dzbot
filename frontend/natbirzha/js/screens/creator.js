@@ -5,6 +5,7 @@ import { loadCreatorShares } from './creator_shares.js';
 import { loadCreatorPlayersTab } from './creator_players.js?v=20260924_creator_controls';
 import { loadCreatorCreditTab } from './creator_credit.js?v=20260924_credit20';
 import { declareCreatorBondBankruptcy } from './creator_bond_api.js?v=20260924_creator_controls';
+import { loadCreatorSabotages } from './creator_sabotages.js';
 
 let activeTab = 'overview';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
@@ -39,6 +40,7 @@ export async function renderCreator(container, showToast) {
         <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'shares' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="shares">📈 Акции государства</button>
         <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'credits' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="credits">🏦 Кредиты</button>
         <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'tournaments' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="tournaments">⚔️ Турниры</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'sabotages' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="sabotages">🎭 Саботажи</button>
         <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'players' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="players">👥 Игроки</button>
         <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'premium' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="premium">💎 PVC</button>
         <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'audit' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="audit">📋 Аудит</button>
@@ -89,6 +91,8 @@ export async function renderCreator(container, showToast) {
       await loadCreatorCreditTab(contentArea, showToast);
     } else if (activeTab === 'tournaments') {
       await loadTournamentsTab(contentArea, showToast);
+    } else if (activeTab === 'sabotages') {
+      await loadCreatorSabotages(contentArea, showToast);
     } else if (activeTab === 'players') {
       await loadCreatorPlayersTab(contentArea, showToast);
     } else if (activeTab === 'premium') {
@@ -266,7 +270,7 @@ async function loadTournamentsTab(el, showToast) {
           reward_second_pvc: rewards[1],
           reward_third_pvc: rewards[2],
         });
-        showToast(`Турнир №${res.number} запущен на 18 часов.`, 'success');
+        showToast(`Турнир №${res.tournament_number || res.number || res.tournament_id} запущен на 18 часов.`, 'success');
         btn.disabled = true;
         btn.textContent = 'Турнир запущен';
       } catch (e) {

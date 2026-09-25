@@ -40,6 +40,7 @@ from backend.bot.handlers.admin import (
     coins as admin_coins,
     polls as admin_polls,
     natbirzha_notice,
+    sabotages as admin_sabotages,
 )
 
 # Re-export handlers for backward compatibility with tests
@@ -155,6 +156,7 @@ router.include_router(admin_logging.router)
 router.include_router(admin_coins.router)
 router.include_router(admin_polls.router)
 router.include_router(natbirzha_notice.router)
+router.include_router(admin_sabotages.router)
 try:
     from backend.bot.handlers.admin import pug_prank
     router.include_router(pug_prank.router)

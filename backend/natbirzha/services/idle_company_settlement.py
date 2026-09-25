@@ -19,6 +19,7 @@ from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.tax_service import TaxService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.sabotage_service import SabotageService
 
 
 def _empty_result(company: NatCompany, cap_hours: int, projects: list, tax: dict) -> dict[str, Any]:
@@ -165,6 +166,8 @@ async def settle_company(
             continue
         work_started_at = normalize_dt(business.last_settled_at) or effective_current
         industry_bonus = IndustryUpgradeService.bonus_multiplier(company, business.specialization)
+        sabotage_income_mult = SabotageService.get_income_multiplier(business.specialization or company.specialization)
+        industry_bonus = round(industry_bonus * sabotage_income_mult, 4)
         if spec["mechanic"] == "cash_income":
             result = engine._settle_business(
                 business, now=effective_current, cap_hours=cap_hours,

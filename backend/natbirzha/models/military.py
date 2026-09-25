@@ -39,7 +39,7 @@ class NatTournament(Base):
     reward_first_pvc: Mapped[int] = mapped_column(Integer, default=150, nullable=False)
     reward_second_pvc: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     reward_third_pvc: Mapped[int] = mapped_column(Integer, default=70, nullable=False)
-    created_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_by_user_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     @property

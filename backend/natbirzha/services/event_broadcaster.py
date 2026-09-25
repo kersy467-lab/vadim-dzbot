@@ -254,23 +254,56 @@ class EventBroadcaster:
         company_name: str,
         ticker: str,
         reason: str,
-    ) -> None:
-        """Broadcast state warning issued to a company."""
+        owner_tag: Optional[str] = None,
+    ) -> bool:
+        """Broadcast state warning issued to a company with owner tag."""
         try:
             c_name = html.escape(str(company_name or "Компания"))
             c_tick = html.escape(str(ticker or "---"))
             r_text = html.escape(str(reason or "Нарушение рыночных правил"))
 
+            owner_line = f"👤 <b>Владелец:</b> {owner_tag}\n" if owner_tag else ""
+
             text = (
                 f"⚠️ <b>ГОСУДАРСТВЕННОЕ ПРЕДУПРЕЖДЕНИЕ</b>\n\n"
                 f"🏢 <b>Компания:</b> {c_name} (<code>{c_tick}</code>)\n"
-                f"📜 <b>Причина:</b> {r_text}\n\n"
+                f"{owner_line}"
+                f"🧱 <b>Причина:</b> {r_text}\n\n"
                 f"<i>Предупреждение зафиксировано государственным регулятором. "
                 f"Повторные нарушения могут повлечь санкции и принудительную ликвидацию.</i>"
             )
-            await cls.send_message(text)
+            return await cls.send_message(text)
         except Exception as exc:
             logger.warning("Error broadcasting creator warning: %s", exc)
+            return False
+
+    @classmethod
+    async def broadcast_state_announcement(
+        cls,
+        message: str,
+        owner_tag: Optional[str] = None,
+        company_name: Optional[str] = None,
+        ticker: Optional[str] = None,
+    ) -> bool:
+        """Broadcast an official state announcement into the group chat."""
+        try:
+            body = html.escape(str(message or "")).strip()
+            lines = ["🏛 <b>ГОСУДАРСТВЕННОЕ ОБЪЯВЛЕНИЕ</b>\n"]
+            if company_name:
+                c_name = html.escape(str(company_name))
+                c_tick = html.escape(str(ticker or "---"))
+                lines.append(f"🏢 <b>Компания:</b> {c_name} (<code>{c_tick}</code>)")
+            if owner_tag:
+                lines.append(f"👤 <b>Адресат:</b> {owner_tag}")
+
+            lines.append(f"\n📢 {body}\n")
+            lines.append("<i>— Государственный Регулятор</i>")
+
+            text = "\n".join(lines)
+            return await cls.send_message(text)
+        except Exception as exc:
+            logger.warning("Error broadcasting state announcement: %s", exc)
+            return False
 
     # -------------------------------------------------------------------------
     # 4. State Bonds (Выпуск облигаций)

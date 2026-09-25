@@ -20,6 +20,7 @@ class LaunchSabotageRequest(BaseModel):
 
 
 class StopSabotageRequest(BaseModel):
+    sabotage_id: Optional[str] = Field(default=None, max_length=50)
     reason: Optional[str] = Field(default="CREATOR_ABORT", max_length=100)
 
 
@@ -27,7 +28,7 @@ class StopSabotageRequest(BaseModel):
 async def get_sabotages_catalog(
     _user: User = Depends(get_strict_natbirzha_user),
 ) -> List[Dict[str, Any]]:
-    """Return the 12 crises catalog with metadata and multipliers."""
+    """Return the full crises catalog with metadata and multipliers."""
     return list(SABOTAGES_CATALOG.values())
 
 
@@ -36,12 +37,17 @@ async def get_active_sabotage_status(
     _user: User = Depends(get_strict_natbirzha_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> Dict[str, Any]:
-    """Return currently active crisis, if any, with remaining time."""
-    active = await SabotageService.get_active_sabotage(session)
-    if not active:
-        return {"active": False, "sabotage": None}
+    """Return currently active crises (up to 2), if any, with remaining time."""
+    actives = await SabotageService.get_active_sabotages(session)
+    if not actives:
+        return {"active": False, "count": 0, "sabotage": None, "sabotages": []}
     summary = SabotageService.get_active_summary()
-    return {"active": True, "sabotage": summary}
+    return {
+        "active": True,
+        "count": len(actives),
+        "sabotage": summary,
+        "sabotages": summary.get("sabotages", []) if summary else [],
+    }
 
 
 @router.post("/creator/sabotages/launch")
@@ -79,7 +85,7 @@ async def stop_sabotage(
     creator: User = Depends(get_current_creator),
     session: AsyncSession = Depends(get_db_session),
 ) -> Dict[str, Any]:
-    """Abort the current active crisis early. Requires creator privileges."""
+    """Abort an active crisis early. Requires creator privileges."""
     try:
         from backend.main import bot
     except Exception:
@@ -89,6 +95,7 @@ async def stop_sabotage(
         result = await SabotageService.stop_sabotage(
             session,
             actor_id=creator.tg_id,
+            sabotage_id=req.sabotage_id,
             reason=req.reason or "CREATOR_ABORT",
             bot=bot,
         )

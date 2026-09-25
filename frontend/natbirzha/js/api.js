@@ -324,7 +324,7 @@ export const NatAPI = {
   getSabotagesCatalog: () => cachedGet('/api/natbirzha/sabotages/catalog', 5 * 60 * 1000),
   getActiveSabotage: () => request('/api/natbirzha/sabotages/active'),
   launchCreatorSabotage: (sabotage_id) => request('/api/natbirzha/creator/sabotages/launch', { method: 'POST', body: JSON.stringify({ sabotage_id }) }),
-  stopCreatorSabotage: (reason = 'CREATOR_ABORT') => request('/api/natbirzha/creator/sabotages/stop', { method: 'POST', body: JSON.stringify({ reason }) }),
+  stopCreatorSabotage: (sabotage_id = null, reason = 'CREATOR_ABORT') => request('/api/natbirzha/creator/sabotages/stop', { method: 'POST', body: JSON.stringify({ sabotage_id, reason }) }),
 };
 
 

@@ -161,11 +161,25 @@ class CreatorService:
             await session.commit()
         else:
             await session.flush()
+
+        owner_tag = None
+        if comp.user_id:
+            from backend.db.models import User
+            import html
+            owner_user = await session.get(User, comp.user_id)
+            if owner_user:
+                if owner_user.username:
+                    owner_tag = f"@{owner_user.username}"
+                elif owner_user.tg_id:
+                    name_esc = html.escape(owner_user.display_name or "Владелец")
+                    owner_tag = f'<a href="tg://user?id={owner_user.tg_id}">{name_esc}</a>'
+
         asyncio.create_task(
             EventBroadcaster.broadcast_creator_warning(
                 company_name=comp.name,
                 ticker=comp.ticker,
                 reason=reason,
+                owner_tag=owner_tag,
             )
         )
         return {"success": True, "warning_id": warning.id, "company_id": company_id}

@@ -268,6 +268,56 @@ def test_fallback_to_supergroup_chat_id():
     asyncio.run(run())
 
 
+def test_broadcast_creator_warning_with_owner_tag():
+    async def run():
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock(return_value=True)
+
+        with patch.object(EventBroadcaster, "_get_bot", return_value=mock_bot):
+            await EventBroadcaster.broadcast_creator_warning(
+                company_name="Кериковские Залежи",
+                ticker="KZMI",
+                reason="Не закрытый кредит",
+                owner_tag="@kerik",
+            )
+
+        mock_bot.send_message.assert_awaited_once()
+        text = mock_bot.send_message.call_args.kwargs["text"]
+        assert "ГОСУДАРСТВЕННОЕ ПРЕДУПРЕЖДЕНИЕ" in text
+        assert "Кериковские Залежи" in text
+        assert "KZMI" in text
+        assert "@kerik" in text
+        assert "Владелец:" in text
+        assert "Не закрытый кредит" in text
+
+    asyncio.run(run())
+
+
+def test_broadcast_state_announcement():
+    async def run():
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock(return_value=True)
+
+        with patch.object(EventBroadcaster, "_get_bot", return_value=mock_bot):
+            await EventBroadcaster.broadcast_state_announcement(
+                message="Срочная проверка налоговой инспекцией!",
+                owner_tag="@ivan",
+                company_name="СтройТрест",
+                ticker="STR",
+            )
+
+        mock_bot.send_message.assert_awaited_once()
+        text = mock_bot.send_message.call_args.kwargs["text"]
+        assert "ГОСУДАРСТВЕННОЕ ОБЪЯВЛЕНИЕ" in text
+        assert "СтройТрест" in text
+        assert "STR" in text
+        assert "@ivan" in text
+        assert "Срочная проверка" in text
+        assert "Государственный Регулятор" in text
+
+    asyncio.run(run())
+
+
 if __name__ == "__main__":
     print("Running tests manually...")
     test_get_alternative_chat_id()
@@ -276,6 +326,8 @@ if __name__ == "__main__":
     test_broadcast_market_order_sell()
     test_broadcast_sabotage_start_and_end()
     test_broadcast_creator_warning()
+    test_broadcast_creator_warning_with_owner_tag()
+    test_broadcast_state_announcement()
     test_broadcast_bond_issued()
     test_broadcast_bankruptcy_and_default()
     test_broadcast_ipo_and_state_share()

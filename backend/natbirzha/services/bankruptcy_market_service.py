@@ -26,7 +26,8 @@ class BankruptcyMarketService:
     def _seize_count(asset_count: int) -> int:
         if asset_count <= 0:
             return 0
-        return max(1, int(asset_count * BankruptcyMarketService.SEIZED_FRACTION))
+        target = asset_count * BankruptcyMarketService.SEIZED_FRACTION
+        return max(1, int(target + 0.5))
 
     @staticmethod
     def _factory_cost_basis(factory: NatFactory) -> float:

@@ -1,12 +1,14 @@
-import { NatAPI } from '../api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { store } from '../state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { getItemInfo } from '../items.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderMarketChart } from '../market_chart.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderTaxSection } from './market_tax.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderStateCreditSection } from './market_credit.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { createMarketFinance } from './market_finance.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { NatAPI } from '../api.js?v=20260925_deals_v6';
+import { store } from '../state.js?v=20260925_deals_v6';
+import { getItemInfo } from '../items.js?v=20260925_deals_v6';
+import { renderMarketChart } from '../market_chart.js?v=20260925_deals_v6';
+import { renderTaxSection } from './market_tax.js?v=20260925_deals_v6';
+import { renderStateCreditSection } from './market_credit.js?v=20260925_deals_v6';
+import { createMarketFinance } from './market_finance.js?v=20260925_deals_v6';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260925_deals_v6';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_deals_v6';
+import { renderMarketDeals } from './market_deals.js?v=20260925_supply_deals';
+import { formatNumber } from '../format.js';
 
 const MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },
@@ -152,7 +154,7 @@ export async function renderMarket(container, showToast) {
   }
 
   function renderMarketHome() {
-    container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bankruptcy_market"><div class="text-2xl">🏭</div><div class="font-black mt-2">Рынок банкротов</div><div class="text-xs text-slate-500">Заводы конфискованных компаний, наценка государства 30%</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% дневной прибыли, задолженность и штрафы</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_credit"><div class="text-2xl">🏦</div><div class="font-black mt-2">Кредит государства</div><div class="text-xs text-slate-500">Займ компании под 20% в день</div></button></div></div>`;
+    container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bankruptcy_market"><div class="text-2xl">🏭</div><div class="font-black mt-2">Рынок банкротов</div><div class="text-xs text-slate-500">Заводы конфискованных компаний, наценка государства 30%</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% дневной прибыли, задолженность и штрафы</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_credit"><div class="text-2xl">🏦</div><div class="font-black mt-2">Кредит государства</div><div class="text-xs text-slate-500">Ставка повышена до 20% в день · выдача после одобрения</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left border border-indigo-300/60" data-section="deals"><div class="text-2xl">🤝</div><div class="font-black mt-2">Сделки</div><div class="text-xs text-slate-500">Договорные поставки между компаниями</div></button></div></div>`;
     container.querySelectorAll('.market-section-btn').forEach((button) => button.addEventListener('click', () => {
       const section = button.dataset.section;
       if (section === 'portfolio') finance.renderPortfolio();
@@ -162,6 +164,7 @@ export async function renderMarket(container, showToast) {
       else if (section === 'reference') finance.renderReference();
       else if (section === 'tax') renderTaxSection(container, showToast, renderMarketHome);
       else if (section === 'state_credit') renderStateCreditSection(container, showToast, renderMarketHome);
+      else if (section === 'deals') renderMarketDeals(container, showToast, renderMarketHome);
       else if (section === 'commodities') renderCommodityBrowser();
     }));
   }

@@ -1,15 +1,16 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { store } from './state.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderOnboarding } from './screens/onboarding.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderOverview } from './screens/overview.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderTycoon } from './screens/tycoon.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderUpgrades } from './screens/upgrades.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderMarket } from './screens/market.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderStocks } from './screens/stocks.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderMilitary } from './screens/military.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderCreator } from './screens/creator.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
-import { renderHelp } from './screens/help.js?v=20260925_energy_mechanic_v5_energy_mechanic_v5';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_deals_v6';
+import { store } from './state.js?v=20260925_deals_v6';
+import { renderOnboarding } from './screens/onboarding.js?v=20260925_deals_v6';
+import { renderOverview } from './screens/overview.js?v=20260925_deals_v6';
+import { renderTycoon } from './screens/tycoon.js?v=20260925_deals_v6';
+import { renderUpgrades } from './screens/upgrades.js?v=20260925_deals_v6';
+import { renderMarket } from './screens/market.js?v=20260925_deals_v6';
+import { renderStocks } from './screens/stocks.js?v=20260925_deals_v6';
+import { renderMilitary } from './screens/military.js?v=20260925_deals_v6';
+import { renderCreator } from './screens/creator.js?v=20260925_deals_v6';
+import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_deals_v6';
+import { renderHelp } from './screens/help.js?v=20260925_deals_v6';
+import { formatNumber } from './format.js';
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {

@@ -286,6 +286,8 @@ class ForcedBankruptcyService:
         cash_transferred = round(float(company.cash), 2)
         treasury.cash = round(float(treasury.cash) + cash_transferred, 2)
         company.cash = 0.0
+        from backend.natbirzha.services.supply_deal_service import SupplyDealService
+        await SupplyDealService.bankruptcy_terminate(session, company.id, now=current)
         company.is_bankrupt = True
         company.updated_at = current
 

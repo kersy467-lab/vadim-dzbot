@@ -27,6 +27,7 @@ from backend.natbirzha.api.creator_credit_routes import router as creator_credit
 from backend.natbirzha.api.creator_bankruptcy_routes import router as creator_bankruptcy_router
 from backend.natbirzha.api.bankruptcy_market_routes import router as bankruptcy_market_router
 from backend.natbirzha.api.sabotage_routes import router as sabotage_router
+from backend.natbirzha.api.supply_deal_routes import router as supply_deal_router
 
 natbirzha_router = APIRouter(prefix="/natbirzha")
 
@@ -56,6 +57,7 @@ natbirzha_router.include_router(state_credit_router)
 natbirzha_router.include_router(creator_credit_router)
 natbirzha_router.include_router(creator_bankruptcy_router)
 natbirzha_router.include_router(bankruptcy_market_router)
+natbirzha_router.include_router(supply_deal_router)
 natbirzha_router.include_router(tycoon_company_router)
 natbirzha_router.include_router(sabotage_router)
 

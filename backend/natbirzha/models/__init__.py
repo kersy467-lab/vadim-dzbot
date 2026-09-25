@@ -83,6 +83,7 @@ from backend.natbirzha.models.military_infrastructure import (
 )
 from backend.natbirzha.models.tax import NatTaxDaily
 from backend.natbirzha.models.sabotage import NatActiveSabotage
+from backend.natbirzha.models.player_deals import NatSupplyDeal, NatSupplyDealSettlement
 
 __all__ = [
     "NatCompany",
@@ -156,4 +157,6 @@ __all__ = [
     "NatArmyTraining",
     "NatTaxDaily",
     "NatActiveSabotage",
+    "NatSupplyDeal",
+    "NatSupplyDealSettlement",
 ]

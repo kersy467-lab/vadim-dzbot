@@ -259,7 +259,7 @@ class CompanyService:
             NatMilitaryUpgrade, NatPremiumLedgerEntry, NatPremiumLicense,
             NatPveVictory, NatPvpCooldown, NatRestructuring, NatStateBondHolding,
             NatBankruptcyMarketLot, NatStock, NatStockHolding, NatStockOrder, NatTournamentParticipant,
-            NatStateCreditLoan,
+            NatStateCreditLoan, NatSupplyDeal, NatSupplyDealSettlement,
         )
 
         res = await session.execute(
@@ -353,6 +353,14 @@ class CompanyService:
         )))
         await session.execute(delete(NatLoan).where(NatLoan.company_id == cid))
         await session.execute(delete(NatStateCreditLoan).where(NatStateCreditLoan.company_id == cid))
+        deal_ids = select(NatSupplyDeal.id).where(or_(
+            NatSupplyDeal.buyer_company_id == cid,
+            NatSupplyDeal.supplier_company_id == cid,
+        ))
+        await session.execute(delete(NatSupplyDealSettlement).where(
+            NatSupplyDealSettlement.deal_id.in_(deal_ids)
+        ))
+        await session.execute(delete(NatSupplyDeal).where(NatSupplyDeal.id.in_(deal_ids)))
         await session.execute(update(NatContract).where(
             NatContract.issuer_company_id == cid
         ).values(issuer_company_id=None))

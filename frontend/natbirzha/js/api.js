@@ -208,6 +208,14 @@ export const NatAPI = {
 
   // Market
   getOrderbook: (item_id) => request(`/api/natbirzha/market/orderbook?item_id=${item_id}`),
+  getSupplyDealCompanies: () => request('/api/natbirzha/market/deals/companies'),
+  getSupplyDealCompanyResources: (company_id) => request(`/api/natbirzha/market/deals/companies/${parseInt(company_id, 10)}/resources`),
+  createSupplyDeal: (payload) => request('/api/natbirzha/market/deals', { method: 'POST', body: JSON.stringify(payload) }),
+  getSupplyDeals: (view) => request(`/api/natbirzha/market/deals/${encodeURIComponent(view)}`),
+  getSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}`),
+  acceptSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}/accept`, { method: 'POST' }),
+  rejectSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}/reject`, { method: 'POST' }),
+  cancelSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}/cancel`, { method: 'POST' }),
   getNpcRates: () => request('/api/natbirzha/market/npc/rates'),
   placeOrder: (payload) => request('/api/natbirzha/market/order/place', { method: 'POST', body: JSON.stringify(payload) }),
   cancelOrder: (order_id) => request('/api/natbirzha/market/order/cancel', { method: 'POST', body: JSON.stringify({ order_id: parseInt(order_id, 10) }) }),

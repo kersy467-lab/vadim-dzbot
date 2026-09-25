@@ -8,6 +8,9 @@ from backend.db.models import Base, User
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.military import NatArmy
+from backend.natbirzha.models.stocks import NatStock, NatStockHolding
+from backend.natbirzha.api.stock_routes import get_portfolio
+from backend.natbirzha.config import get_game_now
 from backend.natbirzha.services.leaderboard_service import LeaderboardService
 
 
@@ -34,7 +37,57 @@ async def run_async() -> None:
             NatArmy(company_id=companies[2].id, army_strength=800),
             NatArmy(company_id=companies[3].id, army_strength=800),
         ])
+
+        now = get_game_now()
+        issuer_stock = NatStock(
+            company_id=companies[0].id,
+            total_shares=1_000,
+            founder_shares=900,
+            float_shares=100,
+            current_price=50.0,
+            last_valuation=50_000.0,
+            valuation_updated_at=now,
+            is_listed=True,
+        )
+        other_stock = NatStock(
+            company_id=companies[1].id,
+            total_shares=1_000,
+            founder_shares=0,
+            float_shares=1_000,
+            current_price=25.0,
+            last_valuation=25_000.0,
+            valuation_updated_at=now,
+            is_listed=True,
+        )
+        session.add_all([issuer_stock, other_stock])
+        await session.flush()
+        session.add_all([
+            NatStockHolding(
+                stock_id=issuer_stock.id,
+                holder_company_id=companies[0].id,
+                shares_count=900,
+                avg_price=50.0,
+            ),
+            NatStockHolding(
+                stock_id=other_stock.id,
+                holder_company_id=companies[0].id,
+                shares_count=4,
+                avg_price=25.0,
+            ),
+        ])
         await session.commit()
+
+        portfolio = await get_portfolio(company=companies[0], session=session)
+        portfolio_by_stock = {row["stock_id"]: row for row in portfolio["portfolio"]}
+        assert portfolio_by_stock[issuer_stock.id]["shares_count"] == 900
+        assert portfolio_by_stock[other_stock.id]["shares_count"] == 4
+
+        assets = await LeaderboardService.get_leaderboard(
+            session, companies[0].id, category="assets"
+        )
+        own_assets = assets["my_entry"]
+        assert own_assets["stock_value"] == 100.0, own_assets
+        assert own_assets["assets"] == 50_100.0, own_assets
 
         cash = await LeaderboardService.get_leaderboard(session, companies[0].id, category="cash", page=1, page_size=2)
         assert [row["company_name"] for row in cash["entries"]] == ["Bravo", "Alpha"]

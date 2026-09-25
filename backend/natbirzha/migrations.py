@@ -609,6 +609,24 @@ async def _migrate_v9_sabotages_and_tournament_bigint(conn) -> None:
         ].create(sync_conn, checkfirst=True))
 
 
+async def _migrate_v10_player_supply_deals(conn) -> None:
+    """Create explicit bilateral supply deals and their idempotent settlement ledger."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+        "nat_supply_deals"
+    ].create(sync_conn, checkfirst=True))
+    await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+        "nat_supply_deal_settlements"
+    ].create(sync_conn, checkfirst=True))
+    await _add_columns(conn, "nat_supply_deal_settlements", {
+        "market_reference_price": "FLOAT NOT NULL DEFAULT 0",
+    })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -634,6 +652,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v7_001_bankruptcy_market", _migrate_v7_bankruptcy_market),
     ("natbirzha_v8_001_reconcile_resource_gross_profit", _migrate_v8_reconcile_resource_gross_profit),
     ("natbirzha_v9_001_sabotages_and_tournament_bigint", _migrate_v9_sabotages_and_tournament_bigint),
+    ("natbirzha_v10_001_player_supply_deals", _migrate_v10_player_supply_deals),
 )
 
 

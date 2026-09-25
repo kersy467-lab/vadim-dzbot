@@ -67,7 +67,10 @@ class LeaderboardService:
                 func.sum(NatStockHolding.shares_count * NatStock.current_price),
             )
             .join(NatStock, NatStock.id == NatStockHolding.stock_id)
-            .where(NatStockHolding.holder_company_id.in_(company_ids))
+            .where(
+                NatStockHolding.holder_company_id.in_(company_ids),
+                NatStock.company_id != NatStockHolding.holder_company_id,
+            )
             .group_by(NatStockHolding.holder_company_id)
         )
         stock_value = {company_id: float(value or 0) for company_id, value in stock_rows.all()}

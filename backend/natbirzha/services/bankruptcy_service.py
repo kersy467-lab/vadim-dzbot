@@ -40,6 +40,8 @@ class BankruptcyService:
             created_at=now
         )
         session.add(restructuring)
+        from backend.natbirzha.services.supply_deal_service import SupplyDealService
+        await SupplyDealService.bankruptcy_terminate(session, company.id, now=now)
         company.is_bankrupt = True
 
         # Credit liquidation emergency pool to company cash for recovery (guaranteed 5,000 cash recovery floor)

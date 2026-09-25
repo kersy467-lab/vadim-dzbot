@@ -3,11 +3,16 @@
 import asyncio
 from datetime import timedelta
 
+import pytest
+from fastapi import Depends, FastAPI, Header, HTTPException
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base, User
+from backend.db.session import get_db_session
 import backend.natbirzha.models  # noqa: F401
+from backend.natbirzha.api import natbirzha_router
 from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.bankruptcy_market import NatBankruptcyMarketLot
@@ -23,6 +28,17 @@ from backend.natbirzha.services.forced_bankruptcy_service import ForcedBankruptc
 from backend.natbirzha.services.bankruptcy_market_service import BankruptcyMarketService
 from backend.natbirzha.services.production_service import ProductionTickEngine
 from backend.natbirzha.services.company_service import CompanyService
+from backend.natbirzha.services.auth_service import get_strict_natbirzha_user
+
+
+@pytest.mark.parametrize(
+    ("asset_count", "expected_seized"),
+    [(1, 1), (2, 1), (3, 2), (4, 3), (5, 4), (6, 4), (7, 5)],
+)
+def test_seize_count_rounds_seventy_percent_to_nearest_asset(
+    asset_count: int, expected_seized: int,
+) -> None:
+    assert BankruptcyMarketService._seize_count(asset_count) == expected_seized
 
 
 def test_admin_bankruptcy_liquidates_and_lists_seized_assets_once() -> None:
@@ -190,6 +206,105 @@ def test_admin_bankruptcy_liquidates_and_lists_seized_assets_once() -> None:
     asyncio.run(check())
 
 
+def test_bankruptcy_market_api_liquidates_lists_and_buys_factory() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            creator = User(tg_id=820_020, full_name="Market Creator", role="admin")
+            bankrupt_user = User(tg_id=820_021, full_name="Market Debtor")
+            buyer_user = User(tg_id=820_022, full_name="Market Buyer")
+            session.add_all([creator, bankrupt_user, buyer_user])
+            await session.flush()
+            bankrupt = NatCompany(
+                user_id=bankrupt_user.id, name="API Bankrupt Co", specialization="agrarian", cash=10_000,
+            )
+            buyer = NatCompany(
+                user_id=buyer_user.id, name="API Asset Buyer", specialization="miner", cash=1_000_000,
+            )
+            treasury = NatStateTreasury(id=1, cash=50_000)
+            session.add_all([bankrupt, buyer, treasury])
+            await session.flush()
+            factories = [NatFactory(
+                company_id=bankrupt.id, building_type="grain_farm", specialization="agrarian", level=1,
+            ) for _ in range(4)]
+            session.add_all(factories)
+            await session.commit()
+            creator_user_id = creator.id
+            buyer_user_id = buyer_user.id
+            bankrupt_company_id = bankrupt.id
+            buyer_company_id = buyer.id
+            initial_treasury_cash = treasury.cash
+
+        app = FastAPI()
+        app.include_router(natbirzha_router, prefix="/api")
+
+        async def test_session():
+            async with sessions() as session:
+                yield session
+
+        async def test_user(
+            x_test_user: int | None = Header(None, alias="X-Test-User"),
+            session=Depends(get_db_session),
+        ) -> User:
+            if x_test_user is None:
+                raise HTTPException(status_code=401, detail="Missing test identity")
+            user = await session.get(User, x_test_user)
+            if user is None:
+                raise HTTPException(status_code=401, detail="Unknown test identity")
+            return user
+
+        app.dependency_overrides[get_db_session] = test_session
+        app.dependency_overrides[get_strict_natbirzha_user] = test_user
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            creator_headers = {
+                "X-Test-User": str(creator_user_id),
+                "Idempotency-Key": "api-bankruptcy-1",
+            }
+            liquidated = await client.post(
+                f"/api/natbirzha/creator/players/{bankrupt_company_id}/bankruptcy",
+                headers=creator_headers,
+            )
+            assert liquidated.status_code == 200, liquidated.text
+
+            listing = await client.get("/api/natbirzha/bankruptcy-market")
+            assert listing.status_code == 200, listing.text
+            lots = listing.json()["lots"]
+            assert len(lots) == 3
+            lot = next(row for row in lots if row["asset_kind"] == "FACTORY")
+
+            buyer_headers = {
+                "X-Test-User": str(buyer_user_id),
+                "Idempotency-Key": "api-bankruptcy-buy-1",
+            }
+            purchase_url = f"/api/natbirzha/bankruptcy-market/lots/{lot['id']}/buy"
+            purchase = await client.post(purchase_url, headers=buyer_headers)
+            replay = await client.post(purchase_url, headers=buyer_headers)
+            assert purchase.status_code == 200, purchase.text
+            assert replay.json() == purchase.json()
+
+        async with sessions() as session:
+            factory = (await session.execute(
+                select(NatFactory).where(NatFactory.company_id == buyer_company_id)
+            )).scalars().one()
+            sold_lot = await session.get(NatBankruptcyMarketLot, lot["id"])
+            buyer = await session.get(NatCompany, buyer_company_id)
+            treasury = await session.get(NatStateTreasury, 1)
+            assert factory.bankruptcy_acquired is True and factory.is_active is True
+            assert sold_lot is not None and sold_lot.status == "SOLD"
+            assert sold_lot.buyer_company_id == buyer_company_id
+            assert buyer is not None and round(1_000_000 - buyer.cash, 2) == purchase.json()["paid"]
+            assert treasury is not None
+            assert round(treasury.cash - initial_treasury_cash - 10_000, 2) == purchase.json()["paid"]
+
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
 def test_company_reset_cancels_bankruptcy_lots_with_removed_assets() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -243,3 +358,7 @@ def test_company_reset_cancels_bankruptcy_lots_with_removed_assets() -> None:
         await engine.dispose()
 
     asyncio.run(check())
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main(["-q", __file__]))

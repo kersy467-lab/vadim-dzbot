@@ -863,6 +863,8 @@ async def main():
         "tests/natbirzha/test_creator_custom_tournaments.py",
         "tests/natbirzha/test_state_credit.py",
         "tests/natbirzha/test_bond_bankruptcy.py",
+        "tests/natbirzha/test_creator_forced_bankruptcy.py",
+        "tests/natbirzha/test_player_supply_deals.py",
         "tests/natbirzha/test_company_rename.py",
         "tests/natbirzha/test_ipo_terms.py",
         "tests/natbirzha/test_premium_production.py",

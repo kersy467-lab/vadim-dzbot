@@ -36,7 +36,15 @@ def test_bankruptcy_market_migration_is_registered_and_repeatable() -> None:
                 (calendar_date, item_id, action, used_quantity)
                 VALUES ('2026-09-24', 'energy', 'SELL', 1)
             """))
-            for version, _ in MIGRATIONS[:-1]:
+            # Leave bankruptcy-market and the following deal migration pending;
+            # they must both run even though v8 now follows v7 in the sequence.
+            pending = {
+                "natbirzha_v7_001_bankruptcy_market",
+                "natbirzha_v8_001_player_supply_deals",
+            }
+            for version, _ in MIGRATIONS:
+                if version in pending:
+                    continue
                 await connection.execute(
                     text("INSERT INTO nat_schema_versions (version) VALUES (:version)"),
                     {"version": version},

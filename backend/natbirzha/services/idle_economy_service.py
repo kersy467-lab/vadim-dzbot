@@ -329,13 +329,14 @@ class IdleEconomyService:
 
     @classmethod
     async def settle_company(
-        cls, session: AsyncSession, company_id: int, *, now: datetime | None = None
+        cls, session: AsyncSession, company_id: int, *, now: datetime | None = None,
+        _process_deals: bool = True,
     ) -> dict[str, Any]:
         """Apply lazy enterprise settlement and mandatory-tax blocking atomically."""
         from backend.natbirzha.services.idle_company_settlement import settle_company
 
         current = normalize_dt(now or get_game_now())
-        return await settle_company(cls, session, company_id, current=current)
+        return await settle_company(cls, session, company_id, current=current, process_deals=_process_deals)
 
 
 

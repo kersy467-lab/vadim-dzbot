@@ -19,6 +19,7 @@ def test_tycoon_v2_rollout_and_tax_migrations_are_registered() -> None:
     assert "natbirzha_v2_001_business_foundation" in versions
     assert "natbirzha_v2_002_daily_profit_tax" in versions
     assert "natbirzha_v4_capacity_industry_upgrades" in versions
+    assert "natbirzha_v8_001_player_supply_deals" in versions
 
 
 def test_tycoon_v2_business_foundation_migration_is_repeatable() -> None:
@@ -41,7 +42,10 @@ def test_tycoon_v2_business_foundation_migration_is_repeatable() -> None:
             ))
 
         await engine.dispose()
-        assert {"nat_businesses", "nat_business_supply_policies", "nat_army_trainings", "nat_tax_daily"} <= tables
+        assert {
+            "nat_businesses", "nat_business_supply_policies", "nat_army_trainings", "nat_tax_daily",
+            "nat_supply_deals", "nat_supply_deal_settlements",
+        } <= tables
         assert migration_count == 1
 
     asyncio.run(check())

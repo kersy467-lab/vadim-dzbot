@@ -1,5 +1,6 @@
 """Creator action for Treasury-backed state-bond bankruptcy."""
 
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -16,6 +17,7 @@ from backend.natbirzha.models.creator import (
     NatStateBondHolding,
 )
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 
 class StateBondBankruptcyMixin:
@@ -190,6 +192,16 @@ class StateBondBankruptcyMixin:
         }
         if commit:
             await session.commit()
+        asyncio.create_task(
+            EventBroadcaster.broadcast_bond_default(
+                title=bond.title,
+                details=(
+                    f"Держателям выплачено {total_paid:,.2f} ₽ за {total_units} шт.; "
+                    f"списано 70% номинала ({total_written_off:,.2f} ₽). "
+                    f"Будущие купоны и погашение прекращены."
+                ),
+            )
+        )
         return result
 
 

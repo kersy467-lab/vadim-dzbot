@@ -27,6 +27,11 @@ class NatbirzhaSettings(BaseSettings):
     TYCOON_V2_RESOURCE_TICK_MINUTES: int = 15
     TYCOON_V2_WORK_XP_PER_HOUR: int = 20
     TYCOON_V2_IPO_MIN_LEVEL: int = 7
+    EVENTS_CHAT_ID: int = Field(
+        default=-5495179388,
+        validation_alias=AliasChoices("NATBIRZHA_EVENTS_CHAT_ID", "EVENTS_CHAT_ID"),
+        description="Public Telegram chat ID for broadcasting Natbirzha game events",
+    )
 
     # Mandatory company income tax. A closed game day is taxed on positive
     # operating profit only. Three unpaid days are tolerated; after that

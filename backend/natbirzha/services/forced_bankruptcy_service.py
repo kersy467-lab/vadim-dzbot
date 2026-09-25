@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -25,6 +26,7 @@ from backend.natbirzha.services.bankruptcy_market_service import BankruptcyMarke
 from backend.natbirzha.services.market_service import MarketService
 from backend.natbirzha.services.state_share_service import StateShareService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 
 SEIZED_FRACTION = 0.70
@@ -319,6 +321,18 @@ class ForcedBankruptcyService:
             await session.commit()
         else:
             await session.flush()
+        asyncio.create_task(
+            EventBroadcaster.broadcast_bankruptcy(
+                company_name=company.name,
+                ticker=company.ticker,
+                reason="Принудительная ликвидация государством",
+                details=(
+                    f"В рынок банкротов выставлено {len(lots)} активов. "
+                    f"В казну переведено {cash_transferred:.2f} ₽ наличных. "
+                    f"Возвращено {bonds_returned} облигаций и {state_shares_returned} госакций."
+                ),
+            )
+        )
         return result
 
 

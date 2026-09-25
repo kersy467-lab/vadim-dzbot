@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,7 @@ from backend.natbirzha.models.stocks import NatStock, NatStockOrder
 from backend.natbirzha.models.market import NatMarketOrder
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.company_service import CompanyService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 class BankruptcyService:
     @staticmethod
@@ -99,6 +101,18 @@ class BankruptcyService:
 
         await session.commit()
         await session.refresh(restructuring)
+        asyncio.create_task(
+            EventBroadcaster.broadcast_bankruptcy(
+                company_name=company.name,
+                ticker=company.ticker,
+                reason="Заявление о банкротстве и финансовом оздоровлении",
+                details=(
+                    f"Аудированный NAV: {nav:,.2f} ₽. "
+                    f"Ликвидационный фонд: {liquidation_pool:,.2f} ₽. "
+                    f"Антикризисный сбор 30% прибыли на 2 дня."
+                ),
+            )
+        )
         return restructuring
 
     @staticmethod

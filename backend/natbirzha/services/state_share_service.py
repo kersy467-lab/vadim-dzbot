@@ -1,5 +1,6 @@
 """Fixed-price state share issuance, Treasury redemption and daily dividends."""
 
+import asyncio
 import hashlib
 import json
 import math
@@ -19,6 +20,7 @@ from backend.natbirzha.models.state_shares import (
 )
 from backend.natbirzha.services.state_share_settlement import StateShareSettlementMixin
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 
 class StateShareIdempotencyConflict(ValueError):
@@ -164,6 +166,15 @@ class StateShareService(StateShareSettlementMixin):
         await cls._record_operation(session, operation_key, "ISSUE", payload, result)
         if commit:
             await session.commit()
+        asyncio.create_task(
+            EventBroadcaster.broadcast_state_share_issued(
+                title=title,
+                purpose=purpose,
+                volume=volume,
+                issue_price=issue_price,
+                dividend_rate_pct=dividend_rate_pct,
+            )
+        )
         return result
 
     @classmethod

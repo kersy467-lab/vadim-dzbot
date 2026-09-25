@@ -1,5 +1,6 @@
 """State-bond issuance, holdings and public read models."""
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -18,6 +19,7 @@ from backend.natbirzha.services.state_bond_secondary import StateBondSecondaryMa
 from backend.natbirzha.services.state_bond_bankruptcy import StateBondBankruptcyMixin
 from backend.natbirzha.services.state_bond_settlement import StateBondSettlementMixin
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 
 class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, StateBondBankruptcyMixin):
@@ -102,6 +104,16 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
         }
         if commit:
             await session.commit()
+        asyncio.create_task(
+            EventBroadcaster.broadcast_bond_issued(
+                title=title,
+                volume=volume,
+                face_value=face_value,
+                coupon_rate=coupon_rate,
+                maturity_days=maturity_days,
+                purpose=purpose,
+            )
+        )
         return result
 
     @classmethod

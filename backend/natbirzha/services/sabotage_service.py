@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -17,6 +18,7 @@ from backend.natbirzha.catalogs.sabotages import (
 from backend.natbirzha.config import get_game_now, normalize_dt
 from backend.natbirzha.models.sabotage import NatActiveSabotage
 from backend.natbirzha.models.stocks import NatStock, NatStockPriceSnapshot
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +150,8 @@ class SabotageService:
                 body=spec["news_body"],
             )
 
+        asyncio.create_task(EventBroadcaster.broadcast_sabotage_start(spec))
+
         return {
             "success": True,
             "id": record.id,
@@ -183,10 +187,19 @@ class SabotageService:
         await session.flush()
         cls._update_cache(None, now=current)
 
+        headline = spec.get("end_headline", "✅ Кризис завершен досрочно")
+        body = spec.get("end_body", "Государство нормализовало ситуацию в экономике.")
         if bot:
-            headline = spec.get("end_headline", "✅ Кризис завершен досрочно")
-            body = spec.get("end_body", "Государство нормализовало ситуацию в экономике.")
             await cls._broadcast_notice(session, bot, headline=headline, body=body)
+
+        asyncio.create_task(
+            EventBroadcaster.broadcast_sabotage_end(
+                title=active.title,
+                reason=reason,
+                headline=headline,
+                body=body,
+            )
+        )
 
         return {
             "success": True,
@@ -225,10 +238,19 @@ class SabotageService:
         await session.flush()
         cls._update_cache(None, now=current)
 
+        headline = spec.get("end_headline", "✅ Экономический кризис подошел к концу")
+        body = spec.get("end_body", "Рыночные показатели возвращаются в штатный режим.")
         if bot:
-            headline = spec.get("end_headline", "✅ Экономический кризис подошел к концу")
-            body = spec.get("end_body", "Рыночные показатели возвращаются в штатный режим.")
             await cls._broadcast_notice(session, bot, headline=headline, body=body)
+
+        asyncio.create_task(
+            EventBroadcaster.broadcast_sabotage_end(
+                title=expired.title,
+                reason="TIMEOUT",
+                headline=headline,
+                body=body,
+            )
+        )
 
         return {
             "expired": True,

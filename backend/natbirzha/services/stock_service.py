@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime, date, timedelta
 import math
@@ -12,6 +13,7 @@ from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDail
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.capital_plan_service import ipo_recommendation_level
 from backend.natbirzha.services.stock_orderbook_service import StockOrderbookService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 class ValuationStrategy(ABC):
     @abstractmethod
@@ -238,6 +240,19 @@ class StockService:
 
         await session.commit()
         await session.refresh(stock)
+        asyncio.create_task(
+            EventBroadcaster.broadcast_ipo(
+                company_name=company.name,
+                ticker=company.ticker,
+                specialization=company.specialization,
+                total_shares=total_shares,
+                float_shares=float_shares,
+                sale_pct=company_sale_pct,
+                share_price=share_price,
+                valuation=valuation,
+                dividend_rate_pct=dividend_rate_pct,
+            )
+        )
         return stock
 
     @staticmethod

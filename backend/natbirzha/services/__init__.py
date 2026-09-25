@@ -38,6 +38,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "RatingService": ("rating_service", "RatingService"),
     "TournamentService": ("tournament_service", "TournamentService"),
     "PremiumUpgradeService": ("premium_upgrade_service", "PremiumUpgradeService"),
+    "EventBroadcaster": ("event_broadcaster", "EventBroadcaster"),
 }
 
 __all__ = list(_EXPORTS)

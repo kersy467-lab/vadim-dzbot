@@ -35,6 +35,11 @@ class Settings(BaseSettings):
         description="Comma-separated Telegram IDs to receive deploy/startup notifications in addition to ADMIN_ID"
     )
 
+    NATBIRZHA_EVENTS_CHAT_ID: int = Field(
+        default=-5495179388,
+        description="Public Telegram chat ID for broadcasting Natbirzha game events"
+    )
+
     TELEGRAM_API_SERVER: str = Field(
         default="",
         description="Custom Telegram Bot API server / reverse proxy (e.g. Cloudflare Worker)"

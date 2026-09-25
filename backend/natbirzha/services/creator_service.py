@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,7 @@ from backend.natbirzha.services.military_service import MilitaryService
 from backend.natbirzha.services.tournament_service import TournamentService
 from backend.natbirzha.services.state_bond_service import StateBondService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 
 
 def resolve_canonical_item(item_input: Optional[str]) -> Optional[str]:
@@ -159,6 +161,13 @@ class CreatorService:
             await session.commit()
         else:
             await session.flush()
+        asyncio.create_task(
+            EventBroadcaster.broadcast_creator_warning(
+                company_name=comp.name,
+                ticker=comp.ticker,
+                reason=reason,
+            )
+        )
         return {"success": True, "warning_id": warning.id, "company_id": company_id}
 
     @staticmethod

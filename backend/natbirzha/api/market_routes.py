@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -8,6 +9,7 @@ from backend.db.session import get_db_session
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS
 from backend.natbirzha.services.auth_service import get_current_company
+from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.market_service import MarketService
 from backend.natbirzha.services.npc_service import NPCReserveService
@@ -82,9 +84,20 @@ async def create_order(
         "remaining_qty": order.remaining_qty,
         "status": order.status,
     }
-    return await IdempotencyService.commit_response(
+    result = await IdempotencyService.commit_response(
         session, company.user_id, endpoint, idempotency_key, payload, response
     )
+    asyncio.create_task(
+        EventBroadcaster.broadcast_market_order(
+            company_name=company.name,
+            ticker=company.ticker,
+            order_type=order.order_type,
+            item_id=order.item_id,
+            quantity=order.quantity,
+            price=order.price,
+        )
+    )
+    return result
 
 
 @router.post("/orders/{order_id}/cancel")

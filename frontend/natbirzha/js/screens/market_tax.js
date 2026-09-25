@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
-import { store } from '../state.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
+import { store } from '../state.js?v=20260925_multisab_v4';
 
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const fmtDate = (value) => value ? new Date(`${value}T12:00:00`).toLocaleDateString('ru-RU') : '—';
@@ -33,7 +33,7 @@ export async function renderTaxSection(container, showToast, onBack) {
       </div>
       ${blocked ? `<div class="rounded-2xl border border-rose-500 bg-rose-50 dark:bg-rose-950/30 p-4 text-sm"><b class="text-rose-600">⛔ Производство остановлено</b><p class="mt-1 text-xs">Налог просрочен более чем на ${tax.grace_days} дня. После оплаты предприятия продолжат работать с текущего момента — простой задним числом не компенсируется.</p></div>` : tax.next_block_date ? `<div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs"><b>⏳ До блокировки: ${tax.days_until_block} дн.</b><div class="mt-1">Оплатите задолженность до ${fmtDate(tax.next_block_date)}.</div></div>` : ''}
       <div class="glass-card rounded-2xl p-4 text-xs space-y-2"><div class="flex justify-between"><span>Прибыль сегодня</span><b>${money(tax.today_profit)} cash</b></div><div class="flex justify-between"><span>Расчётный налог за сегодня</span><b>${money(tax.today_estimated_tax)} cash</b></div><p class="text-slate-500">Сегодняшний налог станет обязательством после закрытия игрового дня.</p></div>
-      <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-xs space-y-1"><b>Правила</b><p>13% от положительной дневной прибыли. Задолженность можно копить ${tax.grace_days} дня. Затем все предприятия останавливаются. Каждый просроченный день добавляет штраф ${Number(tax.daily_penalty_pct || 50)}% от исходной суммы налога; штраф не начисляется на штраф.</p></div>
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-xs space-y-1"><b>Правила</b><p>Действующая ставка: <b>${Number(tax.rate_pct || 13)}%</b> от положительной дневной прибыли (базовая 13%, может временно повышаться во время государственных кризисов). Задолженность можно копить ${tax.grace_days} дня. Затем все предприятия останавливаются. Каждый просроченный день добавляет штраф ${Number(tax.daily_penalty_pct || 50)}% от исходной суммы налога; штраф не начисляется на штраф.</p></div>
       <button class="market-tax-pay w-full py-3 rounded-xl bg-emerald-600 text-white font-black disabled:opacity-40" ${due > 0 ? '' : 'disabled'}>Оплатить всё · ${money(due)} cash</button>
       <section class="space-y-2"><h3 class="font-black">Последние начисления</h3>${liabilityRows(tax.liabilities)}</section>
     </div>`;

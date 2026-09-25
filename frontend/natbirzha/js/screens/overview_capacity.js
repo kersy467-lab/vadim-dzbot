@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
 
 export async function updateBusinessCapacityCard(container) {
   const card = container.querySelector('#business-capacity-card');

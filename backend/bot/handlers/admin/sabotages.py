@@ -103,12 +103,97 @@ def _render_actives_text(actives: list) -> str:
     return "\n".join(lines)
 
 
+def _build_sabotage_view_card(spec: dict, actives: list) -> tuple[str, InlineKeyboardMarkup]:
+    is_active_now = any(a.sabotage_id == spec["id"] for a in actives)
+    is_limit_reached = len(actives) >= SabotageService.MAX_ACTIVE_SABOTAGES and not is_active_now
+
+    effects = []
+    if spec.get("one_time_stock_shock"):
+        pct = int(round(spec['one_time_stock_shock'] * 100))
+        sign = "+" if pct > 0 else ""
+        effects.append(f"📊 Разовый шок акций: {sign}{pct}%")
+    if spec.get("credit_rate_delta"):
+        pct = int(round(spec['credit_rate_delta'] * 100))
+        sign = "+" if pct > 0 else ""
+        effects.append(f"💳 Ставка кредитов: {sign}{pct}%")
+    if spec.get("tax_rate_delta"):
+        pct = int(round(spec['tax_rate_delta'] * 100))
+        sign = "+" if pct > 0 else ""
+        new_rate = 13 + pct
+        effects.append(f"🧾 Налог на прибыль: <b>{new_rate}%</b> ({sign}{pct}% к базовым 13%)")
+    if spec.get("bond_price_mult", 1.0) != 1.0:
+        pct = int(round((spec['bond_price_mult'] - 1.0) * 100))
+        sign = "+" if pct > 0 else ""
+        effects.append(f"📜 Цена гособлигаций: {sign}{pct}%")
+    if spec.get("block_dividends"):
+        effects.append("🚫 Выплаты дивидендов: ЗАМОРОЖЕНЫ")
+    if spec.get("block_new_credits"):
+        effects.append("🚫 Новые госкредиты: ЗАБЛОКИРОВАНЫ")
+    for s, m in (spec.get("income_multipliers") or {}).items():
+        pct = int(round((m - 1.0) * 100))
+        sign = "+" if pct > 0 else ""
+        effects.append(f"🏭 Доходность «{s}»: {sign}{pct}%")
+    if spec.get("other_income_mult", 1.0) != 1.0:
+        pct = int(round((spec['other_income_mult'] - 1.0) * 100))
+        sign = "+" if pct > 0 else ""
+        effects.append(f"🏭 Доходность остальных отраслей: {sign}{pct}%")
+    for r, m in (spec.get("resource_multipliers") or {}).items():
+        pct = int(round((m - 1.0) * 100))
+        sign = "+" if pct > 0 else ""
+        effects.append(f"📦 Цена ресурса «{r}»: {sign}{pct}%")
+
+    effects_text = "\n".join(f"• {e}" for e in effects) if effects else "• Без дополнительных модификаторов"
+
+    status_note = ""
+    if is_active_now:
+        status_note = "🔴 <b>Этот саботаж действует прямо сейчас!</b>\n\n"
+    elif is_limit_reached:
+        status_note = "⚠️ <b>Уже активны 2 саботажа одновременно. Дождитесь окончания или завершите один.</b>\n\n"
+
+    text = (
+        f"{spec['icon']} <b>«{spec['name']}»</b>\n\n"
+        f"{status_note}"
+        f"⏳ Длительность: <b>{spec['duration_hours']} часов</b>\n"
+        f"📝 <b>Описание:</b> {spec['description']}\n\n"
+        f"⚡ <b>Эффекты:</b>\n{effects_text}\n\n"
+        f"📢 <i>При запуске всем активным игрокам НАТБИРЖИ будет отправлен государственный вестник.</i>"
+    )
+
+    kb_rows = []
+    sab_id = spec["id"]
+    if not is_active_now and not is_limit_reached:
+        btn_text = "⚠️ Запустить саботаж" if not actives else "⚠️ Запустить как 2-й саботаж"
+        kb_rows.append([InlineKeyboardButton(text=btn_text, callback_data=f"sab_confirm:{sab_id}")])
+    if actives:
+        kb_rows.append([InlineKeyboardButton(text="⬅️ К каталогу саботажей", callback_data="sab_catalog_open")])
+        kb_rows.append([InlineKeyboardButton(text="⬅️ К активным саботажам", callback_data="admin_sabotages_menu")])
+    else:
+        kb_rows.append([InlineKeyboardButton(text="⬅️ К списку саботажей", callback_data="admin_sabotages_menu")])
+
+    return text, InlineKeyboardMarkup(inline_keyboard=kb_rows)
+
+
 @router.message(Command("sabotages", "sabotage"))
 async def cmd_sabotages(message: Message, current_user: User, db_session: AsyncSession):
     if not is_admin(current_user, message.from_user.id):
         return
 
     actives = await SabotageService.get_active_sabotages(db_session)
+
+    # Check if a specific sabotage ID or name was requested as argument
+    raw_args = (message.text or "").strip().split(maxsplit=1)
+    if len(raw_args) > 1 and raw_args[1].strip():
+        query = raw_args[1].strip().lower()
+        matched = None
+        for s_id, s_spec in SABOTAGES_CATALOG.items():
+            if s_id.lower() == query or s_spec["name"].lower() == query or query in s_id.lower() or query in s_spec["name"].lower():
+                matched = s_spec
+                break
+        if matched:
+            text, kb = _build_sabotage_view_card(matched, actives)
+            await message.answer(text, reply_markup=kb, parse_mode="HTML")
+            return
+
     if actives:
         text = _render_actives_text(actives)
         await message.answer(text, reply_markup=_build_sabotages_menu_keyboard(actives=actives), parse_mode="HTML")
@@ -176,63 +261,8 @@ async def cb_sabotage_view(callback: CallbackQuery, current_user: User, db_sessi
         return
 
     actives = await SabotageService.get_active_sabotages(db_session)
-    is_active_now = any(a.sabotage_id == spec["id"] for a in actives)
-    is_limit_reached = len(actives) >= SabotageService.MAX_ACTIVE_SABOTAGES and not is_active_now
-
-    effects = []
-    if spec.get("one_time_stock_shock"):
-        pct = int(round(spec['one_time_stock_shock'] * 100))
-        sign = "+" if pct > 0 else ""
-        effects.append(f"📊 Разовый шок акций: {sign}{pct}%")
-    if spec.get("credit_rate_delta"):
-        pct = int(round(spec['credit_rate_delta'] * 100))
-        sign = "+" if pct > 0 else ""
-        effects.append(f"💳 Ставка кредитов: {sign}{pct}%")
-    if spec.get("bond_price_mult", 1.0) != 1.0:
-        pct = int(round((spec['bond_price_mult'] - 1.0) * 100))
-        sign = "+" if pct > 0 else ""
-        effects.append(f"📜 Цена гособлигаций: {sign}{pct}%")
-    if spec.get("block_dividends"):
-        effects.append("🚫 Выплаты дивидендов: ЗАМОРОЖЕНЫ")
-    if spec.get("block_new_credits"):
-        effects.append("🚫 Новые госкредиты: ЗАБЛОКИРОВАНЫ")
-    for s, m in (spec.get("income_multipliers") or {}).items():
-        pct = int(round((m - 1.0) * 100))
-        sign = "+" if pct > 0 else ""
-        effects.append(f"🏭 Доходность «{s}»: {sign}{pct}%")
-    if spec.get("other_income_mult", 1.0) != 1.0:
-        pct = int(round((spec['other_income_mult'] - 1.0) * 100))
-        sign = "+" if pct > 0 else ""
-        effects.append(f"🏭 Доходность остальных отраслей: {sign}{pct}%")
-    for r, m in (spec.get("resource_multipliers") or {}).items():
-        pct = int(round((m - 1.0) * 100))
-        sign = "+" if pct > 0 else ""
-        effects.append(f"📦 Цена ресурса «{r}»: {sign}{pct}%")
-
-    effects_text = "\n".join(f"• {e}" for e in effects) if effects else "• Без дополнительных модификаторов"
-
-    status_note = ""
-    if is_active_now:
-        status_note = "🔴 <b>Этот саботаж действует прямо сейчас!</b>\n\n"
-    elif is_limit_reached:
-        status_note = "⚠️ <b>Уже активны 2 саботажа одновременно. Дождитесь окончания или завершите один.</b>\n\n"
-
-    text = (
-        f"{spec['icon']} <b>«{spec['name']}»</b>\n\n"
-        f"{status_note}"
-        f"⏳ Длительность: <b>{spec['duration_hours']} часов</b>\n"
-        f"📝 <b>Описание:</b> {spec['description']}\n\n"
-        f"⚡ <b>Эффекты:</b>\n{effects_text}\n\n"
-        f"📢 <i>При запуске всем активным игрокам НАТБИРЖИ будет отправлен государственный вестник.</i>"
-    )
-
-    kb_rows = []
-    if not is_active_now and not is_limit_reached:
-        btn_text = "⚠️ Запустить саботаж" if not actives else "⚠️ Запустить как 2-й саботаж"
-        kb_rows.append([InlineKeyboardButton(text=btn_text, callback_data=f"sab_confirm:{sab_id}")])
-    kb_rows.append([InlineKeyboardButton(text="⬅️ К списку саботажей", callback_data="admin_sabotages_menu")])
-
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows), parse_mode="HTML")
+    text, kb = _build_sabotage_view_card(spec, actives)
+    await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     try:
         await callback.answer()
     except Exception:

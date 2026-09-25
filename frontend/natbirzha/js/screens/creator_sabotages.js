@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
 
 export async function loadCreatorSabotages(el, showToast) {
   const [activeRes, catalogRes] = await Promise.all([
@@ -34,6 +34,11 @@ export async function loadCreatorSabotages(el, showToast) {
     if (spec.credit_rate_delta) {
       const p = Math.round(spec.credit_rate_delta * 100);
       list.push(`💳 Ставка кредитов: ${p > 0 ? '+' : ''}${p}%`);
+    }
+    if (spec.tax_rate_delta) {
+      const p = Math.round(spec.tax_rate_delta * 100);
+      const totalRate = 13 + p;
+      list.push(`🧾 Налог на прибыль: ${totalRate}% (${p > 0 ? '+' : ''}${p}% к базовым 13%)`);
     }
     if (spec.bond_price_mult && spec.bond_price_mult !== 1.0) {
       const p = Math.round((spec.bond_price_mult - 1.0) * 100);
@@ -199,12 +204,26 @@ export async function loadCreatorSabotages(el, showToast) {
     loadCreatorSabotages(el, showToast);
   });
 
+  const safeConfirm = async (message) => {
+    if (window.Telegram?.WebApp?.showConfirm) {
+      return new Promise(resolve => {
+        try {
+          window.Telegram.WebApp.showConfirm(message, (ok) => resolve(Boolean(ok)));
+        } catch (_) {
+          resolve(window.confirm(message));
+        }
+      });
+    }
+    return window.confirm(message);
+  };
+
   el.querySelectorAll('.stop-sabotage-btn').forEach(btn => {
     btn.addEventListener('click', async (event) => {
       const b = event.currentTarget;
       const sabId = b.dataset.id;
       const sabTitle = b.dataset.title || 'саботаж';
-      if (!confirm(`Завершить «${sabTitle}» досрочно? Его модификаторы будут сняты.`)) return;
+      const confirmed = await safeConfirm(`Завершить «${sabTitle}» досрочно? Его модификаторы будут сняты.`);
+      if (!confirmed) return;
       b.disabled = true;
       b.textContent = 'Останавливаю…';
       try {
@@ -224,9 +243,8 @@ export async function loadCreatorSabotages(el, showToast) {
       const b = event.currentTarget;
       const sabId = b.dataset.id;
       const sabName = b.dataset.name;
-      if (!confirm(`Вы действительно хотите активировать «${sabName}»?\n\nВсем игрокам биржи будет разослано экстренное оповещение.`)) {
-        return;
-      }
+      const confirmed = await safeConfirm(`Вы действительно хотите активировать «${sabName}»?\n\nВсем игрокам биржи будет разослано экстренное оповещение.`);
+      if (!confirmed) return;
       b.disabled = true;
       b.textContent = 'Запускаю…';
       try {
@@ -235,7 +253,7 @@ export async function loadCreatorSabotages(el, showToast) {
         await loadCreatorSabotages(el, showToast);
       } catch (e) {
         b.disabled = false;
-        b.textContent = '⚠️ Запустить этот саботаж';
+        b.textContent = activeList.length === 1 ? '⚠️ Запустить как 2-й саботаж' : '⚠️ Запустить этот саботаж';
         showToast(e.message, 'error');
       }
     });

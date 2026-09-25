@@ -15,7 +15,7 @@ from backend.natbirzha.catalogs.sabotages import (
     get_sabotage_spec,
     normalize_specialization,
 )
-from backend.natbirzha.config import get_game_now, normalize_dt
+from backend.natbirzha.config import get_game_now, normalize_dt, nat_settings
 from backend.natbirzha.models.sabotage import NatActiveSabotage
 from backend.natbirzha.models.stocks import NatStock, NatStockPriceSnapshot
 from backend.natbirzha.services.event_broadcaster import EventBroadcaster
@@ -371,6 +371,23 @@ class SabotageService:
             spec = item.get("spec") or {}
             total_delta += float(spec.get("credit_rate_delta", 0.0))
         return round(total_delta, 4)
+
+    @classmethod
+    def get_tax_rate_delta(cls) -> float:
+        """Additive profit tax rate adjustment across active crises."""
+        if not cls._is_cache_valid():
+            return 0.0
+        total_delta = 0.0
+        for item in cls._cached_actives:
+            spec = item.get("spec") or {}
+            total_delta += float(spec.get("tax_rate_delta", 0.0))
+        return round(total_delta, 4)
+
+    @classmethod
+    def get_tax_rate(cls) -> float:
+        """Effective profit tax rate taking active crises into account."""
+        base_rate = float(nat_settings.TAX_RATE)
+        return round(max(0.0, base_rate + cls.get_tax_rate_delta()), 4)
 
     @classmethod
     def are_new_credits_blocked(cls) -> bool:

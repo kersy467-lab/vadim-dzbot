@@ -267,6 +267,47 @@ def test_loss_for_all_crises():
             await SabotageService.stop_sabotage(session, actor_id=1, sabotage_id="infrastructure_collapse", now=now)
             assert SabotageService.are_dividends_blocked() is False
 
+def test_sabotage_tax_rates():
+    """Verify national_sanctions (+10% tax -> 23%) and infrastructure_collapse (+5% tax -> 18%)."""
+    async def run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            now = datetime(2026, 9, 25, 16, 0, 0)
+            assert SabotageService.get_tax_rate() == 0.13
+            assert SabotageService.get_tax_rate_delta() == 0.0
+
+            # 1. National sanctions (+10% -> 23%)
+            await SabotageService.start_sabotage(
+                session, sabotage_id="national_sanctions", actor_id=1, now=now
+            )
+            assert SabotageService.get_tax_rate_delta() == 0.10
+            assert SabotageService.get_tax_rate() == 0.23
+
+            # 2. Add infrastructure_collapse (+5% -> total +15% -> 28%)
+            await SabotageService.start_sabotage(
+                session, sabotage_id="infrastructure_collapse", actor_id=1, now=now
+            )
+            assert SabotageService.get_tax_rate_delta() == 0.15
+            assert SabotageService.get_tax_rate() == 0.28
+
+            # 3. Stop national_sanctions (only infrastructure_collapse remains -> 18%)
+            await SabotageService.stop_sabotage(
+                session, actor_id=1, sabotage_id="national_sanctions", now=now
+            )
+            assert SabotageService.get_tax_rate_delta() == 0.05
+            assert SabotageService.get_tax_rate() == 0.18
+
+            # 4. Stop infrastructure_collapse (back to 13%)
+            await SabotageService.stop_sabotage(
+                session, actor_id=1, sabotage_id="infrastructure_collapse", now=now
+            )
+            assert SabotageService.get_tax_rate_delta() == 0.0
+            assert SabotageService.get_tax_rate() == 0.13
+
         await engine.dispose()
 
     asyncio.run(run())
@@ -277,5 +318,6 @@ if __name__ == "__main__":
     test_two_concurrent_sabotages_and_compounded_multipliers()
     test_stock_shock_positive_and_negative()
     test_loss_for_all_crises()
-    print("NATBIRZHA sabotages and crises (multi-active + crisis/boom catalog): PASS")
+    test_sabotage_tax_rates()
+    print("NATBIRZHA sabotages and crises (multi-active + crisis/boom catalog + tax shocks): PASS")
 

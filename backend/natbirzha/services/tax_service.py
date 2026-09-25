@@ -10,6 +10,7 @@ from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDail
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.tax import NatTaxDaily
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
+from backend.natbirzha.services.sabotage_service import SabotageService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 from backend.natbirzha.tax_rules import grace_until, production_deadline
 
@@ -56,7 +57,7 @@ class TaxService:
             .with_for_update()
         )).scalars().all())
         by_day = {row.tax_date: row for row in rows}
-        rate = max(0.0, float(nat_settings.TAX_RATE))
+        rate = max(0.0, float(SabotageService.get_tax_rate()))
 
         for profit_day, profit in profits.items():
             taxable = max(0.0, profit)
@@ -109,9 +110,10 @@ class TaxService:
         penalty_due = max(0.0, total_due - principal_due)
         next_block_date = cls._grace_until(oldest.tax_date) + timedelta(days=1) if oldest else None
         today_profit = await cls._today_profit(session, company_id, current_day)
+        effective_rate = SabotageService.get_tax_rate()
         return {
-            "rate": float(nat_settings.TAX_RATE),
-            "rate_pct": round(float(nat_settings.TAX_RATE) * 100, 2),
+            "rate": float(effective_rate),
+            "rate_pct": round(float(effective_rate) * 100, 2),
             "grace_days": int(nat_settings.TAX_GRACE_DAYS),
             "daily_penalty_rate": float(nat_settings.TAX_DAILY_PENALTY_RATE),
             "daily_penalty_pct": round(float(nat_settings.TAX_DAILY_PENALTY_RATE) * 100, 2),
@@ -123,7 +125,7 @@ class TaxService:
             "next_block_date": next_block_date.isoformat() if next_block_date else None,
             "days_until_block": max(0, (next_block_date - current_day).days) if next_block_date else None,
             "today_profit": today_profit,
-            "today_estimated_tax": round(max(0.0, today_profit) * float(nat_settings.TAX_RATE), 2),
+            "today_estimated_tax": round(max(0.0, today_profit) * float(effective_rate), 2),
             "liabilities": [cls._serialize_row(row, current_day) for row in reversed(rows[-14:])],
         }
 

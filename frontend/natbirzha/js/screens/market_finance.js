@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
-import { store } from '../state.js?v=20260925_sabotages_v2';
-import { getSpecializationName } from '../localization.js?v=20260925_sabotages_v2';
-import { marketChange, renderMarketChart } from '../market_chart.js?v=20260925_sabotages_v2';
-import { renderStateShareMarket } from './state_share_market.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
+import { store } from '../state.js?v=20260925_multisab_v4';
+import { getSpecializationName } from '../localization.js?v=20260925_multisab_v4';
+import { marketChange, renderMarketChart } from '../market_chart.js?v=20260925_multisab_v4';
+import { renderStateShareMarket } from './state_share_market.js?v=20260925_multisab_v4';
 
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
 const money = (value) => `${Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash`;

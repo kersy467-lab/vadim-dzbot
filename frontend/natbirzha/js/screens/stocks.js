@@ -1,6 +1,6 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
-import { store } from '../state.js?v=20260925_sabotages_v2';
-import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
+import { store } from '../state.js?v=20260925_multisab_v4';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260925_multisab_v4';
 
 const IPO_MIN_LEVEL_FALLBACK = 7;
 

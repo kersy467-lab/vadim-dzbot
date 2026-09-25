@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20260925_sabotages_v2';
+import { getItemInfo } from '../items.js?v=20260925_multisab_v4';
 
 export function getCompanyInputIds(businesses, factories, recipes) {
   const inputs = new Set();

@@ -1,9 +1,9 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
-import { store } from '../state.js?v=20260925_sabotages_v2';
-import { getItemInfo } from '../items.js?v=20260925_sabotages_v2';
-import { getBuildingName } from '../localization.js?v=20260925_sabotages_v2';
-import { buildFactoryPages } from '../factory_map.js?v=20260925_sabotages_v2';
-import { openCatalogModal } from './catalog.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
+import { store } from '../state.js?v=20260925_multisab_v4';
+import { getItemInfo } from '../items.js?v=20260925_multisab_v4';
+import { getBuildingName } from '../localization.js?v=20260925_multisab_v4';
+import { buildFactoryPages } from '../factory_map.js?v=20260925_multisab_v4';
+import { openCatalogModal } from './catalog.js?v=20260925_multisab_v4';
 
 let cachedRecipes = null;
 let selectedPage = 1;

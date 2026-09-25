@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
 
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const dateLabel = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';

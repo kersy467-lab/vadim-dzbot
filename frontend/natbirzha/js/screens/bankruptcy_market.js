@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260925_sabotages_v2';
-import { store } from '../state.js?v=20260925_sabotages_v2';
+import { NatAPI } from '../api.js?v=20260925_multisab_v4';
+import { store } from '../state.js?v=20260925_multisab_v4';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',

@@ -1,0 +1,1828 @@
+{
+  "businesses": 108,
+  "stages_checked": 5400,
+  "loss_making_market": 0,
+  "loss_making_npc": 110,
+  "loss_making_utility_stress": 0,
+  "npc_loss_scenario": {
+    "loss_making_stage_rows": 110,
+    "basis": "Unlimited NPC spread stress scenario: applies the configured NPC buy/sell price multipliers to all modeled volume and ignores NPC_DAILY_BUYBACK_CASH_LIMIT; not a realized-profit forecast."
+  },
+  "unprofitable_upgrades": 0,
+  "roi_basis": "Theoretical only: assumes all output can be sold at canonical reference prices, all required inputs are available, and output inventory never blocks production.",
+  "stages": {
+    "1": {
+      "industry_median_return_pct": {
+        "miner": 1.7812,
+        "agrarian": 2.3158,
+        "power_engineer": 2.3158,
+        "forester": 2.6316,
+        "water": 2.6316,
+        "oilman": 2.3158,
+        "metallurgist": 2.3158,
+        "chemist": 2.6316,
+        "construction": 2.6316,
+        "technoprom": 2.3158,
+        "logistics": 2.3158
+      },
+      "demand_supply_ratio": {
+        "coal": 1.20076,
+        "iron_ore": 1.43704,
+        "copper_ore": 0.34592,
+        "bauxite": 0.31567,
+        "minerals": 2.22401,
+        "silver_ore": 0.00136,
+        "gold_ore": 0.01858,
+        "nickel_concentrate": 0.11348,
+        "diamonds": 0.00898,
+        "lithium_raw": 0.01972,
+        "cobalt_raw": 0.02249,
+        "rare_earths": 0.01325,
+        "uranium_raw": 0.00223,
+        "grain": 0.06903,
+        "milk": 0.0646,
+        "food": 0.0249,
+        "fresh_food": 0.0225,
+        "meat": 0.07839,
+        "bio_raw": 0.00378,
+        "sugar_raw": 0.02355,
+        "energy": 1.24182,
+        "wood_raw": 0.77908,
+        "lumber": 0.18429,
+        "cellulose": 0.29173,
+        "paper": 0.19661,
+        "cardboard": 0.0059,
+        "furniture": 0.0,
+        "engineered_wood": 0.07707,
+        "composite": 0.02055,
+        "prefab_modules": 0.0,
+        "water": 0.32854,
+        "clean_water": 0.00814,
+        "ultrapure_water": 0.0208,
+        "oil_crude": 0.31971,
+        "gas_natural": 0.11011,
+        "lng": 0.03387,
+        "fuel_diesel": 0.00702,
+        "gasoline": 0.00032,
+        "jet_fuel": 0.00142,
+        "plastics": 0.05192,
+        "basic_chem": 0.21373,
+        "steel": 0.13342,
+        "copper": 0.5314,
+        "aluminum": 0.00203,
+        "rolled_metal": 0.07914,
+        "nickel_metal": 0.06411,
+        "superalloy": 0.0944,
+        "advanced_alloy": 0.0,
+        "titanium_alloy": 0.0,
+        "fertilizer": 0.50949,
+        "industrial_gases": 0.36895,
+        "lubricants": 0.02086,
+        "advanced_composite": 0.0,
+        "lithium_pure": 0.10579,
+        "electrolyte": 0.05642,
+        "bioreagent": 0.01326,
+        "catalyst": 0.04072,
+        "brick": 0.0,
+        "cement": 0.14221,
+        "concrete": 0.29584,
+        "metal_structures": 0.22547,
+        "construction_capacity": 0.0,
+        "components": 1.05482,
+        "electrical_equipment": 0.14164,
+        "machinery": 1.23937,
+        "sensors": 0.22684,
+        "cloud_compute": 0.63169,
+        "automation_systems": 0.10875,
+        "robots": 0.0,
+        "batteries": 0.01551,
+        "electronics": 0.3649,
+        "ai_accelerator": 0.0,
+        "quantum_modules": 0.0,
+        "logistics_capacity": 0.0
+      }
+    },
+    "10": {
+      "industry_median_return_pct": {
+        "miner": 1.8336,
+        "agrarian": 2.38,
+        "power_engineer": 2.38,
+        "forester": 2.7024,
+        "water": 2.7024,
+        "oilman": 2.38,
+        "metallurgist": 2.38,
+        "chemist": 2.7024,
+        "construction": 2.7024,
+        "technoprom": 2.38,
+        "logistics": 2.38
+      },
+      "demand_supply_ratio": {
+        "coal": 1.13144,
+        "iron_ore": 1.37395,
+        "copper_ore": 0.32352,
+        "bauxite": 0.29482,
+        "minerals": 2.13465,
+        "silver_ore": 0.00137,
+        "gold_ore": 0.0178,
+        "nickel_concentrate": 0.10947,
+        "diamonds": 0.00863,
+        "lithium_raw": 0.01889,
+        "cobalt_raw": 0.02151,
+        "rare_earths": 0.01274,
+        "uranium_raw": 0.00216,
+        "grain": 0.06491,
+        "milk": 0.06231,
+        "food": 0.0237,
+        "fresh_food": 0.0215,
+        "meat": 0.07596,
+        "bio_raw": 0.00356,
+        "sugar_raw": 0.0223,
+        "energy": 1.16926,
+        "wood_raw": 0.66202,
+        "lumber": 0.17506,
+        "cellulose": 0.27021,
+        "paper": 0.18841,
+        "cardboard": 0.00652,
+        "furniture": 0.0,
+        "engineered_wood": 0.07366,
+        "composite": 0.0194,
+        "prefab_modules": 0.0,
+        "water": 0.31101,
+        "clean_water": 0.00784,
+        "ultrapure_water": 0.01981,
+        "oil_crude": 0.30136,
+        "gas_natural": 0.10496,
+        "lng": 0.03367,
+        "fuel_diesel": 0.00685,
+        "gasoline": 0.00036,
+        "jet_fuel": 0.00137,
+        "plastics": 0.04952,
+        "basic_chem": 0.20077,
+        "steel": 0.1263,
+        "copper": 0.51046,
+        "aluminum": 0.00197,
+        "rolled_metal": 0.07527,
+        "nickel_metal": 0.06096,
+        "superalloy": 0.09017,
+        "advanced_alloy": 0.0,
+        "titanium_alloy": 0.0,
+        "fertilizer": 0.45596,
+        "industrial_gases": 0.34049,
+        "lubricants": 0.02024,
+        "advanced_composite": 0.0,
+        "lithium_pure": 0.10055,
+        "electrolyte": 0.05363,
+        "bioreagent": 0.01255,
+        "catalyst": 0.03865,
+        "brick": 0.0,
+        "cement": 0.13631,
+        "concrete": 0.28443,
+        "metal_structures": 0.21785,
+        "construction_capacity": 0.0,
+        "components": 0.93187,
+        "electrical_equipment": 0.13324,
+        "machinery": 1.17027,
+        "sensors": 0.2186,
+        "cloud_compute": 0.60184,
+        "automation_systems": 0.10254,
+        "robots": 0.0,
+        "batteries": 0.01504,
+        "electronics": 0.34518,
+        "ai_accelerator": 0.0,
+        "quantum_modules": 0.0,
+        "logistics_capacity": 0.0
+      }
+    },
+    "25": {
+      "industry_median_return_pct": {
+        "miner": 2.2351,
+        "agrarian": 2.8655,
+        "power_engineer": 2.8655,
+        "forester": 3.2338,
+        "water": 3.2338,
+        "oilman": 2.8655,
+        "metallurgist": 2.8655,
+        "chemist": 3.2338,
+        "construction": 3.2338,
+        "technoprom": 2.8655,
+        "logistics": 2.8655
+      },
+      "demand_supply_ratio": {
+        "coal": 1.12825,
+        "iron_ore": 1.31511,
+        "copper_ore": 0.29589,
+        "bauxite": 0.26205,
+        "minerals": 1.99859,
+        "silver_ore": 0.00098,
+        "gold_ore": 0.01705,
+        "nickel_concentrate": 0.09912,
+        "diamonds": 0.00798,
+        "lithium_raw": 0.01733,
+        "cobalt_raw": 0.01958,
+        "rare_earths": 0.01169,
+        "uranium_raw": 0.00201,
+        "grain": 0.05601,
+        "milk": 0.06651,
+        "food": 0.02124,
+        "fresh_food": 0.02048,
+        "meat": 0.07388,
+        "bio_raw": 0.00338,
+        "sugar_raw": 0.02072,
+        "energy": 1.03804,
+        "wood_raw": 0.63873,
+        "lumber": 0.18569,
+        "cellulose": 0.25288,
+        "paper": 0.17978,
+        "cardboard": 0.0057,
+        "furniture": 0.0,
+        "engineered_wood": 0.06913,
+        "composite": 0.01734,
+        "prefab_modules": 0.0,
+        "water": 0.27654,
+        "clean_water": 0.00756,
+        "ultrapure_water": 0.01826,
+        "oil_crude": 0.26669,
+        "gas_natural": 0.09182,
+        "lng": 0.02962,
+        "fuel_diesel": 0.00632,
+        "gasoline": 0.00031,
+        "jet_fuel": 0.00131,
+        "plastics": 0.04268,
+        "basic_chem": 0.18813,
+        "steel": 0.11783,
+        "copper": 0.43485,
+        "aluminum": 0.00162,
+        "rolled_metal": 0.06791,
+        "nickel_metal": 0.05664,
+        "superalloy": 0.08307,
+        "advanced_alloy": 0.0,
+        "titanium_alloy": 0.0,
+        "fertilizer": 0.47895,
+        "industrial_gases": 0.35088,
+        "lubricants": 0.01721,
+        "advanced_composite": 0.0,
+        "lithium_pure": 0.09194,
+        "electrolyte": 0.04903,
+        "bioreagent": 0.0112,
+        "catalyst": 0.03444,
+        "brick": 0.0,
+        "cement": 0.12974,
+        "concrete": 0.27867,
+        "metal_structures": 0.21084,
+        "construction_capacity": 0.0,
+        "components": 1.04599,
+        "electrical_equipment": 0.14464,
+        "machinery": 1.28288,
+        "sensors": 0.20601,
+        "cloud_compute": 0.612,
+        "automation_systems": 0.09047,
+        "robots": 0.0,
+        "batteries": 0.01424,
+        "electronics": 0.31212,
+        "ai_accelerator": 0.0,
+        "quantum_modules": 0.0,
+        "logistics_capacity": 0.0
+      }
+    },
+    "50": {
+      "industry_median_return_pct": {
+        "miner": 11.7647,
+        "agrarian": 11.7647,
+        "power_engineer": 11.7647,
+        "forester": 11.7647,
+        "water": 11.7647,
+        "oilman": 11.7647,
+        "metallurgist": 11.7647,
+        "chemist": 11.7647,
+        "construction": 11.7647,
+        "technoprom": 11.7647,
+        "logistics": 11.7647
+      },
+      "demand_supply_ratio": {
+        "coal": 5.03637,
+        "iron_ore": 4.63724,
+        "copper_ore": 0.24546,
+        "bauxite": 0.21148,
+        "minerals": 2.76215,
+        "silver_ore": 0.00023,
+        "gold_ore": 0.02332,
+        "nickel_concentrate": 0.06623,
+        "diamonds": 0.00689,
+        "lithium_raw": 0.00987,
+        "cobalt_raw": 0.00921,
+        "rare_earths": 0.00717,
+        "uranium_raw": 0.00128,
+        "grain": 0.02066,
+        "milk": 0.34416,
+        "food": 0.01678,
+        "fresh_food": 0.02956,
+        "meat": 0.15652,
+        "bio_raw": 0.00451,
+        "sugar_raw": 0.02641,
+        "energy": 0.77822,
+        "wood_raw": 0.73825,
+        "lumber": 0.66289,
+        "cellulose": 0.35035,
+        "paper": 0.20785,
+        "cardboard": 0.00161,
+        "furniture": 0.0,
+        "engineered_wood": 0.08976,
+        "composite": 0.00912,
+        "prefab_modules": 0.0,
+        "water": 0.23185,
+        "clean_water": 0.00801,
+        "ultrapure_water": 0.01847,
+        "oil_crude": 0.11961,
+        "gas_natural": 0.04358,
+        "lng": 0.01422,
+        "fuel_diesel": 0.00752,
+        "gasoline": 9e-05,
+        "jet_fuel": 0.00212,
+        "plastics": 0.02001,
+        "basic_chem": 0.17983,
+        "steel": 0.05566,
+        "copper": 0.33988,
+        "aluminum": 0.00073,
+        "rolled_metal": 0.03392,
+        "nickel_metal": 0.06154,
+        "superalloy": 0.06544,
+        "advanced_alloy": 0.0,
+        "titanium_alloy": 0.0,
+        "fertilizer": 3.18199,
+        "industrial_gases": 1.12174,
+        "lubricants": 0.00622,
+        "advanced_composite": 0.0,
+        "lithium_pure": 0.07808,
+        "electrolyte": 0.04164,
+        "bioreagent": 0.00924,
+        "catalyst": 0.01942,
+        "brick": 0.0,
+        "cement": 0.14967,
+        "concrete": 0.53585,
+        "metal_structures": 0.33198,
+        "construction_capacity": 0.0,
+        "components": 2.29,
+        "electrical_equipment": 0.32322,
+        "machinery": 3.70564,
+        "sensors": 0.31661,
+        "cloud_compute": 1.75918,
+        "automation_systems": 0.04151,
+        "robots": 0.0,
+        "batteries": 0.01566,
+        "electronics": 0.29273,
+        "ai_accelerator": 0.0,
+        "quantum_modules": 0.0,
+        "logistics_capacity": 0.0
+      }
+    }
+  },
+  "flow_basis": "Recurring recipe demand divided by recipe output for one copy of every career business at the same stage. One-time openings, upgrades, projects and military purchases are listed separately and are not treated as hourly demand.",
+  "no_recurring_business_demand": [
+    "advanced_alloy",
+    "advanced_composite",
+    "ai_accelerator",
+    "brick",
+    "construction_capacity",
+    "furniture",
+    "logistics_capacity",
+    "prefab_modules",
+    "quantum_modules",
+    "robots",
+    "titanium_alloy"
+  ],
+  "no_industrial_consumer": [
+    "advanced_alloy",
+    "advanced_composite",
+    "ai_accelerator",
+    "brick",
+    "construction_capacity",
+    "furniture",
+    "prefab_modules",
+    "quantum_modules",
+    "robots",
+    "titanium_alloy"
+  ],
+  "no_gameplay_consumer": [],
+  "project_or_army_only_sinks": [
+    "advanced_alloy",
+    "advanced_composite",
+    "ai_accelerator",
+    "brick",
+    "construction_capacity",
+    "furniture",
+    "prefab_modules",
+    "quantum_modules",
+    "robots",
+    "titanium_alloy"
+  ],
+  "missing_producer": [],
+  "output_inventory_cap": {
+    "units_per_item": 1000000,
+    "horizon_hours": 24,
+    "policy": "configured minimum per item plus this company's total live V2 output for its offline settlement horizon",
+    "horizon_basis": "24-hour configured base; idle settlement extends this at company level 20+ (48h), 40+ (72h), and 60+ (168h).",
+    "assumption": "Each business is measured alone from zero stock; capacity uses configured minimum plus that business's full gross output over the tested offline horizon. Existing stock, same-company producers, sales, and consumption are excluded.",
+    "stages": {
+      "1": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 79.81236797,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "2": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 77.236519,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "3": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 74.58171302,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "4": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 71.87009663,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "5": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 69.12434984,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "6": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 66.36734518,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "7": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 63.62154052,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "8": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 60.90840146,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "9": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 58.24783926,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "10": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 55.28674844,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "11": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 52.83747585,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "12": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 50.48218399,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "13": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 48.23207971,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "14": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 46.09590108,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "15": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 44.07994507,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "16": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 42.18818909,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "17": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 40.42246884,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "18": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 38.78272044,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "19": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 37.26720092,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "20": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 35.57981235,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "21": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 34.35743185,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "22": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 33.23719773,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "23": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 32.2147562,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "24": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 31.28514948,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "25": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 30.44300554,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "26": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 29.68269796,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "27": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 28.99848941,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "28": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 28.38464692,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "29": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 27.83553727,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "30": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 27.04518489,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "31": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 26.67282512,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "32": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 26.33699778,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "33": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 26.03532364,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "34": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 25.76536418,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "35": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 25.52467393,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "36": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 25.31084411,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "37": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 25.12153668,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "38": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.95451024,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "39": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.80763889,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "40": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.59888281,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "41": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.50580692,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "42": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.42309448,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "43": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.34998732,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "44": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.28571844,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "45": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.22952749,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "46": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.18067322,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "47": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.13844321,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "48": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.10216094,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "49": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.07119078,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      },
+      "50": {
+        "businesses_total": 108,
+        "businesses_filling_any_output": 0,
+        "output_items_filling_cap": 0,
+        "fill_by_horizon_hours": {
+          "24": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "48": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "72": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          },
+          "168": {
+            "businesses_filling_any_output": 0,
+            "output_items_filling_cap": 0
+          }
+        },
+        "fastest_fill": {
+          "hours": 24.03850873,
+          "business": "regional_water_operator",
+          "item": "water"
+        }
+      }
+    }
+  }
+}

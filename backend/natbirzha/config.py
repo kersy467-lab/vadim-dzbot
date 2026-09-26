@@ -34,11 +34,11 @@ class NatbirzhaSettings(BaseSettings):
     )
 
     # Mandatory company income tax. Tax is assessed every 12 hours on positive
-    # operating profit. A 12-hour grace period is granted; if unpaid after 12 hours,
-    # production is blocked and a non-compounding +3% hourly penalty is assessed.
+    # operating profit. Unpaid tax blocks production when the period closes;
+    # a non-compounding +3% hourly penalty starts after each full overdue hour.
     TAX_RATE: float = 0.13
     TAX_PERIOD_HOURS: int = 12
-    TAX_GRACE_HOURS: int = 12
+    TAX_GRACE_HOURS: int = 0
     TAX_HOURLY_PENALTY_RATE: float = 0.03
     TAX_GRACE_DAYS: int = 3  # legacy compatibility alias
     TAX_DAILY_PENALTY_RATE: float = 0.50  # legacy compatibility alias
@@ -51,11 +51,11 @@ class NatbirzhaSettings(BaseSettings):
     RESPEC_COOLDOWN_DAYS: int = 7
     RESPEC_COST_PCT: float = 0.25
 
-    # NPC State Reserve (Госрезерв). Limit State buybacks per item by cash
-    # turnover so one producer cannot route unlimited output through NPC.
+    # NPC State Reserve (Госрезерв). The State buys no more than this amount
+    # per product per game day, keeping player-to-player trade economically relevant.
     NPC_BUY_FLOOR_MULT: float = 0.80        # NPC buys surplus at 80% base price
     NPC_SELL_CAP_MULT: float = 1.50         # NPC sells supplies at 150% base price
-    NPC_DAILY_BUYBACK_CASH_LIMIT: float = 0.0  # 0.0 = unlimited buyback (лимиты на продажу товаров NPC сняты)
+    NPC_DAILY_BUYBACK_CASH_LIMIT: float = 1_000_000.0  # Per product, per game day; 0 disables the cap
     # Premium raw materials keep a tiny explicit emergency stock so unlimited
     # NPC supply cannot bypass premium production and player-to-player trade.
     NPC_RARE_SELL_RESERVES: Dict[str, float] = {

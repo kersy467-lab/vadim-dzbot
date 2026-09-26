@@ -11,9 +11,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
 from backend.natbirzha.api.business_routes import SaleModeRequest
-from backend.natbirzha.models.business import NatBusiness
+from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomePeriod
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
@@ -57,6 +57,9 @@ def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None
             fuel = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "fuel_diesel"))
             water = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "water"))
             energy = await session.scalar(select(NatInventory).where(NatInventory.company_id == company.id, NatInventory.item_id == "energy"))
+            income_period = await session.scalar(select(NatBusinessIncomePeriod).where(
+                NatBusinessIncomePeriod.business_id == opened["business"]["id"]
+            ))
             business = await session.get(NatBusiness, opened["business"]["id"])
 
             assert settled["maintenance_cash"] > 0
@@ -65,6 +68,14 @@ def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None
             assert 0.0 < fuel.quantity < 10.0
             assert water.quantity == 0.0
             assert energy.quantity > 0.0
+            # Unsold output carries input cost plus maintenance into its basis;
+            # its reference value remains analytics-only until a sale.
+            production_cost = (10.0 - fuel.quantity) * 1.2 + 2.0 * 2.0 + settled["maintenance_cash"]
+            assert energy.avg_cost_basis == pytest.approx(production_cost / energy.quantity, abs=1e-5)
+            assert income_period is not None
+            assert round(income_period.gross_income, 2) == round(
+                energy.quantity * get_item_base_price("energy"), 2
+            )
             assert business.status == "PAUSED_SUPPLY"
 
         await engine.dispose()

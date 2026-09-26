@@ -17,7 +17,7 @@ def _l(bid, name, icon, order, cost, level, inputs, output, events, *, prerequis
 LOGISTICS_BUSINESSES = {
     spec["id"]: spec for spec in [
         _l("courier_service_v2", "Курьерская служба", "📦", 1, 9_000, 1,
-           {"fuel_diesel": 2}, 30,
+           {"fuel_diesel": 2, "gasoline": 1.5, "cardboard": 1}, 30,
            ("Первый гараж", "Маршрутная сеть", "Сортировочный пункт", "Мобильная диспетчеризация", "Городская курьерская сеть"), starter=True),
         _l("trucking_company_v2", "Автотранспортная компания", "🚚", 2, 25_000, 5,
            {"fuel_diesel": 6, "lubricants": 1}, 55,

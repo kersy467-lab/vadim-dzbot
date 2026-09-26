@@ -15,6 +15,7 @@ from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.business_resource_service import consume_business_resources
 from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 from backend.natbirzha.services.progression_service import apply_xp
+from backend.natbirzha.services.business_investment import upgrade_cash_cost
 
 
 UPGRADE_TIME_CURVES: dict[str, tuple[int, int]] = {
@@ -57,14 +58,11 @@ class BusinessService:
     def upgrade_quote(spec: dict[str, Any], stage: int) -> dict[str, Any]:
         current_stage = max(1, int(stage))
         target_stage = current_stage + 1
-        base_multiplier = float(spec.get("upgrade_cost_base_multiplier", 0.25))
-        base_cost = max(500.0, float(spec["open_cost"]) * base_multiplier)
-        cost = base_cost * (float(spec["upgrade_cost_growth"]) ** (current_stage - 1))
+        cost = upgrade_cash_cost(spec, current_stage)
         base_minutes, max_minutes = UPGRADE_TIME_CURVES[spec["upgrade_time_curve"]]
         minutes = min(max_minutes, max(1, ceil(base_minutes * (1.22 ** (current_stage - 1)))))
         milestone = spec.get("milestones", {}).get(target_stage)
         if milestone:
-            cost *= float(milestone.get("cash_multiplier", 1.0))
             minutes = min(10_080, ceil(minutes * float(milestone.get("duration_multiplier", 1.0))))
         return {
             "cost": round(cost, 2),

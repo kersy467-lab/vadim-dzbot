@@ -10,6 +10,7 @@ from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond, NatStateBondHolding
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
@@ -120,6 +121,12 @@ class StateBondSettlementMixin:
             if settlement.settlement_type == "COUPON":
                 dividend_withheld = await DividendService.accrue_cash_inflow(
                     session, company, settlement.amount_rub, now=now
+                )
+                await CompanyProfitLedgerService.record(
+                    session,
+                    company.id,
+                    now,
+                    financial_income=settlement.amount_rub,
                 )
             company.cash = round(
                 company.cash + settlement.amount_rub - dividend_withheld, 8

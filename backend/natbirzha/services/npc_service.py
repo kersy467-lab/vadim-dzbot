@@ -4,7 +4,7 @@ from typing import Any, Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.config import get_game_today, nat_settings
+from backend.natbirzha.config import get_game_now, get_game_today, nat_settings
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import (
     CANONICAL_ITEMS,
@@ -18,10 +18,12 @@ from backend.natbirzha.services.npc_quota_service import NPCQuotaMixin
 from backend.natbirzha.services.progression_service import apply_xp
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
+from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
 
 
 class NPCReserveService(NPCQuotaMixin):
-    """State reserve with per-item daily limits on purchases from players."""
+    """State reserve with finite per-item daily player buyback liquidity."""
 
     @staticmethod
     def get_npc_quote(item_id: str) -> Dict[str, Any]:
@@ -85,15 +87,14 @@ class NPCReserveService(NPCQuotaMixin):
             return {"success": False, "reason": "invalid_quantity"}
         if action not in {"BUY", "SELL"}:
             return {"success": False, "reason": "invalid_action"}
-        if action == "SELL":
-            rounded_quantity = round(float(quantity), 2)
-            if abs(float(quantity) - rounded_quantity) > 1e-9:
-                return {
-                    "success": False,
-                    "reason": "invalid_quantity_precision",
-                    "message": "Количество можно указывать с точностью до 0,01.",
-                }
-            quantity = rounded_quantity
+        rounded_quantity = round(float(quantity), 2)
+        if abs(float(quantity) - rounded_quantity) > 1e-9:
+            return {
+                "success": False,
+                "reason": "invalid_quantity_precision",
+                "message": "Количество можно указывать с точностью до 0,01.",
+            }
+        quantity = rounded_quantity
 
         quote = cls.get_npc_quote(item_id)
         from backend.natbirzha.services.creator_service import CreatorService
@@ -134,7 +135,7 @@ class NPCReserveService(NPCQuotaMixin):
                     "available": company.cash,
                 }
             existing = inv.quantity if inv else 0.0
-            cap = float(nat_settings.INVENTORY_MAX_QUANTITY_PER_ITEM)
+            cap = await InventoryCapacityService.for_item(session, company, item_id)
             if existing + quantity > cap:
                 return {
                     "success": False,
@@ -219,11 +220,19 @@ class NPCReserveService(NPCQuotaMixin):
                 "strict_reserve": bool(volume["strict_reserve"]),
             }
 
+        seller_cogs = round(quantity * max(0.0, float(inv.avg_cost_basis or 0.0)), 6)
         inv.quantity = round(inv.quantity - quantity, 2)
         dividend_withheld = await DividendService.accrue_cash_inflow(
             session, company, total_payout
         )
         company.cash = round(company.cash + total_payout - dividend_withheld, 2)
+        await CompanyProfitLedgerService.record(
+            session,
+            company.id,
+            get_game_now(),
+            revenue=total_payout,
+            cost_of_goods_sold=seller_cogs,
+        )
         fin.gross_revenue = round(fin.gross_revenue + total_payout, 2)
         fin.closed_profit = round(fin.gross_revenue - fin.opex, 2)
         xp_gain = max(1, int(quantity * 2))

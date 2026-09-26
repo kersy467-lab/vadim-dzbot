@@ -12,9 +12,11 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateBond
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod, NatTaxPeriod
 from backend.natbirzha.models.stocks import NatHourlyDividendAccrual, NatStock, NatStockHolding
 from backend.natbirzha.services.state_bond_service import StateBondService
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.tax_service import TaxService
 
 
 def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
@@ -64,6 +66,16 @@ def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
                 session, now=issued_at + timedelta(minutes=1)
             )
             one_minute = 1_000 * 0.15 / 1_440
+            buyer_tax_period = await session.scalar(select(NatCompanyProfitPeriod).where(
+                NatCompanyProfitPeriod.company_id == buyer.id
+            ))
+            assert buyer_tax_period is not None, "Received bond coupons must enter the company's net-profit ledger"
+            assert buyer_tax_period.financial_income == round(one_minute, 6)
+            await TaxService.summary(session, buyer.id, now=issued_at + timedelta(hours=12))
+            bond_tax = await session.scalar(select(NatTaxPeriod).where(NatTaxPeriod.company_id == buyer.id))
+            assert bond_tax is not None
+            assert bond_tax.taxable_profit == round(one_minute, 2)
+            assert bond_tax.principal == round(round(one_minute, 2) * 0.13, 2)
             coupon_accrual = await session.scalar(select(NatHourlyDividendAccrual))
             assert first_tick["coupon_payments"] == 1
             assert first_tick["coupon_paid_rub"] == round(one_minute, 2)

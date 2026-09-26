@@ -21,6 +21,7 @@ import backend.natbirzha.services.npc_quota_service as npc_quota_module
 
 
 async def run_checks():
+    nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT = 10_000.0
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
@@ -35,9 +36,9 @@ async def run_checks():
         assert quota["scaling_factor"] == 1.0
 
         sell_quota = await NPCReserveService.get_daily_quota(session, "energy", "SELL")
-        assert sell_quota["liquidity_unlimited"] is True
-        assert sell_quota["daily_quota_per_item"] is None
-        assert sell_quota["daily_quota_cash"] is None
+        assert sell_quota["liquidity_unlimited"] is False
+        assert sell_quota["daily_quota_per_item"] == 1250.0
+        assert sell_quota["daily_quota_cash"] == 10_000.0
 
         company.cash = 100000.0
         first = await NPCReserveService.execute_npc_trade(session, company, "iron_ore", "BUY", 500.0)
@@ -47,7 +48,7 @@ async def run_checks():
         usage = (await session.execute(select(NatNpcDailyVolume))).scalars().all()
         assert usage == []
 
-        # Unlimited producer sales to NPC: no quota cap on sales.
+        # NPC buyback has a finite shared daily cash cap per product.
         inv = (await session.execute(
             select(NatInventory).where(
                 NatInventory.company_id == company.id,
@@ -69,25 +70,41 @@ async def run_checks():
 
         unit_buy_price = NPCReserveService.get_npc_quote("energy")["npc_buy_price"]
         sale = await NPCReserveService.execute_npc_trade(
-            session, company, "energy", "SELL", 20000.0
+            session, company, "energy", "SELL", 1000.0
         )
         assert sale["success"] is True
-        assert sale["daily_quota"] is None
-        assert sale["total_payout"] == round(20000.0 * unit_buy_price, 2)
+        assert sale["daily_quota"] == 1250.0
+        assert sale["total_payout"] == round(1000.0 * unit_buy_price, 2)
 
-        # Subsequent sale also succeeds without npc_daily_quota_exceeded error
+        other_company = await CompanyService.create_company(
+            session, 910002, "NPC Test Two", "power_engineer"
+        )
+        session.add(NatInventory(
+            company_id=other_company.id,
+            item_id="energy",
+            quantity=5000.0,
+            reserved_quantity=0.0,
+            avg_cost_basis=0.0,
+        ))
+        await session.flush()
         subsequent_sale = await NPCReserveService.execute_npc_trade(
-            session, company, "energy", "SELL", 5000.0
+            session, other_company, "energy", "SELL", 250.0
         )
         assert subsequent_sale["success"] is True
-        assert subsequent_sale["total_payout"] == round(5000.0 * unit_buy_price, 2)
+        assert subsequent_sale["total_payout"] == round(250.0 * unit_buy_price, 2)
+        exhausted = await NPCReserveService.execute_npc_trade(
+            session, company, "energy", "SELL", 1.0
+        )
+        assert exhausted["success"] is False
+        assert exhausted["reason"] == "npc_daily_quota_exceeded"
 
         rate_payload = await get_npc_rates(session)
         energy_rate = next(row for row in rate_payload["rates"] if row["item_id"] == "energy")
         assert energy_rate["daily_quota"] is None
-        assert energy_rate["player_sell_daily_quota"] is None
-        assert energy_rate["player_sell_remaining_quota"] is None
-        assert energy_rate["player_sell_quota_label"] == "Скупка Госрезервом: без ограничений"
+        assert energy_rate["player_sell_daily_quota"] == 1250.0
+        assert energy_rate["player_sell_remaining_quota"] == 0.0
+        assert energy_rate["player_sell_remaining_cash"] == 0.0
+        assert "Осталось выкупить сегодня" in energy_rate["player_sell_quota_label"]
 
         # Check precision validation still works
         fractional_sale = await NPCReserveService.execute_npc_trade(
@@ -102,6 +119,27 @@ async def run_checks():
         assert rare_quota["liquidity_unlimited"] is False
         assert rare_quota["daily_quota_per_item"] == nat_settings.NPC_RARE_SELL_RESERVES["lithium_raw"]
         company.cash = 100000.0
+
+        # NPC BUY must use the same two-decimal quantity precision as inventory
+        # and quota accounting; otherwise .006 consumes .006 quota but adds .01.
+        fractional_buy = await NPCReserveService.execute_npc_trade(
+            session, company, "lithium_raw", "BUY", 0.006
+        )
+        assert fractional_buy["success"] is False
+        assert fractional_buy["reason"] == "invalid_quantity_precision"
+        assert await session.scalar(
+            select(NatInventory).where(
+                NatInventory.company_id == company.id,
+                NatInventory.item_id == "lithium_raw",
+            )
+        ) is None
+        assert await session.scalar(
+            select(NatNpcDailyVolume).where(
+                NatNpcDailyVolume.item_id == "lithium_raw",
+                NatNpcDailyVolume.action == "BUY",
+            )
+        ) is None
+
         rare_ok = await NPCReserveService.execute_npc_trade(
             session, company, "lithium_raw", "BUY", rare_quota["daily_quota_per_item"]
         )

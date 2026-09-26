@@ -105,6 +105,7 @@ class BankruptcyMarketService:
                 factory.cycle_started_at = None
                 factory.cycle_ready_at = None
                 factory.cycle_input_cost = 0.0
+                factory.cycle_output_multiplier = None
             lots.append(cls._make_lot(
                 operation_key=f"{operation_key}:factory:{factory.id}",
                 former_company=company, asset_kind="FACTORY", asset_id=factory.id,

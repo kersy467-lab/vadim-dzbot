@@ -3,6 +3,7 @@
 import asyncio
 from datetime import date
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base
@@ -10,6 +11,7 @@ import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateTreasury
 from backend.natbirzha.models.state_shares import NatStateShareHolding
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod
 from backend.natbirzha.services.state_share_service import StateShareService
 
 
@@ -60,6 +62,16 @@ def test_missing_dividend_recipient_is_filtered_before_proration() -> None:
             assert result["total_paid"] == 1
             assert company.cash == 101
             assert treasury.cash == 1
+            tax_period = await session.scalar(select(NatCompanyProfitPeriod).where(
+                NatCompanyProfitPeriod.company_id == company.id
+            ))
+            assert tax_period is not None, "Received state-share dividends must enter the company's net-profit ledger"
+            assert tax_period.financial_income == 1
+            replay = await StateShareService.settle_daily_dividends(
+                session, settlement_date=date(2026, 9, 23), commit=False
+            )
+            assert replay["status"] == "already_settled"
+            assert tax_period.financial_income == 1
 
         await engine.dispose()
 

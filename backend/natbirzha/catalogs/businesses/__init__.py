@@ -26,6 +26,7 @@ from backend.natbirzha.technical_energy import (
 )
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
+from .balance import balance_career_catalog
 
 
 LEGACY_BUSINESSES: dict[str, dict[str, Any]] = {
@@ -68,8 +69,7 @@ CAREER_BUSINESSES = scale_catalog_energy_inputs(
     input_field="inputs_per_hour",
     resource_production_only=True,
 )
-CAREER_BUSINESSES = recalibrate_scaled_water_outputs(CAREER_BUSINESSES)
-CAREER_BUSINESSES = recalibrate_scaled_energy_outputs(CAREER_BUSINESSES)
+CAREER_BUSINESSES = balance_career_catalog(CAREER_BUSINESSES)
 
 BUSINESS_CATALOG: Mapping[str, dict[str, Any]] = {
     **LEGACY_BUSINESSES,

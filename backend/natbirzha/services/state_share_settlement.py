@@ -16,6 +16,7 @@ from backend.natbirzha.models.state_shares import (
     NatStateShareHolding,
 )
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
@@ -128,6 +129,12 @@ class StateShareSettlementMixin:
             paid = Decimal(payouts[index]) / 100
             reinvested_dividend = await DividendService.accrue_cash_inflow(
                 session, company, float(paid), now=get_game_now()
+            )
+            await CompanyProfitLedgerService.record(
+                session,
+                company.id,
+                get_game_now(),
+                financial_income=float(paid),
             )
             company.cash = round(
                 float(company.cash) + float(paid) - reinvested_dividend, 2

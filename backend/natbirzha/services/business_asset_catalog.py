@@ -71,25 +71,37 @@ PROJECT_CATALOG = MappingProxyType({
     "route_optimization": {
         "name": "Оптимизация маршрутной сети", "icon": "🗺️", "specializations": ("logistics",),
         "cost_cash": 90_000.0, "duration_hours": 3.0,
-        "inputs": {"fuel_diesel": 80.0, "electronics": 4.0},
+        "inputs": {"fuel_diesel": 80.0, "electronics": 4.0, "cardboard": 24.0},
         "reward_cash": 35_000.0, "permanent_output_bonus": 0.02, "min_stage": 10,
     },
     "industrial_contract": {
         "name": "Промышленный подряд", "icon": "🏗️", "specializations": ("construction",),
         "cost_cash": 140_000.0, "duration_hours": 5.0,
-        "inputs": {"concrete": 60.0, "steel": 25.0, "fuel_diesel": 40.0},
+        "inputs": {
+            "concrete": 60.0, "steel": 25.0, "fuel_diesel": 40.0,
+            "brick": 80.0, "construction_capacity": 8.0,
+            "furniture": 2.0, "prefab_modules": 1.0,
+        },
         "reward_cash": 260_000.0, "permanent_output_bonus": 0.012, "min_stage": 10,
     },
     "automation_rnd": {
         "name": "R&D промышленной автоматизации", "icon": "🧠", "specializations": ("technoprom",),
         "cost_cash": 220_000.0, "duration_hours": 8.0,
-        "inputs": {"electronics": 8.0, "sensors": 6.0, "energy": 120.0},
+        "inputs": {
+            "electronics": 8.0, "sensors": 6.0, "energy": 120.0,
+            "electrical_equipment": 2.0, "industrial_gases": 3.0,
+            "diamonds": 0.5, "silver_ore": 1.0, "ai_accelerator": 0.5,
+        },
         "reward_cash": 40_000.0, "permanent_output_bonus": 0.025, "min_stage": 15,
     },
     "robotic_cell": {
         "name": "Роботизированная производственная ячейка", "icon": "🦾", "specializations": ("technoprom",),
         "cost_cash": 650_000.0, "duration_hours": 18.0,
-        "inputs": {"automation_systems": 8.0, "electronics": 12.0, "steel": 20.0},
+        "inputs": {
+            "automation_systems": 8.0, "electronics": 12.0, "steel": 20.0,
+            "robots": 1.0, "advanced_alloy": 2.0, "advanced_composite": 1.0,
+            "titanium_alloy": 1.0, "quantum_modules": 0.2,
+        },
         "reward_cash": 0.0, "permanent_output_bonus": 0.045, "min_stage": 30,
     },
 })

@@ -1,4 +1,4 @@
-"""Pure contracts for the mandatory NATBIRZHA tax rules (12h cycle, 12h grace, 3% hourly simple penalty)."""
+"""Pure contracts for the mandatory NATBIRZHA tax rules (12h cycle, 13% tax, 3% hourly simple penalty)."""
 
 from datetime import date, datetime
 
@@ -19,29 +19,29 @@ from backend.natbirzha.tax_rules import (
 def test_tax_constants_match_game_rule() -> None:
     assert nat_settings.TAX_RATE == 0.13
     assert nat_settings.TAX_PERIOD_HOURS == 12
-    assert nat_settings.TAX_GRACE_HOURS == 12
+    assert nat_settings.TAX_GRACE_HOURS == 0
     assert nat_settings.TAX_HOURLY_PENALTY_RATE == 0.03
     assert nat_settings.TAX_GRACE_DAYS == 3
     assert nat_settings.TAX_DAILY_PENALTY_RATE == 0.50
 
 
-def test_12h_period_bounds_and_grace() -> None:
+def test_12h_period_bounds_and_due_time() -> None:
     # Morning period: 00:00 - 12:00
     p1_start, p1_end = get_period_bounds(datetime(2026, 9, 25, 4, 30))
     assert p1_start == datetime(2026, 9, 25, 0, 0)
     assert p1_end == datetime(2026, 9, 25, 12, 0)
 
-    # 12-hour grace period ends at 24:00 (next day 00:00)
+    # Tax becomes due as soon as its 12-hour period closes.
     grace1 = period_grace_until(p1_end)
-    assert grace1 == datetime(2026, 9, 26, 0, 0)
-    assert period_production_deadline(p1_end) == datetime(2026, 9, 26, 0, 0)
+    assert grace1 == p1_end
+    assert period_production_deadline(p1_end) == p1_end
 
-    # Not overdue during grace period
-    assert overdue_hours(p1_end, datetime(2026, 9, 25, 18, 0)) == 0
-    assert overdue_hours(p1_end, datetime(2026, 9, 26, 0, 0)) == 0
+    # Penalties count only complete hours after the period closes.
+    assert overdue_hours(p1_end, datetime(2026, 9, 25, 12, 0)) == 0
+    assert overdue_hours(p1_end, datetime(2026, 9, 25, 12, 59)) == 0
 
     # 5 hours overdue
-    overdue_now = datetime(2026, 9, 26, 5, 0)
+    overdue_now = datetime(2026, 9, 25, 17, 0)
     assert overdue_hours(p1_end, overdue_now) == 5
 
     # Simple interest: +3% of principal per overdue hour
@@ -55,9 +55,9 @@ def test_12h_period_evening_bounds() -> None:
     assert p2_start == datetime(2026, 9, 25, 12, 0)
     assert p2_end == datetime(2026, 9, 26, 0, 0)
 
-    # 12-hour grace period ends at 12:00 next day
+    # The evening period closes at midnight and tax is due then.
     grace2 = period_grace_until(p2_end)
-    assert grace2 == datetime(2026, 9, 26, 12, 0)
+    assert grace2 == p2_end
 
 
 def test_tax_period_row_outstanding_includes_penalty_and_payments() -> None:

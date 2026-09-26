@@ -168,11 +168,17 @@ class ProductionTickEngine(ProductionAutomationMixin):
                 "available": factory.workers,
             }
 
-        input_multiplier = max(1, factory.level)
+        # Scale inputs by the same total multiplier used for output. Persist it
+        # now so upgrades or efficiency changes cannot increase a funded cycle's
+        # yield before collection.
+        output_multiplier = (
+            cls.output_multiplier(factory, company)
+            * cls.get_effective_efficiency(company, factory)
+        )
         requirements: Dict[str, float] = {}
         locked_inputs: Dict[str, NatInventory] = {}
         for item_id, quantity in recipe["inputs"].items():
-            needed = round(float(quantity) * input_multiplier, 4)
+            needed = round(float(quantity) * output_multiplier, 4)
             requirements[item_id] = needed
             inv = await cls._inventory(session, company.id, item_id, for_update=True)
             available = inv.available_quantity if inv else 0.0
@@ -194,6 +200,7 @@ class ProductionTickEngine(ProductionAutomationMixin):
         factory.cycle_started_at = current
         factory.cycle_ready_at = current + timedelta(seconds=duration)
         factory.cycle_input_cost = 0.0
+        factory.cycle_output_multiplier = output_multiplier
         await session.flush()
 
         from backend.natbirzha.config import get_game_tz
@@ -261,10 +268,15 @@ class ProductionTickEngine(ProductionAutomationMixin):
         if not recipe or recipe["factory_type"] != factory.building_type:
             return {"success": False, "reason": "recipe_missing"}
 
-        efficiency = cls.get_effective_efficiency(company, factory)
-        # Industry production bonuses are sampled on completion. A PVC upgrade
-        # bought during a running cycle therefore affects that cycle's output.
-        multiplier = cls.output_multiplier(factory, company) * efficiency
+        multiplier = factory.cycle_output_multiplier
+        if multiplier is None:
+            # A pre-migration cycle has already consumed inputs at base factory
+            # level only. Its original level is unknown, so cap output at the
+            # level-1 amount; current level or bonus upgrades could otherwise
+            # grant output without the matching input charge.
+            multiplier = min(1.0, cls.get_effective_efficiency(company, factory))
+        else:
+            multiplier = max(0.0, float(multiplier))
         outputs = {
             item_id: round(float(quantity) * multiplier, 4)
             for item_id, quantity in recipe["outputs"].items()
@@ -312,6 +324,7 @@ class ProductionTickEngine(ProductionAutomationMixin):
         factory.cycle_started_at = None
         factory.cycle_ready_at = None
         factory.cycle_input_cost = 0.0
+        factory.cycle_output_multiplier = None
         await session.flush()
         return {
             "success": True,

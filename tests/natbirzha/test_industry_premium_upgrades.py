@@ -184,7 +184,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 reserved_quantity=0, avg_cost_basis=0,
             )
             energy = NatInventory(
-                company_id=company.id, item_id="energy", quantity=88,
+                company_id=company.id, item_id="energy", quantity=176,
                 reserved_quantity=0, avg_cost_basis=0,
             )
             session.add_all((factory, steel, energy))
@@ -195,7 +195,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 session, company, factory, now=now
             )
             assert started["success"] is True
-            assert steel.quantity == 8
+            assert steel.quantity == 4
             assert energy.quantity == 44
             factory = await session.scalar(
                 select(NatFactory).where(NatFactory.id == factory.id)
@@ -207,15 +207,15 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
             assert completed["success"] is True
             assert completed["outputs_produced"]["rolled_metal"] == 6.0
 
-            # A cycle already running when an upgrade is bought uses the
-            # multiplier active at completion; its inputs were already charged.
+            # A cycle consumes and snapshots its start-time multiplier. Buying
+            # an upgrade while it runs cannot grant additional output.
             company.industry_upgrade_levels_json = {}
             next_cycle_start = now + timedelta(seconds=started["duration_seconds"] + 1)
             second_started = await ProductionTickEngine.start_cycle(
                 session, company, factory, now=next_cycle_start
             )
             assert second_started["success"] is True
-            assert steel.quantity == 6
+            assert steel.quantity == 2
             assert energy.quantity == 0
             company.industry_upgrade_levels_json = {"metallurgist": 1}
             factory = await session.scalar(
@@ -226,7 +226,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 now=next_cycle_start + timedelta(seconds=second_started["duration_seconds"] + 1),
             )
             assert second_completed["success"] is True
-            assert second_completed["outputs_produced"]["rolled_metal"] == 2.1
+            assert second_completed["outputs_produced"]["rolled_metal"] == 2.0
 
             company.industry_upgrade_levels_json = {"metallurgist": 40}
             assert ProductionTickEngine.output_multiplier(factory, company) == 3.0
@@ -389,6 +389,7 @@ def test_logistics_upgrade_increases_logistics_output_without_increasing_input_u
     from backend.natbirzha.models.business import NatBusiness
     from backend.natbirzha.models.inventory import NatInventory
     from backend.natbirzha.services.business_rates import resource_business_rates
+    from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
     from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
     async def check() -> None:
@@ -421,14 +422,19 @@ def test_logistics_upgrade_increases_logistics_output_without_increasing_input_u
                 metadata_json={"sale_mode": "HOLD"},
             )
             session.add(business)
-            session.add(NatInventory(
-                company_id=company.id,
-                item_id="fuel_diesel",
-                quantity=20,
-                reserved_quantity=0,
-                avg_cost_basis=0,
-            ))
+            input_inventories = {
+                item_id: NatInventory(
+                    company_id=company.id,
+                    item_id=item_id,
+                    quantity=20,
+                    reserved_quantity=0,
+                    avg_cost_basis=0,
+                )
+                for item_id in spec["inputs_per_hour"]
+            }
+            session.add_all(input_inventories.values())
             await session.flush()
+            storage_capacity = await InventoryCapacityService.for_company(session, company)
 
             _, _, worked, _, _ = await IdleEconomyService._settle_resource_segment(
                 session,
@@ -438,6 +444,7 @@ def test_logistics_upgrade_increases_logistics_output_without_increasing_input_u
                 hours=1,
                 upgrading=False,
                 industry_bonus_multiplier=IndustryUpgradeService.bonus_multiplier(company, "logistics"),
+                storage_capacity_by_item=storage_capacity,
             )
             boosted_rate = resource_business_rates(
                 business,

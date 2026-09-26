@@ -1,4 +1,4 @@
-"""Mandatory daily profit tax endpoints shown inside the market screen."""
+"""Mandatory 12-hour net-profit tax endpoints shown inside the market screen."""
 
 from typing import Optional
 

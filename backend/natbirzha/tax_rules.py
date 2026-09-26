@@ -18,18 +18,18 @@ def get_period_bounds(dt: datetime) -> tuple[datetime, datetime]:
 
 
 def period_grace_until(period_end: datetime) -> datetime:
-    """Tax liability must be paid within 12 hours after the period closes."""
-    grace_hours = max(0, int(getattr(nat_settings, "TAX_GRACE_HOURS", 12)))
+    """Return the payment deadline; by default tax is due as the period closes."""
+    grace_hours = max(0, int(getattr(nat_settings, "TAX_GRACE_HOURS", 0)))
     return period_end + timedelta(hours=grace_hours)
 
 
 def period_production_deadline(period_end: datetime) -> datetime:
-    """Production stops when the 12-hour grace period expires."""
+    """Production stops when an unpaid period tax reaches its payment deadline."""
     return period_grace_until(period_end)
 
 
 def overdue_hours(period_end: datetime, now: datetime) -> int:
-    """Number of whole hours overdue past the 12-hour grace deadline."""
+    """Number of complete hours overdue past the tax payment deadline."""
     deadline = period_grace_until(period_end)
     if now <= deadline:
         return 0

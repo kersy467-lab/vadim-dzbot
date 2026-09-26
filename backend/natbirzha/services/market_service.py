@@ -1,13 +1,21 @@
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from decimal import Decimal
+from math import isfinite
+from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from backend.natbirzha.config import get_game_now, get_game_today, normalize_dt, nat_settings
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory, CANONICAL_ITEMS
 from backend.natbirzha.models.market import NatMarketOrder, NatMarketTrade
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
+from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
+from backend.natbirzha.services.market_settlement import cancel_market_order, money, remaining_buy_escrow
+
+MARKET_QUANTITY_DECIMALS = 6
+
 
 class MarketService:
     @staticmethod
@@ -106,8 +114,12 @@ class MarketService:
             raise ValueError("Invalid order type: must be BUY or SELL.")
         if item_id not in CANONICAL_ITEMS:
             raise ValueError(f"Unknown item: {item_id}")
-        if price <= 0 or quantity <= 0:
+        if not isfinite(float(price)) or not isfinite(float(quantity)) or price <= 0 or quantity <= 0:
             raise ValueError("Price and quantity must be positive.")
+        rounded_quantity = round(float(quantity), MARKET_QUANTITY_DECIMALS)
+        if abs(float(quantity) - rounded_quantity) > 1e-9:
+            raise ValueError("Quantity must use increments of 0.000001.")
+        quantity = rounded_quantity
 
         # Check active State market restrictions (§28)
         from backend.natbirzha.services.creator_service import CreatorService
@@ -122,10 +134,10 @@ class MarketService:
         company = locked_company or company
 
         if order_type == "BUY":
-            total_cost = round(price * quantity, 2)
+            total_cost = money(Decimal(str(price)) * Decimal(str(quantity)))
             if company.cash < total_cost:
                 raise ValueError(f"Insufficient cash. Required: {total_cost}, Available: {company.cash}")
-            company.cash -= total_cost
+            company.cash = float(money(Decimal(str(company.cash)) - total_cost))
         elif order_type == "SELL":
             inv_res = await session.execute(
                 select(NatInventory).where(
@@ -212,9 +224,27 @@ class MarketService:
             # Determine execution price (maker price: earlier order's price)
             maker_is_sell = normalize_dt(sell_order.created_at) <= normalize_dt(buy_order.created_at)
             trade_price = sell_order.price if maker_is_sell else buy_order.price
-            trade_qty = min(buy_order.remaining_qty, sell_order.remaining_qty)
-            total_amount = round(trade_price * trade_qty, 2)
-            fee = round(total_amount * 0.01, 2)  # 1% exchange fee
+            invalid_order = next((order for order in (buy_order, sell_order)
+                                  if abs(order.remaining_qty - round(order.remaining_qty, MARKET_QUANTITY_DECIMALS)) > 1e-9), None)
+            if invalid_order:
+                invalid_company = (await session.execute(
+                    select(NatCompany).where(NatCompany.id == invalid_order.company_id).with_for_update()
+                )).scalar_one_or_none()
+                if invalid_company:
+                    await cls.cancel_order(session, invalid_company, invalid_order.id, commit=False)
+                else:
+                    invalid_order.status = "CANCELLED"
+                    invalid_order.closed_at = now
+                await session.flush()
+                continue
+            trade_qty = round(min(buy_order.remaining_qty, sell_order.remaining_qty), MARKET_QUANTITY_DECIMALS)
+            available_escrow = await remaining_buy_escrow(session, buy_order)
+            total_amount = min(money(Decimal(str(trade_price)) * Decimal(str(trade_qty))), available_escrow)
+            price_diff = min(
+                money(max(Decimal(0), Decimal(str(buy_order.price)) - Decimal(str(trade_price))) * Decimal(str(trade_qty))),
+                max(Decimal(0), available_escrow - total_amount),
+            )
+            fee = min(money(total_amount * Decimal("0.01")), total_amount)
 
             buyer_comp = (await session.execute(
                 select(NatCompany).where(NatCompany.id == buy_order.company_id).with_for_update()
@@ -239,6 +269,9 @@ class MarketService:
                     seller_inv.reserved_quantity = max(0.0, seller_inv.reserved_quantity - sell_order.remaining_qty)
                 await session.flush()
                 continue
+            seller_cogs = round(
+                trade_qty * max(0.0, float(seller_inv.avg_cost_basis or 0.0)), 6
+            )
 
             buyer_inv = (await session.execute(
                 select(NatInventory).where(
@@ -249,55 +282,62 @@ class MarketService:
 
             # Never let exchange settlement bypass the authoritative inventory cap.
             buyer_qty = buyer_inv.quantity if buyer_inv else 0.0
-            cap = float(nat_settings.INVENTORY_MAX_QUANTITY_PER_ITEM)
+            cap = await InventoryCapacityService.for_item(session, buyer_comp, item_id)
             if buyer_qty + trade_qty > cap:
-                refund = round(buy_order.price * buy_order.remaining_qty, 2)
-                buyer_comp.cash = round(buyer_comp.cash + refund, 2)
+                refund = await remaining_buy_escrow(session, buy_order)
+                buyer_comp.cash = float(money(Decimal(str(buyer_comp.cash)) + refund))
                 buy_order.status = "CANCELLED"
                 buy_order.closed_at = now
                 await session.flush()
                 continue
 
-            # Buyer escrowed limit price on order creation. Refund price improvement only.
-            price_diff = round((buy_order.price - trade_price) * trade_qty, 2)
             if price_diff > 0:
-                buyer_comp.cash = round(buyer_comp.cash + price_diff, 2)
-            seller_proceeds = round(total_amount - fee, 2)
+                buyer_comp.cash = float(money(Decimal(str(buyer_comp.cash)) + price_diff))
+            seller_proceeds = total_amount - fee
             dividend_withheld = await DividendService.accrue_cash_inflow(
-                session, seller_comp, seller_proceeds, now=now
+                session, seller_comp, float(seller_proceeds), now=now
             )
-            seller_comp.cash = round(
-                seller_comp.cash + seller_proceeds - dividend_withheld, 2
+            seller_comp.cash = float(money(Decimal(str(seller_comp.cash)) + seller_proceeds - Decimal(str(dividend_withheld))))
+            await CompanyProfitLedgerService.record(
+                session,
+                seller_comp.id,
+                now,
+                revenue=float(total_amount),
+                cost_of_goods_sold=seller_cogs,
+                other_expenses=float(fee),
             )
 
-            seller_inv.quantity = round(seller_inv.quantity - trade_qty, 4)
-            seller_inv.reserved_quantity = round(max(0.0, seller_inv.reserved_quantity - trade_qty), 4)
+            seller_inv.quantity = round(max(0.0, seller_inv.quantity - trade_qty), MARKET_QUANTITY_DECIMALS)
+            seller_inv.reserved_quantity = round(max(0.0, seller_inv.reserved_quantity - trade_qty), MARKET_QUANTITY_DECIMALS)
 
             if not buyer_inv:
                 buyer_inv = NatInventory(
                     company_id=buyer_comp.id,
                     item_id=item_id,
-                    quantity=trade_qty,
+                    quantity=round(trade_qty, MARKET_QUANTITY_DECIMALS),
                     reserved_quantity=0.0,
                     avg_cost_basis=trade_price
                 )
                 session.add(buyer_inv)
             else:
                 old_qty = buyer_inv.quantity
-                new_qty = old_qty + trade_qty
+                new_qty = round(old_qty + trade_qty, MARKET_QUANTITY_DECIMALS)
                 if new_qty > 0:
                     buyer_inv.avg_cost_basis = round(
-                        ((old_qty * buyer_inv.avg_cost_basis) + total_amount) / new_qty, 4
+                        ((old_qty * buyer_inv.avg_cost_basis) + float(total_amount)) / new_qty, 4
                     )
-                buyer_inv.quantity = round(new_qty, 4)
+                buyer_inv.quantity = new_qty
 
             # Update orders
-            buy_order.remaining_qty -= trade_qty
+            buy_order.remaining_qty = round(max(0.0, buy_order.remaining_qty - trade_qty), MARKET_QUANTITY_DECIMALS)
             if buy_order.remaining_qty <= 0:
                 buy_order.status = "FILLED"
                 buy_order.closed_at = now
+                buyer_comp.cash = float(money(
+                    Decimal(str(buyer_comp.cash)) + max(Decimal(0), available_escrow - total_amount - price_diff)
+                ))
 
-            sell_order.remaining_qty -= trade_qty
+            sell_order.remaining_qty = round(max(0.0, sell_order.remaining_qty - trade_qty), MARKET_QUANTITY_DECIMALS)
             if sell_order.remaining_qty <= 0:
                 sell_order.status = "FILLED"
                 sell_order.closed_at = now
@@ -310,8 +350,8 @@ class MarketService:
                 item_id=item_id,
                 price=trade_price,
                 quantity=trade_qty,
-                total_amount=total_amount,
-                fee_amount=fee,
+                total_amount=float(total_amount),
+                fee_amount=float(fee),
                 executed_at=now
             )
             session.add(trade)
@@ -319,8 +359,8 @@ class MarketService:
             # Update daily financials for buyer (opex) and seller (revenue)
             today = get_game_today()
             for comp_id, rev_delta, opex_delta in [
-                (buyer_comp.id, 0.0, total_amount),
-                (seller_comp.id, round(total_amount - fee, 2), 0.0)
+                (buyer_comp.id, 0.0, float(total_amount)),
+                (seller_comp.id, float(seller_proceeds), 0.0)
             ]:
                 f_res = await session.execute(
                     select(NatDailyFinancials).where(
@@ -351,39 +391,4 @@ class MarketService:
 
     @classmethod
     async def cancel_order(cls, session: AsyncSession, company: NatCompany, order_id: int, commit: bool = True) -> bool:
-        locked_company = (await session.execute(
-            select(NatCompany).where(NatCompany.id == company.id).with_for_update()
-        )).scalar_one_or_none()
-        company = locked_company or company
-        order_res = await session.execute(
-            select(NatMarketOrder).where(
-                NatMarketOrder.id == order_id,
-                NatMarketOrder.company_id == company.id,
-                NatMarketOrder.status == "ACTIVE"
-            ).with_for_update()
-        )
-        order = order_res.scalar_one_or_none()
-        if not order:
-            return False
-
-        if order.order_type == "BUY":
-            refund_amount = round(order.price * order.remaining_qty, 2)
-            company.cash += refund_amount
-        elif order.order_type == "SELL":
-            inv_res = await session.execute(
-                select(NatInventory).where(
-                    NatInventory.company_id == company.id,
-                    NatInventory.item_id == order.item_id
-                ).with_for_update()
-            )
-            inv = inv_res.scalar_one_or_none()
-            if inv:
-                inv.reserved_quantity = max(0.0, inv.reserved_quantity - order.remaining_qty)
-
-        order.status = "CANCELLED"
-        order.closed_at = get_game_now()
-        if commit:
-            await session.commit()
-        else:
-            await session.flush()
-        return True
+        return await cancel_market_order(session, company, order_id, commit=commit)

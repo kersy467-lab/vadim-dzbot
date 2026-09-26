@@ -17,6 +17,7 @@ from backend.natbirzha.models.stocks import (
     NatStock,
     NatStockHolding,
 )
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod
 from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
 from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
@@ -88,12 +89,21 @@ def test_ipo_dividend_pool_reconciles_hour_profit_and_pays_once() -> None:
             assert paid["payment_count"] == 1
             assert paid["total_paid"] == 5
             assert holder.cash == 505
+            holder_tax_period = await session.scalar(select(NatCompanyProfitPeriod).where(
+                NatCompanyProfitPeriod.company_id == holder.id
+            ))
+            assert holder_tax_period is not None, "Received IPO dividends must enter the holder's net-profit ledger"
+            assert holder_tax_period.financial_income == 5
 
             replay = await DividendService.settle_due_hourly(
                 session, now=hour_start + timedelta(hours=1)
             )
             assert replay["payment_count"] == 0
             assert holder.cash == 505
+            holder_tax_period = await session.scalar(select(NatCompanyProfitPeriod).where(
+                NatCompanyProfitPeriod.company_id == holder.id
+            ))
+            assert holder_tax_period is not None and holder_tax_period.financial_income == 5
 
         await engine.dispose()
 

@@ -1,16 +1,14 @@
-"""Mandatory 12-hour period profit tax, 12h grace period, 3% hourly simple penalty and production blocking."""
+"""Mandatory 12-hour net-profit tax, immediate production blocking and 3% hourly simple penalty."""
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import get_game_now, nat_settings
-from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily, NatBusinessIncomePeriod
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.tax import NatTaxPeriod
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod, NatTaxPeriod
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
-from backend.natbirzha.services.sabotage_service import SabotageService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 from backend.natbirzha.tax_rules import (
     calculate_hourly_penalty,
@@ -32,81 +30,36 @@ def _normalize_time(now: datetime | None = None, today: date | None = None) -> d
 
 
 class TaxService:
-    """Authoritative tax on positive closed 12-hour operating profit with 12h grace and +3%/hour simple penalty."""
+    """Tax positive realized net profit per closed 12-hour period; penalties are simple +3%/hour."""
 
     @classmethod
     def _is_overdue(cls, row: NatTaxPeriod, now: datetime) -> bool:
-        return row.outstanding > 0 and now > period_grace_until(row.period_end)
+        return row.outstanding > 0 and now >= period_grace_until(row.period_end)
 
     @classmethod
     async def _profit_by_period(
         cls, session: AsyncSession, company_id: int, before: datetime
     ) -> dict[tuple[datetime, datetime], float]:
-        """Aggregate net profits for all 12-hour periods that ended on or before `before`."""
-        period_rows = (await session.execute(
-            select(
-                NatBusinessIncomePeriod.period_start,
-                NatBusinessIncomePeriod.period_end,
-                func.sum(NatBusinessIncomePeriod.net_profit),
+        """Return realized net profit for all closed company periods."""
+        rows = (await session.execute(
+            select(NatCompanyProfitPeriod).where(
+                NatCompanyProfitPeriod.company_id == company_id,
+                NatCompanyProfitPeriod.period_end <= before,
             )
-            .join(NatBusiness, NatBusiness.id == NatBusinessIncomePeriod.business_id)
-            .where(
-                NatBusiness.company_id == company_id,
-                NatBusinessIncomePeriod.period_end <= before,
-            )
-            .group_by(NatBusinessIncomePeriod.period_start, NatBusinessIncomePeriod.period_end)
-        )).all()
-
-        result: dict[tuple[datetime, datetime], float] = {
-            (p_start, p_end): round(float(profit or 0.0), 2)
-            for p_start, p_end, profit in period_rows
+        )).scalars().all()
+        return {
+            (row.period_start, row.period_end): round(float(row.net_profit), 2)
+            for row in rows
         }
-        if result:
-            return result
-
-        # Fallback for datasets with NatBusinessIncomeDaily rows
-        daily_rows = (await session.execute(
-            select(NatBusinessIncomeDaily.date, func.sum(NatBusinessIncomeDaily.net_profit))
-            .join(NatBusiness, NatBusiness.id == NatBusinessIncomeDaily.business_id)
-            .where(
-                NatBusiness.company_id == company_id,
-                NatBusinessIncomeDaily.date <= before.date(),
-            )
-            .group_by(NatBusinessIncomeDaily.date)
-        )).all()
-
-        for day, profit in daily_rows:
-            p_val = round(float(profit or 0.0), 2)
-            p1_start = datetime.combine(day, time(0, 0, 0))
-            p1_end = datetime.combine(day, time(12, 0, 0))
-            p2_start = datetime.combine(day, time(12, 0, 0))
-            p2_end = datetime.combine(day + timedelta(days=1), time(0, 0, 0))
-            if p1_end <= before:
-                result[(p1_start, p1_end)] = round(p_val / 2, 2)
-            if p2_end <= before:
-                result[(p2_start, p2_end)] = round(p_val - round(p_val / 2, 2), 2)
-
-        return result
 
     @classmethod
     async def _current_period_profit(cls, session: AsyncSession, company_id: int, now: datetime) -> float:
         p_start, _ = get_period_bounds(now)
-        value = await session.scalar(
-            select(func.sum(NatBusinessIncomePeriod.net_profit))
-            .join(NatBusiness, NatBusiness.id == NatBusinessIncomePeriod.business_id)
-            .where(
-                NatBusiness.company_id == company_id,
-                NatBusinessIncomePeriod.period_start == p_start,
-            )
-        )
-        if value is not None:
-            return round(float(value), 2)
-        today_val = await session.scalar(
-            select(func.sum(NatBusinessIncomeDaily.net_profit))
-            .join(NatBusiness, NatBusiness.id == NatBusinessIncomeDaily.business_id)
-            .where(NatBusiness.company_id == company_id, NatBusinessIncomeDaily.date == now.date())
-        )
-        return round(float(today_val or 0.0), 2)
+        row = await session.scalar(select(NatCompanyProfitPeriod).where(
+            NatCompanyProfitPeriod.company_id == company_id,
+            NatCompanyProfitPeriod.period_start == p_start,
+        ))
+        return round(float(row.net_profit), 2) if row is not None else 0.0
 
     @classmethod
     async def sync_company(
@@ -127,7 +80,7 @@ class TaxService:
             .with_for_update()
         )).scalars().all())
         by_start = {row.period_start: row for row in rows}
-        rate = max(0.0, float(SabotageService.get_tax_rate()))
+        rate = max(0.0, float(nat_settings.TAX_RATE))
 
         for (p_start, p_end), profit in profits.items():
             taxable = max(0.0, profit)
@@ -147,9 +100,9 @@ class TaxService:
                 session.add(row)
                 rows.append(row)
                 by_start[p_start] = row
-            else:
-                row.taxable_profit = taxable
-                row.principal = principal
+            # Existing liabilities are immutable at rollout. In particular,
+            # historical rows must not be erased or recalculated from the new
+            # realized-sales ledger after their old basis has been frozen.
 
         for row in rows:
             grace = period_grace_until(row.period_end)
@@ -184,7 +137,7 @@ class TaxService:
         penalty_due = max(0.0, total_due - principal_due)
         next_block_dt = period_grace_until(oldest.period_end) if oldest else None
         current_profit = await cls._current_period_profit(session, company_id, current_dt)
-        effective_rate = SabotageService.get_tax_rate()
+        effective_rate = float(nat_settings.TAX_RATE)
         hours_until_block = max(0, int((next_block_dt - current_dt).total_seconds() // 3600)) if next_block_dt else None
 
         return {
@@ -205,8 +158,8 @@ class TaxService:
             "next_block_date": next_block_dt.isoformat() if next_block_dt else None,
             "hours_until_block": hours_until_block,
             "days_until_block": max(0, int((next_block_dt - current_dt).total_seconds() // 86400)) if next_block_dt else None,
-            "today_profit": current_profit,
-            "today_estimated_tax": round(max(0.0, current_profit) * float(effective_rate), 2),
+            "current_period_realized_profit": current_profit,
+            "current_period_estimated_tax": round(max(0.0, current_profit) * float(effective_rate), 2),
             "liabilities": [cls._serialize_row(row, current_dt) for row in reversed(rows[-14:])],
         }
 

@@ -27,7 +27,11 @@ RECRUITMENT_CATALOG: Mapping[str, Mapping[str, Any]] = MappingProxyType(
         "drones": {"cash_cost": 500.0, "items": {"electronics": 1.0}},
         "aircraft": {
             "cash_cost": 5000.0,
-            "items": {"aluminum": 2.0, "electronics": 2.0, "jet_fuel": 10.0},
+            "items": {
+                "aluminum": 2.0, "electronics": 2.0, "jet_fuel": 10.0,
+                "advanced_alloy": 0.5, "advanced_composite": 0.5,
+                "titanium_alloy": 0.25,
+            },
         },
         "air_defense": {
             "cash_cost": 1500.0,

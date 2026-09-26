@@ -3,6 +3,7 @@
 import asyncio
 from datetime import timedelta
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -173,8 +174,123 @@ def test_ipo_company_withholds_dividends_from_net_market_sale_proceeds() -> None
     asyncio.run(check())
 
 
+def test_fragmented_market_fills_cannot_create_cash() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            buyer = NatCompany(user_id=70_031, name="Fragment buyer", specialization="miner", cash=1.0)
+            sellers = [
+                NatCompany(user_id=70_032 + index, name=f"Fragment seller {index}", specialization="agrarian", cash=0.0)
+                for index in range(2)
+            ]
+            session.add_all([buyer, *sellers])
+            await session.flush()
+            for seller in sellers:
+                session.add(NatInventory(
+                    company_id=seller.id,
+                    item_id="steel",
+                    quantity=0.006,
+                    reserved_quantity=0.0,
+                    avg_cost_basis=0.0,
+                ))
+            await session.flush()
+
+            starting_cash = buyer.cash + sum(seller.cash for seller in sellers)
+            for seller in sellers:
+                await MarketService.create_order(
+                    session, seller, "SELL", "steel", 1.0, 0.006, commit=False
+                )
+            buyer_order = await MarketService.create_order(
+                session, buyer, "BUY", "steel", 1.0, 0.012, commit=False
+            )
+
+            assert buyer_order.status == "FILLED"
+            assert buyer.cash + sum(seller.cash for seller in sellers) == pytest.approx(starting_cash)
+            trades = (await session.execute(select(NatMarketTrade).where(
+                NatMarketTrade.buy_order_id == buyer_order.id
+            ))).scalars().all()
+            assert sum(trade.total_amount for trade in trades) == pytest.approx(0.01)
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_market_rejects_quantity_more_precise_than_supported_storage() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            seller = NatCompany(user_id=70_041, name="Dust seller", specialization="miner", cash=100)
+            buyer = NatCompany(user_id=70_042, name="Dust buyer", specialization="agrarian", cash=100)
+            session.add_all([seller, buyer])
+            await session.flush()
+            seller_inventory = NatInventory(
+                company_id=seller.id, item_id="steel", quantity=1.0,
+                reserved_quantity=0.0, avg_cost_basis=1.0,
+            )
+            session.add(seller_inventory)
+            await session.flush()
+
+            with pytest.raises(ValueError, match="0.000001"):
+                await MarketService.create_order(
+                    session, seller, "SELL", "steel", 10.0, 0.0000004, commit=False
+                )
+            assert seller_inventory.quantity == 1.0
+            assert seller_inventory.reserved_quantity == 0.0
+            assert await session.scalar(select(NatMarketTrade.id)) is None
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_market_fill_preserves_six_decimal_inventory_quantities() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            seller = NatCompany(user_id=70_051, name="Precise seller", specialization="miner", cash=0)
+            buyer = NatCompany(user_id=70_052, name="Precise buyer", specialization="agrarian", cash=100)
+            session.add_all([seller, buyer])
+            await session.flush()
+            seller_inventory = NatInventory(
+                company_id=seller.id, item_id="steel", quantity=1.00015,
+                reserved_quantity=0.0, avg_cost_basis=1.0,
+            )
+            session.add(seller_inventory)
+            await session.flush()
+
+            await MarketService.create_order(
+                session, seller, "SELL", "steel", 100.0, 0.0001, commit=False
+            )
+            await MarketService.create_order(
+                session, buyer, "BUY", "steel", 100.0, 0.0001, commit=False
+            )
+            buyer_inventory = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == buyer.id, NatInventory.item_id == "steel"
+            ))
+
+            assert buyer_inventory is not None
+            assert seller_inventory.quantity + buyer_inventory.quantity == pytest.approx(1.00015)
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
 if __name__ == "__main__":
     test_market_orderbook_returns_active_orders_for_authenticated_company()
     test_matching_skips_top_bid_when_only_its_own_ask_is_available()
     test_ipo_company_withholds_dividends_from_net_market_sale_proceeds()
+    test_fragmented_market_fills_cannot_create_cash()
+    test_market_rejects_quantity_more_precise_than_supported_storage()
+    test_market_fill_preserves_six_decimal_inventory_quantities()
     print("NATBIRZHA market orderbook regressions: PASS")

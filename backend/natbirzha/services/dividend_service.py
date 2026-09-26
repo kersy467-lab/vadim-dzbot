@@ -15,6 +15,7 @@ from backend.natbirzha.models.stocks import (
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
 from backend.natbirzha.services.hourly_dividend_accrual import HourlyDividendAccrualService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 
 class DividendService:
     @classmethod
@@ -127,6 +128,9 @@ class DividendService:
                     continue
                 reinvested_dividend = await cls.accrue_cash_inflow(
                     session, holder, payout, now=current
+                )
+                await CompanyProfitLedgerService.record(
+                    session, holder.id, current, financial_income=payout
                 )
                 holder.cash = round(float(holder.cash) + payout - reinvested_dividend, 2)
                 session.add(NatHourlyDividendPayment(
@@ -283,6 +287,9 @@ class DividendService:
                     paid_at = get_game_now()
                     reinvested_dividend = await cls.accrue_cash_inflow(
                         session, holder_comp, payout, now=paid_at
+                    )
+                    await CompanyProfitLedgerService.record(
+                        session, holder_comp.id, paid_at, financial_income=payout
                     )
                     holder_comp.cash = round(
                         holder_comp.cash + payout - reinvested_dividend, 2

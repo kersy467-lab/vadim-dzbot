@@ -84,6 +84,9 @@ class NatFactory(Base):
     cycle_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     cycle_ready_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     cycle_input_cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    # Snapshot of the total multiplier funded by inputs when this cycle began.
+    # Nullable for cycles already in progress when the migration is deployed.
+    cycle_output_multiplier: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     last_produced_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

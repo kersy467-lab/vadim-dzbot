@@ -10,6 +10,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatBondSettlement, NatStateBondHolding, NatStateTreasury
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod
 from backend.natbirzha.services.state_credit_service import StateCreditService
 from backend.natbirzha.services.state_bond_service import StateBondService
 
@@ -102,6 +103,10 @@ async def run_async() -> None:
         await session.commit()
         assert round(seller.cash - seller_before, 2) == 6_000
         assert round(buyer.cash - buyer_before, 2) == 4_000
+        principal_only_income = await session.scalar(select(NatCompanyProfitPeriod.id).where(
+            NatCompanyProfitPeriod.company_id.in_((seller_id, buyer_id))
+        ))
+        assert principal_only_income is None, "Bond principal repayment is capital return, not taxable income"
 
         settlement_count = await session.scalar(select(func.count(NatBondSettlement.id)))
         assert settlement_count == 2  # one principal settlement per holder

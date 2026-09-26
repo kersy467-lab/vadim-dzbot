@@ -543,7 +543,7 @@ async def _migrate_v8_reconcile_resource_gross_profit(conn) -> None:
     import json
     from backend.natbirzha.catalogs.businesses import get_business_spec
     from backend.natbirzha.models.business import NatBusiness
-    from backend.natbirzha.models.inventory import get_npc_buy_price
+    from backend.natbirzha.models.inventory import get_item_base_price
     from backend.natbirzha.services.business_rates import resource_business_rates
 
     rows = (await conn.execute(text("""
@@ -580,7 +580,7 @@ async def _migrate_v8_reconcile_resource_gross_profit(conn) -> None:
         if worked_hours <= 0:
             continue
         hourly_val = sum(
-            float(qty) * rates.output_multiplier * get_npc_buy_price(item_id)
+            float(qty) * rates.output_multiplier * get_item_base_price(item_id)
             for item_id, qty in spec.get("outputs_per_hour", {}).items()
         )
         gross = round(hourly_val * worked_hours, 2)
@@ -642,6 +642,54 @@ async def _migrate_v11_tax_12h_periods(conn) -> None:
     ].create(sync_conn, checkfirst=True))
 
 
+async def _migrate_v12_factory_cycle_multiplier(conn) -> None:
+    """Persist the funded output multiplier for running legacy factory cycles."""
+    await _add_columns(conn, "nat_factories", {
+        "cycle_output_multiplier": "FLOAT",
+    })
+
+
+async def _migrate_v13_realized_company_profit_tax(conn) -> None:
+    """Create the realized company-period ledger and freeze existing tax bases."""
+    if not await _table_exists(conn, "nat_companies"):
+        return
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    await conn.run_sync(lambda sync_conn: Base.metadata.tables[
+        "nat_company_profit_periods"
+    ].create(sync_conn, checkfirst=True))
+
+    # Old business ledgers mark held output to market value and cannot reliably
+    # distinguish unsold stock from realized sales. Preserve assessed tax rows
+    # as frozen legacy profit instead of recalculating their existing liability.
+    if await _table_exists(conn, "nat_tax_periods"):
+        await conn.execute(text("""
+            INSERT INTO nat_company_profit_periods (
+                company_id, period_start, period_end, legacy_taxable_profit,
+                realized_revenue, cost_of_goods_sold, maintenance_expense,
+                salary_expense, other_expenses,
+                created_at, updated_at
+            )
+            SELECT t.company_id, t.period_start, t.period_end, t.taxable_profit,
+                   0, 0, 0, 0, 0,
+                   CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            FROM nat_tax_periods t
+            WHERE NOT EXISTS (
+                SELECT 1 FROM nat_company_profit_periods p
+                WHERE p.company_id = t.company_id
+                  AND p.period_start = t.period_start
+            )
+        """))
+
+
+async def _migrate_v14_company_financial_income_tax(conn) -> None:
+    """Include realized investment coupons/dividends in company net-profit periods."""
+    await _add_columns(conn, "nat_company_profit_periods", {
+        "financial_income": "FLOAT NOT NULL DEFAULT 0",
+    })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -669,6 +717,9 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v9_001_sabotages_and_tournament_bigint", _migrate_v9_sabotages_and_tournament_bigint),
     ("natbirzha_v10_001_player_supply_deals", _migrate_v10_player_supply_deals),
     ("natbirzha_v11_001_tax_12h_periods", _migrate_v11_tax_12h_periods),
+    ("natbirzha_v12_001_factory_cycle_multiplier", _migrate_v12_factory_cycle_multiplier),
+    ("natbirzha_v13_001_realized_company_profit_tax", _migrate_v13_realized_company_profit_tax),
+    ("natbirzha_v14_001_company_financial_income_tax", _migrate_v14_company_financial_income_tax),
 )
 
 

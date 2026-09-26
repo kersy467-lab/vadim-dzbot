@@ -22,7 +22,9 @@ from backend.natbirzha.models.player_deals import NatSupplyDeal, NatSupplyDealSe
 from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
 from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.dividend_service import DividendService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.market_procurement_service import MarketProcurementService
+from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
 from backend.natbirzha.services.production_service import ProductionTickEngine
 
 
@@ -281,6 +283,12 @@ class SupplyDealService:
             withheld = await DividendService.accrue_cash_inflow(session, supplier, amount, now=current)
             supplier.cash = round(float(supplier.cash) + amount - withheld, 2)
             deal.fixed_cash_paid = amount
+            await CompanyProfitLedgerService.record(
+                session, buyer.id, current, other_expenses=amount
+            )
+            await CompanyProfitLedgerService.record(
+                session, supplier.id, current, revenue=amount
+            )
             session.add(NatSupplyDealSettlement(
                 deal_id=deal.id,
                 idempotency_key=f"fixed:{deal.id}",
@@ -555,6 +563,12 @@ class SupplyDealService:
                     continue
                 withheld = await DividendService.accrue_cash_inflow(session, supplier, payout, now=normalize_dt(now))
                 supplier.cash = round(float(supplier.cash) + payout - withheld, 6)
+                await CompanyProfitLedgerService.record(
+                    session, buyer.id, normalize_dt(now), other_expenses=payout
+                )
+                await CompanyProfitLedgerService.record(
+                    session, supplier.id, normalize_dt(now), revenue=payout
+                )
                 deal.profit_share_paid = round(float(deal.profit_share_paid or 0) + payout, 6)
                 await cls._record_daily_financials(session, buyer.id, supplier.id, payout, normalize_dt(now))
                 supplier_business = await session.scalar(select(NatBusiness).where(
@@ -653,7 +667,10 @@ class SupplyDealService:
             reference = await cls.current_reference_price(session, deal.item_id, exclude_company_id=buyer.id)
             unit_price = round(max(0.000001, reference * (1 - float(deal.discount_pct) / 100)), 6)
             buyer_quantity = float(inventory.quantity) if inventory else 0.0
-            storage_free = max(0.0, float(nat_settings.INVENTORY_MAX_QUANTITY_PER_ITEM) - buyer_quantity)
+            storage_cap = await InventoryCapacityService.for_item(
+                session, buyer, deal.item_id
+            )
+            storage_free = max(0.0, storage_cap - buyer_quantity)
             cash_affordable = max(0.0, float(buyer.cash)) / unit_price
             quantity = round(min(needed, quota, supplier_available, storage_free, cash_affordable), 6)
             if quantity <= 1e-9:
@@ -661,6 +678,9 @@ class SupplyDealService:
             amount = round(quantity * unit_price, 6)
             if amount <= 0 or float(buyer.cash) + 1e-9 < amount:
                 continue
+            seller_cogs = round(
+                quantity * max(0.0, float(supplier_inventory.avg_cost_basis or 0.0)), 6
+            )
             if inventory is None:
                 inventory = NatInventory(
                     company_id=buyer.id,
@@ -684,6 +704,13 @@ class SupplyDealService:
                 raise ValueError("Поставщик недоступен")
             dividend_withheld = await DividendService.accrue_cash_inflow(session, supplier, amount, now=normalize_dt(now))
             supplier.cash = round(float(supplier.cash) + amount - dividend_withheld, 6)
+            await CompanyProfitLedgerService.record(
+                session,
+                supplier.id,
+                normalize_dt(now),
+                revenue=amount,
+                cost_of_goods_sold=seller_cogs,
+            )
             deal.delivered_quantity = round(float(deal.delivered_quantity or 0) + quantity, 6)
             deal.resource_cash_paid = round(float(deal.resource_cash_paid or 0) + amount, 6)
             deal.settlement_cursor = max(normalize_dt(deal.settlement_cursor) if deal.settlement_cursor else active_end, active_end)

@@ -11,7 +11,11 @@ from backend.natbirzha.catalogs.businesses import (
     validate_business_catalog,
     visible_business_specs,
 )
-from backend.natbirzha.models.inventory import CANONICAL_ITEMS, get_npc_buy_price, get_npc_sell_price
+from backend.natbirzha.config import nat_settings
+from backend.natbirzha.models.business import NatBusiness
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS
+from backend.natbirzha.services.business_investment import investment_curve
+from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.business_service import BusinessService
 
 
@@ -56,70 +60,51 @@ def test_v2_catalog_has_valid_expensive_long_progression() -> None:
     assert coal["milestones"][50]["label"] == "Автоматизированный угольный комплекс"
 
 
-def test_every_career_business_is_viable_through_state_fallback() -> None:
-    """NPC is a bad-price safety net, never an accidental permanent loss loop."""
+def test_every_career_business_is_profitable_at_reference_market_prices() -> None:
+    """Player-market reference prices define the investment return curve."""
     for spec in CAREER_BUSINESSES.values():
+        rates = resource_business_rates(
+            NatBusiness(stage=1, efficiency=1, health=100,
+                base_maintenance_per_hour=spec["base_maintenance_per_hour"], metadata_json={}),
+            spec, upgrading=False,
+        )
         revenue = sum(
-            float(quantity) * get_npc_buy_price(item_id)
+            float(quantity) * CANONICAL_ITEMS[item_id]["base_price"] * rates.output_multiplier
             for item_id, quantity in spec["outputs_per_hour"].items()
         )
         input_cost = sum(
-            float(quantity) * get_npc_sell_price(item_id)
+            float(quantity) * CANONICAL_ITEMS[item_id]["base_price"] * rates.input_multiplier
             for item_id, quantity in spec["inputs_per_hour"].items()
         )
-        net = revenue - input_cost - float(spec["base_maintenance_per_hour"])
-        assert net > 0, spec["id"]
-        construction_cost = sum(
-            float(quantity) * get_npc_sell_price(item_id)
-            for item_id, quantity in spec["open_resources"].items()
-        )
-        actual_roi = (float(spec["open_cost"]) + construction_cost) / net
-        target_roi = float(spec["target_open_roi_hours"])
-        if spec["inputs_per_hour"].get("water", 0) > 0:
-            # Water use was reduced; retain catalog output so these businesses
-            # recover the saved water cost as a shorter ROI.
-            assert actual_roi <= target_roi * 1.02, spec["id"]
-        else:
-            assert abs(actual_roi - target_roi) <= target_roi * 0.02, spec["id"]
+        profit_after_tax = (revenue - input_cost - rates.maintenance_per_hour) * (1 - nat_settings.TAX_RATE)
+        assert profit_after_tax > 0, spec["id"]
+        opening_capital = investment_curve(spec)[1]
+        assert abs(opening_capital / profit_after_tax - spec["target_open_roi_hours"]) <= .05, spec["id"]
 
 
-def test_water_demand_multiplier_preserves_water_processor_fallback_margin() -> None:
+def test_water_demand_multiplier_preserves_price_and_target_return() -> None:
     for business_id in ("water_treatment", "deep_water_treatment"):
         spec = CAREER_BUSINESSES[business_id]
-        revenue = sum(
-            float(quantity) * get_npc_buy_price(item_id)
-            for item_id, quantity in spec["outputs_per_hour"].items()
-        )
-        input_cost = sum(
-            float(quantity) * get_npc_sell_price(item_id)
-            for item_id, quantity in spec["inputs_per_hour"].items()
-        )
-        net = revenue - input_cost - float(spec["base_maintenance_per_hour"])
-        actual_roi = (float(spec["open_cost"]) + sum(
-            float(quantity) * get_npc_sell_price(item_id)
-            for item_id, quantity in spec["open_resources"].items()
-        )) / net
-        target_roi = float(spec["target_open_roi_hours"])
-        assert net > 0, business_id
-        assert actual_roi < target_roi, business_id
+        assert spec["inputs_per_hour"].get("water", 0) > 0, business_id
+        assert CANONICAL_ITEMS["water"]["base_price"] == 2
+        assert spec["stage_rates"][1]["payback_hours"] == spec["target_open_roi_hours"]
 
 
 def _career_profit_per_hour(spec: dict, stage: int) -> float:
-    input_multiplier = float(spec["input_growth"]) ** (stage - 1)
-    output_multiplier = float(spec["output_growth"]) ** (stage - 1)
-    for milestone_stage, milestone in spec["milestones"].items():
-        if stage >= int(milestone_stage):
-            input_multiplier *= float(milestone.get("input_multiplier", 1.0))
-            output_multiplier *= float(milestone.get("output_multiplier", 1.0))
+    rates = resource_business_rates(
+        NatBusiness(stage=stage, efficiency=1, health=100,
+            base_maintenance_per_hour=spec["base_maintenance_per_hour"], metadata_json={}),
+        spec, upgrading=False,
+    )
     revenue = sum(
-        float(quantity) * output_multiplier * get_npc_buy_price(item_id)
+        float(quantity) * CANONICAL_ITEMS[item_id]["base_price"] * rates.output_multiplier
         for item_id, quantity in spec["outputs_per_hour"].items()
     )
     inputs = sum(
-        float(quantity) * input_multiplier * get_npc_sell_price(item_id)
+        float(quantity) * CANONICAL_ITEMS[item_id]["base_price"] * rates.input_multiplier
         for item_id, quantity in spec["inputs_per_hour"].items()
     )
-    return revenue - inputs - float(spec["base_maintenance_per_hour"])
+    return (revenue - inputs - rates.maintenance_per_hour) * (1 - nat_settings.TAX_RATE)
 
 
 def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() -> None:
@@ -132,14 +117,13 @@ def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() 
     assert all(left < right for left, right in zip(targets, targets[1:]))
 
     for spec in CAREER_BUSINESSES.values():
-        first_profit = _career_profit_per_hour(spec, 1)
         target_roi = float(spec["target_open_roi_hours"])
         for stage in range(1, int(spec["max_stage"])):
             current_profit = _career_profit_per_hour(spec, stage)
             next_profit = _career_profit_per_hour(spec, stage + 1)
             quote = BusinessService.upgrade_quote(spec, stage)
             milestone_cost = sum(
-                float(quantity) * get_npc_sell_price(item_id)
+                float(quantity) * CANONICAL_ITEMS[item_id]["base_price"]
                 for item_id, quantity in (quote.get("milestone") or {}).get("resources", {}).items()
             )
             all_in_cost = float(quote["cost"]) + milestone_cost
@@ -147,7 +131,14 @@ def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() 
             payback = all_in_cost / marginal_profit if marginal_profit > 0 else float("inf")
             assert marginal_profit > 0, (spec["id"], stage)
             assert payback <= target_roi, (spec["id"], stage, payback, target_roi)
-        assert _career_profit_per_hour(spec, 10) >= first_profit * 2, spec["id"]
+        assert abs(
+            investment_curve(spec)[1] / _career_profit_per_hour(spec, 1) - target_roi
+        ) <= .05, spec["id"]
+        assert abs(
+            investment_curve(spec)[spec["max_stage"]]
+            / _career_profit_per_hour(spec, spec["max_stage"])
+            - 8.5
+        ) <= .05, spec["id"]
 
 
 def test_nonstarter_enterprises_require_cross_industry_opening_resources() -> None:

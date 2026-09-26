@@ -11,7 +11,12 @@ from backend.natbirzha.config import get_game_now, nat_settings, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.business_assets import NatBusinessSupplyPolicy
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.inventory import NatInventory, get_npc_buy_price, get_npc_sell_price
+from backend.natbirzha.models.inventory import (
+    CANONICAL_ITEMS,
+    NatInventory,
+    get_npc_buy_price,
+    get_npc_sell_price,
+)
 from backend.natbirzha.services.business_rates import cash_business_rates, resource_business_rates
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
@@ -25,15 +30,28 @@ class EmpireSummaryService:
     """Build presentation data without trusting the client with game formulas."""
 
     @staticmethod
-    def _resource_value(entries: dict[str, float], *, selling: bool) -> float:
-        price = get_npc_buy_price if selling else get_npc_sell_price
+    def _resource_value(
+        entries: dict[str, float], *, selling: bool, reference_price: bool = False
+    ) -> float:
+        npc_price = get_npc_buy_price if selling else get_npc_sell_price
         total = 0.0
         for item_id, quantity in entries.items():
             try:
-                total += float(quantity) * price(item_id)
-            except ValueError:
+                unit_price = (
+                    float(CANONICAL_ITEMS[item_id]["base_price"])
+                    if reference_price
+                    else npc_price(item_id)
+                )
+                total += float(quantity) * unit_price
+            except (KeyError, TypeError, ValueError):
                 continue
         return total
+
+    @staticmethod
+    def _after_tax_profit(profit: float) -> float:
+        taxable_profit = max(0.0, float(profit))
+        tax_rate = max(0.0, float(nat_settings.TAX_RATE))
+        return float(profit) - taxable_profit * tax_rate
 
     @classmethod
     def _serialize_business(
@@ -90,10 +108,19 @@ class EmpireSummaryService:
                 item_id: round(float(inventory.get(item_id, 0.0)) / rate, 2)
                 for item_id, rate in inputs.items() if rate > 0
             }
-            revenue = cls._resource_value(outputs, selling=True)
-            input_cost = cls._resource_value(inputs, selling=False)
+            # Resource throughput is an inventory valuation, not a cash receipt.
+            # The primary estimate follows the canonical reference prices used
+            # to balance the catalog; NPC trading remains a separate stress case.
+            revenue = cls._resource_value(outputs, selling=True, reference_price=True)
+            input_cost = cls._resource_value(inputs, selling=False, reference_price=True)
             maintenance = rates.maintenance_per_hour
-            estimated_profit = revenue - input_cost - maintenance
+            estimated_profit_before_tax = revenue - input_cost - maintenance
+            estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
+            npc_revenue = cls._resource_value(outputs, selling=True)
+            npc_input_cost = cls._resource_value(inputs, selling=False)
+            npc_profit_before_tax = npc_revenue - npc_input_cost - maintenance
+            estimated_npc_profit = cls._after_tax_profit(npc_profit_before_tax)
+            estimated_profit_basis = "MARKET_REFERENCE_VALUE"
             sale_mode = "HOLD"
             gross = 0.0
             net = gross - maintenance
@@ -110,7 +137,10 @@ class EmpireSummaryService:
             revenue = cash_rates.gross_per_hour
             input_cost = 0.0
             maintenance = cash_rates.maintenance_per_hour
-            estimated_profit = cash_rates.net_per_hour
+            estimated_profit_before_tax = cash_rates.net_per_hour
+            estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
+            estimated_npc_profit = None
+            estimated_profit_basis = "CASH"
             gross = cash_rates.gross_per_hour
             net = cash_rates.net_per_hour
 
@@ -154,6 +184,11 @@ class EmpireSummaryService:
             "estimated_revenue_per_hour": round(revenue, 2),
             "estimated_input_cost_per_hour": round(input_cost, 2),
             "estimated_profit_per_hour": round(estimated_profit, 2),
+            "estimated_profit_before_tax_per_hour": round(estimated_profit_before_tax, 2),
+            "estimated_profit_basis": estimated_profit_basis,
+            "estimated_npc_revenue_per_hour": round(npc_revenue, 2) if is_resource else None,
+            "estimated_npc_input_cost_per_hour": round(npc_input_cost, 2) if is_resource else None,
+            "estimated_npc_profit_per_hour": round(estimated_npc_profit, 2) if is_resource else None,
             "sale_mode": sale_mode,
             "autonomy_hours": round(autonomy, 2) if autonomy is not None else None,
             "stock_hours_by_item": stock_hours,
@@ -224,6 +259,12 @@ class EmpireSummaryService:
         gross = sum(item.get("gross_per_hour", 0.0) for item in serialized)
         expenses = sum(item.get("maintenance_per_hour", 0.0) for item in serialized)
         estimated_profit = sum(item.get("estimated_profit_per_hour", 0.0) for item in serialized)
+        estimated_npc_profit = sum(
+            item.get("estimated_profit_per_hour", 0.0)
+            if item.get("estimated_npc_profit_per_hour") is None
+            else item["estimated_npc_profit_per_hour"]
+            for item in serialized
+        )
         return {
             "company_id": company.id,
             "specialization": company.specialization,
@@ -238,6 +279,9 @@ class EmpireSummaryService:
             "expenses_per_hour": round(expenses, 2),
             "net_cash_per_hour": round(gross - expenses, 2),
             "estimated_profit_per_hour": round(estimated_profit, 2),
+            "estimated_npc_profit_per_hour": round(estimated_npc_profit, 2),
+            "estimated_tax_rate_pct": round(max(0.0, float(nat_settings.TAX_RATE)) * 100, 2),
+            "estimated_profit_basis": "MARKET_REFERENCE_VALUE_AND_CASH",
             "slots": BusinessCapacityService.slot_limits(company, used=used_slots, now=now),
             "slot_expansion": BusinessCapacityService.quote(company, now=now),
             "industry_upgrade": IndustryUpgradeService.quote(company),

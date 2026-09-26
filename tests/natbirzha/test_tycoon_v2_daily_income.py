@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
-from backend.natbirzha.models.business import NatBusinessIncomeDaily
-from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.catalogs.businesses import get_business_spec
+from backend.natbirzha.models.business import NatBusiness, NatBusinessIncomeDaily
+from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.business_service import BusinessService
+from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
 
@@ -28,22 +30,38 @@ def test_idle_settlements_accumulate_business_daily_profit() -> None:
             session.add(company)
             await session.flush()
             session.add_all([
-                NatInventory(company_id=company.id, item_id="energy", quantity=264),
-                NatInventory(company_id=company.id, item_id="water", quantity=200),
-                NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=6),
-                NatInventory(company_id=company.id, item_id="food", quantity=3),
+                NatInventory(company_id=company.id, item_id="energy", quantity=264, avg_cost_basis=10),
+                NatInventory(company_id=company.id, item_id="water", quantity=200, avg_cost_basis=2),
+                NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=6, avg_cost_basis=1.2),
+                NatInventory(company_id=company.id, item_id="food", quantity=3, avg_cost_basis=45),
             ])
             await session.commit()
             opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)
-            await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=1))
+            first = await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=1))
+            assert first["tax"]["principal_due"] == 0.0
+            assert first["tax_blocked"] is False
             await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=3))
 
             row = await session.scalar(select(NatBusinessIncomeDaily).where(
                 NatBusinessIncomeDaily.business_id == opened["business"]["id"]
             ))
-            assert row.gross_income == 8698.5
-            assert row.maintenance == 25.2
-            assert row.net_profit == 8673.3
+            business = await session.get(NatBusiness, opened["business"]["id"])
+            spec = get_business_spec(business.business_type)
+            rates = resource_business_rates(business, spec, upgrading=False)
+            expected_gross = sum(
+                float(quantity) * rates.output_multiplier * get_item_base_price(item_id) * 3
+                for item_id, quantity in spec["outputs_per_hour"].items()
+            )
+            expected_resource_cost = sum(
+                float(quantity) * rates.input_multiplier * get_item_base_price(item_id) * 3
+                for item_id, quantity in spec["inputs_per_hour"].items()
+            )
+            assert row.gross_income == round(expected_gross, 2)
+            assert row.maintenance == round(rates.maintenance_per_hour * 3, 2)
+            assert row.resource_cost == round(expected_resource_cost, 2)
+            assert row.net_profit == round(
+                expected_gross - rates.maintenance_per_hour * 3 - expected_resource_cost, 2
+            )
 
         await engine.dispose()
 
@@ -103,9 +121,16 @@ def test_v8_migration_reconciles_resource_gross_profit() -> None:
                 NatBusinessIncomeDaily.business_id == biz.id
             ))
             assert healed is not None
-            assert healed.gross_income == 8698.5
+            spec = get_business_spec(biz.business_type)
+            rates = resource_business_rates(biz, spec, upgrading=False)
+            worked_hours = healed.maintenance / rates.maintenance_per_hour
+            expected_gross = sum(
+                float(quantity) * rates.output_multiplier * get_item_base_price(item_id) * worked_hours
+                for item_id, quantity in spec["outputs_per_hour"].items()
+            )
+            assert healed.gross_income == round(expected_gross, 2)
             assert healed.maintenance == 25.2
-            assert healed.net_profit == 8673.3
+            assert healed.net_profit == round(expected_gross - 25.2, 2)
 
         await engine.dispose()
 

@@ -13,6 +13,13 @@ assert(tycoon.includes('Потеря составит'), 'sale confirmation must
 assert(tycoon.includes('data-refund=') && tycoon.includes('business.sale_refund'), 'sale button must show the server refund');
 assert(!tycoon.includes('data-mode="NPC"') && !tycoon.includes('data-mode="HOLD"') && !tycoon.includes('data-action="sale-mode"'), 'resource businesses must not let players choose output routing');
 assert(tycoon.includes('Вся продукция поступает на склад'), 'resource businesses must explain that outputs are always stored');
+assert(tycoon.includes('estimated_npc_profit_per_hour'), 'Tycoon summary must show the separate NPC stress estimate');
+assert(tycoon.includes('Стресс-сценарий NPC'), 'NPC valuation must be labeled as a separate downside scenario');
+assert(tycoon.includes('MARKET_REFERENCE_VALUE') || tycoon.includes('по базовым ценам'),
+  'primary estimated profit must identify its reference-price basis');
+assert(tycoon.includes('после налога'), 'primary estimated profit must be identified as post-tax');
+assert(tycoon.includes('Ресурсы остаются на складе') && tycoon.includes('не означает поступление cash'),
+  'market-valued inventory must not be presented as realized cash');
 assert(tycoon.includes('AUTO_MARKET_NPC') && tycoon.includes('режим «Биржа + гос.» может купить остаток из Госрезерва'), 'automatic input sourcing may still use the mixed player-market and state-reserve mode');
 assert(tycoon.includes('Покупка с рынка требует 1 ед. логистической мощности'), 'automatic player-market procurement must disclose its per-shipment logistics cost');
 assert(tycoon.includes('tycoon-view-toggle') && tycoon.includes('compactBusinessRow'), 'business tab must toggle between detailed cards and compact rows');

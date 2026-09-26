@@ -29,13 +29,15 @@ class NPCQuotaMixin:
     ) -> Dict[str, Any]:
         action = action.upper() if action else None
         reserve_cap = None
+        cash_quota = None
         if action == "BUY" and item_id:
             reserve_cap = nat_settings.NPC_RARE_SELL_RESERVES.get(item_id)
         elif action == "SELL" and item_id:
-            # Лимиты на продажу товаров Госрезерву (NPC) сняты — выкуп неограничен
-            reserve_cap = None
+            cash_limit = max(0.0, float(nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT))
+            if cash_limit > 0:
+                cash_quota = cash_limit
+                reserve_cap = cash_limit / max(0.01, get_npc_buy_price(item_id))
         quota = float(reserve_cap) if reserve_cap is not None else None
-        cash_quota = None
         return {
             "scaling_factor": 1.0,
             "daily_quota_per_item": quota,
@@ -50,7 +52,7 @@ class NPCQuotaMixin:
     def _quota_label(item_id: str, action: str, quota: float, remaining: float) -> str:
         unit = CANONICAL_ITEMS.get(item_id, {}).get("unit", "ед.")
         if action == "SELL":
-            return "Госрезерв выкупает продукцию без ограничений"
+            return f"Осталось выкупить сегодня: {remaining:.2f} {unit}"
         return f"Редкий запас Госрезерва сегодня: {remaining:g} из {quota:g} {unit}"
 
     @classmethod
@@ -79,15 +81,16 @@ class NPCQuotaMixin:
         )
         if action == "SELL":
             unit_price = get_npc_buy_price(item_id)
+            cash_limit = float(quota_info["daily_quota_cash"] or 0.0)
             remaining_cash = max(
                 0.0,
                 round(
-                    float(nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT)
-                    - (float(usage.used_cash) if usage else 0.0),
+                    cash_limit - (float(usage.used_cash) if usage else 0.0),
                     2,
                 ),
             )
-            remaining = remaining_cash / max(0.01, unit_price)
+            quantity_remaining = max(0.0, float(quota) - (float(usage.used_quantity) if usage else 0.0))
+            remaining = min(quantity_remaining, remaining_cash / max(0.01, unit_price))
         else:
             used = float(usage.used_quantity) if usage else 0.0
             remaining = max(0.0, float(quota) - used)
@@ -159,13 +162,14 @@ class NPCQuotaMixin:
                 usage = result.scalar_one()
         if action == "SELL":
             unit_price = get_npc_buy_price(item_id)
-            cash_limit = float(nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT)
+            cash_limit = float(quota_info["daily_quota_cash"] or 0.0)
             payout_cash = max(0.0, round(float(cash_amount or 0.0), 2))
             remaining_cash = max(0.0, round(cash_limit - float(usage.used_cash), 2))
-            remaining = remaining_cash / max(0.01, unit_price)
+            quantity_remaining = max(0.0, float(quota) - float(usage.used_quantity))
+            remaining = min(quantity_remaining, remaining_cash / max(0.01, unit_price))
         else:
             remaining = max(0.0, quota - float(usage.used_quantity))
-        if quantity > remaining or (action == "SELL" and payout_cash > remaining_cash):
+        if quantity > remaining + 1e-9 or (action == "SELL" and payout_cash > remaining_cash + 0.01):
             return {
                 "success": 0.0,
                 "quota": quota,
@@ -182,7 +186,8 @@ class NPCQuotaMixin:
         if action == "SELL":
             usage.used_cash = round(float(usage.used_cash) + payout_cash, 2)
             remaining_cash = max(0.0, round(cash_limit - float(usage.used_cash), 2))
-            remaining = remaining_cash / max(0.01, unit_price)
+            quantity_remaining = max(0.0, float(quota) - float(usage.used_quantity))
+            remaining = min(quantity_remaining, remaining_cash / max(0.01, unit_price))
         else:
             remaining = max(0.0, quota - float(usage.used_quantity))
         return {

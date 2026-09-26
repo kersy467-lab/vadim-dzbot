@@ -11,14 +11,20 @@ const fmtDate = (value) => {
 
 function liabilityRows(rows) {
   if (!rows?.length) return '<div class="text-xs text-slate-500">Начислений пока нет.</div>';
-  return rows.map((row) => `<div class="rounded-xl border ${row.overdue ? 'border-rose-400/60 bg-rose-50/70 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-700'} p-3 text-xs space-y-1">
-    <div class="flex justify-between gap-2"><b>${fmtDate(row.period_start || row.tax_date)} – ${fmtDate(row.period_end)}</b><span class="${row.overdue ? 'text-rose-600 font-black' : 'text-slate-500'}">${row.overdue ? `ПРОСРОЧЕНО (+${row.overdue_hours || 0} ч.)` : `до ${fmtDate(row.grace_until)}`}</span></div>
+  return rows.map((row) => {
+    const overdueHours = Number(row.overdue_hours || 0);
+    const status = row.overdue
+      ? (overdueHours === 0 ? 'К ОПЛАТЕ · ПРОИЗВОДСТВО ОСТАНОВЛЕНО' : `ПРОСРОЧЕНО (+${overdueHours} ч.)`)
+      : `до ${fmtDate(row.grace_until)}`;
+    return `<div class="rounded-xl border ${row.overdue ? 'border-rose-400/60 bg-rose-50/70 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-700'} p-3 text-xs space-y-1">
+    <div class="flex justify-between gap-2"><b>${fmtDate(row.period_start || row.tax_date)} – ${fmtDate(row.period_end)}</b><span class="${row.overdue ? 'text-rose-600 font-black' : 'text-slate-500'}">${status}</span></div>
     <div class="flex justify-between"><span>Прибыль за 12ч</span><b>${money(row.taxable_profit)} cash</b></div>
     <div class="flex justify-between"><span>Налог</span><b>${money(row.principal)} cash</b></div>
     ${Number(row.penalty || 0) > 0 ? `<div class="flex justify-between text-rose-600"><span>Штраф (+3%/ч)</span><b>+${money(row.penalty)} cash</b></div>` : ''}
     ${Number(row.paid || 0) > 0 ? `<div class="flex justify-between text-emerald-600"><span>Оплачено</span><b>${money(row.paid)} cash</b></div>` : ''}
     <div class="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1"><span>Осталось</span><b>${money(row.outstanding)} cash</b></div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 export async function renderTaxSection(container, showToast, onBack) {
@@ -28,21 +34,22 @@ export async function renderTaxSection(container, showToast, onBack) {
     const blocked = Boolean(tax.blocked);
     const due = Number(tax.total_due || 0);
     const hoursLeft = tax.hours_until_block;
+    const graceHours = Number(tax.grace_hours ?? 0);
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24">
       <button class="market-tax-back text-xs font-bold text-blue-600">← Назад к бирже</button>
-      <div><h2 class="text-xl font-black">🧾 Налог компании</h2><p class="text-xs text-slate-500">Обязательный налог на прибыль предприятий (начисление раз в 12 часов)</p></div>
+      <div><h2 class="text-xl font-black">🧾 Налог компании</h2><p class="text-xs text-slate-500">13% от положительной чистой прибыли компании за каждый закрытый 12-часовой период</p></div>
       <div class="rounded-2xl p-4 ${blocked ? 'bg-rose-100 dark:bg-rose-950/35 border border-rose-400' : 'glass-card'} space-y-2">
         <div class="flex justify-between"><span class="text-sm">Ставка</span><b>${Number(tax.rate_pct || 13)}%</b></div>
         <div class="flex justify-between"><span class="text-sm">Период оплаты</span><b>раз в ${tax.period_hours || 12} часов</b></div>
-        <div class="flex justify-between"><span class="text-sm">Льготный срок</span><b>${tax.grace_hours || 12} часов</b></div>
+        <div class="flex justify-between"><span class="text-sm">После закрытия периода</span><b>${graceHours > 0 ? `${graceHours} ч. на оплату` : 'налог сразу к оплате'}</b></div>
         <div class="flex justify-between"><span class="text-sm">Штраф за просрочку</span><b>+${tax.hourly_penalty_pct || 3}% / час</b></div>
         <div class="flex justify-between border-t border-slate-300 dark:border-slate-700 pt-2"><span class="text-sm">Налог к оплате</span><b>${money(tax.principal_due)} cash</b></div>
         <div class="flex justify-between"><span class="text-sm">Штрафы</span><b class="${Number(tax.penalty_due || 0) ? 'text-rose-600' : ''}">${money(tax.penalty_due)} cash</b></div>
         <div class="flex justify-between border-t border-slate-300 dark:border-slate-700 pt-2"><span class="font-black">Всего</span><b class="text-lg">${money(due)} cash</b></div>
       </div>
-      ${blocked ? `<div class="rounded-2xl border border-rose-500 bg-rose-50 dark:bg-rose-950/30 p-4 text-sm"><b class="text-rose-600">⛔ Производство остановлено</b><p class="mt-1 text-xs">Налог не был оплачен за ${tax.grace_hours || 12} часов льготного периода. Начисляется штраф +3% в час от суммы налога. После оплаты предприятия продолжат работать с текущего момента — простой задним числом не компенсируется.</p></div>` : (hoursLeft !== null && hoursLeft !== undefined) ? `<div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs"><b>⏳ До блокировки: ${hoursLeft} ч.</b><div class="mt-1">Оплатите задолженность до ${fmtDate(tax.next_block_date)}.</div></div>` : ''}
-      <div class="glass-card rounded-2xl p-4 text-xs space-y-2"><div class="flex justify-between"><span>Прибыль за текущие 12ч</span><b>${money(tax.today_profit)} cash</b></div><div class="flex justify-between"><span>Расчётный налог</span><b>${money(tax.today_estimated_tax)} cash</b></div><p class="text-slate-500">Налог за текущий 12-часовой период станет обязательством после его закрытия.</p></div>
-      <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-xs space-y-1"><b>Правила</b><p>Действующая ставка: <b>${Number(tax.rate_pct || 13)}%</b> от положительной прибыли за 12 часов (базовая 13%, может временно повышаться во время государственных кризисов). Налог начисляется раз в 12 часов. На оплату даётся 12 часов льготного периода. Если не успел выплатить за 12 часов, то производство останавливается, и начисляется штраф: каждый час +3% от суммы налога (простой процент, штраф не начисляется на штраф).</p></div>
+      ${blocked ? `<div class="rounded-2xl border border-rose-500 bg-rose-50 dark:bg-rose-950/30 p-4 text-sm"><b class="text-rose-600">⛔ Производство остановлено</b><p class="mt-1 text-xs">Налог не был оплачен после закрытия 12-часового периода. Штраф +3% от суммы налога начисляется за каждый полный час просрочки. После оплаты предприятия продолжат работу с текущего момента — простой задним числом не компенсируется.</p></div>` : (hoursLeft !== null && hoursLeft !== undefined) ? `<div class="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs"><b>⏳ До блокировки: ${hoursLeft} ч.</b><div class="mt-1">Оплатите задолженность до ${fmtDate(tax.next_block_date)}.</div></div>` : ''}
+      <div class="glass-card rounded-2xl p-4 text-xs space-y-2"><div class="flex justify-between"><span>Чистая прибыль за текущие 12ч</span><b>${money(tax.current_period_realized_profit)} cash</b></div><div class="flex justify-between"><span>Расчётный налог</span><b>${money(tax.current_period_estimated_tax)} cash</b></div><p class="text-slate-500">Учитываются фактически полученные доходы: продажи за вычетом себестоимости, купоны и выплаченные дивиденды. Запасы на складе и возврат тела облигации не увеличивают налоговую базу. Налог станет обязательством после закрытия периода.</p></div>
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-xs space-y-1"><b>Правила</b><p>Налог составляет 13% от положительной чистой прибыли компании за каждые закрытые 12 часов: денежная выручка предприятий и фактическая выручка от продаж запасов минус себестоимость проданного, обслуживание и зарплаты, плюс полученные купоны и дивиденды. Возврат тела облигаций и кредитов не считается доходом. Стоимость несбытых запасов не облагается; затраты на их производство войдут в себестоимость при продаже. Убыток одного предприятия уменьшает общую налоговую базу компании. После закрытия 12-часового периода налог становится обязательным; если его не оплатить, производство останавливается. Штраф — +3% от основной суммы налога за каждый полный час просрочки; он не начисляется повторно на штрафы.</p></div>
       <button class="market-tax-pay w-full py-3 rounded-xl bg-emerald-600 text-white font-black disabled:opacity-40" ${due > 0 ? '' : 'disabled'}>Оплатить всё · ${money(due)} cash</button>
       <section class="space-y-2"><h3 class="font-black">Последние начисления</h3>${liabilityRows(tax.liabilities)}</section>
     </div>`;

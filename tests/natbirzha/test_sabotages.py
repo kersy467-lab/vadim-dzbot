@@ -64,7 +64,9 @@ def test_two_concurrent_sabotages_and_compounded_multipliers():
             await conn.run_sync(Base.metadata.create_all)
 
         async with sessions() as session:
-            now = datetime(2026, 9, 25, 10, 0, 0)
+            # Sync getters use the real game clock, so seed the cache against
+            # the current clock rather than a fixed timestamp that soon expires.
+            now = get_game_now().replace(minute=0, second=0, microsecond=0)
 
             # Initially no active sabotage
             actives = await SabotageService.get_active_sabotages(session, now=now)
@@ -275,7 +277,7 @@ def test_loss_for_all_crises():
             assert SabotageService.are_dividends_blocked() is False
 
 def test_sabotage_tax_rates():
-    """Verify national_sanctions (+10% tax -> 23%) and infrastructure_collapse (+5% tax -> 18%)."""
+    """Economic crises must not change the fixed 13% net-profit tax rate."""
     async def run():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -287,26 +289,26 @@ def test_sabotage_tax_rates():
             assert SabotageService.get_tax_rate() == 0.13
             assert SabotageService.get_tax_rate_delta() == 0.0
 
-            # 1. National sanctions (+10% -> 23%)
+            # 1. National sanctions leave the fixed tax rate unchanged.
             await SabotageService.start_sabotage(
                 session, sabotage_id="national_sanctions", actor_id=1, now=now
             )
-            assert SabotageService.get_tax_rate_delta() == 0.10
-            assert SabotageService.get_tax_rate() == 0.23
+            assert SabotageService.get_tax_rate_delta() == 0.0
+            assert SabotageService.get_tax_rate() == 0.13
 
-            # 2. Add infrastructure_collapse (+5% -> total +15% -> 28%)
+            # 2. Adding another crisis still does not change the tax rate.
             await SabotageService.start_sabotage(
                 session, sabotage_id="infrastructure_collapse", actor_id=1, now=now
             )
-            assert SabotageService.get_tax_rate_delta() == 0.15
-            assert SabotageService.get_tax_rate() == 0.28
+            assert SabotageService.get_tax_rate_delta() == 0.0
+            assert SabotageService.get_tax_rate() == 0.13
 
-            # 3. Stop national_sanctions (only infrastructure_collapse remains -> 18%)
+            # 3. Stopping either event does not alter the tax rate.
             await SabotageService.stop_sabotage(
                 session, actor_id=1, sabotage_id="national_sanctions", now=now
             )
-            assert SabotageService.get_tax_rate_delta() == 0.05
-            assert SabotageService.get_tax_rate() == 0.18
+            assert SabotageService.get_tax_rate_delta() == 0.0
+            assert SabotageService.get_tax_rate() == 0.13
 
             # 4. Stop infrastructure_collapse (back to 13%)
             await SabotageService.stop_sabotage(
@@ -333,7 +335,9 @@ def test_npc_prices_change_during_sabotage():
             await conn.run_sync(Base.metadata.create_all)
 
         async with sessions() as session:
-            now = datetime(2026, 9, 25, 17, 0, 0)
+            # Sync market quotes use the current game clock; fixed timestamps
+            # can expire when the test runs in a later timezone/date.
+            now = get_game_now().replace(minute=0, second=0, microsecond=0)
 
             from backend.natbirzha.models.inventory import CANONICAL_ITEMS, get_npc_sell_price
             from backend.natbirzha.services.npc_service import NPCReserveService

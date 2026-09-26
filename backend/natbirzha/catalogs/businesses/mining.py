@@ -50,7 +50,7 @@ MINING_BUSINESSES = {
            {"energy": 85, "water": 32, "basic_chem": 8, "food": 3.5}, {"rare_earths": 6},
            ("Химическая лаборатория", "Разделение концентратов", "Чистая производственная зона", "Высокоточная сепарация", "Стратегический РЗМ-кластер"), prerequisite={"cobalt_mine_v2": 20}, territory=7),
         _m("uranium_complex_v2", "Урановый горнодобывающий комплекс", "☢️", 12, 7_500_000, 52,
-           {"energy": 100, "water": 45, "basic_chem": 10, "food": 4}, {"uranium_raw": 4},
+           {"energy": 100, "water": 45, "basic_chem": 10, "food": 4, "fresh_food": 1.5}, {"uranium_raw": 4},
            ("Радиационный контроль", "Спецхранилище", "Защищённая транспортировка", "Глубокая переработка руды", "Национальный урановый комплекс"), prerequisite={"rare_earth_complex_v2": 25}, territory=8),
     ]
 }

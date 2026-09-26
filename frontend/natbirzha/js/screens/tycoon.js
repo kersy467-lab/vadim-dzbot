@@ -110,6 +110,13 @@ function businessCard(business, summary, assetCatalog) {
   const isUpgrading = business.status === 'UPGRADING';
   const rest = remainingUntil(business.upgrade_ready_at);
   const profit = Number(business.estimated_profit_per_hour ?? business.net_per_hour ?? 0);
+  const npcProfit = business.estimated_npc_profit_per_hour == null
+    ? null
+    : Number(business.estimated_npc_profit_per_hour);
+  const profitUnit = business.estimated_profit_basis === 'MARKET_REFERENCE_VALUE'
+    ? 'cash-экв./ч'
+    : 'cash/ч';
+  const taxRate = Number(summary.estimated_tax_rate_pct ?? 13);
   const autonomy = business.autonomy_hours == null ? null : Number(business.autonomy_hours);
   const milestone = next?.milestone;
   const upgrade = next && !isUpgrading && !business.contract_expired
@@ -137,7 +144,8 @@ function businessCard(business, summary, assetCatalog) {
     </div>
     <p class="mt-2 text-xs text-slate-500 dark:text-slate-300">${esc(business.description || '')}</p>
     ${leaseNotice}
-    <div class="tycoon-rate-row"><span>Оценочная прибыль</span><strong class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)} cash/ч</strong></div>
+    <div class="tycoon-rate-row"><span>Оценочная прибыль после налога · ${business.estimated_profit_basis === 'MARKET_REFERENCE_VALUE' ? 'по базовым ценам' : 'денежная'}</span><strong class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)} ${profitUnit}</strong></div>
+    ${npcProfit == null ? '' : `<div class="tycoon-rate-row"><span>Стресс-сценарий NPC · после налога ${taxRate}%</span><strong class="${npcProfit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${npcProfit >= 0 ? '+' : ''}${money(npcProfit)} cash-экв./ч</strong></div><p class="text-[10px] text-slate-400">Расчёт без общего лимита Госрезерва 1 000 000 cash на товар в сутки: выпуск продаётся NPC по цене скупки, сырьё покупается по цене продажи NPC. Это стресс-сценарий, не гарантированная выручка.</p>`}
     <div class="tycoon-meter"><span style="width:${Math.max(2, Math.min(100, Number(business.stage || 1) / Math.max(1, Number(business.max_stage || 1)) * 100))}%"></span></div>
     <div class="tycoon-subgrid"><div><span>Обслуживание</span><b>${money(business.maintenance_per_hour)} cash/ч</b></div><div><span>Автономность</span><b>${autonomy == null ? 'не ограничена' : `${autonomy.toFixed(1)} ч`}</b></div></div>
     <div class="tycoon-resource-line"><span class="text-xs text-slate-400">Каждые ${business.resource_tick_minutes || 15} мин · расход</span><div>${resourceChips(business.inputs_per_tick || business.inputs_per_hour, 'in', `${business.resource_tick_minutes || 15}м`)}</div></div>
@@ -203,12 +211,15 @@ function render(root, state, showToast) {
   });
   const catalogMap = new Map(ownCatalog.map((item) => [item.id, item]));
   const profit = Number(summary.estimated_profit_per_hour || 0);
+  const npcProfit = Number(summary.estimated_npc_profit_per_hour ?? profit);
+  const taxRate = Number(summary.estimated_tax_rate_pct ?? 13);
   const xpPercent = progression.is_max_level
     ? 100
     : Math.max(0, Math.min(100, Number(progression.level_progress_pct || 0)));
   root.innerHTML = `<div class="tycoon-screen space-y-4 max-w-md mx-auto p-4 pb-24">
     <div class="tycoon-hero"><div><div class="text-xs uppercase tracking-widest text-pink-200">НАТБИРЖА · IDLE TYCOON</div><h2 class="text-2xl font-black text-white mt-1">${esc(getSpecializationName(specialization))}</h2><p class="text-xs text-pink-100/80 mt-1">Ваша отрасль — отдельная карьерная ветка. Предприятия работают постоянно, пока хватает снабжения.</p></div><span class="text-4xl">🏭</span></div>
-    <div class="tycoon-stat-grid"><div class="tycoon-stat"><span>Баланс</span><b>${money(summary.cash)} cash</b></div><div class="tycoon-stat"><span>Оценочная прибыль</span><b class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)}/ч</b></div><div class="tycoon-stat"><span>Компания</span><b>ур. ${summary.level || 1}</b></div><div class="tycoon-stat"><span>Мощности</span><b>${summary.slots?.used || 0}/${summary.slots?.max || 0}</b></div><div class="tycoon-stat"><span>Крупные проекты</span><b>${summary.project_slots?.used || 0}/${summary.project_slots?.max || 1}</b></div></div>
+    <div class="tycoon-stat-grid"><div class="tycoon-stat"><span>Баланс</span><b>${money(summary.cash)} cash</b></div><div class="tycoon-stat"><span>Оценка прибыли · после налога ${taxRate}%</span><b class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)} cash-экв./ч</b></div><div class="tycoon-stat"><span>Стресс-сценарий NPC</span><b class="${npcProfit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${npcProfit >= 0 ? '+' : ''}${money(npcProfit)} cash-экв./ч</b></div><div class="tycoon-stat"><span>Компания</span><b>ур. ${summary.level || 1}</b></div><div class="tycoon-stat"><span>Мощности</span><b>${summary.slots?.used || 0}/${summary.slots?.max || 0}</b></div><div class="tycoon-stat"><span>Крупные проекты</span><b>${summary.project_slots?.used || 0}/${summary.project_slots?.max || 1}</b></div></div>
+    <p class="text-[10px] text-slate-500 dark:text-slate-300">Ресурсы остаются на складе и оцениваются по базовым ценам после налога ${taxRate}%; эта оценка не означает поступление cash. Сценарий NPC не учитывает общий лимит Госрезерва 1 000 000 cash на товар в сутки и не гарантирует продажу всего выпуска.</p>
     <section class="rounded-2xl border border-indigo-300/50 bg-indigo-50/80 dark:bg-indigo-950/30 p-3.5" aria-label="Прогресс уровня компании">
       <div class="flex items-center justify-between gap-2 text-xs font-bold"><span>⭐ Уровень компании ${progression.level || summary.level || 1}</span><span class="font-mono">${progression.is_max_level ? `${Number(progression.xp || 0).toLocaleString('ru-RU')} XP · максимум` : `${Number(progression.xp || 0).toLocaleString('ru-RU')} / ${Number(progression.next_level_xp || 0).toLocaleString('ru-RU')} XP`}</span></div>
       <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-all" style="width:${xpPercent}%"></div></div>

@@ -10,7 +10,7 @@ from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import get_game_now, nat_settings, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.inventory import NatInventory, get_npc_buy_price
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory, get_item_base_price
 from backend.natbirzha.services.business_rates import cash_business_rates, resource_business_rates
 
 
@@ -190,6 +190,7 @@ class IdleEconomyService:
         hours: float,
         upgrading: bool,
         industry_bonus_multiplier: float = 1.0,
+        storage_capacity_by_item: dict[str, float] | None = None,
     ) -> tuple[float, float, float, float, list[str]]:
         """Consume inputs and return revenue, maintenance, worked hours and input cost basis."""
         if hours <= 0 or business.status in {
@@ -222,13 +223,15 @@ class IdleEconomyService:
         sale_mode = cls._sale_mode(business)
         output_rows: dict[str, NatInventory] = {}
         if sale_mode == "HOLD":
-            cap = float(nat_settings.INVENTORY_MAX_QUANTITY_PER_ITEM)
+            default_cap = float(nat_settings.INVENTORY_MAX_QUANTITY_PER_ITEM)
+            storage_capacity_by_item = storage_capacity_by_item or {}
             for item_id, base_rate in spec["outputs_per_hour"].items():
                 rate = float(base_rate) * rates.output_multiplier
                 if rate <= 0:
                     continue
                 output = await cls._locked_inventory(session, company_id, item_id, create=True)
                 output_rows[item_id] = output
+                cap = max(default_cap, float(storage_capacity_by_item.get(item_id, default_cap)))
                 free = max(0.0, cap - float(output.quantity))
                 actual_hours = min(actual_hours, free / rate)
 
@@ -244,19 +247,42 @@ class IdleEconomyService:
                 )
 
         revenue = 0.0
+        produced_outputs: list[tuple[str, float, float, float]] = []
         for item_id, base_rate in spec["outputs_per_hour"].items():
             produced = float(base_rate) * rates.output_multiplier * actual_hours
             if produced <= 0:
                 continue
-            item_val = produced * get_npc_buy_price(item_id)
+            item_price = get_item_base_price(item_id)
+            item_val = produced * item_price
             revenue += item_val
-            if sale_mode == "NPC":
-                pass
-            else:
-                output = output_rows[item_id]
-                output.quantity = round(float(output.quantity) + produced, 6)
+            canonical_price = float(CANONICAL_ITEMS.get(item_id, {}).get("base_price", item_price))
+            produced_outputs.append((item_id, produced, item_val, max(0.0, canonical_price)))
 
         maintenance = rates.maintenance_per_hour * actual_hours
+        if sale_mode == "HOLD" and produced_outputs:
+            total_capitalized_cost = max(0.0, resource_cost + maintenance)
+            total_reference_value = sum(quantity * reference for _, quantity, _, reference in produced_outputs)
+            total_quantity = sum(quantity for _, quantity, _, _ in produced_outputs)
+            allocated_cost = 0.0
+            for index, (item_id, produced, _, reference) in enumerate(produced_outputs):
+                output = output_rows[item_id]
+                previous_quantity = float(output.quantity or 0.0)
+                previous_value = previous_quantity * max(0.0, float(output.avg_cost_basis or 0.0))
+                if index == len(produced_outputs) - 1:
+                    item_cost = max(0.0, total_capitalized_cost - allocated_cost)
+                elif total_reference_value > 0:
+                    item_cost = total_capitalized_cost * (produced * reference) / total_reference_value
+                elif total_quantity > 0:
+                    item_cost = total_capitalized_cost * produced / total_quantity
+                else:
+                    item_cost = 0.0
+                allocated_cost += item_cost
+                new_quantity = previous_quantity + produced
+                output.quantity = round(new_quantity, 6)
+                output.avg_cost_basis = round(
+                    (previous_value + item_cost) / new_quantity if new_quantity > 0 else 0.0,
+                    6,
+                )
         if actual_hours + 1e-9 < hours and not upgrading:
             business.status = "PAUSED_SUPPLY" if missing else "PAUSED_STORAGE"
         return (
@@ -268,6 +294,7 @@ class IdleEconomyService:
     async def _settle_resource_business(
         cls, session: AsyncSession, business: NatBusiness, spec: dict[str, Any], *, now: datetime,
         cap_hours: int, industry_bonus_multiplier: float = 1.0,
+        storage_capacity_by_item: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         last_settled = normalize_dt(business.last_settled_at)
         if last_settled is None or now <= last_settled:
@@ -292,6 +319,7 @@ class IdleEconomyService:
                 session, business.company_id, business, spec,
                 hours=(ready_at - cursor).total_seconds() / 3600, upgrading=True,
                 industry_bonus_multiplier=industry_bonus_multiplier,
+                storage_capacity_by_item=storage_capacity_by_item,
             )
             gross += earned
             maintenance += paid
@@ -304,6 +332,7 @@ class IdleEconomyService:
             hours=(settle_until - cursor).total_seconds() / 3600,
             upgrading=business.status == "UPGRADING",
             industry_bonus_multiplier=industry_bonus_multiplier,
+            storage_capacity_by_item=storage_capacity_by_item,
         )
         gross += earned
         maintenance += paid

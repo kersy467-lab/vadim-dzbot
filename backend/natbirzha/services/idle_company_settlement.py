@@ -14,12 +14,15 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.stocks import NatStock
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
 from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.progression_service import apply_xp
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
+from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
 from backend.natbirzha.services.tax_service import TaxService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.sabotage_service import SabotageService
+from backend.natbirzha.tax_rules import get_period_bounds, period_production_deadline
 
 
 def _empty_result(company: NatCompany, cap_hours: int, projects: list, tax: dict) -> dict[str, Any]:
@@ -126,6 +129,7 @@ async def settle_company(
         expired_contract_ids.add(business.id)
 
     cap_hours = engine.offline_cap_hours(company)
+    storage_capacity_by_item = InventoryCapacityService.capacity_by_item(company, businesses)
     tax = await TaxService.summary(session, company.id, now=current)
     # Always settle only through the first unpaid tax deadline. If a company
     # returns after that deadline, the already-earned portion before the stop
@@ -141,7 +145,8 @@ async def settle_company(
         oldest_cursor = min(
             (normalize_dt(b.last_settled_at) or current for b in visible), default=current
         )
-        prospective = TaxService.production_deadline(oldest_cursor)
+        _, current_period_end = get_period_bounds(oldest_cursor)
+        prospective = period_production_deadline(current_period_end)
         if prospective < effective_current:
             effective_current = prospective
 
@@ -220,6 +225,7 @@ async def settle_company(
                     result = await engine._settle_resource_business(
                         session, business, spec, now=segment_end, cap_hours=cap_hours,
                         industry_bonus_multiplier=industry_bonus,
+                        storage_capacity_by_item=storage_capacity_by_item,
                     )
                 else:
                     result = engine._settle_business(
@@ -253,6 +259,19 @@ async def settle_company(
                     maintenance=segment_maintenance,
                     resource_cost=segment_resource_cost,
                 )
+                # Cash businesses realize their income as it is earned. Legacy
+                # NPC-sale resource businesses do too; HOLD production remains
+                # inventory and capitalizes these costs until an actual sale.
+                if spec["mechanic"] == "cash_income" or biz_gross_cash > 0:
+                    await CompanyProfitLedgerService.record_interval(
+                        session,
+                        company.id,
+                        segment_start,
+                        segment_worked,
+                        revenue=biz_gross_cash,
+                        cost_of_goods_sold=segment_resource_cost,
+                        maintenance=segment_maintenance,
+                    )
                 for hour_start, cash_income in BusinessIncomeLedgerService.split_interval_by_hour(
                     segment_start, segment_worked, biz_gross_cash,
                     eligible_after=dividend_eligible_after,

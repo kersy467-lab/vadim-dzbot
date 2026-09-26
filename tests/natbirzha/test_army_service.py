@@ -31,7 +31,10 @@ async def run_async() -> None:
         await session.flush()
         company_id = company.id
         session.add(NatArmy(company_id=company.id))
-        for item_id in ("steel", "electronics", "aluminum", "jet_fuel", "military_gear"):
+        for item_id in (
+            "steel", "electronics", "aluminum", "jet_fuel", "military_gear",
+            "advanced_alloy", "advanced_composite", "titanium_alloy",
+        ):
             session.add(NatInventory(company_id=company.id, item_id=item_id, quantity=100.0))
         await session.commit()
 
@@ -49,6 +52,17 @@ async def run_async() -> None:
             assert result["count_recruited"] == 2
         await session.commit()
         assert company.cash < starting_cash
+        for item_id, per_aircraft in (
+            ("advanced_alloy", 0.5),
+            ("advanced_composite", 0.5),
+            ("titanium_alloy", 0.25),
+        ):
+            inventory = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company_id,
+                NatInventory.item_id == item_id,
+            ))
+            assert inventory is not None
+            assert inventory.quantity == 100.0 - per_aircraft * 2
 
         snapshot = await ArmyService.snapshot(session, company_id)
         assert snapshot.units == {
@@ -104,4 +118,3 @@ async def run_async() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_async())
-

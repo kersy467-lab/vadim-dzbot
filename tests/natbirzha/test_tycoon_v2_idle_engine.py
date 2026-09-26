@@ -11,8 +11,9 @@ import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.business_rates import resource_business_rates
+from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
 
@@ -21,12 +22,16 @@ async def create_mining_business(session, *, cash: float = 100_000.0, last_settl
     company = NatCompany(user_id=8_001, name="Idle Corp", specialization="miner", cash=cash)
     session.add(company)
     await session.flush()
-    # Enough stock to make supply irrelevant to the settlement-clock tests.
+    # Seed every live recipe and recurring service input so this test exercises
+    # settlement clocks rather than market availability.
     session.add_all([
-        NatInventory(company_id=company.id, item_id="energy", quantity=2_000),
-        NatInventory(company_id=company.id, item_id="water", quantity=1_000),
-        NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=500),
-        NatInventory(company_id=company.id, item_id="food", quantity=250),
+        NatInventory(
+            company_id=company.id,
+            item_id=item_id,
+            quantity=max(100.0, float(quantity) * 100),
+            avg_cost_basis=CANONICAL_ITEMS[item_id]["base_price"],
+        )
+        for item_id, quantity in spec["inputs_per_hour"].items()
     ])
     business = NatBusiness(
         company_id=company.id,
@@ -50,10 +55,12 @@ async def create_mining_business(session, *, cash: float = 100_000.0, last_settl
 def expected_net_cash_per_hour(business: NatBusiness, *, upgrading: bool) -> float:
     spec = get_business_spec(business.business_type)
     rates = resource_business_rates(business, spec, upgrading=upgrading)
-    return round(-rates.maintenance_per_hour, 2)
+    # Resource outputs are always held in inventory; only maintenance moves
+    # cash during offline production.
+    return -rates.maintenance_per_hour
 
 
-def test_idle_settlement_applies_once_and_stops_after_tax_grace() -> None:
+def test_idle_settlement_applies_once_and_stops_at_tax_period_close() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -65,7 +72,7 @@ def test_idle_settlement_applies_once_and_stops_after_tax_grace() -> None:
             company, business = await create_mining_business(session, last_settled_at=start)
             hourly = expected_net_cash_per_hour(business, upgrading=False)
             first = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
-            assert first["net_cash"] == hourly
+            assert first["net_cash"] == round(hourly, 2)
             assert first["xp_gained"] == 20
             assert first["progression"]["xp"] == 20
             assert first["progression"]["xp_to_next"] == 130
@@ -80,11 +87,20 @@ def test_idle_settlement_applies_once_and_stops_after_tax_grace() -> None:
             repeated = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=1))
             assert repeated["net_cash"] == 0.0
 
-            # The closed 12-hour tax period gets 12 hours of grace. Production
-            # may settle only through that deadline, even though the requested
-            # offline window is longer.
+            # Tax blocking applies when the company has realized profit. This
+            # miner's HOLD output alone is inventory, not taxable revenue.
+            await CompanyProfitLedgerService.record_period(
+                session,
+                company.id,
+                start,
+                start + timedelta(hours=12),
+                revenue=1_000.0,
+            )
+
+            # Unpaid tax blocks production at the close of its 12-hour period,
+            # even when the requested offline window is longer.
             capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=50))
-            assert 0.0 < capped["settled_hours"] <= 23.0
+            assert capped["settled_hours"] == 11.0
             assert capped["tax_blocked"] is True
             assert business.last_settled_at == start + timedelta(hours=50)
 

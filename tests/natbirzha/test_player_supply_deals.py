@@ -7,6 +7,8 @@ from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -23,9 +25,11 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.models.market import NatMarketOrder
 from backend.natbirzha.models.player_deals import NatSupplyDeal, NatSupplyDealSettlement
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.supply_deal_service import SupplyDealService
+from backend.natbirzha.tax_rules import get_period_bounds
 from backend.natbirzha.api.supply_deal_routes import router as supply_deal_router
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.db.session import get_db_session
@@ -179,6 +183,17 @@ async def _fixed_payout_is_atomic() -> None:
         assert supplier.cash == before_supplier_cash + 100
         assert accepted.fixed_cash_paid == 100
         assert len(accepted.__dict__) > 0
+        period_start, _ = get_period_bounds(now)
+        buyer_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
+            NatCompanyProfitPeriod.company_id == buyer.id,
+            NatCompanyProfitPeriod.period_start == period_start,
+        ))
+        supplier_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
+            NatCompanyProfitPeriod.company_id == supplier.id,
+            NatCompanyProfitPeriod.period_start == period_start,
+        ))
+        assert buyer_profit is not None and buyer_profit.operating_profit == -100
+        assert supplier_profit is not None and supplier_profit.operating_profit == 100
         deal_id = accepted.id
         await session.commit()
         await session.close()
@@ -345,6 +360,17 @@ async def _profit_share_is_positive_only_and_idempotent() -> None:
         ) == 0
         row = await session.scalar(select(NatSupplyDeal).where(NatSupplyDeal.id == offer.id))
         assert row.profit_share_paid == 30
+        period_start, _ = get_period_bounds(now)
+        buyer_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
+            NatCompanyProfitPeriod.company_id == buyer.id,
+            NatCompanyProfitPeriod.period_start == period_start,
+        ))
+        supplier_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
+            NatCompanyProfitPeriod.company_id == supplier.id,
+            NatCompanyProfitPeriod.period_start == period_start,
+        ))
+        assert buyer_profit is not None and buyer_profit.operating_profit == -30
+        assert supplier_profit is not None and supplier_profit.operating_profit == 30
         await session.commit()
     finally:
         await session.close()
@@ -394,6 +420,13 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         assert supplier_stock.quantity == 0
         assert abs((before_buyer_cash - buyer.cash) - 7 * price) < 1e-5
         assert abs((supplier.cash - before_supplier_cash) - 7 * price) < 1e-5
+        period_start, _ = get_period_bounds(now)
+        seller_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
+            NatCompanyProfitPeriod.company_id == supplier.id,
+            NatCompanyProfitPeriod.period_start == period_start,
+        ))
+        assert seller_profit is not None
+        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 7.0)
 
         buyer.cash = 0
         supplier_stock.quantity = 10

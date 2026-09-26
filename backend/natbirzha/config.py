@@ -12,6 +12,11 @@ class NatbirzhaSettings(BaseSettings):
     ALLOW_TEST_AUTH: bool = Field(default=False, validation_alias=AliasChoices("NATBIRZHA_ALLOW_TEST_AUTH", "ALLOW_TEST_AUTH"), description="Allow signed test initData only in explicit local/test environments")
     TEST_AUTH_SECRET: str = Field(default="natbirzha_test_secret_key_2026", validation_alias=AliasChoices("NATBIRZHA_TEST_AUTH_SECRET", "TEST_AUTH_SECRET"), description="Secret for signing test initData; ignored unless ALLOW_TEST_AUTH=true")
     CREATOR_TG_IDS: str = Field(default="", validation_alias=AliasChoices("NATBIRZHA_CREATOR_TG_IDS", "CREATOR_TG_IDS"), description="Comma-separated Telegram user IDs allowed to use Creator/State controls")
+    ADMIN_ONLY_ACCESS: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("NATBIRZHA_ADMIN_ONLY_ACCESS", "ADMIN_ONLY_ACCESS"),
+        description="Temporarily restrict the full Natbirzha game to configured administrator Telegram IDs",
+    )
     BETA_TESTERS_ONLY: bool = Field(default=False, description="Restrict Natbirzha access to beta-testers and admins only")
     SEASON_RESET_ENABLED: bool = Field(
         default=False,

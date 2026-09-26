@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v9';
-import { store } from '../state.js?v=20260925_deals_v9';
-import { getSpecializationName } from '../localization.js?v=20260925_deals_v9';
-import { marketChange, renderMarketChart } from '../market_chart.js?v=20260925_deals_v9';
-import { renderStateShareMarket } from './state_share_market.js?v=20260925_deals_v9';
+import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
+import { store } from '../state.js?v=20260926_local_update_v1';
+import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
+import { marketChange, renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
+import { renderStateShareMarket } from './state_share_market.js?v=20260926_local_update_v1';
 
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
 const money = (value) => `${Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash`;

@@ -34,6 +34,8 @@ export const ITEMS = {
   nickel_concentrate: { name: 'Никелевый концентрат', icon: '⚙️', unit: 'т' },
   diamonds: { name: 'Промышленные алмазы', icon: '💎', unit: 'кар.' },
   sugar_raw: { name: 'Сахарное сырьё', icon: '🍬', unit: 'т' },
+  hops: { name: 'Хмель', icon: '🌿', unit: 'т' },
+  grapes: { name: 'Виноград', icon: '🍇', unit: 'т' },
 
   // Tier 2: Intermediate Processing
   steel: { name: 'Конструкционная сталь', icon: '🔩', unit: 'т' },
@@ -72,6 +74,9 @@ export const ITEMS = {
   lubricants: { name: 'Промышленные масла', icon: '🛢️', unit: 'т' },
   pharmaceuticals: { name: 'Фармацевтические субстанции', icon: '💊', unit: 'кг' },
   industrial_gases: { name: 'Технические газы', icon: '🧊', unit: 'балл.' },
+  beer: { name: 'Пиво', icon: '🍺', unit: 'ящ.' },
+  wine: { name: 'Вино', icon: '🍷', unit: 'ящ.' },
+  aged_spirits: { name: 'Выдержанный коньяк', icon: '🥃', unit: 'ящ.' },
 
   // Tier 3: Advanced & High-Tech
   plastics: { name: 'Полимеры и пластик', icon: '🧴', unit: 'т' },
@@ -127,6 +132,8 @@ const ITEM_ALIASES = {
   lithium: 'lithium_raw',
   bio_raw_material: 'bio_raw',
   rations: 'food',
+  cognac: 'aged_spirits',
+  brandy: 'aged_spirits',
 };
 
 /**

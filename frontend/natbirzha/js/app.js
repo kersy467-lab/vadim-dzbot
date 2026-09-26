@@ -1,16 +1,16 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260925_grant_v1';
-import { store } from './state.js?v=20260925_maint_v1';
-import { renderOnboarding } from './screens/onboarding.js?v=20260925_deals_v9';
-import { renderOverview } from './screens/overview.js?v=20260925_deals_v9';
-import { renderTycoon } from './screens/tycoon.js?v=20260925_deals_v9';
-import { renderUpgrades } from './screens/upgrades.js?v=20260925_deals_v9';
-import { renderMarket } from './screens/market.js?v=20260926_tax_net_v1';
-import { renderStocks } from './screens/stocks.js?v=20260925_deals_v9';
-import { renderMilitary } from './screens/military.js?v=20260925_deals_v9';
-import { renderCreator } from './screens/creator.js?v=20260925_grant_v1';
-import { renderLeaderboard } from './screens/leaderboard.js?v=20260925_deals_v9';
-import { renderHelp } from './screens/help.js?v=20260925_deals_v9';
-import { updateMaintenanceBanner } from './maintenance.js?v=20260925_maint_v1';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260926_joint_factory_v1';
+import { store } from './state.js?v=20260926_local_update_v1';
+import { renderOnboarding } from './screens/onboarding.js?v=20260926_local_update_v1';
+import { renderOverview } from './screens/overview.js?v=20260926_local_update_v1';
+import { renderTycoon } from './screens/tycoon.js?v=20260926_local_update_v1';
+import { renderUpgrades } from './screens/upgrades.js?v=20260926_local_update_v1';
+import { renderMarket } from './screens/market.js?v=20260926_joint_factory_v1&joint_factories=1';
+import { renderStocks } from './screens/stocks.js?v=20260926_local_update_v1';
+import { renderMilitary } from './screens/military.js?v=20260926_local_update_v1';
+import { renderCreator } from './screens/creator.js?v=20260926_local_update_v1';
+import { renderLeaderboard } from './screens/leaderboard.js?v=20260926_local_update_v1';
+import { renderHelp } from './screens/help.js?v=20260926_local_update_v1';
+import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {
@@ -323,6 +323,11 @@ export async function initApp() {
   try {
     // 1. Authenticate user
     const authData = await NatAPI.login();
+    if (authData?.game_access === false) {
+      showAccessWaitScreen(authData.wait_message);
+      return;
+    }
+    hideAccessWaitScreen();
     store.setUser(authData.user);
     if (typeof authData?.maintenance_mode === 'boolean') {
       store.setMaintenanceMode(authData.maintenance_mode);
@@ -361,6 +366,11 @@ export async function initApp() {
     }
     // If has_company is false, store.company stays null -> onboarding
   } catch (err) {
+    if (err?.data?.detail?.code === 'GAME_ACCESS_CLOSED') {
+      showAccessWaitScreen();
+      return;
+    }
+    hideAccessWaitScreen();
     console.error('App init error:', err);
     showToast(err.message || 'Ошибка подключения к серверу', 'error');
     const container = document.getElementById('screen-container');
@@ -373,6 +383,21 @@ export async function initApp() {
 
   beginNavigationScope();
   await renderCurrentScreen();
+}
+
+function showAccessWaitScreen(message = 'Патч варится, бро. Пока качай терпение — скоро залетаем 🚀') {
+  const screen = document.getElementById('access-wait-screen');
+  if (!screen) return;
+  const quote = screen.querySelector('p');
+  if (quote && message) quote.textContent = message;
+  screen.style.display = 'grid';
+  document.body.style.overflow = 'hidden';
+}
+
+function hideAccessWaitScreen() {
+  const screen = document.getElementById('access-wait-screen');
+  if (screen) screen.style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 if (typeof window !== 'undefined') {

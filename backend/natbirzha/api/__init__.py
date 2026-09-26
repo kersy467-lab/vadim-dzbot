@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi import Depends
 
 from backend.natbirzha.api.auth_routes import router as auth_router
 from backend.natbirzha.api.company_routes import router as company_router
@@ -28,39 +29,60 @@ from backend.natbirzha.api.creator_bankruptcy_routes import router as creator_ba
 from backend.natbirzha.api.bankruptcy_market_routes import router as bankruptcy_market_router
 from backend.natbirzha.api.sabotage_routes import router as sabotage_router
 from backend.natbirzha.api.supply_deal_routes import router as supply_deal_router
+from backend.natbirzha.api.city_order_routes import router as city_order_router
+from backend.natbirzha.api.liquidity_routes import router as liquidity_router
+from backend.natbirzha.api.hybrid_routes import router as hybrid_router
+from backend.natbirzha.api.joint_factory_routes import router as joint_factory_router
 from backend.natbirzha.api.maintenance_routes import router as maintenance_router
+from backend.natbirzha.api.admin_access import require_game_admin
+from backend.natbirzha.config import nat_settings
 
-natbirzha_router = APIRouter(prefix="/natbirzha")
+def build_natbirzha_router(admin_only: bool = False) -> APIRouter:
+    """Build the game API, optionally restricting every non-login route to admins."""
+    router = APIRouter(prefix="/natbirzha")
+    router.include_router(auth_router)
 
-natbirzha_router.include_router(auth_router)
-natbirzha_router.include_router(company_router)
-natbirzha_router.include_router(production_router)
-natbirzha_router.include_router(building_router)
-natbirzha_router.include_router(market_router)
-natbirzha_router.include_router(stock_router)
-natbirzha_router.include_router(military_router)
-natbirzha_router.include_router(military_infrastructure_router)
-natbirzha_router.include_router(alliance_router)
-natbirzha_router.include_router(bankruptcy_router)
-natbirzha_router.include_router(creator_router)
-natbirzha_router.include_router(bond_router)
-natbirzha_router.include_router(premium_router)
-natbirzha_router.include_router(instrument_router)
-natbirzha_router.include_router(leaderboard_router)
-natbirzha_router.include_router(portfolio_router)
-natbirzha_router.include_router(finance_router)
-natbirzha_router.include_router(business_router)
-natbirzha_router.include_router(business_asset_router)
-natbirzha_router.include_router(tax_router)
-natbirzha_router.include_router(state_share_creator_router)
-natbirzha_router.include_router(state_share_player_router)
-natbirzha_router.include_router(state_credit_router)
-natbirzha_router.include_router(creator_credit_router)
-natbirzha_router.include_router(creator_bankruptcy_router)
-natbirzha_router.include_router(bankruptcy_market_router)
-natbirzha_router.include_router(supply_deal_router)
-natbirzha_router.include_router(tycoon_company_router)
-natbirzha_router.include_router(sabotage_router)
-natbirzha_router.include_router(maintenance_router)
+    game_router = APIRouter(dependencies=[Depends(require_game_admin)] if admin_only else [])
+    for child_router in (
+        company_router,
+        production_router,
+        building_router,
+        market_router,
+        stock_router,
+        military_router,
+        military_infrastructure_router,
+        alliance_router,
+        bankruptcy_router,
+        creator_router,
+        bond_router,
+        premium_router,
+        instrument_router,
+        leaderboard_router,
+        portfolio_router,
+        finance_router,
+        business_router,
+        business_asset_router,
+        tax_router,
+        state_share_creator_router,
+        state_share_player_router,
+        state_credit_router,
+        creator_credit_router,
+        creator_bankruptcy_router,
+        bankruptcy_market_router,
+        supply_deal_router,
+        city_order_router,
+        liquidity_router,
+        hybrid_router,
+        joint_factory_router,
+        tycoon_company_router,
+        sabotage_router,
+        maintenance_router,
+    ):
+        game_router.include_router(child_router)
+    router.include_router(game_router)
+    return router
 
-__all__ = ["natbirzha_router"]
+
+natbirzha_router = build_natbirzha_router(admin_only=nat_settings.ADMIN_ONLY_ACCESS)
+
+__all__ = ["natbirzha_router", "build_natbirzha_router"]

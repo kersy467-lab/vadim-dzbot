@@ -1,7 +1,7 @@
 """Every selectable industry must create a playable V2 starter company."""
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -46,10 +46,15 @@ def test_all_industries_bootstrap_with_starter_business_and_supply() -> None:
                 for item_id, hourly in expected["inputs_per_hour"].items():
                     # Catalog values such as scaled water demand are
                     # non-terminating decimals; tolerate storage rounding.
-                    assert by_item.get(item_id, 0.0) + 1e-6 >= float(hourly) * 4.0
+                    buffer_hours = 24.0 if item_id in {"beer", "wine", "aged_spirits"} else 4.0
+                    assert by_item.get(item_id, 0.0) + 1e-6 >= float(hourly) * buffer_hours
 
                 if index == 1:
-                    settled_at = business.last_settled_at
+                    # Keep the four-hour bootstrap check inside one tax period.
+                    # Using wall-clock company creation makes this assertion
+                    # time-dependent near the 12:00 / 00:00 production cutoff.
+                    settled_at = datetime(2026, 1, 1, 12, 0)
+                    business.last_settled_at = settled_at
                     first_shift = await IdleEconomyService.settle_company(
                         session, company.id, now=settled_at + timedelta(hours=4)
                     )

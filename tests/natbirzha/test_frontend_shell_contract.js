@@ -14,7 +14,9 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
-assert(natHtml.includes('app.js?v=20260925_grant_v1') || natHtml.includes('app.js?v=20260925_deals_v9') || natHtml.includes('app.js?v=20260925_deals_v8') || natHtml.includes('app.js?v=20260925_deals_v7') || natHtml.includes('app.js?v=20260925_supply_deals'), 'Natbirzha entrypoint must refresh its cached code after a release');
+assert(natHtml.includes('id="access-wait-screen"'), 'admin-only release gate must include the full-screen waiting view');
+assert(natHtml.includes('Патч варится, бро.'), 'full-screen waiting view must show the selected release quote');
+assert(natHtml.includes('app.js?v=20260927_admin_wait_gate_v1'), 'Natbirzha entrypoint must bust its cache for the access gate release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -210,6 +212,6 @@ assert(apiScript.includes('joinTournament:'), 'api.js must expose tournament reg
 console.log('api.js methods, auth headers and error handling resilience verified!');
 
 const marketScreen = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/screens/market.js'), 'utf-8');
-assert(marketScreen.includes("market_deals.js?v=20260925_supply_deals"), 'Market must load the separately cached deal screen');
+assert(marketScreen.includes("market_deals.js?v=20260926_joint_factory_v1"), 'Market must load the separately cached deal screen');
 assert(marketScreen.indexOf('data-section="state_credit"') < marketScreen.indexOf('data-section="deals"'),
   'Deals must be the final section in the market menu');

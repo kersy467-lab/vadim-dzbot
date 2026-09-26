@@ -131,6 +131,8 @@ class BusinessService:
         spec: dict[str, Any],
         existing: dict[str, list[NatBusiness]],
     ) -> None:
+        if spec.get("hybrid_only"):
+            raise ValueError("Гибрид открывается только через объединение исходных предприятий")
         if spec.get("legacy_hidden"):
             raise ValueError("Это предприятие относится к старой версии экономики")
         if spec.get("unique", True) and existing.get(spec["id"]):
@@ -263,6 +265,7 @@ class BusinessService:
         if float(company.cash) < quote["cost"]:
             raise ValueError("Недостаточно cash для улучшения")
         milestone = quote.get("milestone") or {}
+
         await cls._consume_resources(session, company.id, milestone.get("resources", {}))
         company.cash = round(float(company.cash) - quote["cost"], 2)
         metadata = dict(business.metadata_json or {})
@@ -362,6 +365,11 @@ class BusinessService:
         business = await cls._lifecycle_business(session, company_id, business_id, now=now)
         if (business.metadata_json or {}).get("contract_license"):
             raise ValueError("Контрактное предприятие нельзя продать: улучшения сохраняются при продлении")
+        spec = get_business_spec(business.business_type)
+        if business.status == "MERGING":
+            raise ValueError("Нельзя продать предприятие, пока оно объединено в гибрид")
+        if spec and spec.get("hybrid_only"):
+            raise ValueError("Гибрид нужно продать через раздел объединения")
         if business.status == "UPGRADING":
             raise ValueError("Нельзя продать предприятие во время улучшения")
         company = await cls._locked_company(session, company_id)

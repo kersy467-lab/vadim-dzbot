@@ -6,9 +6,12 @@ from .agriculture import AGRICULTURE_BUSINESSES
 from .chemistry import CHEMISTRY_BUSINESSES
 from .construction import CONSTRUCTION_BUSINESSES
 from .energy import ENERGY_BUSINESSES
+from .brewery import BREWERY_BUSINESSES
 from .forestry import FORESTRY_BUSINESSES
 from .industry import INDUSTRY_BUSINESSES as LEGACY_INDUSTRY_BUSINESSES
 from .industry_meta import INDUSTRIES
+from .hybrids import build_hybrid_catalog
+from .joint_factories import build_joint_factory_catalog
 from .logistics import LOGISTICS_BUSINESSES
 from .metallurgy import METALLURGY_BUSINESSES
 from .mining import MINING_BUSINESSES
@@ -27,6 +30,9 @@ from backend.natbirzha.technical_energy import (
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
 from .balance import balance_career_catalog
+from backend.natbirzha.services.employee_beverage_inputs import (
+    add_employee_beverages_to_catalog,
+)
 
 
 LEGACY_BUSINESSES: dict[str, dict[str, Any]] = {
@@ -52,6 +58,7 @@ CAREER_BUSINESSES: dict[str, dict[str, Any]] = scale_catalog_water_inputs(
         **MINING_BUSINESSES,
         **AGRICULTURE_BUSINESSES,
         **ENERGY_BUSINESSES,
+        **BREWERY_BUSINESSES,
         **FORESTRY_BUSINESSES,
         **WATER_BUSINESSES,
         **OIL_GAS_BUSINESSES,
@@ -70,6 +77,15 @@ CAREER_BUSINESSES = scale_catalog_energy_inputs(
     resource_production_only=True,
 )
 CAREER_BUSINESSES = balance_career_catalog(CAREER_BUSINESSES)
+HYBRID_BUSINESSES, HYBRID_RECIPES = build_hybrid_catalog(CAREER_BUSINESSES)
+HYBRID_BUSINESSES = balance_career_catalog(HYBRID_BUSINESSES)
+CAREER_BUSINESSES = {**CAREER_BUSINESSES, **HYBRID_BUSINESSES}
+CAREER_BUSINESSES = add_employee_beverages_to_catalog(CAREER_BUSINESSES)
+JOINT_FACTORY_RECIPES = build_joint_factory_catalog(CAREER_BUSINESSES)
+HYBRID_BUSINESSES = {
+    business_type: CAREER_BUSINESSES[business_type]
+    for business_type in HYBRID_BUSINESSES
+}
 
 BUSINESS_CATALOG: Mapping[str, dict[str, Any]] = {
     **LEGACY_BUSINESSES,
@@ -86,6 +102,7 @@ def visible_business_specs(*, specialization: str | None = None) -> list[dict[st
     result = [
         spec for spec in values
         if not spec.get("legacy_hidden")
+        and not spec.get("hybrid_only")
         and (specialization is None or spec["specialization"] == specialization)
     ]
     return sorted(result, key=lambda spec: (spec["specialization"], spec["industry_order"], spec["id"]))
@@ -124,6 +141,9 @@ def validate_business_catalog() -> bool:
 __all__ = [
     "BUSINESS_CATALOG",
     "CAREER_BUSINESSES",
+    "HYBRID_BUSINESSES",
+    "HYBRID_RECIPES",
+    "JOINT_FACTORY_RECIPES",
     "INDUSTRIES",
     "get_business_spec",
     "starter_business_spec",

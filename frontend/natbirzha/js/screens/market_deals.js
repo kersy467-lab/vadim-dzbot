@@ -1,6 +1,7 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
 import { formatNumber } from '../format.js';
-import { store } from '../state.js?v=20260925_deals_v9';
+import { store } from '../state.js?v=20260926_local_update_v1';
+import { renderMarketJointFactories } from './market_joint_factories.js?v=20260926_joint_factories_v1';
 
 const TERMS = [
   [600, '10 минут'], [1800, '30 минут'], [3600, '1 час'], [7200, '2 часа'],
@@ -38,7 +39,7 @@ export async function renderMarketDeals(container, showToast, onBack) {
     clearTimer();
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24">
       <button type="button" class="deals-back text-sm font-bold text-pink-500">← Биржа</button>
-      <div><h2 class="text-xl font-black">🤝 ${esc(title)}</h2><p class="text-xs text-slate-500">Временные поставки между компаниями</p></div>
+      <div><h2 class="text-xl font-black">🤝 ${esc(title)}</h2><p class="text-xs text-slate-500">Сделки и совместные заводы компаний</p></div>
       ${body}</div>`;
     container.querySelector('.deals-back')?.addEventListener('click', onBack);
   };
@@ -50,9 +51,11 @@ export async function renderMarketDeals(container, showToast, onBack) {
       <button class="deals-nav glass-card rounded-2xl p-4 text-left" data-view="outgoing"><b>📤 Исходящие</b><div class="text-xs text-slate-500 mt-1">Ваши ожидающие предложения</div></button>
       <button class="deals-nav glass-card rounded-2xl p-4 text-left" data-view="active"><b>⚙️ Активные</b><div class="text-xs text-slate-500 mt-1">Поставки, оплата и время до завершения</div></button>
       <button class="deals-nav glass-card rounded-2xl p-4 text-left" data-view="history"><b>🗂 История</b><div class="text-xs text-slate-500 mt-1">Завершённые и отменённые сделки</div></button>
+      <button class="deals-nav glass-card rounded-2xl p-4 text-left border border-indigo-300/60" data-view="joint-factories"><b>🏭 Совместные заводы</b><div class="text-xs text-slate-500 mt-1">Стройте отдельные производства с компаниями-партнёрами</div></button>
     </div>`);
     container.querySelectorAll('.deals-nav').forEach((button) => button.addEventListener('click', () => {
       if (button.dataset.view === 'create') renderCompanyPicker();
+      else if (button.dataset.view === 'joint-factories') renderMarketJointFactories(container, showToast, renderHome);
       else renderList(button.dataset.view);
     }));
   }

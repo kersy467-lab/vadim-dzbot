@@ -314,6 +314,11 @@ def setup_scheduler(bot: Bot):
             replace_existing=True,
         )
 
+        from backend.bot.services.city_order_scheduler import register_city_order_jobs
+        register_city_order_jobs(scheduler)
+        from backend.bot.services.liquidity_scheduler import register_liquidity_jobs
+        register_liquidity_jobs(scheduler)
+
         scheduler.start()
         logger.info(f"Scheduler started with evening digest ({settings.NOTIFICATION_TIME_EVENING}), canteen reminder, duty check (07:30), Monday duty reminder (06:00), fact rotation (every 30m), daily cleanup (00:05), and Natbirzha tick/settlement ({settings.TIMEZONE})")
 

@@ -12,6 +12,7 @@ INDUSTRIES = {
     "forester": {"name": "Лесопромышленность", "icon": "🌲", "target_share": 0.06, "difficulty": 2, "summary": "Древесина и материалы для строительства, бумаги и композитов."},
     "technoprom": {"name": "Технологическая промышленность", "icon": "💻", "target_share": 0.10, "difficulty": 4, "summary": "Электроника, автоматика, роботы и микроэлектроника."},
     "logistics": {"name": "Логистика", "icon": "🚚", "target_share": 0.05, "difficulty": 3, "summary": "Перевозки, терминалы, склады и транспортная мощность."},
+    "brewery": {"name": "Пивоварение", "icon": "🍺", "target_share": 0.03, "difficulty": 3, "summary": "Пиво, вино и выдержанные напитки из сельскохозяйственного сырья."},
 }
 
 __all__ = ["INDUSTRIES"]

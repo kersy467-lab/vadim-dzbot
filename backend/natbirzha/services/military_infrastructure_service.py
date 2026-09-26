@@ -37,6 +37,20 @@ BASE_TRAIN_MINUTES = {
     "infantry": 1.2, "border_guards": 2.0, "tanks": 7.0,
     "drones": 3.0, "aircraft": 18.0, "air_defense": 10.0,
 }
+TRAINING_TIME_MULTIPLIER = 0.8
+
+
+def training_duration_minutes(unit_type: str, *, count: int, speed: float) -> int:
+    """Return training time after the shared 20% all-unit reduction."""
+    base_minutes = BASE_TRAIN_MINUTES.get(unit_type)
+    if base_minutes is None:
+        raise ValueError("Неизвестный тип войск")
+    if count <= 0 or speed <= 0:
+        raise ValueError("Count and training speed must be positive")
+    return max(
+        1,
+        round(base_minutes * TRAINING_TIME_MULTIPLIER * pow(count, 0.72) / speed),
+    )
 
 
 class MilitaryInfrastructureService:
@@ -139,7 +153,7 @@ class MilitaryInfrastructureService:
         command_level = int(infrastructure.command_center_level)
         facility_level = int(getattr(infrastructure, cls._field(facility)))
         speed = 1.0 + command_level * 0.06 + facility_level * 0.10
-        duration_minutes = max(1, round(BASE_TRAIN_MINUTES[unit_type] * pow(count, 0.72) / speed))
+        duration_minutes = training_duration_minutes(unit_type, count=count, speed=speed)
         current = normalize_dt(now or get_game_now())
         training = NatArmyTraining(
             company_id=company.id, unit_type=unit_type, quantity=count,

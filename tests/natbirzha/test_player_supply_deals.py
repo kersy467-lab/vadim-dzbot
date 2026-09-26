@@ -264,7 +264,10 @@ async def _concurrent_accept_cannot_double_pay() -> None:
 
 async def _offline_interval_intersects_only_active_deal_time() -> None:
     engine, session, buyer, supplier = await _fixture()
-    now = get_game_now().replace(microsecond=0)
+    # Keep this contract-window test away from the tax-period cutoff. Its
+    # wall-clock-derived deadline made it flaky when the offline interval
+    # crossed midnight/noon.
+    now = get_game_now().replace(hour=10, minute=0, second=0, microsecond=0)
     offline_start = now - timedelta(hours=3)
     supplier_business = await session.scalar(
         select(NatBusiness).where(NatBusiness.company_id == supplier.id)
@@ -281,7 +284,11 @@ async def _offline_interval_intersects_only_active_deal_time() -> None:
     session.add_all(buyer_businesses)
     session.add_all([
         NatInventory(company_id=buyer.id, item_id="fuel_diesel", quantity=100, avg_cost_basis=1),
+        # Career starter recipes now consume a small employee beverage input;
+        # seed it here because this fixture intentionally bypasses bootstrap.
+        NatInventory(company_id=buyer.id, item_id="beer", quantity=1, avg_cost_basis=0),
         NatInventory(company_id=supplier.id, item_id="energy", quantity=100, avg_cost_basis=10),
+        NatInventory(company_id=supplier.id, item_id="beer", quantity=1, avg_cost_basis=0),
     ])
     await session.flush()
     try:

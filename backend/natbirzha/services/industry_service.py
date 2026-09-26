@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.catalogs.businesses import INDUSTRIES, starter_business_spec
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.services.industry_selection_service import IndustrySelectionService
 
 
 class IndustryService:
@@ -33,6 +34,9 @@ class IndustryService:
             count = counts.get(industry_id, 0)
             color, label, hint = cls._status(count, total, float(meta["target_share"]))
             starter = starter_business_spec(industry_id)
+            selection = IndustrySelectionService._availability_for_counts(
+                industry_id, counts
+            )
             items.append({
                 "id": industry_id,
                 "name": meta["name"],
@@ -44,6 +48,9 @@ class IndustryService:
                 "status_color": color,
                 "status_label": label,
                 "status_hint": hint,
+                "available": selection["available"],
+                "selection_reason": selection["reason"],
+                "missing_industries": selection["missing_industries"],
                 "starter_business": starter["name"] if starter else None,
                 "starter_business_id": starter["id"] if starter else None,
             })

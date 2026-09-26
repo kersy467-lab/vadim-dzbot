@@ -85,6 +85,16 @@ from backend.natbirzha.models.military_infrastructure import (
 from backend.natbirzha.models.tax import NatCompanyProfitPeriod, NatTaxDaily, NatTaxPeriod
 from backend.natbirzha.models.sabotage import NatActiveSabotage
 from backend.natbirzha.models.player_deals import NatSupplyDeal, NatSupplyDealSettlement
+from backend.natbirzha.models.city_orders import (
+    NatCityOrder, NatCityOrderCycleState, NatCityOrderDelivery,
+)
+from backend.natbirzha.models.liquidity import NatLiquiditySnapshot
+from backend.natbirzha.models.hybrid_mergers import NatHybridMerger
+from backend.natbirzha.models.joint_factories import (
+    NatJointFactory,
+    NatJointFactoryProposal,
+    NatJointFactorySettlement,
+)
 
 __all__ = [
     "NatCompany",
@@ -163,4 +173,12 @@ __all__ = [
     "NatActiveSabotage",
     "NatSupplyDeal",
     "NatSupplyDealSettlement",
+    "NatCityOrder",
+    "NatCityOrderCycleState",
+    "NatCityOrderDelivery",
+    "NatLiquiditySnapshot",
+    "NatHybridMerger",
+    "NatJointFactory",
+    "NatJointFactoryProposal",
+    "NatJointFactorySettlement",
 ]

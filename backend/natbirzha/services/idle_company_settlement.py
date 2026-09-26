@@ -59,12 +59,22 @@ async def settle_company(
     supplier_ids: list[int] = []
     if process_deals:
         supplier_ids = await SupplyDealService.partners_to_settle(session, company_id, now=current)
-        participant_ids = sorted({int(company_id), *supplier_ids})
-        # A stable lock order prevents reciprocal buyer/supplier settlements
-        # from acquiring company rows in opposite order.
+        from backend.natbirzha.services.joint_factory_settlement_service import (
+            JointFactorySettlementService,
+        )
+
+        joint_participant_ids = await JointFactorySettlementService.participants_to_settle(
+            session, company_id
+        )
+        participant_ids = sorted({int(company_id), *supplier_ids, *joint_participant_ids})
+        # Lock all counterparties in one stable order before settling either
+        # supply contracts or a shared factory, avoiding reciprocal lock cycles.
         await session.execute(
             select(NatCompany.id).where(NatCompany.id.in_(participant_ids))
             .order_by(NatCompany.id).with_for_update()
+        )
+        await JointFactorySettlementService.settle_for_company(
+            session, company_id, now=current
         )
         for supplier_id in supplier_ids:
             await settle_company(engine, session, supplier_id, current=current, process_deals=False)

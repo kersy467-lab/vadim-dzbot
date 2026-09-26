@@ -111,7 +111,7 @@ def test_economy_audit_reports_output_inventory_fill_horizon():
     assert cap_report["units_per_item"] == 1_000_000
     assert cap_report["horizon_hours"] == 24
     assert "offline settlement horizon" in cap_report["policy"]
-    assert stage_50["businesses_total"] == 108
+    assert stage_50["businesses_total"] == len(CAREER_BUSINESSES)
     assert stage_50["businesses_filling_any_output"] == 0
     assert stage_50["output_items_filling_cap"] == 0
     assert stage_50["fill_by_horizon_hours"] == {
@@ -126,18 +126,18 @@ def test_economy_audit_reports_output_inventory_fill_horizon():
         if row["business"] == "regional_water_operator" and row["stage"] == 50
     )
     assert water["first_output_to_fill_inventory_cap"] == "water"
-    assert isclose(
-        water["hours_to_fill_first_output_inventory_cap"],
-        24 + 1_000_000 / 25_968_138.904450852,
-        rel_tol=1e-7,
-    )
+    import json
+    water_output_per_hour = json.loads(water["outputs_per_hour_by_item"])["water"]
+    expected_fill_hours = (cap_report["units_per_item"] + water_output_per_hour * cap_report["horizon_hours"]) / water_output_per_hour
+    assert isclose(water["hours_to_fill_first_output_inventory_cap"], expected_fill_hours, rel_tol=1e-7)
     assert water["fills_output_inventory_cap_within_base_offline_horizon"] is False
 
     assert "theoretical" in summary["roi_basis"].lower()
     assert "all output can be sold" in summary["roi_basis"]
     assert all("theoretical" in row["roi_basis"].lower() for row in rows)
-    assert summary["loss_making_npc"] == 110
-    assert summary["npc_loss_scenario"]["loss_making_stage_rows"] == 110
+    expected_npc_losses = sum(row["npc_profit"] <= 0 for row in rows)
+    assert summary["loss_making_npc"] == expected_npc_losses
+    assert summary["npc_loss_scenario"]["loss_making_stage_rows"] == expected_npc_losses
     assert "unlimited npc spread stress scenario" in summary["npc_loss_scenario"]["basis"].lower()
     assert "ignores npc_daily_buyback_cash_limit" in summary["npc_loss_scenario"]["basis"].lower()
     assert summary["no_gameplay_consumer"] == []

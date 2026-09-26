@@ -65,7 +65,7 @@ assert(marketShares.includes('escapeHtml') && creatorShares.includes('escapeHtml
 assert(creatorShares.includes('showFeedback(successMessage, \'success\')')
   && creatorShares.includes('target.textContent = message'),
   'creator-specific success detail must be written as text content');
-const sharedApiImport = "from '../api.js?v=20260921_broker1';";
+const sharedApiImport = "from '../api.js?v=20260926_joint_factory_v1';";
 assert(marketShares.includes(sharedApiImport) && creatorShares.includes(sharedApiImport),
   'new screens must share the app API module instance that receives the navigation abort signal');
 assert((marketShares.match(/error\?\.name === 'AbortError'/g) || []).length >= 2,

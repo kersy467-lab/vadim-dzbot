@@ -15,6 +15,7 @@ export const SPECIALIZATIONS = {
   water: 'Водоснабжение',
   construction: 'Строительство',
   logistics: 'Логистика',
+  brewery: 'Пивоварение',
 };
 
 export const BUILDINGS = {

@@ -22,6 +22,8 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     # Tier 1: Primary Extraction
     "grain": {"name": "Зерно", "category": "raw", "unit": "т", "base_price": 20.0},
     "bio_raw": {"name": "Биосырье", "category": "raw", "unit": "т", "base_price": 18.0},
+    "hops": {"name": "Хмель", "category": "raw", "unit": "т", "base_price": 55.0},
+    "grapes": {"name": "Виноград", "category": "raw", "unit": "т", "base_price": 48.0},
     "wood_raw": {"name": "Кругляк древесины", "category": "raw", "unit": "м³", "base_price": 25.0},
     "coal": {"name": "Каменный уголь", "category": "raw", "unit": "т", "base_price": 30.0},
     "iron_ore": {"name": "Железная руда", "category": "raw", "unit": "т", "base_price": 35.0},
@@ -47,6 +49,9 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "lumber": {"name": "Пиломатериалы", "category": "intermediate", "unit": "м³", "base_price": 55.0},
     "cellulose": {"name": "Целлюлоза", "category": "intermediate", "unit": "т", "base_price": 65.0},
     "food": {"name": "Продовольственные пайки", "category": "intermediate", "unit": "ящ.", "base_price": 45.0},
+    "beer": {"name": "Пиво", "category": "finished", "unit": "ящ.", "base_price": 90.0},
+    "wine": {"name": "Вино", "category": "finished", "unit": "ящ.", "base_price": 150.0},
+    "aged_spirits": {"name": "Выдержанный коньяк", "category": "finished", "unit": "ящ.", "base_price": 320.0},
     "fuel_diesel": {"name": "Дизельное топливо", "category": "intermediate", "unit": "л", "base_price": 1.2},
     "basic_chem": {"name": "Базовые кислоты и реагенты", "category": "intermediate", "unit": "т", "base_price": 70.0},
     "fertilizer": {"name": "Удобрения", "category": "intermediate", "unit": "т", "base_price": 50.0},

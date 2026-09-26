@@ -162,6 +162,16 @@ export const NatAPI = {
   // NATBIRZHA 2.0 idle/tycoon businesses
   getBusinessCatalog: () => cachedGet('/api/natbirzha/businesses/catalog', 5 * 60 * 1000),
   getEmpireSummary: () => request('/api/natbirzha/company/empire-summary'),
+  getHybridCatalog: () => request('/api/natbirzha/businesses/hybrids'),
+  openHybrid: (payload, idempotencyKey) => request('/api/natbirzha/businesses/hybrids/open', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }),
+  sellHybrid: (hybrid_id, idempotencyKey) => request(
+    `/api/natbirzha/businesses/hybrids/${parseInt(hybrid_id, 10)}/sell`,
+    { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey } },
+  ),
   openBusiness: (business_type, custom_name = null) => request('/api/natbirzha/businesses/open', {
     method: 'POST',
     body: JSON.stringify({ business_type, custom_name }),
@@ -207,6 +217,12 @@ export const NatAPI = {
   upgradeFactory: (factory_id, upgrade_type) => request('/api/natbirzha/factories/' + factory_id + '/upgrade', { method: 'POST', body: JSON.stringify({ upgrade_type }) }),
 
   // Market
+  getCityOrders: () => request('/api/natbirzha/market/city-orders'),
+  getMarketLiquidity: () => request('/api/natbirzha/market/liquidity'),
+  deliverCityOrder: (order_id, quantity, idempotencyKey) => request(
+    `/api/natbirzha/market/city-orders/${parseInt(order_id, 10)}/deliver`,
+    { method: 'POST', body: JSON.stringify({ quantity: Number(quantity) }), headers: { 'Idempotency-Key': idempotencyKey } },
+  ),
   getOrderbook: (item_id) => request(`/api/natbirzha/market/orderbook?item_id=${item_id}`),
   getSupplyDealCompanies: () => request('/api/natbirzha/market/deals/companies'),
   getSupplyDealCompanyResources: (company_id) => request(`/api/natbirzha/market/deals/companies/${parseInt(company_id, 10)}/resources`),
@@ -216,6 +232,18 @@ export const NatAPI = {
   acceptSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}/accept`, { method: 'POST' }),
   rejectSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}/reject`, { method: 'POST' }),
   cancelSupplyDeal: (deal_id) => request(`/api/natbirzha/market/deals/${parseInt(deal_id, 10)}/cancel`, { method: 'POST' }),
+  getJointFactories: () => request('/api/natbirzha/joint-factories'),
+  getJointFactory: (factory_id) => request(`/api/natbirzha/joint-factories/${parseInt(factory_id, 10)}`),
+  getJointFactoryPartners: () => request('/api/natbirzha/joint-factories/partners'),
+  getJointFactoryProposals: (view) => request(`/api/natbirzha/joint-factories/proposals/${encodeURIComponent(view)}`),
+  createJointFactoryProposal: (payload) => request('/api/natbirzha/joint-factories/proposals', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  acceptJointFactoryProposal: (proposal_id) => request(`/api/natbirzha/joint-factories/proposals/${parseInt(proposal_id, 10)}/accept`, { method: 'POST' }),
+  rejectJointFactoryProposal: (proposal_id) => request(`/api/natbirzha/joint-factories/proposals/${parseInt(proposal_id, 10)}/reject`, { method: 'POST' }),
+  cancelJointFactoryProposal: (proposal_id) => request(`/api/natbirzha/joint-factories/proposals/${parseInt(proposal_id, 10)}/cancel`, { method: 'POST' }),
+  requestJointFactoryUpgrade: (factory_id) => request(`/api/natbirzha/joint-factories/${parseInt(factory_id, 10)}/upgrade`, { method: 'POST' }),
+  claimJointFactory: (factory_id) => request(`/api/natbirzha/joint-factories/${parseInt(factory_id, 10)}/claim`, { method: 'POST' }),
   getNpcRates: () => request('/api/natbirzha/market/npc/rates'),
   placeOrder: (payload) => request('/api/natbirzha/market/order/place', { method: 'POST', body: JSON.stringify(payload) }),
   cancelOrder: (order_id) => request('/api/natbirzha/market/order/cancel', { method: 'POST', body: JSON.stringify({ order_id: parseInt(order_id, 10) }) }),

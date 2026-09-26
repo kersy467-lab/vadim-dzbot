@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import User
 from backend.natbirzha.models.company import NatCompany, NatFactory
+from backend.natbirzha.models.joint_factories import NatJointFactory
 from backend.natbirzha.models.creator import NatStateBond, NatStateBondHolding
 from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
 from backend.natbirzha.models.military import NatArmy
@@ -61,6 +62,24 @@ class LeaderboardService:
                 inventory_value[company_id] += float(quantity) * get_item_base_price(item_id)
             except ValueError:
                 continue
+        joint_rows = (await session.execute(
+            select(NatJointFactory).where(
+                NatJointFactory.company_a_id.in_(company_ids)
+                | NatJointFactory.company_b_id.in_(company_ids)
+            )
+        )).scalars().all()
+        for joint_factory in joint_rows:
+            for owner_id, owner_stock in (
+                (joint_factory.company_a_id, joint_factory.stock_a_json or {}),
+                (joint_factory.company_b_id, joint_factory.stock_b_json or {}),
+            ):
+                if owner_id not in inventory_value:
+                    continue
+                for item_id, quantity in owner_stock.items():
+                    try:
+                        inventory_value[owner_id] += float(quantity) * get_item_base_price(item_id)
+                    except ValueError:
+                        continue
         stock_rows = await session.execute(
             select(
                 NatStockHolding.holder_company_id,

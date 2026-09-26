@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.abspath("."))
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./data/test_suite.db"
 os.environ["BOT_TOKEN"] = "1234567890:ABCdefFakeTestToken"
 os.environ.setdefault("ADMIN_ID", "999999999")
+os.environ["NATBIRZHA_ADMIN_ONLY_ACCESS"] = "false"
 
 from backend.config import settings, get_today
 settings.BOT_TOKEN = "1234567890:ABCdefFakeTestToken"
@@ -865,6 +866,7 @@ async def main():
         "tests/natbirzha/test_bond_bankruptcy.py",
         "tests/natbirzha/test_creator_forced_bankruptcy.py",
         "tests/natbirzha/test_player_supply_deals.py",
+        "tests/natbirzha/test_admin_only_access.py",
         "tests/natbirzha/test_company_rename.py",
         "tests/natbirzha/test_ipo_terms.py",
         "tests/natbirzha/test_premium_production.py",

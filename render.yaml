@@ -30,6 +30,8 @@ services:
         sync: false
       - key: NATBIRZHA_ALLOW_TEST_AUTH
         value: "false"
+      - key: NATBIRZHA_ADMIN_ONLY_ACCESS
+        value: "true"
       - key: NATBIRZHA_SEASON_RESET_ENABLED
         value: "false"
 

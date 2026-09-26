@@ -15,6 +15,7 @@ VALID_SPECIALIZATIONS: Dict[str, str] = {
     "construction": "Строительство",
     "technoprom": "Технологическая промышленность",
     "logistics": "Логистика",
+    "brewery": "Пивоварение",
 }
 
 SPECIALIZATION_ALIASES: Dict[str, str] = {
@@ -28,6 +29,7 @@ SPECIALIZATION_ALIASES: Dict[str, str] = {
     "construction": "construction", "forester": "forester", "forestry": "forester",
     "technoprom": "technoprom", "electronics": "technoprom", "it_telecom": "technoprom",
     "logistics": "logistics",
+    "brewery": "brewery", "brewing": "brewery", "пивоварня": "brewery", "пивоварение": "brewery",
 }
 
 # Temporary compatibility factories. The active production tab uses NatBusiness;

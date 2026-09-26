@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v9';
-import { store } from '../state.js?v=20260925_deals_v9';
-import { getItemInfo } from '../items.js?v=20260925_deals_v9';
-import { getSpecializationName } from '../localization.js?v=20260925_deals_v9';
-import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260925_deals_v9';
+import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
+import { store } from '../state.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
+import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
+import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260926_local_update_v1';
 
 export function renderOverview(container, showToast) {
   const company = store.company;
@@ -338,18 +338,26 @@ export function renderOverview(container, showToast) {
   const respecBtn = container.querySelector('#respec-btn');
   if (respecBtn) {
     respecBtn.addEventListener('click', async () => {
-      const specs = ['metallurgist', 'power_engineer', 'oilman', 'agrarian', 'chemist', 'technoprom', 'miner', 'forester'];
-      const specPrompt = prompt(
-        `Выберите новую специализацию:\n${specs.join(', ')}`,
-        company.specialization
-      );
-      if (!specPrompt || specPrompt === company.specialization) return;
-      const targetSpec = specPrompt.trim().toLowerCase();
-      if (!specs.includes(targetSpec)) {
-        showToast('Неизвестная специализация!', 'error');
-        return;
-      }
       try {
+        const industryData = await NatAPI.getIndustryOverview();
+        const industries = industryData?.items || [];
+        const available = industries.filter(item => item.available !== false && item.id !== company.specialization);
+        const unavailable = industries.filter(item => item.available === false);
+        const choices = available.map(item => item.id);
+        const lockedHint = unavailable.length
+          ? `\nНедоступно: ${unavailable.map(item => `${item.id} — ${item.selection_reason}`).join('\n')}`
+          : '';
+        const specPrompt = prompt(
+          `Доступные отрасли:\n${choices.join(', ')}${lockedHint}`,
+          company.specialization
+        );
+        if (!specPrompt || specPrompt.trim().toLowerCase() === company.specialization) return;
+        const targetSpec = specPrompt.trim().toLowerCase();
+        if (!choices.includes(targetSpec)) {
+          const blocked = unavailable.find(item => item.id === targetSpec);
+          showToast(blocked?.selection_reason || 'Выберите доступную отрасль из списка.', 'error');
+          return;
+        }
         respecBtn.disabled = true;
         respecBtn.innerText = 'Смена...';
         await NatAPI.respecCompany(targetSpec);

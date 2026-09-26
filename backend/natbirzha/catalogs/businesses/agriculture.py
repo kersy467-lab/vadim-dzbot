@@ -17,7 +17,7 @@ def _a(bid, name, icon, order, cost, level, inputs, outputs, events, *, prerequi
 AGRICULTURE_BUSINESSES = {
     spec["id"]: spec for spec in [
         _a("grain_farm_v2", "Зерновое хозяйство", "🌾", 1, 10_000, 1,
-           {"water": 8, "fuel_diesel": 1.5, "energy": 2}, {"grain": 70},
+           {"water": 8, "fuel_diesel": 1.5, "energy": 2}, {"grain": 70, "hops": 0.5},
            ("Система орошения", "Машинно-тракторный парк", "Собственный элеватор", "Агролаборатория", "Автономный агрокомплекс"), starter=True),
         _a("dairy_farm_v2", "Молочная ферма", "🥛", 2, 25_000, 4,
            {"grain": 12, "water": 10, "energy": 3}, {"milk": 35},
@@ -46,5 +46,8 @@ AGRICULTURE_BUSINESSES = {
         _a("agro_holding_v2", "Агропромышленный холдинг", "🌱", 10, 3_500_000, 45,
            {"water": 45, "energy": 32, "fertilizer": 8, "fuel_diesel": 8}, {"grain": 60, "food": 35},
            ("Единый снабженческий центр", "Региональные элеваторы", "Собственная лаборатория", "Роботизированные хозяйства", "Национальный агрохолдинг"), prerequisite={"food_processing_v2": 30}),
+        _a("vineyard_v2", "Промышленный виноградник", "🍇", 11, 320_000, 14,
+           {"water": 16, "energy": 6, "fertilizer": 1.5, "fuel_diesel": 1}, {"grapes": 24},
+           ("Система шпалер", "Капельное орошение", "Сортировочная линия", "Контроль зрелости", "Региональный виноградный кластер"), prerequisite={"grain_farm_v2": 10}),
     ]
 }

@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v9';
-import { store } from '../state.js?v=20260925_deals_v9';
+import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
+import { store } from '../state.js?v=20260926_local_update_v1';
 
 const INDUSTRIES = [
   { id: 'miner', name: 'Горнодобывающая', icon: '⛏️', desc: 'Уголь, руда, золото, литий и стратегическое сырьё.', starter: 'Угольный разрез' },
@@ -10,8 +10,10 @@ const INDUSTRIES = [
   { id: 'metallurgist', name: 'Металлургия', icon: '🔩', desc: 'Сталь, медь, алюминий и специальные сплавы.', starter: 'Чугунолитейный цех' },
   { id: 'chemist', name: 'Химическая', icon: '🧪', desc: 'Удобрения, реагенты, полимеры и технологическая химия.', starter: 'Завод минеральных удобрений' },
   { id: 'construction', name: 'Строительство', icon: '🏗️', desc: 'Стройматериалы и мощность для корпоративных проектов.', starter: 'Лесозаготовительный участок' },
+  { id: 'forester', name: 'Лесопромышленность', icon: '🌲', desc: 'Древесина и материалы для строительства, бумаги и композитов.', starter: 'Лесозаготовительный комплекс' },
   { id: 'technoprom', name: 'Технологическая', icon: '💻', desc: 'Электроника, автоматика, роботы и микроэлектроника.', starter: 'Электронная мастерская' },
   { id: 'logistics', name: 'Логистика', icon: '🚚', desc: 'Перевозки, склады, терминалы и транспортная мощность.', starter: 'Курьерская служба' },
+  { id: 'brewery', name: 'Пивоварение', icon: '🍺', desc: 'Пиво, вино и выдержанные напитки из сельхозсырья.', starter: 'Малая пивоварня' },
 ];
 
 function creatorAccess() {
@@ -38,17 +40,28 @@ function pressureStyle(color) {
 function industryCard(industry, selected, live) {
   const count = Number(live?.company_count || 0);
   const color = live?.status_color || 'yellow';
-  const label = live?.status_label || 'Считаем рынок…';
+  const available = live
+    ? live.available !== false
+    : industry.id !== 'brewery';
+  const label = available
+    ? (live?.status_label || 'Считаем рынок…')
+    : '🔒 Пока недоступна';
   const difficulty = '★'.repeat(Number(live?.difficulty || 3)) + '☆'.repeat(5 - Number(live?.difficulty || 3));
-  return `<button type="button" data-spec="${industry.id}" class="spec-btn p-3 rounded-2xl border text-left transition-all ${
+  const name = industry.name || industry.id;
+  const description = industry.summary || industry.desc || '';
+  const starter = industry.starter_business || industry.starter || '';
+  const hint = available
+    ? (live?.status_hint || 'Загрузка текущего распределения игроков…')
+    : (live?.selection_reason || 'Пока недоступна.');
+  return `<button type="button" data-spec="${industry.id}" ${available ? '' : 'disabled aria-disabled="true"'} class="spec-btn p-3 rounded-2xl border text-left transition-all ${
     selected ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-500' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-  }">
+  } ${available ? '' : 'opacity-65 cursor-not-allowed'}">
     <div class="flex items-start justify-between gap-2"><span class="text-2xl">${industry.icon}</span><span class="industry-pressure px-2 py-0.5 rounded-full border text-[9px] font-black ${pressureStyle(color)}">${label}</span></div>
-    <div class="mt-1 font-black text-xs text-slate-900 dark:text-white">${industry.name}</div>
-    <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400 min-h-8">${industry.desc}</div>
-    <div class="mt-2 text-[10px] font-bold text-slate-700 dark:text-slate-200">${industry.starter}</div>
+    <div class="mt-1 font-black text-xs text-slate-900 dark:text-white">${name}</div>
+    <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400 min-h-8">${description}</div>
+    <div class="mt-2 text-[10px] font-bold text-slate-700 dark:text-slate-200">${starter}</div>
     <div class="mt-2 flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400"><span>Компаний: <b class="company-count">${count}</b></span><span title="Сложность старта">${difficulty}</span></div>
-    <div class="status-hint mt-1 text-[9px] text-slate-400 line-clamp-2">${live?.status_hint || 'Загрузка текущего распределения игроков…'}</div>
+    <div class="status-hint mt-1 text-[9px] text-slate-400">${hint}</div>
   </button>`;
 }
 
@@ -64,14 +77,16 @@ export function renderOnboarding(container, showToast) {
   let selectedSpec = 'miner';
   let userSelected = false;
   let liveById = {};
+  let industryOptions = INDUSTRIES;
   const isCreator = creatorAccess();
   if (isCreator) document.getElementById('creator-nav-btn')?.classList.remove('hidden');
 
   const renderPicker = () => {
     const picker = container.querySelector('#spec-picker');
     if (!picker) return;
-    picker.innerHTML = INDUSTRIES.map(industry => industryCard(industry, industry.id === selectedSpec, liveById[industry.id])).join('');
+    picker.innerHTML = industryOptions.map(industry => industryCard(industry, industry.id === selectedSpec, liveById[industry.id])).join('');
     picker.querySelectorAll('.spec-btn').forEach(btn => btn.addEventListener('click', () => {
+      if (btn.disabled) return;
       selectedSpec = btn.dataset.spec;
       userSelected = true;
       renderPicker();
@@ -92,9 +107,10 @@ export function renderOnboarding(container, showToast) {
 
   NatAPI.getIndustryOverview().then((data) => {
     liveById = Object.fromEntries((data?.items || []).map(item => [item.id, item]));
+    if (Array.isArray(data?.items) && data.items.length) industryOptions = data.items;
     container.querySelector('#industry-total').textContent = `Компаний: ${Number(data?.total_companies || 0)}`;
     if (!userSelected) {
-      const recommended = (data?.items || []).find(item => item.status_color === 'green');
+      const recommended = (data?.items || []).find(item => item.available !== false && item.status_color === 'green');
       if (recommended) selectedSpec = recommended.id;
     }
     renderPicker();
@@ -108,6 +124,10 @@ export function renderOnboarding(container, showToast) {
     const ticker = container.querySelector('#company-ticker').value.trim().toUpperCase();
     const submit = container.querySelector('#submit-create-btn');
     if (!name || !ticker) return showToast('Заполните название и тикер.', 'error');
+    const selectedAvailability = liveById[selectedSpec];
+    if (selectedAvailability?.available === false) {
+      return showToast(selectedAvailability.selection_reason || 'Эта отрасль пока недоступна.', 'error');
+    }
     try {
       submit.disabled = true;
       submit.textContent = 'Создание компании…';

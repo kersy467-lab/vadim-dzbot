@@ -12,6 +12,10 @@ from backend.natbirzha.services.building_catalog import get_building_spec
 from backend.natbirzha.services.company_constants import STARTER_FACTORIES, STARTER_INVENTORIES
 
 
+EMPLOYEE_BEVERAGE_ITEMS = frozenset({"beer", "wine", "aged_spirits"})
+STARTING_BEVERAGE_BUFFER_HOURS = 24.0
+
+
 async def bootstrap_company_state(
     session: AsyncSession,
     company: NatCompany,
@@ -76,9 +80,14 @@ async def _create_starter_inventory(
 ) -> None:
     starter_items = dict(STARTER_INVENTORIES.get(company.specialization, {}))
     for item_id, hourly_rate in starter_spec["inputs_per_hour"].items():
+        buffer_hours = (
+            STARTING_BEVERAGE_BUFFER_HOURS
+            if item_id in EMPLOYEE_BEVERAGE_ITEMS
+            else 4.0
+        )
         starter_items[item_id] = max(
             float(starter_items.get(item_id, 0.0)),
-            float(hourly_rate) * 4.0,
+            float(hourly_rate) * buffer_hours,
         )
     for item_id, quantity in starter_items.items():
         session.add(NatInventory(

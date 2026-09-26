@@ -181,8 +181,9 @@ def career_business(
         if open_resources is not None
         else _default_open_resources(order)
     )
+    production_inputs = dict(inputs)
     calibrated_outputs, output_balance_factor, target_roi_hours = _calibrate_outputs(
-        outputs, inputs,
+        outputs, production_inputs,
         open_cost=open_cost,
         maintenance_per_hour=maintenance_per_hour,
         order=order,
@@ -205,7 +206,7 @@ def career_business(
         output_growth=1.10,
         upgrade_cost_growth=1.12,
         upgrade_time_curve="career",
-        inputs_per_hour=inputs,
+        inputs_per_hour=production_inputs,
         outputs_per_hour=calibrated_outputs,
         milestones=milestone_chain(
             milestones,

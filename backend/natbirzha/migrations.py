@@ -690,6 +690,26 @@ async def _migrate_v14_company_financial_income_tax(conn) -> None:
     })
 
 
+async def _migrate_v15_city_orders(conn) -> None:
+    from backend.natbirzha.city_order_migration import migrate_city_orders
+    await migrate_city_orders(conn)
+
+
+async def _migrate_v16_liquidity_snapshots(conn) -> None:
+    from backend.natbirzha.liquidity_migration import migrate_liquidity_snapshots
+    await migrate_liquidity_snapshots(conn)
+
+
+async def _migrate_v17_hybrid_mergers(conn) -> None:
+    from backend.natbirzha.hybrid_merger_migration import migrate_hybrid_mergers
+    await migrate_hybrid_mergers(conn)
+
+
+async def _migrate_v18_joint_factories(conn) -> None:
+    from backend.natbirzha.joint_factory_migration import migrate_joint_factories
+    await migrate_joint_factories(conn)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -720,6 +740,10 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v12_001_factory_cycle_multiplier", _migrate_v12_factory_cycle_multiplier),
     ("natbirzha_v13_001_realized_company_profit_tax", _migrate_v13_realized_company_profit_tax),
     ("natbirzha_v14_001_company_financial_income_tax", _migrate_v14_company_financial_income_tax),
+    ("natbirzha_v15_001_city_orders", _migrate_v15_city_orders),
+    ("natbirzha_v16_001_liquidity_snapshots", _migrate_v16_liquidity_snapshots),
+    ("natbirzha_v17_001_hybrid_mergers", _migrate_v17_hybrid_mergers),
+    ("natbirzha_v18_001_joint_factories", _migrate_v18_joint_factories),
 )
 
 

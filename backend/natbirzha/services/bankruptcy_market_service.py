@@ -12,6 +12,8 @@ from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany, NatFactory
 from backend.natbirzha.models.creator import NatStateTreasury
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory, get_item_base_price
+from backend.natbirzha.models.joint_factories import NatJointFactory
 from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.services.building_catalog import get_building_spec
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
@@ -129,6 +131,38 @@ class BankruptcyMarketService:
                 level=business.stage, cost_basis=business.capital_invested,
             ))
 
+        joint_factories = list((await session.execute(
+            select(NatJointFactory).where(
+                NatJointFactory.status == "BREACHED",
+                (NatJointFactory.company_a_id == company.id)
+                | (NatJointFactory.company_b_id == company.id),
+            ).order_by(NatJointFactory.id.asc()).with_for_update()
+        )).scalars().all())
+        for joint_factory in joint_factories:
+            owner_a = joint_factory.company_a_id == company.id
+            stock_key = "stock_a_json" if owner_a else "stock_b_json"
+            owner_stock = dict(getattr(joint_factory, stock_key) or {})
+            remaining_stock = dict(owner_stock)
+            for item_id, quantity in owner_stock.items():
+                seized_quantity = round(max(0.0, float(quantity)) * cls.SEIZED_FRACTION, 8)
+                if seized_quantity <= 1e-8:
+                    continue
+                item = CANONICAL_ITEMS.get(item_id, {})
+                unit_price = get_item_base_price(item_id)
+                title = (
+                    f"Доля совместного завода · {item.get('name', item_id)} × "
+                    f"{seized_quantity:.3f} {item.get('unit', 'ед.')}"
+                )
+                lots.append(cls._make_lot(
+                    operation_key=f"{operation_key}:joint:{joint_factory.id}:{item_id}",
+                    former_company=company, asset_kind="JOINT_GOODS", asset_id=joint_factory.id,
+                    asset_type=item_id, title=title, industry=company.specialization,
+                    level=joint_factory.level, cost_basis=seized_quantity * unit_price,
+                    quantity=seized_quantity,
+                ))
+                remaining_stock[item_id] = round(max(0.0, float(quantity) - seized_quantity), 8)
+            setattr(joint_factory, stock_key, remaining_stock)
+
         stock_holdings = (await session.execute(
             select(NatStockHolding).where(
                 NatStockHolding.holder_company_id == company.id,
@@ -208,7 +242,14 @@ class BankruptcyMarketService:
             raise ValueError(f"Недостаточно cash: нужно {lot.ask_price:.2f}")
 
         asset = await cls._load_asset(session, lot)
-        if asset is None or (lot.asset_kind != "STOCK" and asset.company_id != lot.former_company_id):
+        stale_asset = asset is None
+        if lot.asset_kind == "JOINT_GOODS":
+            stale_asset = stale_asset or lot.former_company_id not in {
+                asset.company_a_id, asset.company_b_id,
+            } or asset.status != "BREACHED"
+        elif lot.asset_kind != "STOCK":
+            stale_asset = stale_asset or asset.company_id != lot.former_company_id
+        if stale_asset:
             lot.status = "CANCELLED"
             if commit:
                 await session.commit()
@@ -233,10 +274,42 @@ class BankruptcyMarketService:
             if used + int(asset.slot_weight) > capacity:
                 raise ValueError("Недостаточно корпоративной мощности для покупки предприятия")
 
+        joint_inventory = None
+        joint_quantity = 0.0
+        joint_unit_cost = 0.0
+        if lot.asset_kind == "JOINT_GOODS":
+            from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
+
+            joint_inventory = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == buyer.id,
+                NatInventory.item_id == lot.asset_type,
+            ).with_for_update())
+            current_quantity = float(joint_inventory.quantity) if joint_inventory else 0.0
+            capacity = await InventoryCapacityService.for_item(session, buyer, lot.asset_type)
+            joint_quantity = max(0.0, float(lot.quantity))
+            if current_quantity + joint_quantity > capacity + 1e-8:
+                raise ValueError("Недостаточно места на складе для этой партии совместных товаров")
+            joint_unit_cost = float(lot.ask_price) / max(joint_quantity, 1e-9)
+
         buyer.cash = round(float(buyer.cash) - float(lot.ask_price), 2)
         treasury.cash = round(float(treasury.cash) + float(lot.ask_price), 2)
         if lot.asset_kind == "STOCK":
             await cls._credit_stock_holding(session, buyer.id, lot.asset_id, int(lot.quantity), float(lot.ask_price))
+        elif lot.asset_kind == "JOINT_GOODS":
+            if joint_inventory is None:
+                session.add(NatInventory(
+                    company_id=buyer.id, item_id=lot.asset_type,
+                    quantity=joint_quantity, reserved_quantity=0.0,
+                    avg_cost_basis=round(joint_unit_cost, 6),
+                ))
+            else:
+                old_quantity = float(joint_inventory.quantity)
+                new_quantity = old_quantity + joint_quantity
+                joint_inventory.avg_cost_basis = round(
+                    (old_quantity * float(joint_inventory.avg_cost_basis) + float(lot.ask_price))
+                    / max(new_quantity, 1e-9), 6,
+                )
+                joint_inventory.quantity = round(new_quantity, 8)
         else:
             asset.company_id = buyer.id
         if lot.asset_kind == "BUSINESS":
@@ -268,7 +341,10 @@ class BankruptcyMarketService:
 
     @staticmethod
     async def _load_asset(session: AsyncSession, lot: NatBankruptcyMarketLot):
-        model = {"FACTORY": NatFactory, "BUSINESS": NatBusiness, "STOCK": NatStock}.get(lot.asset_kind)
+        model = {
+            "FACTORY": NatFactory, "BUSINESS": NatBusiness, "STOCK": NatStock,
+            "JOINT_GOODS": NatJointFactory,
+        }.get(lot.asset_kind)
         if model is None:
             return None
         return await session.scalar(

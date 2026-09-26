@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260925_deals_v9';
+import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
 
 export async function updateBusinessCapacityCard(container) {
   const card = container.querySelector('#business-capacity-card');

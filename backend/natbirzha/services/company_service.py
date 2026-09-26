@@ -16,6 +16,7 @@ from backend.natbirzha.services.company_constants import (
 )
 from backend.natbirzha.services.company_bootstrap import bootstrap_company_state
 from backend.natbirzha.services.company_reset_v2 import delete_v2_company_state
+from backend.natbirzha.services.industry_selection_service import IndustrySelectionService
 
 
 class CompanyService:
@@ -48,6 +49,9 @@ class CompanyService:
         spec = SPECIALIZATION_ALIASES.get(specialization.lower(), specialization)
         if spec not in VALID_SPECIALIZATIONS:
             raise ValueError("Неизвестная отрасль компании")
+        availability = await IndustrySelectionService.get_availability(session, spec)
+        if not availability["available"]:
+            raise ValueError(str(availability["reason"]))
 
         clean_name = name.strip()
         if len(clean_name) < 2 or len(clean_name) > 64:
@@ -168,6 +172,11 @@ class CompanyService:
         company = locked
         if new_specialization == company.specialization:
             raise ValueError("Эта отрасль уже является основной")
+        availability = await IndustrySelectionService.get_availability(
+            session, new_specialization
+        )
+        if not availability["available"]:
+            raise ValueError(str(availability["reason"]))
 
         now = normalize_dt(get_game_now())
         if company.last_respec_at:
@@ -260,22 +269,47 @@ class CompanyService:
             NatPveVictory, NatPvpCooldown, NatRestructuring, NatStateBondHolding,
             NatBankruptcyMarketLot, NatStock, NatStockHolding, NatStockOrder, NatTournamentParticipant,
             NatStateCreditLoan, NatSupplyDeal, NatSupplyDealSettlement,
+            NatCityOrderDelivery,
+            NatJointFactory, NatJointFactoryProposal, NatJointFactorySettlement,
         )
 
-        res = await session.execute(
-            select(NatCompany).where(NatCompany.user_id == user_id).with_for_update()
+        cid = await session.scalar(
+            select(NatCompany.id).where(NatCompany.user_id == user_id)
         )
-        comp = res.scalar_one_or_none()
-        if not comp:
+        if cid is None:
             return False
 
-        cid = comp.id
+        # Close shared production before the reset takes the company lock on
+        # its own. The JV service locks both partners in stable ID order.
+        from backend.natbirzha.services.joint_factory_settlement_service import (
+            JointFactorySettlementService,
+        )
+
+        current = get_game_now()
+        await JointFactorySettlementService.settle_for_company(session, cid, now=current)
+        await JointFactorySettlementService.breach_for_company(session, cid, now=current)
+        comp = await session.scalar(
+            select(NatCompany).where(NatCompany.id == cid).with_for_update()
+        )
+        if comp is None:
+            return False
+        await JointFactorySettlementService.preserve_partner_stock_on_reset(session, cid)
+
+        # City orders are shared state contracts. Keep their delivery history
+        # for liquidity analytics while anonymizing a company that resets.
+        await session.execute(update(NatCityOrderDelivery).where(
+            NatCityOrderDelivery.company_id == cid
+        ).values(company_id=None))
 
         # Do not leave marketplace entries pointing at factories, businesses,
         # or stock records removed by a company reset.
         reset_factory_ids = select(NatFactory.id).where(NatFactory.company_id == cid)
         reset_business_ids = select(NatBusiness.id).where(NatBusiness.company_id == cid)
         reset_stock_ids = select(NatStock.id).where(NatStock.company_id == cid)
+        reset_joint_factory_ids = select(NatJointFactory.id).where(or_(
+            NatJointFactory.company_a_id == cid,
+            NatJointFactory.company_b_id == cid,
+        ))
         await session.execute(update(NatBankruptcyMarketLot).where(
             NatBankruptcyMarketLot.status == "ACTIVE",
             or_(
@@ -283,6 +317,7 @@ class CompanyService:
                 (NatBankruptcyMarketLot.asset_kind == "FACTORY") & NatBankruptcyMarketLot.asset_id.in_(reset_factory_ids),
                 (NatBankruptcyMarketLot.asset_kind == "BUSINESS") & NatBankruptcyMarketLot.asset_id.in_(reset_business_ids),
                 (NatBankruptcyMarketLot.asset_kind == "STOCK") & NatBankruptcyMarketLot.asset_id.in_(reset_stock_ids),
+                (NatBankruptcyMarketLot.asset_kind == "JOINT_GOODS") & NatBankruptcyMarketLot.asset_id.in_(reset_joint_factory_ids),
             ),
         ).values(status="CANCELLED"))
 
@@ -361,6 +396,16 @@ class CompanyService:
             NatSupplyDealSettlement.deal_id.in_(deal_ids)
         ))
         await session.execute(delete(NatSupplyDeal).where(NatSupplyDeal.id.in_(deal_ids)))
+        joint_factory_ids = reset_joint_factory_ids
+        await session.execute(delete(NatJointFactorySettlement).where(
+            NatJointFactorySettlement.factory_id.in_(joint_factory_ids)
+        ))
+        await session.execute(delete(NatJointFactoryProposal).where(or_(
+            NatJointFactoryProposal.proposer_company_id == cid,
+            NatJointFactoryProposal.partner_company_id == cid,
+            NatJointFactoryProposal.factory_id.in_(joint_factory_ids),
+        )))
+        await session.execute(delete(NatJointFactory).where(NatJointFactory.id.in_(joint_factory_ids)))
         await session.execute(update(NatContract).where(
             NatContract.issuer_company_id == cid
         ).values(issuer_company_id=None))

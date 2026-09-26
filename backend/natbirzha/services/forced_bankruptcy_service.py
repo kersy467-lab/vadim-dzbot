@@ -256,6 +256,20 @@ class ForcedBankruptcyService:
         treasury = await StateTreasuryService.get_or_create(
             session, commit=False, for_update=True,
         )
+        current = now or get_game_now()
+        from backend.natbirzha.services.joint_factory_settlement_service import (
+            JointFactorySettlementService,
+        )
+
+        # Settle shared production before locking the target company alone.
+        # The joint settlement acquires both owners in ascending ID order,
+        # which matches normal offline settlement and avoids a lock inversion.
+        await JointFactorySettlementService.settle_for_company(
+            session, company_id, now=current
+        )
+        await JointFactorySettlementService.breach_for_company(
+            session, company_id, now=current
+        )
         company = await session.scalar(
             select(NatCompany).where(NatCompany.id == company_id).with_for_update()
             .execution_options(populate_existing=True)
@@ -273,7 +287,6 @@ class ForcedBankruptcyService:
         if prior:
             raise ValueError("Company has already had a creator bankruptcy liquidation.")
 
-        current = now or get_game_now()
         await cls._cancel_commodity_orders(session, company)
         await cls._cancel_stock_orders(session, company)
         await session.flush()

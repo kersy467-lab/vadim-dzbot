@@ -49,4 +49,14 @@ def is_creator_user(user: User | None) -> bool:
     return is_creator_identity(tg_id, username)
 
 
-__all__ = ["get_creator_tg_ids", "is_creator_user", "is_creator_identity"]
+def is_game_admin(user: User | None) -> bool:
+    """Use the server-maintained Telegram ID allowlist for the temporary game gate."""
+    if not user:
+        return False
+    try:
+        return int(getattr(user, "tg_id", 0) or 0) in get_creator_tg_ids()
+    except (ValueError, TypeError):
+        return False
+
+
+__all__ = ["get_creator_tg_ids", "is_creator_user", "is_creator_identity", "is_game_admin"]

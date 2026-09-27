@@ -262,6 +262,7 @@ def test_bankruptcy_market_api_liquidates_lists_and_buys_factory() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             creator_headers = {
                 "X-Test-User": str(creator_user_id),
+                "X-Natbirzha-Guest-Id": "bankruptcy-api-creator-test",
                 "Idempotency-Key": "api-bankruptcy-1",
             }
             liquidated = await client.post(
@@ -270,7 +271,13 @@ def test_bankruptcy_market_api_liquidates_lists_and_buys_factory() -> None:
             )
             assert liquidated.status_code == 200, liquidated.text
 
-            listing = await client.get("/api/natbirzha/bankruptcy-market")
+            listing = await client.get(
+                "/api/natbirzha/bankruptcy-market",
+                headers={
+                    "X-Test-User": str(buyer_user_id),
+                    "X-Natbirzha-Guest-Id": "bankruptcy-api-buyer-test",
+                },
+            )
             assert listing.status_code == 200, listing.text
             lots = listing.json()["lots"]
             assert len(lots) == 3
@@ -278,6 +285,7 @@ def test_bankruptcy_market_api_liquidates_lists_and_buys_factory() -> None:
 
             buyer_headers = {
                 "X-Test-User": str(buyer_user_id),
+                "X-Natbirzha-Guest-Id": "bankruptcy-api-buyer-test",
                 "Idempotency-Key": "api-bankruptcy-buy-1",
             }
             purchase_url = f"/api/natbirzha/bankruptcy-market/lots/{lot['id']}/buy"

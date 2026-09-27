@@ -33,7 +33,7 @@ def create_test_init_data(user_id: int, username: str = "nat_tester") -> str:
     return urlencode(values)
 
 
-async def test_vertical_playable_slice():
+async def _test_vertical_playable_slice():
     nat_settings.ALLOW_TEST_AUTH = True
     await init_db()
     user_id = int(time.time()) % 1000000 + 800000
@@ -142,5 +142,9 @@ async def test_vertical_playable_slice():
     print("NATBIRZHA vertical playable slice: PASS")
 
 
+def test_vertical_playable_slice():
+    asyncio.run(_test_vertical_playable_slice())
+
+
 if __name__ == "__main__":
-    asyncio.run(test_vertical_playable_slice())
+    asyncio.run(_test_vertical_playable_slice())

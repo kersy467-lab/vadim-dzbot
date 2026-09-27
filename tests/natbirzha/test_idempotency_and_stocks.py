@@ -44,7 +44,7 @@ def create_test_init_data(user_id: int, username: str = "nat_tester") -> str:
     return f"auth_date={auth_date}&user={user_json}&hash={calc_hash}"
 
 
-async def test_idempotency_and_stocks():
+async def _test_idempotency_and_stocks():
     nat_settings.ALLOW_TEST_AUTH = True
     print("\n" + "=" * 64)
     print("📈 TESTING IDEMPOTENCY 409, IPO, DIVIDENDS & TOURNAMENT TIE-BREAKER")
@@ -183,5 +183,9 @@ async def test_idempotency_and_stocks():
     print("=" * 64 + "\n")
 
 
+def test_idempotency_and_stocks():
+    asyncio.run(_test_idempotency_and_stocks())
+
+
 if __name__ == "__main__":
-    asyncio.run(test_idempotency_and_stocks())
+    asyncio.run(_test_idempotency_and_stocks())

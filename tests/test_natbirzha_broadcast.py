@@ -19,18 +19,24 @@ def _message(text):
     return message
 
 
-def _database_with_recipients(ids):
-    result = MagicMock()
-    result.scalars.return_value.all.return_value = ids
+def _database_with_recipients(ids, registered_ids=()):
+    def query_result(values):
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = values
+        return result
+
     session = MagicMock()
-    session.execute = AsyncMock(return_value=result)
+    session.execute = AsyncMock(side_effect=[query_result(ids), query_result(registered_ids)])
     return session
 
 
 def test_natbirzha_notice_sends_once_per_registered_player_and_reports_counts():
     async def run():
         message = _message("/sms Продайте уголь по 30")
-        session = _database_with_recipients([101, 202, 101])
+        session = _database_with_recipients(
+            [101, 202, 101],
+            ["natbirzha_registered_player_202"],
+        )
         bot = MagicMock()
         bot.send_message = AsyncMock()
 
@@ -42,7 +48,7 @@ def test_natbirzha_notice_sends_once_per_registered_player_and_reports_counts():
         )
 
         assert [call.kwargs["chat_id"] for call in bot.send_message.await_args_list] == [101, 202]
-        query_sql = str(session.execute.await_args.args[0])
+        query_sql = str(session.execute.await_args_list[0].args[0])
         assert "JOIN nat_companies" in query_sql
         assert "users.tg_id" in query_sql
         assert all(call.kwargs["text"] == "Продайте уголь по 30" for call in bot.send_message.await_args_list)

@@ -192,7 +192,11 @@ def test_state_credit_api_is_separate_and_mutations_are_idempotent() -> None:
         app.dependency_overrides[get_db_session] = test_session
         app.dependency_overrides[get_current_company] = test_company
         app.dependency_overrides[get_current_creator] = test_creator
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"X-Natbirzha-Guest-Id": "state-credit-api-test-guest"},
+        ) as client:
             headers = {"X-Test-Company": str(company_id)}
             status_path = "/api/natbirzha/finance/state-loans"
             issue_body = {"principal": 400, "term_days": 5}

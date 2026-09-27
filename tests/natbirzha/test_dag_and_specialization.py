@@ -21,7 +21,7 @@ from backend.natbirzha.services.production_service import ProductionTickEngine
 from backend.natbirzha.services.company_service import CompanyService
 
 
-async def test_dag_and_specialization():
+async def _test_dag_and_specialization():
     print("\n" + "=" * 64)
     print("🔬 TESTING RECIPE DAG & SPECIALIZATION EFFICIENCY CONSTRAINTS")
     print("=" * 64)
@@ -117,5 +117,9 @@ async def test_dag_and_specialization():
     print("=" * 64 + "\n")
 
 
+def test_dag_and_specialization():
+    asyncio.run(_test_dag_and_specialization())
+
+
 if __name__ == "__main__":
-    asyncio.run(test_dag_and_specialization())
+    asyncio.run(_test_dag_and_specialization())

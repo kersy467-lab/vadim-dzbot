@@ -71,7 +71,11 @@ async def run_async() -> None:
     app.dependency_overrides[get_current_company] = test_company
 
     transport = ASGITransport(app=app, raise_app_exceptions=False)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"X-Natbirzha-Guest-Id": "tournament-join-api-test-guest"},
+    ) as client:
         joined = await client.post(
             f"/api/natbirzha/military/tournaments/{tournament_id}/join",
             headers={"Idempotency-Key": "tournament-join-1"},
@@ -110,8 +114,9 @@ async def run_async() -> None:
             ).scalars().all()
         assert [participant.company_id for participant in participants] == [company_ids[0]]
 
-    screen = Path("frontend/natbirzha/js/screens/military_tournament.js").read_text(encoding="utf-8")
-    api = Path("frontend/natbirzha/js/api.js").read_text(encoding="utf-8")
+    repo_root = Path(__file__).resolve().parents[2]
+    screen = (repo_root / "frontend/natbirzha/js/screens/military_tournament.js").read_text(encoding="utf-8")
+    api = (repo_root / "frontend/natbirzha/js/api.js").read_text(encoding="utf-8")
     assert "tournament-join-btn" in screen, "tournament view must expose a join action"
     assert "joinTournament:" in api, "NatAPI must expose the tournament join endpoint"
 

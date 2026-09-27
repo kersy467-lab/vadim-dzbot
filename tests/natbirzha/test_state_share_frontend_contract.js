@@ -65,8 +65,10 @@ assert(marketShares.includes('escapeHtml') && creatorShares.includes('escapeHtml
 assert(creatorShares.includes('showFeedback(successMessage, \'success\')')
   && creatorShares.includes('target.textContent = message'),
   'creator-specific success detail must be written as text content');
-const sharedApiImport = "from '../api.js?v=20260926_joint_factory_v1';";
-assert(marketShares.includes(sharedApiImport) && creatorShares.includes(sharedApiImport),
+const appSource = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/app.js'), 'utf-8');
+const sharedApiVersion = appSource.match(/from '\.\/api\.js\?v=([^']+)'/)?.[1];
+const sharedApiImport = sharedApiVersion && `from '../api.js?v=${sharedApiVersion}';`;
+assert(sharedApiImport && marketShares.includes(sharedApiImport) && creatorShares.includes(sharedApiImport),
   'new screens must share the app API module instance that receives the navigation abort signal');
 assert((marketShares.match(/error\?\.name === 'AbortError'/g) || []).length >= 2,
   'state share load and trade handlers must ignore aborted requests');

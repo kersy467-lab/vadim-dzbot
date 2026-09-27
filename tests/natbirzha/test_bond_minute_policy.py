@@ -5,13 +5,13 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.creator import NatStateBond
+from backend.natbirzha.models.creator import NatStateBond, NatStateTreasury
 from backend.natbirzha.models.tax import NatCompanyProfitPeriod, NatTaxPeriod
 from backend.natbirzha.models.stocks import NatHourlyDividendAccrual, NatStock, NatStockHolding
 from backend.natbirzha.services.state_bond_service import StateBondService
@@ -121,8 +121,69 @@ def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
     asyncio.run(run())
 
 
+def test_offline_coupon_catchup_batches_idempotency_lookups() -> None:
+    async def run() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        issued_at = datetime(2026, 9, 24, 12)
+        async with sessions() as session:
+            company = NatCompany(
+                user_id=952010, name="Offline Bond Buyer", specialization="miner", cash=10_000,
+            )
+            session.add(company)
+            await session.flush()
+            issue = await StateBondService.issue(
+                session,
+                actor_id=777,
+                title="ОФЗ-Оффлайн",
+                volume=2,
+                face_value=100,
+                coupon_rate=30,
+                maturity_days=3,
+                purpose="offline catch-up",
+                now=issued_at,
+                commit=False,
+            )
+            treasury = await session.scalar(select(NatStateTreasury))
+            treasury.cash = 1_000_000
+            bond = await session.get(NatStateBond, issue["bond_id"])
+            await StateBondService.buy(session, company, bond.id, 1, now=issued_at, commit=False)
+            await session.commit()
+
+        lookup_queries = 0
+        recipient_queries = 0
+
+        def count_idempotency_lookups(_conn, _cursor, statement, _parameters, _context, _executemany):
+            nonlocal lookup_queries, recipient_queries
+            normalized = statement.lower()
+            if "select nat_bond_settlements.id" in normalized and "operation_key" in normalized:
+                lookup_queries += 1
+            if "select nat_companies.id" in normalized and "from nat_companies" in normalized:
+                recipient_queries += 1
+
+        event.listen(engine.sync_engine, "before_cursor_execute", count_idempotency_lookups)
+        try:
+            async with sessions() as session:
+                result = await StateBondService.settle_due(
+                    session, now=issued_at + timedelta(minutes=5), commit=True,
+                )
+                assert result["coupon_payments"] == 5
+        finally:
+            event.remove(engine.sync_engine, "before_cursor_execute", count_idempotency_lookups)
+            await engine.dispose()
+
+        assert lookup_queries <= 1, f"Expected batched idempotency lookup, got {lookup_queries} minute queries"
+        assert recipient_queries <= 1, f"Expected one recipient lookup, got {recipient_queries} per-coupon queries"
+
+    asyncio.run(run())
+
+
 def test_bond_scheduler_runs_each_minute() -> None:
-    source = Path("backend/bot/services/scheduler.py").read_text(encoding="utf-8")
+    scheduler_path = Path(__file__).resolve().parents[2] / "backend" / "bot" / "services" / "scheduler.py"
+    source = scheduler_path.read_text(encoding="utf-8")
     job = re.search(
         r"scheduler\.add_job\(\s*run_natbirzha_bond_settlement,\s*"
         r"trigger=CronTrigger\((.*?)\),\s*id=\"natbirzha_bond_settlement_job\"",

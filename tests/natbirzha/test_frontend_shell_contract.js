@@ -16,7 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(natHtml.includes('id="access-wait-screen"'), 'admin-only release gate must include the full-screen waiting view');
 assert(natHtml.includes('Патч варится, бро.'), 'full-screen waiting view must show the selected release quote');
-assert(natHtml.includes('app.js?v=20260927_admin_wait_gate_v1'), 'Natbirzha entrypoint must bust its cache for the access gate release');
+assert(natHtml.includes('app.js?v=20260928_pre_release_audit_v1'), 'Natbirzha entrypoint must bust its cache for the access gate release');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');

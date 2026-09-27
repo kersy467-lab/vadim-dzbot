@@ -41,7 +41,7 @@ def make_test_auth_headers(tg_id: int) -> dict:
     return {"X-Telegram-Init-Data": urllib.parse.urlencode(data)}
 
 
-async def test_audit_fixes():
+async def _test_audit_fixes():
     nat_settings.ALLOW_TEST_AUTH = True
     await init_db()
     print("\n================================================================")
@@ -267,5 +267,9 @@ async def test_audit_fixes():
     print("================================================================\n")
 
 
+def test_audit_fixes():
+    asyncio.run(_test_audit_fixes())
+
+
 if __name__ == "__main__":
-    asyncio.run(test_audit_fixes())
+    asyncio.run(_test_audit_fixes())

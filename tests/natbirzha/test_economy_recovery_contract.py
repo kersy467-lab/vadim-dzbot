@@ -85,6 +85,7 @@ def test_paused_idle_enterprise_upgrade_is_available_and_keeps_its_pause_reason(
         async with AsyncClient(
             transport=ASGITransport(app=app, raise_app_exceptions=True),
             base_url="http://test",
+            headers={"X-Natbirzha-Guest-Id": "paused-ai-upgrade-test-guest"},
         ) as client:
             portfolio = await client.get("/api/natbirzha/businesses")
             assert portfolio.status_code == 200, portfolio.text
@@ -99,6 +100,7 @@ def test_paused_idle_enterprise_upgrade_is_available_and_keeps_its_pause_reason(
         async with AsyncClient(
             transport=ASGITransport(app=app, raise_app_exceptions=True),
             base_url="http://test",
+            headers={"X-Natbirzha-Guest-Id": "paused-ai-upgrade-test-guest"},
         ) as client:
             replay = await client.post(
                 f"/api/natbirzha/businesses/{business_id}/upgrade",
@@ -161,6 +163,7 @@ def test_rare_mining_contract_grants_visible_business_and_preserves_upgrades() -
         async with AsyncClient(
             transport=ASGITransport(app=app, raise_app_exceptions=False),
             base_url="http://test",
+            headers={"X-Natbirzha-Guest-Id": "rare-mining-contract-test-guest"},
         ) as client:
             first = await client.post(
                 "/api/natbirzha/premium/licenses/rare_mining/purchase",

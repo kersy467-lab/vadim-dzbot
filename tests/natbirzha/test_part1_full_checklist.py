@@ -7,7 +7,6 @@ import sys
 import time
 from urllib.parse import urlencode
 
-import pytest
 from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -31,8 +30,7 @@ def signed_headers(tg_id: int, username: str) -> dict:
     return {"X-Telegram-Init-Data": urlencode(data)}
 
 
-@pytest.mark.asyncio
-async def test_full_part1_and_creator_checklist():
+async def _test_full_part1_and_creator_checklist():
     await init_db()
     nat_settings.ALLOW_TEST_AUTH = True
     admin_tg = 1053722876
@@ -153,5 +151,9 @@ async def test_full_part1_and_creator_checklist():
     print("NATBIRZHA full checklist core + creator boundaries: PASS")
 
 
+def test_full_part1_and_creator_checklist():
+    asyncio.run(_test_full_part1_and_creator_checklist())
+
+
 if __name__ == "__main__":
-    asyncio.run(test_full_part1_and_creator_checklist())
+    asyncio.run(_test_full_part1_and_creator_checklist())

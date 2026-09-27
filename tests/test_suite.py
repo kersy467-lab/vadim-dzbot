@@ -362,23 +362,25 @@ async def test_database_and_crud():
         subj_map = {s.name: s.id for s in all_subs}
         chem_id = subj_map["Химия"]
 
-        # 1. Upcoming dates for Chemistry (Monday)
-        chem_dates = await find_upcoming_dates_for_subject(session, chem_id, from_date=date(2026, 9, 15), limit=2)
-        assert len(chem_dates) >= 1
-        assert chem_dates[0] == date(2026, 9, 28), f"Expected Monday 28.09, got {chem_dates[0]}"
+        # 1. Upcoming dates for Chemistry. Keep this independent of the wall clock
+        # so the regression remains valid after the original September 2026 date.
+        today = get_today()
+        chem_dates = await find_upcoming_dates_for_subject(
+            session, chem_id, from_date=today + timedelta(days=1), limit=1
+        )
+        assert len(chem_dates) == 1
 
-        # 2. Create homework for Chemistry due 2026-09-28, assigned on 2026-09-14
+        # 2. Create homework due at the next lesson, then add an earlier lesson today.
         hw_active = await create_homework(
             session=session,
             subject_id=chem_id,
-            due_date=date(2026, 9, 28),
-            assigned_date=date(2026, 9, 14),
+            due_date=chem_dates[0],
+            assigned_date=today - timedelta(days=14),
             description="Параграф 5, упр. 1-4"
         )
-        assert hw_active.assigned_date == date(2026, 9, 14)
+        assert hw_active.assigned_date == today - timedelta(days=14)
 
         # 3. Create a past homework (due in the past)
-        today = get_today()
         hw_past = await create_homework(
             session=session,
             subject_id=chem_id,

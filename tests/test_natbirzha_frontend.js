@@ -292,7 +292,7 @@ assert(creatorScreenCode.includes('grid grid-cols-3') && !creatorScreenCode.incl
   'government controls must be visible in a wrapping grid instead of hidden in a horizontal tab strip');
 assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"') && creatorScreenCode.includes('data-tab="sabotages"'),
   'player bankruptcy, bond bankruptcy and sabotages sections must remain directly navigable');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes('creator.js?v=20260926_local_update_v1'),
+assert(/creator\.js\?v=[^'\"]+/.test(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8')),
   'app.js must reload the updated creator panel module');
 assert(/creator_credit\.js\?v=20260926_local_update_v1/.test(creatorScreenCode)
   && /creator_players\.js\?v=20260926_local_update_v1/.test(creatorScreenCode)

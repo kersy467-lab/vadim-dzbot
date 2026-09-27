@@ -76,6 +76,10 @@ global.document = {
 };
 
 const egeScript = fs.readFileSync(path.join(__dirname, '../frontend/js/ege.js'), 'utf-8');
+const egeCoreScript = fs.readFileSync(path.join(__dirname, '../frontend/js/ege/ege_core.js'), 'utf-8');
+const egeParonymsScript = fs.readFileSync(path.join(__dirname, '../frontend/js/ege/ege_paronyms.js'), 'utf-8');
+eval(egeParonymsScript);
+eval(egeCoreScript);
 eval(egeScript);
 
 assert(typeof mockWindow.EGE.selectTask === 'function', 'window.EGE.selectTask must be defined');

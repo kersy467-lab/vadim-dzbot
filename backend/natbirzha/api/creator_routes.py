@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.session import get_db_session
 from backend.db.models import User
 from backend.natbirzha.services.creator_service import CreatorService
+from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.leaderboard_service import LeaderboardService
 from backend.natbirzha.config import nat_settings
@@ -132,7 +133,7 @@ async def get_economy_metrics(
     _admin: User = Depends(get_current_creator),
     session: AsyncSession = Depends(get_db_session),
 ):
-    return await CreatorService.get_economy_metrics(session, days=days)
+    return await EconomyMetricsService.summary(session, days=days)
 
 
 @router.get("/market")
@@ -140,7 +141,7 @@ async def get_market(
     _admin: User = Depends(get_current_creator),
     session: AsyncSession = Depends(get_db_session)
 ):
-    return await CreatorService.get_market_overview(session)
+    return await CreatorService.get_market_snapshot(session)
 
 
 @router.post("/market/warnings")
@@ -156,7 +157,9 @@ async def send_warning(
     if cached:
         return cached[1]
     try:
-        res = await CreatorService.send_warning(session, req.company_id, req.reason)
+        res = await CreatorService.add_warning(
+            session, admin.tg_id, req.company_id, req.reason, commit=False
+        )
         return await IdempotencyService.commit_response(session, admin.id, endpoint, idempotency_key, payload, res)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -175,8 +178,10 @@ async def add_restriction(
     if cached:
         return cached[1]
     try:
-        res = await CreatorService.add_restriction(
-            session, req.company_id, req.item_id, req.min_price, req.max_price, req.reason, req.duration_minutes
+        res = await CreatorService.set_restriction(
+            session, admin.tg_id, req.company_id, req.item_id,
+            req.min_price, req.max_price, req.reason, req.duration_minutes,
+            commit=False,
         )
         return await IdempotencyService.commit_response(session, admin.id, endpoint, idempotency_key, payload, res)
     except ValueError as e:
@@ -196,7 +201,9 @@ async def remove_restriction(
     if cached:
         return cached[1]
     try:
-        res = await CreatorService.remove_restriction(session, restriction_id)
+        res = await CreatorService.remove_restriction(
+            session, admin.tg_id, restriction_id, commit=False
+        )
         return await IdempotencyService.commit_response(session, admin.id, endpoint, idempotency_key, payload, res)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -215,9 +222,11 @@ async def issue_bond(
     if cached:
         return cached[1]
     try:
-        res = await CreatorService.issue_bond(
-            session, req.title, req.volume, req.face_value, req.coupon_rate,
-            req.maturity_days, req.coupon_interval_days, req.purpose
+        res = await CreatorService.issue_bonds(
+            session, admin.tg_id, req.title, req.volume, req.face_value,
+            req.coupon_rate, req.maturity_days, req.purpose,
+            coupon_interval_days=req.coupon_interval_days,
+            commit=False,
         )
         return await IdempotencyService.commit_response(session, admin.id, endpoint, idempotency_key, payload, res)
     except ValueError as e:
@@ -229,7 +238,7 @@ async def list_bonds(
     _admin: User = Depends(get_current_creator),
     session: AsyncSession = Depends(get_db_session)
 ):
-    return await CreatorService.list_bonds(session)
+    return {"bonds": await CreatorService.get_bonds(session)}
 
 
 @router.post("/bonds/{bond_id}/bankrupt")
@@ -306,7 +315,7 @@ async def get_audit_log(
     _admin: User = Depends(get_current_creator),
     session: AsyncSession = Depends(get_db_session)
 ):
-    return await CreatorService.get_audit_log(session, limit=limit)
+    return {"logs": await CreatorService.get_audit_log(session, limit=limit)}
 
 
 @router.get("/premium/ledger")
@@ -315,8 +324,7 @@ async def get_premium_ledger(
     _admin: User = Depends(get_current_creator),
     session: AsyncSession = Depends(get_db_session),
 ):
-    from backend.natbirzha.services.creator_premium_service import CreatorPremiumService
-    return await CreatorPremiumService.get_ledger(session, limit=limit)
+    return {"entries": await CreatorService.get_premium_ledger(session, limit=limit)}
 
 
 @router.get("/players")

@@ -1,131 +1,127 @@
-"""Restore database from JSON backup into any PostgreSQL database.
+"""Restore database from SQL or JSON backup into any PostgreSQL database.
 Usage:
-    python scripts/restore_neon_db.py [NEW_DATABASE_URL] [--file path_to_backup.json]
+    python scripts/restore_neon_db.py [NEW_DATABASE_URL] [--file path_to_backup.sql|.json]
 """
 
 import asyncio
 import os
 import sys
 import json
+import urllib.parse
 from datetime import datetime
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+import asyncpg
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 from backend.db.models import Base
 import backend.natbirzha.models  # Register all models
 
 
-async def restore_database(target_url: str, backup_file: str):
-    if not os.path.exists(backup_file):
-        print(f"Error: Backup file {backup_file} not found!")
-        return False
+def parse_pg_url(url: str):
+    """Parse PostgreSQL URL into connection parameters."""
+    clean = url
+    for prefix in ("postgresql+asyncpg://", "postgresql://", "postgres://"):
+        if clean.startswith(prefix):
+            clean = clean[len(prefix):]
+            break
 
-    print(f"Loading backup data from {backup_file}...")
-    with open(backup_file, "r", encoding="utf-8") as f:
-        backup_data = json.load(f)
+    user_pass, host_db = clean.split("@", 1)
+    if ":" in user_pass:
+        user, password = user_pass.split(":", 1)
+    else:
+        user, password = user_pass, ""
 
-    meta = backup_data.get("metadata", {})
-    tables_data = backup_data.get("tables", {})
-    print(f"Backup created at: {meta.get('created_at')}")
-    print(f"Total tables in backup: {len(tables_data)}")
+    user = urllib.parse.unquote(user)
+    password = urllib.parse.unquote(password)
 
-    # Ensure target_url uses asyncpg driver
+    if "?" in host_db:
+        host_db, _ = host_db.split("?", 1)
+
+    host_port, database = host_db.split("/", 1)
+    if ":" in host_port:
+        host, port_str = host_port.split(":", 1)
+        port = int(port_str)
+    else:
+        host, port = host_port, 5432
+
+    return {
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "database": database,
+    }
+
+
+async def restore_from_sql(target_url: str, sql_file: str):
+    print(f"Loading SQL backup statements from {sql_file}...")
+    with open(sql_file, "r", encoding="utf-8") as f:
+        statements = [line.strip() for line in f if line.strip() and not line.strip().startswith("--")]
+
+    total_stmts = len(statements)
+    print(f"Total SQL statements to execute: {total_stmts}")
+
+    params = parse_pg_url(target_url)
+    ssl_mode = "require" if any(k in target_url.lower() for k in ("neon.tech", "supabase")) else None
+
+    # 1. Ensure all schema tables exist via SQLAlchemy metadata first
     clean_url = target_url
     if clean_url.startswith("postgres://"):
         clean_url = clean_url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif clean_url.startswith("postgresql://"):
         clean_url = clean_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-
-    # Strip query params handled via connect_args
-    raw_query = ""
     if "?" in clean_url:
-        clean_url, raw_query = clean_url.split("?", 1)
+        clean_url = clean_url.split("?", 1)[0]
 
     connect_args = {}
-    if any(k in clean_url.lower() for k in ("neon.tech", "supabase")) or "sslmode=require" in raw_query or "ssl=require" in raw_query:
-        connect_args["ssl"] = "require"
+    if ssl_mode:
+        connect_args["ssl"] = ssl_mode
     if ":6543" in clean_url or "pooler.supabase" in clean_url:
         connect_args["statement_cache_size"] = 0
 
-    print(f"Connecting to target database...")
+    print("Verifying / creating schema tables in target database...")
     engine = create_async_engine(clean_url, echo=False, connect_args=connect_args)
-
-    # 1. Create all schema tables
-    print("Creating schema tables in target database...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    inserted_total = 0
-    non_empty_tables = 0
-
-    async with sessions() as session:
-        # Disable triggers & foreign keys during restore
-        await session.execute(text("SET session_replication_role = 'replica';"))
-
-        # Order tables topologically
-        ordered_tables = []
-        for t in Base.metadata.sorted_tables:
-            if t.name in tables_data:
-                ordered_tables.append(t.name)
-        for t in tables_data:
-            if t not in ordered_tables:
-                ordered_tables.append(t)
-
-        for tbl in ordered_tables:
-            tbl_info = tables_data[tbl]
-            rows = tbl_info.get("rows", [])
-            cols = tbl_info.get("columns", [])
-            if not rows or not cols:
-                continue
-
-            print(f"Restoring table '{tbl}' ({len(rows)} rows)...")
-            col_list = ", ".join(f'"{c}"' for c in cols)
-            param_list = ", ".join(f":{c}" for c in cols)
-            stmt = text(f'INSERT INTO "{tbl}" ({col_list}) VALUES ({param_list})')
-
-            # Batch insert in chunks of 500
-            chunk_size = 500
-            for i in range(0, len(rows), chunk_size):
-                chunk = rows[i:i + chunk_size]
-                # Cast JSON fields back to string/dict if needed
-                await session.execute(stmt, chunk)
-
-            inserted_total += len(rows)
-            non_empty_tables += 1
-
-        # Reset sequences to max(id)
-        print("Resetting primary key sequences...")
-        seq_res = await session.execute(text("""
-            SELECT sequence_name 
-            FROM information_schema.sequences 
-            WHERE sequence_schema = 'public'
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS nat_schema_versions (
+                version VARCHAR(80) PRIMARY KEY,
+                applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
         """))
-        for seq_row in seq_res.fetchall():
-            seq_name = seq_row[0]
-            parts = seq_name.split("_")
-            if len(parts) >= 2:
-                tbl_guess = "_".join(parts[:-2]) if parts[-1] == "seq" else parts[0]
-                col_guess = parts[-2] if parts[-1] == "seq" else "id"
-                if tbl_guess in tables_data:
-                    try:
-                        await session.execute(text(f"""
-                            SELECT setval('{seq_name}', COALESCE((SELECT MAX("{col_guess}") FROM "{tbl_guess}"), 1), true)
-                        """))
-                    except Exception:
-                        pass
-
-        await session.execute(text("SET session_replication_role = 'origin';"))
-        await session.commit()
-
     await engine.dispose()
+
+    # 2. Connect via asyncpg to batch-execute the SQL dump
+    print(f"Connecting to target database ({params['host']}:{params['port']})...")
+    conn = await asyncpg.connect(
+        host=params["host"],
+        port=params["port"],
+        user=params["user"],
+        password=params["password"],
+        database=params["database"],
+        ssl=ssl_mode,
+        statement_cache_size=0 if ("6543" in str(params["port"]) or "pooler.supabase" in params["host"]) else 100,
+    )
+
+    try:
+        print("Executing backup statements in batches of 500...")
+        chunk_size = 500
+        for i in range(0, total_stmts, chunk_size):
+            chunk = statements[i:i + chunk_size]
+            batch_sql = "\n".join(chunk)
+            await conn.execute(batch_sql)
+            progress = min(i + chunk_size, total_stmts)
+            pct = (progress / total_stmts) * 100
+            print(f"Progress: {progress}/{total_stmts} ({pct:.1f}%) statements executed...")
+    finally:
+        await conn.close()
+
     print("\n" + "=" * 60)
     print("RESTORE COMPLETED SUCCESSFULLY!")
-    print(f"Total tables restored: {non_empty_tables}")
-    print(f"Total rows restored:   {inserted_total}")
+    print(f"Total statements executed: {total_stmts}")
     print("=" * 60)
     return True
 
@@ -133,7 +129,8 @@ async def restore_database(target_url: str, backup_file: str):
 if __name__ == "__main__":
     from backend.config import settings
     target = None
-    backup = os.path.join("data", "backups", "neon_backup_latest.json")
+    default_sql = os.path.join("data", "backups", "neon_backup_latest.sql")
+    backup = default_sql
 
     args = sys.argv[1:]
     i = 0
@@ -155,4 +152,4 @@ if __name__ == "__main__":
         print("Error: Target database URL not provided and not found in settings!")
         sys.exit(1)
 
-    asyncio.run(restore_database(target, backup))
+    asyncio.run(restore_from_sql(target, backup))

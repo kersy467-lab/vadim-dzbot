@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
 import { renderTournamentSection } from './military_tournament.js?v=20260926_local_update_v1';
-import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260927_hospital_v1';
+import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260927_hospital_v2';
 
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },
@@ -94,13 +94,14 @@ export async function renderMilitary(container, showToast) {
   const scouting = new Map();
 
   async function loadWarData() {
-    const [armyRes, pveRes, tournamentRes, historyRes, tournamentHistoryRes, hospitalRes] = await Promise.allSettled([
+    const [armyRes, pveRes, tournamentRes, historyRes, tournamentHistoryRes, hospitalRes, companyRes] = await Promise.allSettled([
       NatAPI.getMilitaryStatus(),
       NatAPI.getPveTargets(),
       NatAPI.getCurrentTournament(),
       NatAPI.getBattleHistory(),
       NatAPI.getTournamentHistory(),
       NatAPI.getHospitalStatus(),
+      NatAPI.getMyCompany(),
     ]);
     if (armyRes.status === 'fulfilled') army = armyRes.value || {};
     if (pveRes.status === 'fulfilled') pveTargets = pveRes.value?.targets || [];
@@ -108,6 +109,7 @@ export async function renderMilitary(container, showToast) {
     if (historyRes.status === 'fulfilled') history = historyRes.value?.battles || [];
     if (tournamentHistoryRes.status === 'fulfilled') tournamentHistory = tournamentHistoryRes.value?.tournaments || [];
     if (hospitalRes.status === 'fulfilled') hospitalStatus = hospitalRes.value || null;
+    if (companyRes.status === 'fulfilled' && companyRes.value) store.setCompany(companyRes.value);
     const tournament = tournamentData?.tournament;
     if (tournament?.id && tournament.status === 'ACTIVE') {
       try {

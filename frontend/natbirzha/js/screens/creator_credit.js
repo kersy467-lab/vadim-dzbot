@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const dateLabel = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';

@@ -34,7 +34,7 @@ if (!sharedApiVersion
   || !entryVersion
   || !market.includes("state.js?v=20260926_local_update_v1")
   || !screen.includes("state.js?v=20260926_local_update_v1")
-  || entryVersion !== '20260927_hospital_v1') {
+  || entryVersion !== '20260927_hospital_v2') {
   throw new Error('City Orders frontend cache-busting or shared API/store module identity is missing.');
 }
 for (const file of [

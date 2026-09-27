@@ -1,7 +1,7 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { formatNumber } from '../format.js';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { renderMarketJointFactories } from './market_joint_factories.js?v=20260926_joint_factories_v1&release=20260927_hospital_v1';
+import { renderMarketJointFactories } from './market_joint_factories.js?v=20260926_joint_factories_v1&release=20260927_hospital_v2';
 
 const TERMS = [
   [600, '10 минут'], [1800, '30 минут'], [3600, '1 час'], [7200, '2 часа'],

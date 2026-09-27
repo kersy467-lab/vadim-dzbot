@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',

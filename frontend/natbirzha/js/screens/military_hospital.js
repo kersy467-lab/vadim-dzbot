@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 
@@ -25,12 +25,14 @@ const TREATMENT_RULES = {
 };
  
 function getAvailableCash(companySource) {
-  const comp = companySource || store?.company || {};
+  const comp = (companySource && typeof companySource.cash === 'number') ? companySource : (store?.company || {});
   return Math.max(0, Number(comp.cash ?? 0));
 }
 
 function getAvailableInventory(itemId, inventorySource) {
-  const inv = inventorySource || store?.inventory || store?.company?.inventory_available || store?.company?.inventory || {};
+  const inv = (inventorySource && Object.keys(inventorySource).length > 0)
+    ? inventorySource
+    : (store?.inventory || store?.company?.inventory_available || store?.company?.inventory || {});
   if (Array.isArray(inv)) {
     const row = inv.find((item) => (item.item_id || item.item || item.id) === itemId);
     return Math.max(0, Number(row?.available ?? row?.quantity ?? row?.qty ?? 0));

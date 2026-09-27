@@ -1,8 +1,8 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
 import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
-import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260926_local_update_v1&release=20260927_hospital_v1';
+import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 
 export function renderOverview(container, showToast) {
   const company = store.company;

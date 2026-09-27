@@ -13,6 +13,9 @@ assert(tycoon.includes('Потеря составит'), 'sale confirmation must
 assert(tycoon.includes('data-refund=') && tycoon.includes('business.sale_refund'), 'sale button must show the server refund');
 assert(!tycoon.includes('data-mode="NPC"') && !tycoon.includes('data-mode="HOLD"') && !tycoon.includes('data-action="sale-mode"'), 'resource businesses must not let players choose output routing');
 assert(tycoon.includes('Вся продукция поступает на склад'), 'resource businesses must explain that outputs are always stored');
+assert(tycoon.includes('function resourceQuantity') && tycoon.includes('maximumFractionDigits: 3'), 'small nonzero per-tick material demand must not be rendered as zero');
+assert(tycoon.includes("quantity < 0.0005") && tycoon.includes("return '<0,001'"), 'tiny nonzero material demand must not round down to a misleading zero');
+assert(tycoon.includes('Number(amount) > 0'), 'zero-quantity material rows must be hidden');
 assert(tycoon.includes('estimated_npc_profit_per_hour'), 'Tycoon summary must show the separate NPC stress estimate');
 assert(tycoon.includes('Стресс-сценарий NPC'), 'NPC valuation must be labeled as a separate downside scenario');
 assert(tycoon.includes('MARKET_REFERENCE_VALUE') || tycoon.includes('по базовым ценам'),

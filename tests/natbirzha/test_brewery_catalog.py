@@ -87,7 +87,7 @@ def test_brewery_starter_matches_employee_beer_demand_across_other_starters() ->
     )
     assert validate_business_catalog()
     assert len(INDUSTRIES) == 12
-    assert "forester" in INDUSTRIES and "brewery" in INDUSTRIES
+    assert "ai_data" in INDUSTRIES and "brewery" in INDUSTRIES
     assert all(starter_business_spec(industry) for industry in INDUSTRIES)
 
     beer_demand = 0.0

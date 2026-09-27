@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.bot.handlers.admin.helpers import is_admin
 from backend.db.models import User
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.services.access_control import get_creator_tg_ids
+from backend.natbirzha.services.maintenance_service import MaintenanceService
+from backend.natbirzha.services.player_registry_service import PlayerRegistryService
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin_natbirzha_notice_router")
@@ -21,7 +24,113 @@ async def _get_natbirzha_recipient_ids(db_session: AsyncSession) -> list[int]:
         .distinct()
         .order_by(User.tg_id)
     )
-    return list(dict.fromkeys(int(tg_id) for tg_id in result.scalars().all() if tg_id is not None))
+    current_players = {int(tg_id) for tg_id in result.scalars().all() if tg_id is not None}
+    registered_players = set(await PlayerRegistryService.get_registered_tg_ids(db_session))
+    return sorted(current_players | registered_players)
+
+
+def _private_admin_command(message: Message, current_user: User | None) -> bool:
+    return bool(
+        message.chat.type == "private"
+        and message.from_user
+        and (
+            is_admin(current_user, message.from_user.id)
+            or message.from_user.id in get_creator_tg_ids()
+        )
+    )
+
+
+@router.message(Command("ban"))
+async def cmd_natbirzha_ban(
+    message: Message,
+    current_user: User | None,
+    db_session: AsyncSession,
+) -> None:
+    """Close the game to players while keeping administrator access."""
+    if not _private_admin_command(message, current_user):
+        await message.answer("⛔ Команда доступна администраторам в личном чате с ботом.", parse_mode=None)
+        return
+
+    was_closed = await MaintenanceService.is_maintenance_active(db_session)
+    try:
+        await MaintenanceService.set_maintenance_active(db_session, True)
+    except Exception:
+        await db_session.rollback()
+        logger.exception("Could not close Natbirzha for a technical break")
+        await message.answer("❌ Не удалось закрыть игру. Попробуйте ещё раз.", parse_mode=None)
+        return
+
+    status = "Игра уже закрыта." if was_closed else "Игра закрыта для игроков. Администраторы сохраняют доступ."
+    await message.answer(f"🛠 {status}", parse_mode=None)
+
+
+@router.message(Command("unban"))
+async def cmd_natbirzha_unban(
+    message: Message,
+    bot: Bot,
+    current_user: User | None,
+    db_session: AsyncSession,
+) -> None:
+    """Reopen the game and send one release notice to registered players."""
+    if not _private_admin_command(message, current_user):
+        await message.answer("⛔ Команда доступна администраторам в личном чате с ботом.", parse_mode=None)
+        return
+
+    was_closed = await MaintenanceService.is_maintenance_active(db_session)
+    try:
+        await MaintenanceService.set_maintenance_active(db_session, False)
+    except Exception:
+        await db_session.rollback()
+        logger.exception("Could not reopen Natbirzha")
+        await message.answer("❌ Не удалось открыть игру. Попробуйте ещё раз.", parse_mode=None)
+        return
+
+    if not was_closed:
+        await message.answer("🟢 Игра уже открыта. Повторная рассылка не отправлялась.", parse_mode=None)
+        return
+
+    release_text = (
+        "🚀 НАТБИРЖА снова открыта!\n\n"
+        "Создавай компанию и развивай её: строй предприятия, производи и продавай ресурсы, "
+        "торгуй на бирже, инвестируй и заключай сделки с другими игроками.\n\n"
+        "Открыть игру можно командой /natbirzha. Удачного старта!"
+    )
+    try:
+        recipient_ids = await _get_natbirzha_recipient_ids(db_session)
+    except Exception:
+        logger.exception("Could not load Natbirzha release recipients")
+        await message.answer(
+            "🟢 Игра открыта, но список адресатов уведомления загрузить не удалось.",
+            parse_mode=None,
+        )
+        return
+
+    delivered = 0
+    failed_ids: list[int] = []
+    for recipient_id in recipient_ids:
+        try:
+            await bot.send_message(chat_id=recipient_id, text=release_text, parse_mode=None)
+            delivered += 1
+        except Exception as exc:
+            failed_ids.append(recipient_id)
+            logger.warning("Natbirzha release notice failed for Telegram user %s: %s", recipient_id, exc)
+
+    report = (
+        "🟢 Игра открыта. Рассылка завершена.\n"
+        f"👥 Адресатов: {len(recipient_ids)}\n"
+        f"✅ Доставлено: {delivered}\n"
+        f"❌ Не доставлено: {len(failed_ids)}"
+    )
+    if not recipient_ids:
+        report += (
+            "\nСписок игроков пуст. Если вайп был сделан до включения реестра, "
+            "старые Telegram ID нужно восстановить отдельно."
+        )
+    if failed_ids:
+        report += "\nTG ID с ошибкой отправки: " + ", ".join(str(tg_id) for tg_id in failed_ids[:20])
+        if len(failed_ids) > 20:
+            report += f" и ещё {len(failed_ids) - 20}"
+    await message.answer(report, parse_mode=None)
 
 
 # Keep the old names as aliases while exposing /sms as the official command.

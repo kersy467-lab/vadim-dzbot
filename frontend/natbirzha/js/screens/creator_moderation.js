@@ -9,11 +9,12 @@ export async function loadCreatorModeration(el, showToast) {
     }),
     NatAPI.getCreatorWorldResetPreview().catch(err => {
       console.error('getCreatorWorldResetPreview error:', err);
-      return { affected_companies: 0, creator_starting_cash: 500000, normal_starting_cash: 50000, tester_starting_pvc: 200, confirmation_phrase: 'СБРОСИТЬ НАТБИРЖУ' };
+      return { affected_companies: 0, registered_natbirzha_players: 0, creator_starting_cash: 50000, normal_starting_cash: 50000, tester_starting_pvc: 200, confirmation_phrase: 'СБРОСИТЬ НАТБИРЖУ' };
     }),
   ]);
   const affected = Number(resetPreview?.affected_companies || 0).toLocaleString('ru-RU');
-  const creatorCash = Number(resetPreview?.creator_starting_cash || 500000).toLocaleString('ru-RU');
+  const registeredPlayers = Number(resetPreview?.registered_natbirzha_players || 0).toLocaleString('ru-RU');
+  const creatorCash = Number(resetPreview?.creator_starting_cash || 50000).toLocaleString('ru-RU');
   const normalCash = Number(resetPreview?.normal_starting_cash || 50000).toLocaleString('ru-RU');
   const testerPvc = Number(resetPreview?.tester_starting_pvc || 200).toLocaleString('ru-RU');
   const resetPhrase = String(resetPreview?.confirmation_phrase || 'СБРОСИТЬ НАТБИРЖУ');
@@ -152,7 +153,7 @@ export async function loadCreatorModeration(el, showToast) {
 
     <div class="rounded-2xl border border-rose-500/60 bg-rose-950/35 p-4 space-y-3 shadow-lg shadow-rose-950/20">
       <div>
-        <div class="text-xs font-black uppercase tracking-wide text-rose-300">💣 Полный сброс всех аккаунтов (Игра с нуля)</div>
+        <div class="text-xs font-black uppercase tracking-wide text-rose-300">💣 Полный вайп игровых данных</div>
         <div class="mt-1 text-[11px] leading-relaxed text-rose-100/80">
           Удаляет все компании и всю игровую историю: заводы, склады, армию, биржу, IPO, облигации, PvE/PvP,
           лицензии, PVC-балансы и прогресс. Глобальные Telegram-пользователи не удаляются — сохраняются роль админа и флаг тестера.
@@ -162,6 +163,7 @@ export async function loadCreatorModeration(el, showToast) {
         <div class="rounded-xl bg-rose-950/50 border border-rose-500/20 p-2"><span class="text-rose-300">Профилей сейчас</span><div class="text-base font-black text-white">${affected}</div></div>
         <div class="rounded-xl bg-rose-950/50 border border-rose-500/20 p-2"><span class="text-rose-300">После нового входа</span><div class="font-bold text-white">Админ ${creatorCash} cash</div><div class="text-rose-100/70">Остальные ${normalCash} cash</div></div>
       </div>
+      <div class="rounded-xl bg-rose-950/50 border border-rose-500/20 p-2 text-[10px]"><span class="text-rose-300">Игроков сохранено для релизного уведомления</span><div class="text-base font-black text-white">${registeredPlayers}</div></div>
       <div class="rounded-xl bg-slate-950/35 border border-rose-500/20 p-2 text-[10px] text-rose-100/80">
         Тестеры при создании новой компании снова получают <b class="text-white">${testerPvc} PVC + ${testerPvc} NAT</b>. Админ также получает ${testerPvc} PVC + ${testerPvc} NAT.
       </div>
@@ -170,7 +172,7 @@ export async function loadCreatorModeration(el, showToast) {
         <input id="creator-world-reset-input" type="text" value="${resetPhrase}" class="w-full rounded-xl border border-rose-500/40 bg-slate-900 px-3 py-2 text-xs font-mono text-center text-rose-200" placeholder="Введите: ${resetPhrase}" />
       </div>
       <button id="creator-world-reset-btn" class="w-full rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 px-3 py-3 text-xs font-black text-white shadow-lg shadow-rose-950/30 transition-all cursor-pointer">
-        💣 СБРОСИТЬ ВСЕ АККАУНТЫ (ИГРА С НУЛЯ)
+        💣 СБРОСИТЬ ИГРОВОЙ МИР
       </button>
       <div class="text-[9px] text-rose-200/60 text-center">Контрольная фраза: ${resetPhrase} (нажмите кнопку и подтвердите)</div>
     </div>
@@ -325,7 +327,7 @@ export async function loadCreatorModeration(el, showToast) {
 
   el.querySelector('#creator-world-reset-btn')?.addEventListener('click', async event => {
     const button = event.currentTarget;
-    if (!confirm(`Это действие удалит абсолютно все (${affected}) компании и весь прогресс. Все игроки начнут игру заново с нуля. Продолжить?`)) return;
+    if (!confirm(`Это действие удалит все (${affected}) компании и весь игровой прогресс, но сохранит Telegram-аккаунты. Игроки начнут заново. Продолжить?`)) return;
     const inputEl = el.querySelector('#creator-world-reset-input');
     let entered = (inputEl?.value || '').trim();
     if (entered !== resetPhrase) {
@@ -343,7 +345,7 @@ export async function loadCreatorModeration(el, showToast) {
       setTimeout(() => window.location.reload(), 1000);
     } catch (e) {
       button.disabled = false;
-      button.textContent = '💣 СБРОСИТЬ ВСЕ АККАУНТЫ (ИГРА С НУЛЯ)';
+      button.textContent = '💣 СБРОСИТЬ ИГРОВОЙ МИР';
       showToast(e.message, 'error');
     }
   });

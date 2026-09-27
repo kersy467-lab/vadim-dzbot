@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { loadCreatorOverview } from './creator_overview.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
-import { loadCreatorModeration } from './creator_moderation.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
+import { loadCreatorModeration } from './creator_moderation.js?v=20260927_wipe_registry_v1';
 import { loadCreatorShares } from './creator_shares.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { loadCreatorPlayersTab } from './creator_players.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { loadCreatorCreditTab } from './creator_credit.js?v=20260926_local_update_v1&release=20260927_hospital_v2';

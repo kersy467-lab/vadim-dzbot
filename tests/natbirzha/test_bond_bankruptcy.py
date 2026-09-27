@@ -35,7 +35,7 @@ def test_bankruptcy_pays_thirty_percent_once_and_stops_future_settlements() -> N
         issued_at = datetime(2026, 9, 1, 12)
         async with sessions() as session:
             first = NatCompany(user_id=921001, name="Holder One", specialization="miner", cash=20_000)
-            second = NatCompany(user_id=921002, name="Holder Two", specialization="forester", cash=20_000)
+            second = NatCompany(user_id=921002, name="Holder Two", specialization="ai_data", cash=20_000)
             session.add_all([first, second])
             await session.flush()
             issue = await StateBondService.issue(

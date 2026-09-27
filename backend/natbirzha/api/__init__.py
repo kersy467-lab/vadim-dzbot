@@ -1,5 +1,8 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from backend.db.models import User
+from backend.db.session import get_db_session
 
 from backend.natbirzha.api.auth_routes import router as auth_router
 from backend.natbirzha.api.company_routes import router as company_router
@@ -35,15 +38,25 @@ from backend.natbirzha.api.liquidity_routes import router as liquidity_router
 from backend.natbirzha.api.hybrid_routes import router as hybrid_router
 from backend.natbirzha.api.joint_factory_routes import router as joint_factory_router
 from backend.natbirzha.api.maintenance_routes import router as maintenance_router
-from backend.natbirzha.api.admin_access import require_game_admin
+from backend.natbirzha.api.admin_access import require_game_access
+from backend.natbirzha.services.auth_service import get_strict_natbirzha_user
 from backend.natbirzha.config import nat_settings
 
-def build_natbirzha_router(admin_only: bool = False) -> APIRouter:
-    """Build the game API, optionally restricting every non-login route to admins."""
+def build_natbirzha_router(admin_only: bool | None = None) -> APIRouter:
+    """Build the game API with a persisted, administrator-bypassable access gate."""
+    default_closed = nat_settings.ADMIN_ONLY_ACCESS if admin_only is None else admin_only
     router = APIRouter(prefix="/natbirzha")
     router.include_router(auth_router)
 
-    game_router = APIRouter(dependencies=[Depends(require_game_admin)] if admin_only else [])
+    async def require_dynamic_game_access(
+        user: User = Depends(get_strict_natbirzha_user),
+        session: AsyncSession = Depends(get_db_session),
+    ) -> User:
+        return await require_game_access(user, session, default_closed=default_closed)
+
+    # The gate is always installed so /ban can close the game at runtime even
+    # when the launch default is open. The database value overrides the default.
+    game_router = APIRouter(dependencies=[Depends(require_dynamic_game_access)])
     for child_router in (
         company_router,
         production_router,
@@ -78,10 +91,12 @@ def build_natbirzha_router(admin_only: bool = False) -> APIRouter:
         joint_factory_router,
         tycoon_company_router,
         sabotage_router,
-        maintenance_router,
     ):
         game_router.include_router(child_router)
     router.include_router(game_router)
+    # Keep status and admin controls reachable during a tech break. The write
+    # endpoints perform their own administrator checks.
+    router.include_router(maintenance_router)
     return router
 
 

@@ -5,11 +5,11 @@ from .career import career_business
 
 _BUSINESSES = (
     ("ai_compute_node", "Пограничный узел обработки ИИ", "🧠", 1, 12_000, 1,
-     {"energy": 14, "clean_water": 3, "electronics": 0.2},
+     {"energy": 14, "water": 3},
      {"ai_compute": 18}, None,
      ("Первый серверный шкаф", "Охлаждение жидкостью", "Резервные вычисления", "Пул GPU", "Городской узел инференса")),
     ("ml_training_center", "Центр обучения моделей", "📚", 2, 30_000, 4,
-     {"energy": 20, "clean_water": 5, "components": 2},
+     {"energy": 20, "water": 5, "components": 2},
      {"ai_compute": 28}, "ai_compute_node",
      ("Ферма ускорителей", "Подготовка датасетов", "Распределённое обучение", "Автооценка моделей", "Региональный ML-центр")),
     ("cloud_ai_center", "Облачный дата-центр ИИ", "🖥️", 3, 62_000, 8,
@@ -49,7 +49,7 @@ for business_id, name, icon, order, cost, level, inputs, outputs, prerequisite, 
         business_id=business_id,
         name=name,
         icon=icon,
-        specialization="forester",  # Stable internal key; displayed as AI & data centers.
+        specialization="ai_data",
         order=order,
         open_cost=cost,
         level_required=level,

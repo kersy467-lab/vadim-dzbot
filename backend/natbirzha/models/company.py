@@ -13,7 +13,7 @@ class NatCompany(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    specialization: Mapped[str] = mapped_column(String(50), nullable=False)  # agrarian, miner, metallurgist, oilman, power_engineer, forester, chemist, technoprom
+    specialization: Mapped[str] = mapped_column(String(50), nullable=False)  # agrarian, miner, metallurgist, oilman, power_engineer, ai_data, chemist, technoprom
     
     level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     xp: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

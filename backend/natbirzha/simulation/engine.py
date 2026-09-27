@@ -53,11 +53,11 @@ class HeadlessSimulationEngine:
         }
 
     def initialize_economy(self):
-        specs = ["agrarian", "miner", "metallurgist", "oilman", "power_engineer", "forester", "chemist", "technoprom"]
+        specs = ["agrarian", "miner", "metallurgist", "oilman", "power_engineer", "ai_data", "chemist", "technoprom"]
         starter_factories = {
             "agrarian": "farm", "miner": "mine", "metallurgist": "smelter",
             "oilman": "oil_rig", "power_engineer": "hydro_solar",
-            "forester": "logging_camp", "chemist": "chem_plant", "technoprom": "machinery_plant"
+            "ai_data": "data_center", "chemist": "chem_plant", "technoprom": "machinery_plant"
         }
         for i in range(1, self.num_players + 1):
             spec = specs[(i - 1) % len(specs)]

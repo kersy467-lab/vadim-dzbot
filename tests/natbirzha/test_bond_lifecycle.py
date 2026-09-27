@@ -24,7 +24,7 @@ async def run_async() -> None:
     issued_at = datetime(2026, 9, 1, 12, 0)
     async with sessions() as session:
         seller = NatCompany(user_id=930001, name="Bond Seller", specialization="miner", cash=20_000)
-        buyer = NatCompany(user_id=930002, name="Bond Buyer 2", specialization="forester", cash=20_000)
+        buyer = NatCompany(user_id=930002, name="Bond Buyer 2", specialization="ai_data", cash=20_000)
         session.add_all([seller, buyer])
         await session.flush()
         issue = await StateBondService.issue(
@@ -126,7 +126,7 @@ async def _check_open_state_credit_blocks_primary_and_secondary_bond_buys() -> N
             user_id=930_101, name="State Credit Bond Buyer", specialization="miner", cash=20_000,
         )
         seller = NatCompany(
-            user_id=930_102, name="Bond Listing Seller", specialization="forester", cash=20_000,
+            user_id=930_102, name="Bond Listing Seller", specialization="ai_data", cash=20_000,
         )
         session.add_all([borrower, seller, NatStateTreasury(id=1, cash=1_000_000)])
         await session.flush()

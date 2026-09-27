@@ -19,7 +19,7 @@ def _forestry(
         business_id=business_id,
         name=name,
         icon="🌲" if order == 1 else "🪵",
-        specialization="forester",
+        specialization="ai_data",
         order=order,
         open_cost=open_cost,
         level_required=level,

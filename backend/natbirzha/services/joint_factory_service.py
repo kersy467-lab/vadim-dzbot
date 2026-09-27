@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.catalogs.businesses import INDUSTRIES, JOINT_FACTORY_RECIPES
+from backend.natbirzha.catalogs.businesses import INDUSTRIES, JOINT_FACTORY_RECIPES, get_joint_factory_recipe
 from backend.natbirzha.config import get_game_now, nat_settings, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
@@ -37,8 +37,11 @@ class JointFactoryService:
         return companies
 
     @staticmethod
-    def _recipe(recipe_id: str) -> dict[str, Any]:
-        recipe = JOINT_FACTORY_RECIPES.get((recipe_id or "").strip().lower())
+    def _recipe(recipe_id: str, *, allow_legacy: bool = False) -> dict[str, Any]:
+        key = (recipe_id or "").strip().lower()
+        recipe = JOINT_FACTORY_RECIPES.get(key)
+        if recipe is None and allow_legacy:
+            recipe = get_joint_factory_recipe(key)
         if recipe is None:
             raise ValueError("Неизвестный рецепт совместного завода")
         return recipe
@@ -160,7 +163,7 @@ class JointFactoryService:
         return {
             "success": True, "proposal_id": proposal.id, "status": proposal.status,
             "target_level": proposal.target_level,
-            "contributions": cls._recipe(factory.recipe_id)["levels"][proposal.target_level - 1]["contributions"],
+            "contributions": cls._recipe(factory.recipe_id, allow_legacy=True)["levels"][proposal.target_level - 1]["contributions"],
         }
 
     @classmethod
@@ -208,7 +211,7 @@ class JointFactoryService:
             raise ValueError("Это предложение уже обработано")
         if proposal.partner_company_id != int(company_id):
             raise ValueError("Принять предложение может только компания-получатель")
-        recipe = cls._recipe(proposal.recipe_id)
+        recipe = cls._recipe(proposal.recipe_id, allow_legacy=proposal.operation == "UPGRADE")
         current = normalize_dt(now or get_game_now())
         if proposal.operation == "BUILD":
             await cls._assert_slots_free(session, ids)

@@ -88,6 +88,29 @@ HYBRID_BUSINESSES = balance_career_catalog(HYBRID_BUSINESSES)
 CAREER_BUSINESSES = {**CAREER_BUSINESSES, **HYBRID_BUSINESSES}
 CAREER_BUSINESSES = add_employee_beverages_to_catalog(CAREER_BUSINESSES)
 JOINT_FACTORY_RECIPES = build_joint_factory_catalog(CAREER_BUSINESSES)
+# Keep already-running AI/forestry collaboration factories settling after the
+# specialization rename and partnership refresh. These recipes are never
+# offered for new proposals.
+_LEGACY_AI_PARTNERSHIP_RECIPES = build_joint_factory_catalog(
+    CAREER_BUSINESSES,
+    (("brewery", "ai_data"),),
+)
+_legacy_brewery_ai = dict(_LEGACY_AI_PARTNERSHIP_RECIPES["joint_brewery_ai_data"])
+_legacy_brewery_ai["id"] = "joint_brewery_forester"
+_legacy_brewery_ai["legacy"] = True
+LEGACY_JOINT_FACTORY_RECIPES = {
+    "joint_brewery_forester": _legacy_brewery_ai,
+    "joint_forester_construction": {
+        **JOINT_FACTORY_RECIPES["joint_ai_data_construction"],
+        "id": "joint_forester_construction",
+        "legacy": True,
+    },
+}
+
+
+def get_joint_factory_recipe(recipe_id: str) -> dict[str, Any] | None:
+    key = (recipe_id or "").strip().lower()
+    return JOINT_FACTORY_RECIPES.get(key) or LEGACY_JOINT_FACTORY_RECIPES.get(key)
 HYBRID_BUSINESSES = {
     business_type: CAREER_BUSINESSES[business_type]
     for business_type in HYBRID_BUSINESSES
@@ -150,9 +173,11 @@ __all__ = [
     "HYBRID_BUSINESSES",
     "HYBRID_RECIPES",
     "JOINT_FACTORY_RECIPES",
+    "LEGACY_JOINT_FACTORY_RECIPES",
     "INDUSTRIES",
     "get_business_spec",
     "starter_business_spec",
     "validate_business_catalog",
     "visible_business_specs",
+    "get_joint_factory_recipe",
 ]

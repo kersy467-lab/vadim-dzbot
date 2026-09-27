@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
-import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
+import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 
 let refreshTimer = null;
@@ -14,6 +14,13 @@ function esc(value) {
 
 function money(value) {
   return Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+}
+
+function resourceQuantity(value) {
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity) || quantity <= 0) return '';
+  if (quantity < 0.0005) return '<0,001';
+  return quantity.toLocaleString('ru-RU', { maximumFractionDigits: 3 });
 }
 
 function duration(value) {
@@ -46,12 +53,14 @@ function statusLabel(status) {
 }
 
 function resourceChips(entries, direction = '', period = 'ч') {
-  const values = Object.entries(entries || {});
+  const values = Object.entries(entries || {}).filter(([, amount]) => Number(amount) > 0);
   if (!values.length) return '<span class="text-xs text-slate-400">нет</span>';
   return values.map(([id, amount]) => {
     const item = getItemInfo(id);
     const sign = direction === 'out' ? '＋' : direction === 'in' ? '−' : '';
-    return `<span class="tycoon-resource-chip">${item.icon} ${sign}${money(amount)}/${period} ${esc(item.name)}</span>`;
+    const formattedAmount = resourceQuantity(amount);
+    if (!formattedAmount) return '';
+    return `<span class="tycoon-resource-chip">${item.icon} ${sign}${formattedAmount}/${period} ${esc(item.name)}</span>`;
   }).join('');
 }
 

@@ -32,7 +32,7 @@ async def run_async() -> None:
 
         # New companies and seasonal restarts must use the same grant policy.
         direct_creator = await CompanyService.create_company(session, creator.id, "Direct Creator", "miner", commit=False)
-        direct_tester = await CompanyService.create_company(session, tester.id, "Direct Tester", "forester", commit=False)
+        direct_tester = await CompanyService.create_company(session, tester.id, "Direct Tester", "ai_data", commit=False)
         direct_player = await CompanyService.create_company(session, player.id, "Direct Player", "agrarian", commit=False)
         assert direct_creator.cash == 50_000 and direct_creator.pvc_balance == 200
         assert direct_tester.cash == 50_000 and direct_tester.pvc_balance == 200
@@ -42,11 +42,11 @@ async def run_async() -> None:
         await CompanyService.reset_company_for_user(session, player.id, commit=False)
 
         old_creator = NatCompany(user_id=creator.id, name="Creator Corp", specialization="miner", cash=999)
-        old_tester = NatCompany(user_id=tester.id, name="Tester Corp", specialization="forester", cash=999)
-        old_player = NatCompany(user_id=player.id, name="Player Corp", specialization="forester", cash=999)
+        old_tester = NatCompany(user_id=tester.id, name="Tester Corp", specialization="ai_data", cash=999)
+        old_player = NatCompany(user_id=player.id, name="Player Corp", specialization="ai_data", cash=999)
         session.add_all([old_creator, old_tester, old_player])
         await session.flush()
-        session.add(NatFactory(company_id=old_player.id, building_type="sawmill", specialization="forester"))
+        session.add(NatFactory(company_id=old_player.id, building_type="ai_compute_node", specialization="ai_data"))
         await session.commit()
 
         preview = await SeasonResetService.preview(session)

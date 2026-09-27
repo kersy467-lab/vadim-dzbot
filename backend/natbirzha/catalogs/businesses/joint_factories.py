@@ -16,8 +16,10 @@ INDUSTRY_PARTNERSHIPS = (
     ("power_engineer", "water"),
     ("water", "agrarian"),
     ("agrarian", "brewery"),
-    ("brewery", "forester"),
-    ("forester", "construction"),
+    ("brewery", "water"),
+    ("ai_data", "construction"),
+    ("ai_data", "technoprom"),
+    ("ai_data", "chemist"),
     ("construction", "logistics"),
 )
 
@@ -30,7 +32,7 @@ INDUSTRY_JOINT_GOODS = {
     "metallurgist": "steel",
     "chemist": "fertilizer",
     "construction": "concrete",
-    "forester": "ai_compute",
+    "ai_data": "ai_compute",
     "technoprom": "components",
     "logistics": "logistics_capacity",
     "brewery": "beer",
@@ -60,7 +62,10 @@ def _industry_benchmark(catalog: dict, industry: str, target_stage: int) -> floa
     return float(median(values)) if values else 0.0
 
 
-def build_joint_factory_catalog(career_catalog: dict) -> dict[str, dict]:
+def build_joint_factory_catalog(
+    career_catalog: dict,
+    partnerships: tuple[tuple[str, str], ...] | None = None,
+) -> dict[str, dict]:
     """Build four production stages and bilateral build costs for each pairing.
 
     Each partner receives half of both output streams. The combined output is
@@ -69,7 +74,7 @@ def build_joint_factory_catalog(career_catalog: dict) -> dict[str, dict]:
     Construction/upgrades target a 15-hour resource-value payback per owner.
     """
     recipes: dict[str, dict] = {}
-    for industry_a, industry_b in INDUSTRY_PARTNERSHIPS:
+    for industry_a, industry_b in partnerships or INDUSTRY_PARTNERSHIPS:
         recipe_id = f"joint_{industry_a}_{industry_b}"
         item_a, item_b = INDUSTRY_JOINT_GOODS[industry_a], INDUSTRY_JOINT_GOODS[industry_b]
         base_prices = {

@@ -51,7 +51,7 @@ async def run_async() -> None:
             session, now=now, created_by_user_id=999, rewards=(150, 100, 70)
         )
         outsider = NatCompany(
-            user_id=950003, name="PvP Outsider", specialization="forester"
+            user_id=950003, name="PvP Outsider", specialization="ai_data"
         )
         session.add(outsider)
         await session.commit()

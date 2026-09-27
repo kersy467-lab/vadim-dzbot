@@ -11,10 +11,10 @@ def _recipes():
     return catalog.INDUSTRIES, recipes
 
 
-def test_each_industry_has_two_unique_joint_factory_partners():
+def test_each_industry_has_two_or_three_unique_joint_factory_partners():
     industries, recipes = _recipes()
 
-    assert len(recipes) == 12
+    assert len(recipes) == 14
     partners = defaultdict(set)
     unordered_pairs = set()
     for recipe in recipes.values():
@@ -27,9 +27,9 @@ def test_each_industry_has_two_unique_joint_factory_partners():
         partners[right].add(left)
 
     assert set(partners) == set(industries)
-    assert {industry: len(options) for industry, options in partners.items()} == {
-        industry: 2 for industry in industries
-    }
+    assert all(2 <= len(options) <= 3 for industry, options in partners.items())
+    assert partners["ai_data"] == {"chemist", "construction", "technoprom"}
+    assert partners["brewery"] == {"agrarian", "water"}
 
 
 def test_joint_factory_levels_have_no_running_expenses_and_lower_owner_yield():

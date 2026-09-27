@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.catalogs.businesses import INDUSTRIES, JOINT_FACTORY_RECIPES
+from backend.natbirzha.catalogs.businesses import INDUSTRIES, get_joint_factory_recipe
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.joint_factories import NatJointFactoryProposal
 from backend.natbirzha.services.player_dm_service import send_company_dm
@@ -31,7 +31,7 @@ async def notify_joint_proposal(
     }
     proposer = companies.get(proposal.proposer_company_id)
     actor = companies.get(actor_company_id)
-    recipe = JOINT_FACTORY_RECIPES.get(proposal.recipe_id, {})
+    recipe = get_joint_factory_recipe(proposal.recipe_id) or {}
     project_name = " × ".join(
         INDUSTRIES.get(industry, {}).get("name", industry)
         for industry in recipe.get("specializations", ())

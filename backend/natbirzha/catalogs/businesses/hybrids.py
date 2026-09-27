@@ -49,7 +49,7 @@ HYBRID_SOURCE_PAIR_OPTIONS: dict[str, tuple[tuple[str, str], ...]] = {
         ("cement_factory", "concrete_factory"),
         ("industrial_contractor", "infrastructure_holding"),
     ),
-    "forester": (
+    "ai_data": (
         ("ai_compute_node", "ml_training_center"),
         ("cloud_ai_center", "machine_vision_lab"),
         ("foundation_model_cluster", "national_ai_supercomputer"),
@@ -87,7 +87,7 @@ _FORMATION_RESOURCES: dict[str, dict[str, float]] = {
     "metallurgist": {"iron_ore": 2.0, "coal": 2.0},
     "chemist": {"basic_chem": 2.0, "energy": 2.0},
     "construction": {"cement": 2.0, "steel": 2.0},
-    "forester": {"electronics": 2.0, "energy": 1.0},
+    "ai_data": {"electronics": 2.0, "energy": 1.0},
     "technoprom": {"copper": 1.0, "components": 1.0},
     "logistics": {"fuel_diesel": 2.0, "logistics_capacity": 1.0},
     "brewery": {"grain": 2.0, "hops": 1.0, "water": 2.0},

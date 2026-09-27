@@ -6,8 +6,9 @@ from backend.db.session import get_db_session
 from backend.db.models import User
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.services.auth_service import get_strict_natbirzha_user
-from backend.natbirzha.config import nat_settings
 from backend.natbirzha.services.access_control import is_game_admin
+from backend.natbirzha.services.maintenance_service import MaintenanceService
+from backend.natbirzha.services.player_registry_service import PlayerRegistryService
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,14 @@ async def login_user(
     session: AsyncSession = Depends(get_db_session)
 ):
     is_creator = is_game_admin(user)
-    if nat_settings.ADMIN_ONLY_ACCESS and not is_creator:
+    maintenance_mode = await MaintenanceService.is_maintenance_active(session)
+    await PlayerRegistryService.register_user(session, user.tg_id)
+    if maintenance_mode and not is_creator:
         return {
             "authenticated": True,
             "game_access": False,
-            "wait_message": "Патч варится, бро. Пока качай терпение — скоро залетаем 🚀",
+            "maintenance_mode": True,
+            "wait_message": "Игра закрыта на технический перерыв. Скоро снова откроемся!",
         }
 
     # NatCompany.user_id is FK to users.id (int32). Never compare with tg_id (BigInteger).
@@ -56,9 +60,6 @@ async def login_user(
             select(NatStock.id).where(NatStock.company_id == company.id, NatStock.is_listed == True)
         )
         is_public = stock_res.scalar_one_or_none() is not None
-
-    from backend.natbirzha.services.maintenance_service import MaintenanceService
-    maintenance_mode = await MaintenanceService.is_maintenance_active(session)
 
     return {
         "authenticated": True,

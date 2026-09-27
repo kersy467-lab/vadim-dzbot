@@ -38,6 +38,8 @@ TESTER_COMMANDS = [
 
 ADMIN_COMMANDS = [
     *TESTER_COMMANDS,
+    BotCommand(command="ban", description="🛠 Закрыть НАТБИРЖУ на техперерыв"),
+    BotCommand(command="unban", description="🚀 Открыть НАТБИРЖУ и уведомить игроков"),
     BotCommand(command="sms", description="📣 Уведомить игроков НАТБИРЖИ"),
 ]
 
@@ -91,17 +93,12 @@ async def setup_bot_commands(bot: Bot):
         await bot.set_my_commands(commands=STUDENT_COMMANDS, scope=BotCommandScopeAllGroupChats())
         await bot.set_my_commands(commands=STUDENT_COMMANDS)
 
-        # Персональный скоуп для главного администратора и создателей
+        # Персональный скоуп для всех администраторов/создателей.
         from backend.natbirzha.services.access_control import get_creator_tg_ids
-        from backend.config import settings
         for uid in get_creator_tg_ids():
             try:
                 await bot.set_my_commands(
-                    commands=(
-                        ADMIN_COMMANDS
-                        if settings.ADMIN_ID and int(uid) == int(settings.ADMIN_ID)
-                        else TESTER_COMMANDS
-                    ),
+                    commands=ADMIN_COMMANDS,
                     scope=BotCommandScopeChat(chat_id=uid)
                 )
             except Exception:

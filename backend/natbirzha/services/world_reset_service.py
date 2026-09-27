@@ -16,6 +16,7 @@ from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatCreatorAuditLog
 from backend.natbirzha.services.access_control import is_creator_user
+from backend.natbirzha.services.player_registry_service import PlayerRegistryService
 
 
 class WorldResetService:
@@ -37,6 +38,17 @@ class WorldResetService:
         ]
 
     @staticmethod
+    async def _preserve_registered_players(session: AsyncSession) -> int:
+        tg_ids = (
+            await session.execute(
+                select(User.tg_id)
+                .join(NatCompany, NatCompany.user_id == User.id)
+                .where(User.tg_id.is_not(None))
+            )
+        ).scalars().all()
+        return await PlayerRegistryService.register_tg_ids(session, tg_ids)
+
+    @staticmethod
     async def preview(session: AsyncSession) -> dict:
         rows = (
             await session.execute(
@@ -46,8 +58,13 @@ class WorldResetService:
         tester_companies = sum(1 for _company, user in rows if bool(user.is_tester))
         creator_companies = sum(1 for _company, user in rows if is_creator_user(user))
         total_users = await session.scalar(select(func.count(User.id))) or 0
+        registered_tg_ids = set(await PlayerRegistryService.get_registered_tg_ids(session))
+        registered_tg_ids.update(
+            int(user.tg_id) for _company, user in rows if user.tg_id is not None
+        )
         return {
             "affected_companies": len(rows),
+            "registered_natbirzha_players": len(registered_tg_ids),
             "creator_companies": creator_companies,
             "tester_companies": tester_companies,
             "global_users_preserved": int(total_users),
@@ -72,6 +89,10 @@ class WorldResetService:
 
         preview = await cls.preview(session)
         affected_companies = int(preview["affected_companies"])
+
+        # Keep a launch-notification audience outside nat_* tables, which are
+        # all cleared below. This also backfills users from before the registry.
+        await cls._preserve_registered_players(session)
 
         # Reverse metadata order deletes children before parents and makes the
         # reset independent of database-specific ON DELETE behaviour.
@@ -98,6 +119,9 @@ class WorldResetService:
         return {
             "status": "completed",
             "affected_companies": affected_companies,
+            "registered_players_preserved": len(
+                await PlayerRegistryService.get_registered_tg_ids(session)
+            ),
             "cleared_tables": len(cleared_tables),
             "users_preserved": int(preview["global_users_preserved"]),
             "next_start": {
@@ -116,6 +140,7 @@ class WorldResetService:
         marker: str = "world-reset-v20260920",
     ) -> dict:
         """One-time startup world reset: wipes all existing companies and starts fresh."""
+        await cls._preserve_registered_players(session)
         cleared_tables: list[str] = []
         for table in cls.resettable_tables():
             await session.execute(delete(table))
@@ -152,6 +177,9 @@ class WorldResetService:
         await session.commit()
         return {
             "status": "completed",
+            "registered_players_preserved": len(
+                await PlayerRegistryService.get_registered_tg_ids(session)
+            ),
             "cleared_tables": len(cleared_tables),
             "marker": marker,
         }

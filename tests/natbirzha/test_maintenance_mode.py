@@ -21,16 +21,16 @@ def test_maintenance_service_lifecycle():
         session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         async with session_maker() as session:
             # 1. Default should be False (inactive)
-            active = await MaintenanceService.is_maintenance_active(session)
+            active = await MaintenanceService.is_maintenance_active(session, default=False)
             assert active is False
 
             # 2. Toggle ON
-            new_val = await MaintenanceService.toggle_maintenance(session)
+            new_val = await MaintenanceService.toggle_maintenance(session, default=False)
             assert new_val is True
             assert await MaintenanceService.is_maintenance_active(session) is True
 
             # 3. Toggle OFF
-            new_val = await MaintenanceService.toggle_maintenance(session)
+            new_val = await MaintenanceService.toggle_maintenance(session, default=False)
             assert new_val is False
             assert await MaintenanceService.is_maintenance_active(session) is False
 

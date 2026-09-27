@@ -718,6 +718,33 @@ async def _migrate_v19_hospital_repair(conn) -> None:
     })
 
 
+async def _migrate_v20_ai_industry_key(conn) -> None:
+    """Replace the former forestry key with the canonical AI industry key."""
+    for table in ("nat_companies", "nat_businesses", "nat_factories"):
+        if "specialization" in await _columns(conn, table):
+            await conn.execute(text(
+                f"UPDATE {table} SET specialization='ai_data' "
+                "WHERE specialization IN ('forester', 'forestry')"
+            ))
+
+    if "recipe_id" in await _columns(conn, "nat_joint_factory_proposals"):
+        # The AI + construction pair remains available under its renamed ID.
+        await conn.execute(text("""
+            UPDATE nat_joint_factory_proposals
+            SET recipe_id='joint_ai_data_construction'
+            WHERE recipe_id='joint_forester_construction'
+        """))
+        # This pairing is no longer offered. Preserve existing factories, but
+        # close stale unaccepted invitations instead of letting them be built.
+        proposal_columns = await _columns(conn, "nat_joint_factory_proposals")
+        if {"status", "responded_at"}.issubset(proposal_columns):
+            await conn.execute(text("""
+                UPDATE nat_joint_factory_proposals
+                SET status='CANCELLED', responded_at=CURRENT_TIMESTAMP
+                WHERE recipe_id='joint_brewery_forester' AND status='PENDING'
+            """))
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -753,6 +780,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v17_001_hybrid_mergers", _migrate_v17_hybrid_mergers),
     ("natbirzha_v18_001_joint_factories", _migrate_v18_joint_factories),
     ("natbirzha_v19_military_hospital_repair", _migrate_v19_hospital_repair),
+    ("natbirzha_v20_ai_industry_key", _migrate_v20_ai_industry_key),
 )
 
 

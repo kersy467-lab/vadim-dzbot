@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.catalogs.businesses import JOINT_FACTORY_RECIPES, get_business_spec
+from backend.natbirzha.catalogs.businesses import get_business_spec, get_joint_factory_recipe
 from backend.natbirzha.config import get_game_now, nat_settings, normalize_dt
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
@@ -233,7 +233,7 @@ class JointFactorySettlementService:
             await session.flush()
             return {"factory_id": factory.id, "settled_hours": 0.0, "status": "BREACHED"}
 
-        recipe = JOINT_FACTORY_RECIPES.get(factory.recipe_id)
+        recipe = get_joint_factory_recipe(factory.recipe_id)
         if recipe is None:
             factory.status = "BREACHED"
             factory.closed_at = current

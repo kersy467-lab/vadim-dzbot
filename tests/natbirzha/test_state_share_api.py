@@ -30,7 +30,7 @@ def test_creator_issue_and_player_trade_endpoints_are_authorized_and_idempotent(
             session.add_all([creator, player])
             await session.flush()
             creator_company = NatCompany(user_id=creator.id, name="Share State Issuer", specialization="miner", cash=10_000)
-            player_company = NatCompany(user_id=player.id, name="Share State Buyer", specialization="forester", cash=1_000)
+            player_company = NatCompany(user_id=player.id, name="Share State Buyer", specialization="ai_data", cash=1_000)
             session.add_all([creator_company, player_company])
             await session.flush()
             session.add(NatStateTreasury(id=1, cash=100))

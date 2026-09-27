@@ -3,7 +3,7 @@
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.catalogs.businesses import INDUSTRIES, JOINT_FACTORY_RECIPES
+from backend.natbirzha.catalogs.businesses import INDUSTRIES, get_joint_factory_recipe
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS
 from backend.natbirzha.models.joint_factories import NatJointFactory, NatJointFactoryProposal
@@ -55,7 +55,7 @@ def factory_row(
     companies: dict[int, NatCompany],
     viewer_company_id: int,
 ) -> dict:
-    recipe = JOINT_FACTORY_RECIPES.get(factory.recipe_id, {})
+    recipe = get_joint_factory_recipe(factory.recipe_id) or {}
     spec_a, spec_b = tuple(recipe.get("specializations", (None, None)))
     owner_a = int(viewer_company_id) == factory.company_a_id
     partner_id = factory.company_b_id if owner_a else factory.company_a_id
@@ -129,7 +129,7 @@ async def proposal_rows(session: AsyncSession, company: NatCompany, view: str) -
     } if company_ids else {}
     result = []
     for proposal in rows:
-        recipe = JOINT_FACTORY_RECIPES.get(proposal.recipe_id, {})
+        recipe = get_joint_factory_recipe(proposal.recipe_id) or {}
         proposer = companies.get(proposal.proposer_company_id)
         partner = companies.get(proposal.partner_company_id)
         contribution_level = max(1, min(4, int(proposal.target_level)))

@@ -35,7 +35,7 @@ def test_state_share_service_lifecycle_and_global_dividend_proration() -> None:
 
         async with sessions() as session:
             first = NatCompany(user_id=931101, name="State Share One", specialization="miner", cash=10_000)
-            second = NatCompany(user_id=931102, name="State Share Two", specialization="forester", cash=10_000)
+            second = NatCompany(user_id=931102, name="State Share Two", specialization="ai_data", cash=10_000)
             session.add_all([first, second])
             await session.flush()
             treasury = NatStateTreasury(id=1, cash=0)

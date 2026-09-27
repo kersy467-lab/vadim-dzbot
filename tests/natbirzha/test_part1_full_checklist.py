@@ -72,7 +72,7 @@ async def test_full_part1_and_creator_checklist():
 
         create = await client.post(
             "/api/natbirzha/company/create",
-            json={"name": f"TempCorp {player_tg}", "specialization": "forester"},
+            json={"name": f"TempCorp {player_tg}", "specialization": "ai_data"},
             headers={**auth_player, "Idempotency-Key": f"create-{player_tg}"},
         )
         assert create.status_code == 200, create.text

@@ -9,6 +9,8 @@ export const SPECIALIZATIONS = {
   metallurgist: 'Металлургия',
   oilman: 'Нефтегазовая промышленность',
   power_engineer: 'Энергетика',
+  ai_data: 'ИИ и дата-центры',
+  // Legacy saved profiles may still send the former forestry specialization.
   forester: 'ИИ и дата-центры',
   chemist: 'Химическая промышленность',
   technoprom: 'Технологическая промышленность',
@@ -69,7 +71,7 @@ export const BUILDINGS = {
   agrotech_lab: '🧬 Агробиотехнологический центр',
   orbital_agro_complex: '🛰️ Орбитальный агрокомплекс',
 
-  // 5. ИИ и дата-центры (stable internal key: forester)
+  // 5. ИИ и дата-центры
   ai_compute_node: '🧠 Пограничный узел ИИ',
   ml_training_center: '🧠 Центр обучения моделей',
   cloud_ai_center: '🖥️ Облачный дата-центр ИИ',

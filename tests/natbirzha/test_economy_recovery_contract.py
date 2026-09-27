@@ -26,10 +26,10 @@ from backend.natbirzha.services.stock_service import StockService
 def test_ai_data_centers_replace_forestry_and_supply_industry_demand() -> None:
     ai_businesses = sorted(
         (spec for spec in CAREER_BUSINESSES.values()
-         if spec["specialization"] == "forester" and not spec.get("hybrid_only")),
+         if spec["specialization"] == "ai_data" and not spec.get("hybrid_only")),
         key=lambda spec: spec["industry_order"],
     )
-    assert "forester" in INDUSTRIES
+    assert "ai_data" in INDUSTRIES
     assert len(ai_businesses) == 9
     assert ai_businesses[0]["starter"] is True
     assert [spec["industry_order"] for spec in ai_businesses] == list(range(1, 10))
@@ -56,14 +56,14 @@ def test_paused_idle_enterprise_upgrade_is_available_and_keeps_its_pause_reason(
 
         async with sessions() as session:
             company = NatCompany(
-                user_id=991_221, name="Paused AI", specialization="forester",
+                user_id=991_221, name="Paused AI", specialization="ai_data",
                 level=20, cash=1_000_000, territory_tiles=20,
             )
             session.add(company)
             await session.flush()
             business = NatBusiness(
                 company_id=company.id, business_type="ai_compute_node",
-                specialization="forester", stage=1, status="PAUSED_SUPPLY",
+                specialization="ai_data", stage=1, status="PAUSED_SUPPLY",
                 last_settled_at=get_game_now().replace(tzinfo=None),
             )
             session.add(business)
@@ -235,7 +235,7 @@ def test_ipo_can_commit_all_profit_and_pays_only_shares_actually_held() -> None:
             await connection.run_sync(Base.metadata.create_all)
         async with sessions() as session:
             company = NatCompany(
-                user_id=991_223, name="Full Dividend IPO", specialization="forester",
+                user_id=991_223, name="Full Dividend IPO", specialization="ai_data",
                 level=60, cash=100_000, territory_tiles=20,
             )
             session.add(company)

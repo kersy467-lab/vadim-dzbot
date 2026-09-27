@@ -46,7 +46,7 @@ def test_new_company_keeps_starter_factory_when_tycoon_v2_is_enabled() -> None:
     asyncio.run(check())
 
 
-def test_forester_specialization_bootstraps_ai_business_without_legacy_logging_factory() -> None:
+def test_ai_data_specialization_bootstraps_ai_business_without_legacy_logging_factory() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -57,13 +57,13 @@ def test_forester_specialization_bootstraps_ai_business_without_legacy_logging_f
             company = await CompanyService.create_company(
                 session,
                 user_id=990_002,
-                name="Forester Bootstrap Regression",
-                specialization="forester",
+                name="AI Bootstrap Regression",
+                specialization="forester",  # Old client IDs are normalized to the canonical AI key.
             )
             business = await session.scalar(
                 select(NatBusiness).where(NatBusiness.company_id == company.id)
             )
-            assert company.specialization == "forester"
+            assert company.specialization == "ai_data"
             assert business is not None and business.business_type == "ai_compute_node"
             assert await session.scalar(
                 select(NatFactory.id).where(NatFactory.company_id == company.id)
@@ -74,7 +74,7 @@ def test_forester_specialization_bootstraps_ai_business_without_legacy_logging_f
     asyncio.run(check())
 
 
-def test_all_eight_factory_branches_bootstrap_their_canonical_starters() -> None:
+def test_legacy_factory_branches_bootstrap_their_canonical_starters() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -123,8 +123,8 @@ def test_factory_repair_migration_backfills_only_companies_without_factories() -
         async with sessions() as session:
             missing = NatCompany(
                 user_id=992_001,
-                name="Missing Forestry Plant",
-                specialization="forestry",
+                name="Missing Chemical Plant",
+                specialization="chemist",
             )
             existing = NatCompany(
                 user_id=992_002,
@@ -154,7 +154,7 @@ def test_factory_repair_migration_backfills_only_companies_without_factories() -
             )).all()
 
         assert len(rows) == 2
-        assert (missing.id, "logging_camp", "forester") in rows
+        assert (missing.id, "chemical_plant", "chemist") in rows
         assert any(row[0] == existing.id and row[1] == "oil_rig" for row in rows)
         assert all(row[0] != unknown.id for row in rows)
         await engine.dispose()

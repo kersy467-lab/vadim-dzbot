@@ -36,15 +36,15 @@ async def run_all_expansion_tests():
     import random
     base_uid = int(time.time() * 1000) % 70000000 + random.randint(10000, 99999)
 
-    # 1-8: Starter factory mapping for all 8 specializations
-    print("\n--- [1-8/31] Testing All 8 Starter Specialization Factory Mappings ---")
+    # Legacy factory compatibility is retained for industries that still use it.
+    # AI/data centers now use the V2 business catalog and have no legacy factory.
+    print("\n--- [1-7/31] Testing Legacy Starter Factory Mappings ---")
     starter_expected = [
         ("oil_gas", "oilman", "oil_rig"),
         ("metallurgy", "metallurgist", "steel_mill"),
         ("energy", "power_engineer", "solar_plant"),
         ("agrarian", "agrarian", "farm_grain"),
         ("miner", "miner", "iron_mine"),
-        ("forester", "forester", "logging_camp"),
         ("chemist", "chemist", "chemical_plant"),
         ("technoprom", "technoprom", "component_factory"),
     ]

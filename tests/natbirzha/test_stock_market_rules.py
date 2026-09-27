@@ -61,7 +61,7 @@ async def run_checks():
         ) == 0
 
         too_low_company = await CompanyService.create_company(
-            session, 930003, "Too Low Dividend Corp", "forester"
+            session, 930003, "Too Low Dividend Corp", "ai_data"
         )
         too_low_company.level = 18
         try:

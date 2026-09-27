@@ -24,7 +24,7 @@ def add_ai_compute_demand(catalog: dict[str, dict]) -> dict[str, dict]:
     compute per plant; high-tier automation and data processing use much more.
     """
     for spec in catalog.values():
-        if spec.get("specialization") == "forester" or spec.get("legacy_hidden"):
+        if spec.get("specialization") == "ai_data" or spec.get("legacy_hidden"):
             continue
         if spec.get("mechanic") != "resource_production":
             continue

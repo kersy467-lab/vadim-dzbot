@@ -848,6 +848,7 @@ async def main():
     await test_database_and_crud()
     test_keyboards_and_fastapi()
     p2_scripts = (
+        "tests/test_database_session_config.py",
         "tests/natbirzha/test_offline_factory_catchup.py",
         "tests/natbirzha/test_admin_cash_and_npc_margin.py",
         "tests/natbirzha/test_market_orderbook_regressions.py",

@@ -1,5 +1,7 @@
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.engine import make_url
+from sqlalchemy.pool import NullPool
 from backend.config import settings
 from backend.db.models import Base
 
@@ -21,35 +23,53 @@ def create_configured_engine():
     if raw_url.startswith("sqlite"):
         os.makedirs("./data", exist_ok=True)
         return create_async_engine(raw_url, echo=False, future=True, pool_pre_ping=True)
-    
-    # Normalize postgres URL for asyncpg
-    url = raw_url
-    if url.startswith("postgres://"):
-        url = "postgresql+asyncpg://" + url[len("postgres://"):]
-    elif url.startswith("postgresql://"):
-        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
-    
-    # Strip query params like sslmode or channel_binding which asyncpg handles via connect_args
-    if "?" in url:
-        base_url, query = url.split("?", 1)
-        params = [p for p in query.split("&") if not p.startswith("sslmode") and not p.startswith("channel_binding")]
-        url = base_url + ("?" + "&".join(params) if params else "")
 
-    connect_args = {}
-    if any(k in url.lower() for k in ("neon.tech", "supabase", "sslmode=require", "ssl=require")) or "sslmode=require" in raw_url:
-        connect_args["ssl"] = "require"
-    if ":6543" in url or "pooler.supabase" in url:
+    url = make_url(raw_url)
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+asyncpg")
+
+    query = dict(url.query)
+    ssl_mode = str(query.pop("sslmode", "")).lower()
+    query.pop("channel_binding", None)
+    ssl_param = str(query.pop("ssl", "")).lower()
+    host = (url.host or "").lower()
+    if (
+        any(provider in host for provider in ("neon.tech", "supabase"))
+        or ssl_mode == "require"
+        or ssl_param == "require"
+    ):
+        connect_args = {"ssl": "require"}
+    else:
+        connect_args = {}
+
+    # Supabase's shared transaction pooler (6543) is not a session pool.
+    # Do not retain app-side connections between transactions; keep both the
+    # asyncpg and SQLAlchemy prepared-statement caches disabled for this mode.
+    transaction_pooler = url.port == 6543
+    if transaction_pooler:
         connect_args["statement_cache_size"] = 0
+        query["prepared_statement_cache_size"] = "0"
+        url = url.set(query=query)
+        return create_async_engine(
+            url=url,
+            echo=False,
+            future=True,
+            poolclass=NullPool,
+            connect_args=connect_args,
+        )
 
+    url = url.set(query=query)
+    pool_size = max(1, int(os.environ.get("DB_POOL_SIZE", "5")))
+    max_overflow = max(0, int(os.environ.get("DB_MAX_OVERFLOW", "5")))
     return create_async_engine(
-        url,
+        url=url,
         echo=False,
         future=True,
         pool_pre_ping=True,
         pool_recycle=300,
-        pool_size=10,
-        max_overflow=20,
-        connect_args=connect_args
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        connect_args=connect_args,
     )
 
 

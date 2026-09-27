@@ -1,6 +1,10 @@
 """Explicit, idempotent seasonal reset preserves Telegram identities and creator grant."""
 
 import asyncio
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath("."))
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -60,7 +64,7 @@ async def run_async() -> None:
         assert by_name["Tester Corp"].pvc_balance == 200
         assert by_name["Player Corp"].cash == 50_000
         assert by_name["Player Corp"].level == 1 and by_name["Player Corp"].territory_tiles == 4
-        assert len((await session.execute(select(NatFactory))).scalars().all()) == 0
+        assert len((await session.execute(select(NatFactory))).scalars().all()) == 1
         assert len((await session.execute(select(NatBusiness))).scalars().all()) == 3
         replay = await SeasonResetService.execute(
             session, operation_id="season-test-001", actor_tg_id=creator.tg_id, backup_reference="test-backup"

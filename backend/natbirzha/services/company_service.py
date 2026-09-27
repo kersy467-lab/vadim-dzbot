@@ -15,7 +15,10 @@ from backend.natbirzha.services.company_constants import (
     STARTER_FACTORIES,
 )
 from backend.natbirzha.services.company_bootstrap import bootstrap_company_state
-from backend.natbirzha.services.company_reset_v2 import delete_v2_company_state
+from backend.natbirzha.services.company_reset_v2 import (
+    delete_company_complete_state,
+    delete_v2_company_state,
+)
 from backend.natbirzha.services.industry_selection_service import IndustrySelectionService
 
 
@@ -257,22 +260,6 @@ class CompanyService:
     @classmethod
     async def reset_company_for_user(cls, session: AsyncSession, user_id: int, commit: bool = True) -> bool:
         """Completely reset and remove all company assets for a user so they can restart."""
-        from sqlalchemy import delete, or_, update
-        from backend.natbirzha.models import (
-            NatAlliance, NatAllianceMember, NatArmy, NatArmyUnit, NatBattle,
-            NatBattleSnapshot, NatBondListing, NatBondSettlement, NatContract,
-            NatDailyFinancials, NatDividend, NatDividendPayment, NatInstrumentPosition,
-            NatHourlyDividendAccrual, NatHourlyDividendPayment,
-            NatInstrumentTrade, NatLoan, NatMarketOrder, NatMarketRestriction,
-            NatMarketTrade, NatMarketWarning, NatMilitaryRatingEvent,
-            NatMilitaryUpgrade, NatPremiumLedgerEntry, NatPremiumLicense, NatHospitalWard,
-            NatPveVictory, NatPvpCooldown, NatRestructuring, NatStateBondHolding,
-            NatBankruptcyMarketLot, NatStock, NatStockHolding, NatStockOrder, NatTournamentParticipant,
-            NatStateCreditLoan, NatSupplyDeal, NatSupplyDealSettlement,
-            NatCityOrderDelivery,
-            NatJointFactory, NatJointFactoryProposal, NatJointFactorySettlement,
-        )
-
         cid = await session.scalar(
             select(NatCompany.id).where(NatCompany.user_id == user_id)
         )
@@ -295,144 +282,7 @@ class CompanyService:
             return False
         await JointFactorySettlementService.preserve_partner_stock_on_reset(session, cid)
 
-        # City orders are shared state contracts. Keep their delivery history
-        # for liquidity analytics while anonymizing a company that resets.
-        await session.execute(update(NatCityOrderDelivery).where(
-            NatCityOrderDelivery.company_id == cid
-        ).values(company_id=None))
-
-        # Do not leave marketplace entries pointing at factories, businesses,
-        # or stock records removed by a company reset.
-        reset_factory_ids = select(NatFactory.id).where(NatFactory.company_id == cid)
-        reset_business_ids = select(NatBusiness.id).where(NatBusiness.company_id == cid)
-        reset_stock_ids = select(NatStock.id).where(NatStock.company_id == cid)
-        reset_joint_factory_ids = select(NatJointFactory.id).where(or_(
-            NatJointFactory.company_a_id == cid,
-            NatJointFactory.company_b_id == cid,
-        ))
-        await session.execute(update(NatBankruptcyMarketLot).where(
-            NatBankruptcyMarketLot.status == "ACTIVE",
-            or_(
-                NatBankruptcyMarketLot.former_company_id == cid,
-                (NatBankruptcyMarketLot.asset_kind == "FACTORY") & NatBankruptcyMarketLot.asset_id.in_(reset_factory_ids),
-                (NatBankruptcyMarketLot.asset_kind == "BUSINESS") & NatBankruptcyMarketLot.asset_id.in_(reset_business_ids),
-                (NatBankruptcyMarketLot.asset_kind == "STOCK") & NatBankruptcyMarketLot.asset_id.in_(reset_stock_ids),
-                (NatBankruptcyMarketLot.asset_kind == "JOINT_GOODS") & NatBankruptcyMarketLot.asset_id.in_(reset_joint_factory_ids),
-            ),
-        ).values(status="CANCELLED"))
-
-        # Delete explicit dependants instead of trusting database cascades. This
-        # keeps resets complete on SQLite test/dev deployments where foreign-key
-        # enforcement may have been disabled in an older database connection.
-        battle_ids = select(NatBattle.id).where(or_(
-            NatBattle.attacker_company_id == cid,
-            NatBattle.defender_company_id == cid,
-        ))
-        await session.execute(delete(NatPvpCooldown).where(or_(
-            NatPvpCooldown.attacker_company_id == cid,
-            NatPvpCooldown.defender_company_id == cid,
-            NatPvpCooldown.battle_id.in_(battle_ids),
-        )))
-        await session.execute(delete(NatMilitaryRatingEvent).where(or_(
-            NatMilitaryRatingEvent.company_id == cid,
-            NatMilitaryRatingEvent.battle_id.in_(battle_ids),
-        )))
-        await session.execute(delete(NatPveVictory).where(or_(
-            NatPveVictory.company_id == cid,
-            NatPveVictory.battle_id.in_(battle_ids),
-        )))
-        await session.execute(delete(NatBattleSnapshot).where(or_(
-            NatBattleSnapshot.company_id == cid,
-            NatBattleSnapshot.battle_id.in_(battle_ids),
-        )))
-        await session.execute(delete(NatBattle).where(NatBattle.id.in_(battle_ids)))
-        await session.execute(delete(NatArmyUnit).where(NatArmyUnit.company_id == cid))
-        await session.execute(delete(NatHospitalWard).where(NatHospitalWard.company_id == cid))
-
-        stock_ids = select(NatStock.id).where(NatStock.company_id == cid)
-        hourly_accrual_ids = select(NatHourlyDividendAccrual.id).where(
-            NatHourlyDividendAccrual.stock_id.in_(stock_ids)
-        )
-        await session.execute(delete(NatHourlyDividendPayment).where(or_(
-            NatHourlyDividendPayment.stock_id.in_(stock_ids),
-            NatHourlyDividendPayment.holder_company_id == cid,
-            NatHourlyDividendPayment.accrual_id.in_(hourly_accrual_ids),
-        )))
-        await session.execute(delete(NatHourlyDividendAccrual).where(
-            NatHourlyDividendAccrual.stock_id.in_(stock_ids)
-        ))
-        await session.execute(delete(NatDividendPayment).where(or_(
-            NatDividendPayment.stock_id.in_(stock_ids),
-            NatDividendPayment.holder_company_id == cid,
-        )))
-        await session.execute(delete(NatDividend).where(NatDividend.stock_id.in_(stock_ids)))
-        await session.execute(delete(NatStockOrder).where(or_(
-            NatStockOrder.stock_id.in_(stock_ids), NatStockOrder.trader_company_id == cid
-        )))
-        await session.execute(delete(NatStockHolding).where(or_(
-            NatStockHolding.stock_id.in_(stock_ids), NatStockHolding.holder_company_id == cid
-        )))
-
-        await session.execute(delete(NatBondListing).where(or_(
-            NatBondListing.seller_company_id == cid, NatBondListing.buyer_company_id == cid
-        )))
-        await session.execute(delete(NatBondSettlement).where(NatBondSettlement.company_id == cid))
-        await session.execute(delete(NatStateBondHolding).where(NatStateBondHolding.company_id == cid))
-        await session.execute(delete(NatInstrumentTrade).where(NatInstrumentTrade.company_id == cid))
-        await session.execute(delete(NatInstrumentPosition).where(NatInstrumentPosition.company_id == cid))
-        await session.execute(delete(NatMilitaryUpgrade).where(NatMilitaryUpgrade.company_id == cid))
-        await session.execute(delete(NatPremiumLicense).where(NatPremiumLicense.company_id == cid))
-        await session.execute(delete(NatPremiumLedgerEntry).where(NatPremiumLedgerEntry.company_id == cid))
-
-        await session.execute(delete(NatMarketTrade).where(or_(
-            NatMarketTrade.buyer_company_id == cid, NatMarketTrade.seller_company_id == cid
-        )))
-        await session.execute(delete(NatLoan).where(NatLoan.company_id == cid))
-        await session.execute(delete(NatStateCreditLoan).where(NatStateCreditLoan.company_id == cid))
-        deal_ids = select(NatSupplyDeal.id).where(or_(
-            NatSupplyDeal.buyer_company_id == cid,
-            NatSupplyDeal.supplier_company_id == cid,
-        ))
-        await session.execute(delete(NatSupplyDealSettlement).where(
-            NatSupplyDealSettlement.deal_id.in_(deal_ids)
-        ))
-        await session.execute(delete(NatSupplyDeal).where(NatSupplyDeal.id.in_(deal_ids)))
-        joint_factory_ids = reset_joint_factory_ids
-        await session.execute(delete(NatJointFactorySettlement).where(
-            NatJointFactorySettlement.factory_id.in_(joint_factory_ids)
-        ))
-        await session.execute(delete(NatJointFactoryProposal).where(or_(
-            NatJointFactoryProposal.proposer_company_id == cid,
-            NatJointFactoryProposal.partner_company_id == cid,
-            NatJointFactoryProposal.factory_id.in_(joint_factory_ids),
-        )))
-        await session.execute(delete(NatJointFactory).where(NatJointFactory.id.in_(joint_factory_ids)))
-        await session.execute(update(NatContract).where(
-            NatContract.issuer_company_id == cid
-        ).values(issuer_company_id=None))
-        await session.execute(update(NatContract).where(
-            NatContract.target_company_id == cid
-        ).values(target_company_id=None))
-        await session.execute(delete(NatMarketRestriction).where(NatMarketRestriction.company_id == cid))
-        await session.execute(delete(NatMarketWarning).where(NatMarketWarning.company_id == cid))
-
-        alliance_ids = select(NatAlliance.id).where(NatAlliance.leader_company_id == cid)
-        await session.execute(delete(NatAllianceMember).where(or_(
-            NatAllianceMember.company_id == cid,
-            NatAllianceMember.alliance_id.in_(alliance_ids),
-        )))
-        await session.execute(delete(NatAlliance).where(NatAlliance.id.in_(alliance_ids)))
-        await delete_v2_company_state(session, cid)
-        await session.execute(delete(NatFactory).where(NatFactory.company_id == cid))
-        await session.execute(delete(NatInventory).where(NatInventory.company_id == cid))
-        await session.execute(delete(NatMarketOrder).where(NatMarketOrder.company_id == cid))
-        await session.execute(delete(NatStock).where(NatStock.company_id == cid))
-        await session.execute(delete(NatArmy).where(NatArmy.company_id == cid))
-        await session.execute(delete(NatTournamentParticipant).where(NatTournamentParticipant.company_id == cid))
-        await session.execute(delete(NatAllianceMember).where(NatAllianceMember.company_id == cid))
-        await session.execute(delete(NatDailyFinancials).where(NatDailyFinancials.company_id == cid))
-        await session.execute(delete(NatRestructuring).where(NatRestructuring.company_id == cid))
-        await session.execute(delete(NatCompany).where(NatCompany.id == cid))
+        await delete_company_complete_state(session, cid)
         if commit:
             await session.commit()
         else:

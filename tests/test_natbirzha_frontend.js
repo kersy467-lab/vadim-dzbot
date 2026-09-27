@@ -59,7 +59,7 @@ const princessTheme = fs.readFileSync(path.join(__dirname, '../frontend/natbirzh
     && militaryScreen.includes('attacker_fatalities'),
     'military screen must expose hospital care and casualty results');
   const hospitalScreen = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/military_hospital.js'), 'utf-8');
-  ['renderHospitalSection', 'data-hospital-action="treat-all"', 'data-ready-count', '+50% cash', 'hospital', 'repair_depot']
+  ['renderHospitalSection', 'data-hospital-action="treat-all"', 'data-ready-count', '+50% cash', 'hospital', 'repair_depot', 'data-hospital-slider', 'calculateMaxAffordable']
     .forEach((token) => assert(hospitalScreen.includes(token), `hospital screen must expose ${token}`));
 
 console.log('=== [Natbirzha Test 2/5] Testing state.js reactivity & non-destructive updates ===');

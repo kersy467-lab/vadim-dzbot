@@ -45,10 +45,13 @@ async def run_async() -> None:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+    from fastapi import FastAPI
     from backend.natbirzha.api import build_natbirzha_router
     from backend.natbirzha.services.world_reset_service import WorldResetService
 
-    routes = {route.path for route in build_natbirzha_router().routes}
+    app = FastAPI()
+    app.include_router(build_natbirzha_router())
+    routes = set(app.openapi()["paths"].keys())
     assert {
         "/natbirzha/military/hospital/status",
         "/natbirzha/military/hospital/treat",

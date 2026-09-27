@@ -1,5 +1,6 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v1';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
+import { store } from '../state.js?v=20260926_local_update_v1';
 
 const FACILITIES = {
   hospital: { title: 'Военный госпиталь', icon: '🏥', barClass: 'bg-emerald-500' },
@@ -22,6 +23,39 @@ const TREATMENT_RULES = {
   air_defense: { cash: 300, batch: 5, minutes: 3, materials: { steel: 0.8, electronics: 0.3 } },
   aircraft: { cash: 1_000, batch: 2, minutes: 5, materials: { aluminum: 2, jet_fuel: 1 } },
 };
+ 
+function getAvailableCash(companySource) {
+  const comp = companySource || store?.company || {};
+  return Math.max(0, Number(comp.cash ?? 0));
+}
+
+function getAvailableInventory(itemId, inventorySource) {
+  const inv = inventorySource || store?.inventory || store?.company?.inventory_available || store?.company?.inventory || {};
+  if (Array.isArray(inv)) {
+    const row = inv.find((item) => (item.item_id || item.item || item.id) === itemId);
+    return Math.max(0, Number(row?.available ?? row?.quantity ?? row?.qty ?? 0));
+  }
+  return Math.max(0, Number(inv[itemId] ?? 0));
+}
+
+function calculateMaxAffordable(unitType, woundedCount, companySource, inventorySource) {
+  const wounded = Math.max(0, Math.floor(Number(woundedCount) || 0));
+  if (wounded <= 0) return 0;
+  const rule = TREATMENT_RULES[unitType];
+  if (!rule) return wounded;
+  const cash = getAvailableCash(companySource);
+  let maxUnits = rule.cash > 0 ? Math.floor(cash / rule.cash) : wounded;
+  if (rule.materials) {
+    for (const [itemId, perUnit] of Object.entries(rule.materials)) {
+      if (perUnit > 0) {
+        const availableMat = getAvailableInventory(itemId, inventorySource);
+        const maxByMat = Math.floor(availableMat / perUnit);
+        maxUnits = Math.min(maxUnits, maxByMat);
+      }
+    }
+  }
+  return Math.max(0, Math.min(wounded, maxUnits));
+}
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -76,7 +110,7 @@ function upgradeMarkup(facilityId, facility, quote) {
   </div>`;
 }
 
-function wardMarkup(ward) {
+function wardMarkup(ward, context = {}) {
   const unitType = String(ward.unit_type || '');
   const wounded = Math.max(0, Math.floor(Number(ward.wounded_count) || 0));
   const healing = Math.max(0, Math.floor(Number(ward.healing_count) || 0));
@@ -92,12 +126,28 @@ function wardMarkup(ward) {
   const collectButton = ready
     ? `<button type="button" data-hospital-action="collect" data-unit-type="${esc(unitType)}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white">Забрать ${number(healing)}</button>`
     : '';
+  const affordable = calculateMaxAffordable(unitType, wounded, context.company, context.inventory);
+  const defaultQuantity = affordable > 0 ? affordable : Math.min(wounded, 1);
   const controls = wounded > 0
-    ? `<div class="grid grid-cols-[5rem_1fr_1fr] gap-2 items-center pt-2">
-        <input type="number" inputmode="numeric" min="1" max="${wounded}" value="1" aria-label="Количество: ${esc(unitName)}" data-hospital-quantity="${esc(unitType)}" class="w-full rounded-lg border border-slate-300/30 bg-white/70 dark:bg-slate-950/30 px-2 py-2 text-center text-xs disabled:opacity-50" ${busy ? 'disabled' : ''}>
-        <button type="button" data-hospital-action="treat" data-unit-type="${esc(unitType)}" class="rounded-lg bg-blue-600 px-2 py-2 text-[10px] font-bold text-white disabled:opacity-50" ${busy ? 'disabled' : ''}>Лечить</button>
-        <button type="button" data-hospital-action="instant" data-unit-type="${esc(unitType)}" class="rounded-lg bg-amber-500 px-2 py-2 text-[10px] font-bold text-slate-950 disabled:opacity-50" ${busy ? 'disabled' : ''}>Сразу · +50% cash</button>
-      </div><div class="text-[9px] text-slate-500" data-hospital-estimate="${esc(unitType)}">Обычное: ${treatmentEstimate(unitType, 1)} · мгновенно: ${number((TREATMENT_RULES[unitType]?.cash || 0) * 1.5)} cash</div>`
+    ? `<div class="space-y-1.5 pt-2">
+        <div class="flex items-center justify-between text-[10px] text-slate-500">
+          <span>Лечить подразделений:</span>
+          <span class="text-[9px]">Хватает ресурсов: <b class="${affordable > 0 ? 'text-emerald-500' : 'text-rose-400'} font-bold">${number(affordable)}</b> из ${number(wounded)}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="range" min="1" max="${wounded}" value="${defaultQuantity}" step="1" aria-label="Слайдер: ${esc(unitName)}" data-hospital-slider="${esc(unitType)}" class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-50" ${busy ? 'disabled' : ''}>
+        </div>
+        <div class="flex justify-between text-[9px] text-slate-400">
+          <span>1</span>
+          <span>${number(wounded)} (все)</span>
+        </div>
+        <div class="grid grid-cols-[5rem_1fr_1fr] gap-2 items-center pt-0.5">
+          <input type="number" inputmode="numeric" min="1" max="${wounded}" value="${defaultQuantity}" aria-label="Количество: ${esc(unitName)}" data-hospital-quantity="${esc(unitType)}" class="w-full rounded-lg border border-slate-300/30 bg-white/70 dark:bg-slate-950/30 px-2 py-2 text-center text-xs font-bold disabled:opacity-50" ${busy ? 'disabled' : ''}>
+          <button type="button" data-hospital-action="treat" data-unit-type="${esc(unitType)}" class="rounded-lg bg-blue-600 px-2 py-2 text-[10px] font-bold text-white disabled:opacity-50" ${busy ? 'disabled' : ''}>Лечить</button>
+          <button type="button" data-hospital-action="instant" data-unit-type="${esc(unitType)}" class="rounded-lg bg-amber-500 px-2 py-2 text-[10px] font-bold text-slate-950 disabled:opacity-50" ${busy ? 'disabled' : ''}>Сразу · +50% cash</button>
+        </div>
+        <div class="text-[9px] text-slate-500" data-hospital-estimate="${esc(unitType)}">Обычное: ${treatmentEstimate(unitType, defaultQuantity)} · мгновенно: ${number((TREATMENT_RULES[unitType]?.cash || 0) * defaultQuantity * 1.5)} cash</div>
+      </div>`
     : '';
   return `<div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 space-y-1" data-hospital-ward="${esc(unitType)}">
     <div class="flex items-start justify-between gap-2"><div><div class="text-xs font-bold">${esc(unitName)}</div><div class="text-[10px] text-slate-500">Раненые: <b>${number(wounded)}</b></div></div>${collectButton}</div>
@@ -106,7 +156,7 @@ function wardMarkup(ward) {
   </div>`;
 }
 
-function facilityMarkup(facilityId, facility = {}, quote) {
+function facilityMarkup(facilityId, facility = {}, quote, context = {}) {
   const meta = FACILITIES[facilityId];
   const level = Number(facility.level) || 0;
   const maxLevel = Number(facility.max_level || quote?.max_level) || 0;
@@ -114,7 +164,7 @@ function facilityMarkup(facilityId, facility = {}, quote) {
   const occupied = Math.max(0, Number(facility.occupied) || 0);
   const available = Math.max(0, Number(facility.available) || 0);
   const progress = capacity > 0 ? Math.max(0, Math.min(100, occupied / capacity * 100)) : 0;
-  const wards = (Array.isArray(facility.wards) ? facility.wards : []).map(wardMarkup).join('');
+  const wards = (Array.isArray(facility.wards) ? facility.wards : []).map((w) => wardMarkup(w, context)).join('');
   const capacityLabel = facilityId === 'hospital' ? 'Занято коек' : 'Занято ремонтных мест';
   return `<section class="glass-card rounded-2xl p-4 space-y-3" aria-label="${esc(meta.title)}">
     <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-black">${meta.icon} ${esc(meta.title)}</h3><div class="text-[10px] text-slate-500 mt-1">Уровень ${number(level)} / ${number(maxLevel)}</div></div><div class="text-right"><div class="text-xs font-mono font-bold">${number(occupied)} / ${number(capacity)}</div><div class="text-[9px] text-slate-400">${number(available)} свободно</div></div></div>
@@ -124,15 +174,19 @@ function facilityMarkup(facilityId, facility = {}, quote) {
   </section>`;
 }
 
-export function renderHospitalSection({ status, upgradeQuotes } = {}) {
+export function renderHospitalSection({ status, upgradeQuotes, company, inventory } = {}) {
   const facilities = status || {};
   const quotes = upgradeQuotes || {};
+  const context = {
+    company: company || store?.company || {},
+    inventory: inventory || store?.inventory || store?.company?.inventory_available || store?.company?.inventory || {},
+  };
   const hasWounded = ['hospital', 'repair_depot'].some((key) =>
     (facilities[key]?.wards || []).some((ward) => Number(ward.wounded_count) > 0));
   return `<div class="space-y-3" data-hospital-section>
     <div class="glass-card rounded-2xl p-4 flex items-center justify-between gap-3"><div><h3 class="text-xs font-bold uppercase text-slate-400">Госпиталь и ремонт</h3><p class="mt-1 text-[10px] text-slate-500">Лечите раненых и возвращайте технику в строй.</p></div><button type="button" data-hospital-action="treat-all" class="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50" ${hasWounded ? '' : 'disabled'}>Лечить всех на доступные средства</button></div>
-    ${facilityMarkup('hospital', facilities.hospital, quotes.hospital)}
-    ${facilityMarkup('repair_depot', facilities.repair_depot, quotes.repair_depot)}
+    ${facilityMarkup('hospital', facilities.hospital, quotes.hospital, context)}
+    ${facilityMarkup('repair_depot', facilities.repair_depot, quotes.repair_depot, context)}
   </div>`;
 }
 
@@ -143,6 +197,7 @@ export function bindHospitalHandlers(container, { showToast, onRefresh } = {}) {
   if (previous) {
     container.removeEventListener('click', previous.click);
     container.removeEventListener('input', previous.input);
+    if (previous.change) container.removeEventListener('change', previous.change);
     clearInterval(previous.timer);
   }
 
@@ -221,15 +276,46 @@ export function bindHospitalHandlers(container, { showToast, onRefresh } = {}) {
       }
     });
   }, 1000);
+
   const input = (event) => {
-    const field = event.target.closest?.('[data-hospital-quantity]');
-    if (!field || !container.contains(field)) return;
-    const type = field.dataset.hospitalQuantity;
-    const count = Math.min(Number(field.max) || 1, Math.max(1, Math.floor(Number(field.value) || 1)));
+    const slider = event.target.closest?.('[data-hospital-slider]');
+    const qtyField = event.target.closest?.('[data-hospital-quantity]');
+    if ((!slider && !qtyField) || !container.contains(event.target)) return;
+
+    if (slider) {
+      const type = slider.dataset.hospitalSlider;
+      const count = Math.min(Number(slider.max) || 1, Math.max(1, Math.floor(Number(slider.value) || 1)));
+      const field = container.querySelector(`[data-hospital-quantity="${type}"]`);
+      if (field) field.value = count;
+      const label = container.querySelector(`[data-hospital-estimate="${type}"]`);
+      if (label) label.textContent = `Обычное: ${treatmentEstimate(type, count)} · мгновенно: ${number((TREATMENT_RULES[type]?.cash || 0) * count * 1.5)} cash`;
+    } else if (qtyField) {
+      const type = qtyField.dataset.hospitalQuantity;
+      const maxVal = Number(qtyField.max) || 1;
+      const rawVal = Math.floor(Number(qtyField.value) || 0);
+      const count = Math.min(maxVal, Math.max(1, rawVal || 1));
+      const range = container.querySelector(`[data-hospital-slider="${type}"]`);
+      if (range) range.value = count;
+      const label = container.querySelector(`[data-hospital-estimate="${type}"]`);
+      if (label) label.textContent = `Обычное: ${treatmentEstimate(type, count)} · мгновенно: ${number((TREATMENT_RULES[type]?.cash || 0) * count * 1.5)} cash`;
+    }
+  };
+
+  const change = (event) => {
+    const qtyField = event.target.closest?.('[data-hospital-quantity]');
+    if (!qtyField || !container.contains(qtyField)) return;
+    const maxVal = Number(qtyField.max) || 1;
+    const count = Math.min(maxVal, Math.max(1, Math.floor(Number(qtyField.value) || 1)));
+    qtyField.value = count;
+    const type = qtyField.dataset.hospitalQuantity;
+    const range = container.querySelector(`[data-hospital-slider="${type}"]`);
+    if (range) range.value = count;
     const label = container.querySelector(`[data-hospital-estimate="${type}"]`);
     if (label) label.textContent = `Обычное: ${treatmentEstimate(type, count)} · мгновенно: ${number((TREATMENT_RULES[type]?.cash || 0) * count * 1.5)} cash`;
   };
+
   container.addEventListener('click', click);
   container.addEventListener('input', input);
-  bindings.set(container, { click, input, timer });
+  container.addEventListener('change', change);
+  bindings.set(container, { click, input, change, timer });
 }

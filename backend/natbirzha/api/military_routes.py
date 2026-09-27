@@ -26,7 +26,7 @@ class JoinAllianceRequest(BaseModel):
     alliance_id: int
 
 
-@router.get("/pve-targets")
+@router.get("/pve-targets", include_in_schema=False)
 @router.get("/pve/targets")
 async def get_pve_targets(
     company: NatCompany = Depends(get_current_company),
@@ -35,7 +35,7 @@ async def get_pve_targets(
     return {"targets": await PveService.list_targets(session, company)}
 
 
-@router.post("/pve-targets/{target_code}/scout")
+@router.post("/pve-targets/{target_code}/scout", include_in_schema=False)
 @router.post("/pve/targets/{target_code}/scout")
 async def scout_pve_target(
     target_code: str,
@@ -66,7 +66,7 @@ async def scout_pve_target(
         ) from exc
 
 
-@router.post("/pve-targets/{target_code}/attack")
+@router.post("/pve-targets/{target_code}/attack", include_in_schema=False)
 @router.post("/pve/targets/{target_code}/attack")
 async def attack_pve_target(
     target_code: str,

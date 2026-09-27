@@ -1,9 +1,10 @@
 """Market-based progression calibration for the live NATBIRZHA 2.0 catalog.
 
-Physical recipe inputs stay intact, including the explicit energy and water
-consumption multipliers. The catalog scales output to recover its operating
-costs and target return, then scales those recipe inputs with throughput at
-every stage. It does not invent extra stock requirements outside the recipes.
+Physical recipe inputs stay intact, including explicit energy and water
+consumption multipliers. Shared resource-network inputs, such as AI compute,
+are balanced alongside those recipes. The catalog scales output to recover its
+operating costs and target return, then scales recipe inputs with throughput at
+every stage.
 """
 from copy import deepcopy
 

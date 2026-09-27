@@ -126,6 +126,14 @@ class HybridMergerService:
         for business in ordered_sources:
             if business.specialization != recipe["specialization"]:
                 raise ValueError("Исходное предприятие относится к другой отрасли")
+            if business.status == "UPGRADING":
+                target_stage = int(business.upgrade_target_stage or (business.stage + 1))
+                source_spec = get_business_spec(business.business_type) or {}
+                source_name = source_spec.get("name", business.business_type)
+                raise ValueError(
+                    f"Сначала дождитесь улучшения «{source_name}»: "
+                    f"уровень {business.stage} → {target_stage}."
+                )
             if int(business.stage) < int(recipe["minimum_source_stage"]):
                 raise ValueError(
                     f"Каждое исходное предприятие должно быть уровня {recipe['minimum_source_stage']} или выше"

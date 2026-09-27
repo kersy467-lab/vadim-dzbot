@@ -12,6 +12,7 @@ from backend.natbirzha.models.combat import NatBattle, NatBattleSnapshot, NatPvp
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.military import NatTournament, NatTournamentParticipant
 from backend.natbirzha.services.army_service import ArmyService
+from backend.natbirzha.services.hospital_service import HospitalService
 from backend.natbirzha.services.combat_resolver import resolve_battle
 from backend.natbirzha.services.military_infrastructure_service import MilitaryInfrastructureService
 from backend.natbirzha.services.premium_upgrade_service import PremiumUpgradeService
@@ -92,6 +93,7 @@ class TournamentCombatMixin:
             raise TournamentError("cooldown", f"Target is unavailable until {cooldown.available_at.isoformat()}")
 
         for company_id in (attacker_company.id, defender_company_id):
+            await HospitalService.collect_treated(session, company_id, now=now)
             await MilitaryInfrastructureService.settle_training(session, company_id, now=now)
             await MilitaryInfrastructureService.recover_readiness(session, company_id, now=now)
         attacker_army = await ArmyService.snapshot(session, attacker_company.id, for_update=True)
@@ -135,8 +137,12 @@ class TournamentCombatMixin:
                 strength=round(result.defender_score), created_at=now,
             ),
         ])
-        await ArmyService.apply_losses(session, attacker_company.id, result.attacker_losses)
-        await ArmyService.apply_losses(session, defender_company_id, result.defender_losses)
+        attacker_casualties = await HospitalService.apply_combat_losses(
+            session, attacker_company.id, result.attacker_losses, mode="PVP", now=now
+        )
+        defender_casualties = await HospitalService.apply_combat_losses(
+            session, defender_company_id, result.defender_losses, mode="PVP", now=now
+        )
         attacker_total = max(1, sum(map(int, attacker_army.units.values())))
         defender_total = max(1, sum(map(int, defender_army.units.values())))
         await MilitaryInfrastructureService.reduce_readiness_after_operation(
@@ -179,8 +185,14 @@ class TournamentCombatMixin:
             "winner": result.winner, "attacker_score": result.attacker_score,
             "defender_score": result.defender_score,
             "attacker_losses": dict(result.attacker_losses), "defender_losses": dict(result.defender_losses),
-            "attacker_remaining": {k: v - result.attacker_losses.get(k, 0) for k, v in attacker_army.units.items()},
-            "defender_remaining": {k: v - result.defender_losses.get(k, 0) for k, v in defender_army.units.items()},
+            "attacker_light_wounded": attacker_casualties["light_wounded"],
+            "attacker_hospitalized": attacker_casualties["hospitalized"],
+            "attacker_fatalities": attacker_casualties["fatalities"],
+            "defender_light_wounded": defender_casualties["light_wounded"],
+            "defender_hospitalized": defender_casualties["hospitalized"],
+            "defender_fatalities": defender_casualties["fatalities"],
+            "attacker_remaining": attacker_casualties["remaining"],
+            "defender_remaining": defender_casualties["remaining"],
             "phases": {name: dict(values) for name, values in result.phases.items()},
             "operation_supply": operation_supply, "attacker_rating_delta": attacker_rating.delta,
             "defender_rating_delta": defender_rating.delta,

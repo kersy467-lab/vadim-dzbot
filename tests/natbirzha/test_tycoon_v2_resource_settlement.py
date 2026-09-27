@@ -38,6 +38,8 @@ def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None
                 company,
                 NatInventory(company_id=1, item_id="fuel_diesel", quantity=10, avg_cost_basis=1.2),
                 NatInventory(company_id=1, item_id="water", quantity=2, avg_cost_basis=2),
+                NatInventory(company_id=1, item_id="ai_compute", quantity=100, avg_cost_basis=75),
+                NatInventory(company_id=1, item_id="beer", quantity=100, avg_cost_basis=1),
             ])
             await session.commit()
             opened = await BusinessService.open_business(session, company.id, "diesel_power_station", now=now)
@@ -70,7 +72,19 @@ def test_resource_business_consumes_inputs_and_pauses_when_supply_ends() -> None
             assert energy.quantity > 0.0
             # Unsold output carries input cost plus maintenance into its basis;
             # its reference value remains analytics-only until a sale.
-            production_cost = (10.0 - fuel.quantity) * 1.2 + 2.0 * 2.0 + settled["maintenance_cash"]
+            ai_compute = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "ai_compute"
+            ))
+            beer = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "beer"
+            ))
+            production_cost = (
+                (10.0 - fuel.quantity) * 1.2
+                + (2.0 - water.quantity) * 2.0
+                + (100.0 - ai_compute.quantity) * 75.0
+                + (100.0 - beer.quantity) * 1.0
+                + settled["maintenance_cash"]
+            )
             assert energy.avg_cost_basis == pytest.approx(production_cost / energy.quantity, abs=1e-5)
             assert income_period is not None
             assert round(income_period.gross_income, 2) == round(

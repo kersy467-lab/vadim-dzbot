@@ -12,7 +12,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.db.session import get_db_session
 from backend.natbirzha.api import natbirzha_router
-from backend.natbirzha.catalogs.businesses import CAREER_BUSINESSES, INDUSTRIES
+from backend.natbirzha.catalogs.businesses import BUSINESS_CATALOG, CAREER_BUSINESSES, INDUSTRIES
 from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany, NatFactory
@@ -23,21 +23,28 @@ from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.stock_service import StockService
 
 
-def test_forestry_is_a_playable_nine_enterprise_material_chain() -> None:
-    forestry = sorted(
-        (spec for spec in CAREER_BUSINESSES.values() if spec["specialization"] == "forester"),
+def test_ai_data_centers_replace_forestry_and_supply_industry_demand() -> None:
+    ai_businesses = sorted(
+        (spec for spec in CAREER_BUSINESSES.values()
+         if spec["specialization"] == "forester" and not spec.get("hybrid_only")),
         key=lambda spec: spec["industry_order"],
     )
     assert "forester" in INDUSTRIES
-    assert len(forestry) >= 9
-    assert forestry[0]["starter"] is True
-    assert [spec["industry_order"] for spec in forestry[:9]] == list(range(1, 10))
-    assert all(spec["open_resources"] for spec in forestry[1:9])
-    by_id = {spec["id"]: spec for spec in forestry}
-    assert by_id["sawmill_v2"]["inputs_per_hour"].get("wood_raw", 0) > 0
-    assert by_id["sawmill_v2"]["outputs_per_hour"].get("lumber", 0) > 0
-    assert by_id["paper_mill_v2"]["inputs_per_hour"].get("cellulose", 0) > 0
-    assert by_id["paper_mill_v2"]["outputs_per_hour"].get("paper", 0) > 0
+    assert len(ai_businesses) == 9
+    assert ai_businesses[0]["starter"] is True
+    assert [spec["industry_order"] for spec in ai_businesses] == list(range(1, 10))
+    assert all(spec["open_resources"] for spec in ai_businesses[1:])
+    by_id = {spec["id"]: spec for spec in ai_businesses}
+    assert by_id["ai_compute_node"]["outputs_per_hour"].get("ai_compute", 0) > 0
+    assert all("ai_compute" not in spec["inputs_per_hour"] for spec in ai_businesses)
+    assert "forest_management_v2" not in CAREER_BUSINESSES
+    assert BUSINESS_CATALOG["forest_management_v2"]["legacy_hidden"] is True
+
+    # Every other sector starts with a small AI-service input, dips at midgame,
+    # and pays more again as later production tiers automate.
+    assert CAREER_BUSINESSES["grain_farm_v2"]["resource_network_inputs"]["ai_compute"] == 1.0
+    assert CAREER_BUSINESSES["lubricant_factory_v2"]["resource_network_inputs"]["ai_compute"] < 1.0
+    assert CAREER_BUSINESSES["agro_holding_v2"]["resource_network_inputs"]["ai_compute"] > 1.0
 
 
 def test_paused_idle_enterprise_upgrade_is_available_and_keeps_its_pause_reason() -> None:
@@ -49,13 +56,13 @@ def test_paused_idle_enterprise_upgrade_is_available_and_keeps_its_pause_reason(
 
         async with sessions() as session:
             company = NatCompany(
-                user_id=991_221, name="Paused Forestry", specialization="forester",
+                user_id=991_221, name="Paused AI", specialization="forester",
                 level=20, cash=1_000_000, territory_tiles=20,
             )
             session.add(company)
             await session.flush()
             business = NatBusiness(
-                company_id=company.id, business_type="forest_management_v2",
+                company_id=company.id, business_type="ai_compute_node",
                 specialization="forester", stage=1, status="PAUSED_SUPPLY",
                 last_settled_at=get_game_now().replace(tzinfo=None),
             )

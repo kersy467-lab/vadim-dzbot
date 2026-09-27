@@ -8,6 +8,7 @@ from backend.natbirzha.api.market_routes import router as market_router
 from backend.natbirzha.api.stock_routes import router as stock_router
 from backend.natbirzha.api.military_routes import router as military_router
 from backend.natbirzha.api.military_infrastructure_routes import router as military_infrastructure_router
+from backend.natbirzha.api.hospital_routes import router as hospital_router
 from backend.natbirzha.api.alliance_routes import router as alliance_router
 from backend.natbirzha.api.bankruptcy_routes import router as bankruptcy_router
 from backend.natbirzha.api.building_routes import router as building_router
@@ -51,6 +52,7 @@ def build_natbirzha_router(admin_only: bool = False) -> APIRouter:
         stock_router,
         military_router,
         military_infrastructure_router,
+        hospital_router,
         alliance_router,
         bankruptcy_router,
         creator_router,

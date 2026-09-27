@@ -1,7 +1,8 @@
-import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
 import { renderTournamentSection } from './military_tournament.js?v=20260926_local_update_v1';
+import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260927_hospital_v1';
 
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },
@@ -38,6 +39,7 @@ const SECTIONS = [
   ['history', 'История'],
   ['alliance', 'Альянс'],
   ['premium', 'PVC'],
+  ['hospital', 'Госпиталь'],
 ];
 
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, ch => ({
@@ -88,21 +90,24 @@ export async function renderMilitary(container, showToast) {
   let history = [];
   let tournamentHistory = [];
   let premiumData = null;
+  let hospitalStatus = null;
   const scouting = new Map();
 
   async function loadWarData() {
-    const [armyRes, pveRes, tournamentRes, historyRes, tournamentHistoryRes] = await Promise.allSettled([
+    const [armyRes, pveRes, tournamentRes, historyRes, tournamentHistoryRes, hospitalRes] = await Promise.allSettled([
       NatAPI.getMilitaryStatus(),
       NatAPI.getPveTargets(),
       NatAPI.getCurrentTournament(),
       NatAPI.getBattleHistory(),
       NatAPI.getTournamentHistory(),
+      NatAPI.getHospitalStatus(),
     ]);
     if (armyRes.status === 'fulfilled') army = armyRes.value || {};
     if (pveRes.status === 'fulfilled') pveTargets = pveRes.value?.targets || [];
     if (tournamentRes.status === 'fulfilled') tournamentData = tournamentRes.value || tournamentData;
     if (historyRes.status === 'fulfilled') history = historyRes.value?.battles || [];
     if (tournamentHistoryRes.status === 'fulfilled') tournamentHistory = tournamentHistoryRes.value?.tournaments || [];
+    if (hospitalRes.status === 'fulfilled') hospitalStatus = hospitalRes.value || null;
     const tournament = tournamentData?.tournament;
     if (tournament?.id && tournament.status === 'ACTIVE') {
       try {
@@ -254,7 +259,7 @@ export async function renderMilitary(container, showToast) {
   }
 
   function renderView() {
-    const section = { army: armySection, borders: bordersSection, tournament: () => renderTournamentSection({ tournamentData, tournamentTargets, army }), history: historySection, alliance: allianceSection, premium: premiumSection }[activeSection] || armySection;
+    const section = { army: armySection, borders: bordersSection, tournament: () => renderTournamentSection({ tournamentData, tournamentTargets, army }), history: historySection, alliance: allianceSection, premium: premiumSection, hospital: () => renderHospitalSection({ status: hospitalStatus, upgradeQuotes: army.infrastructure?.upgrade_quotes }) }[activeSection] || armySection;
     container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${SECTIONS.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${section()}</div>`;
     if (activeSection === 'premium' && premiumData?.industry?.upgrade?.available) {
       const industry = premiumData.industry.upgrade;
@@ -281,11 +286,24 @@ export async function renderMilitary(container, showToast) {
       if (premiumBody?.firstElementChild) premiumBody.firstElementChild.after(panel);
       else premiumBody?.prepend(panel);
     }
+    if (activeSection === 'hospital') bindHospitalHandlers(container, {
+      showToast,
+      onRefresh: async (status) => {
+        if (status) hospitalStatus = status;
+        const [military, company] = await Promise.all([NatAPI.getMilitaryStatus(), NatAPI.getMyCompany().catch(() => null)]);
+        army = military || army;
+        if (company) store.setCompany(company);
+        if (!status) hospitalStatus = await NatAPI.getHospitalStatus().catch(() => hospitalStatus);
+        renderView();
+      },
+    });
     bindHandlers();
   }
 
   async function refreshAfterBattle(result) {
-    showToast(result.winner === 'attacker' ? 'Победа! Результат записан в историю.' : 'Бой проигран. Армия и рейтинг обновлены.', result.winner === 'attacker' ? 'success' : 'error');
+    const total = (values) => Object.values(values || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+    const outcome = result.winner === 'attacker' ? 'Победа!' : 'Бой проигран.';
+    showToast(`${outcome} Легко ранено: ${total(result.attacker_light_wounded)} · госпиталь/ремонт: ${total(result.hospitalized || result.attacker_hospitalized)} · безвозвратные потери: ${total(result.attacker_fatalities)}`, result.winner === 'attacker' ? 'success' : 'error');
     const company = await NatAPI.getMyCompany().catch(() => null);
     if (company) store.setCompany(company);
     await loadWarData();

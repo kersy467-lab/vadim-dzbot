@@ -9,7 +9,7 @@ export const SPECIALIZATIONS = {
   metallurgist: 'Металлургия',
   oilman: 'Нефтегазовая промышленность',
   power_engineer: 'Энергетика',
-  forester: 'Лесозаготовка',
+  forester: 'ИИ и дата-центры',
   chemist: 'Химическая промышленность',
   technoprom: 'Технологическая промышленность',
   water: 'Водоснабжение',
@@ -69,8 +69,16 @@ export const BUILDINGS = {
   agrotech_lab: '🧬 Агробиотехнологический центр',
   orbital_agro_complex: '🛰️ Орбитальный агрокомплекс',
 
-  // 5. Лесозаготовка (forester)
-  sawmill: '🪵 Лесозаготовка',
+  // 5. ИИ и дата-центры (stable internal key: forester)
+  ai_compute_node: '🧠 Пограничный узел ИИ',
+  ml_training_center: '🧠 Центр обучения моделей',
+  cloud_ai_center: '🖥️ Облачный дата-центр ИИ',
+  machine_vision_lab: '👁️ Лаборатория машинного зрения',
+  industrial_ai_park: '🏭 Промышленный парк ИИ',
+  autonomous_control_center: '🦾 Центр автономного управления',
+  foundation_model_cluster: '🧬 Кластер фундаментальных моделей',
+  national_ai_supercomputer: '🚀 Национальный суперкомпьютер ИИ',
+  sovereign_ai_cloud: '🌐 Суверенное облако автономного ИИ',
   woodworking: '🪵 Деревообрабатывающий цех',
   paper_mill: '📄 ЦБК',
   furniture_factory: '🪑 Мебельная фабрика',

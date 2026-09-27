@@ -14,6 +14,7 @@ from backend.natbirzha.models.player_deals import NatSupplyDeal
 from backend.natbirzha.services.auth_service import get_current_company
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
+from backend.natbirzha.services.player_dm_service import send_company_dm
 from backend.natbirzha.services.supply_deal_service import SupplyDealService
 
 
@@ -44,6 +45,7 @@ async def _mutate(
     key: str | None,
     payload: dict,
     operation,
+    notification_event: str | None = None,
 ) -> dict:
     cached = await IdempotencyService.check_or_conflict(
         session, company.user_id, endpoint, key, payload
@@ -56,9 +58,60 @@ async def _mutate(
         raise _http_error(exc) from exc
     await session.flush()
     response = await SupplyDealService.serialize(session, deal, company.id)
-    return await IdempotencyService.commit_response(
+    committed, created = await IdempotencyService.commit_response_once(
         session, company.user_id, endpoint, key, payload, response
     )
+    if notification_event and created:
+        await _notify_deal_participant(session, company.id, committed, notification_event)
+    return committed
+
+
+def _duration_label(seconds: int) -> str:
+    minutes = max(1, round(int(seconds) / 60))
+    if minutes < 60:
+        return f"{minutes} мин."
+    hours, remainder = divmod(minutes, 60)
+    if remainder:
+        return f"{hours} ч {remainder} мин."
+    return f"{hours} ч."
+
+
+async def _notify_deal_participant(
+    session: AsyncSession,
+    actor_company_id: int,
+    deal: dict,
+    event: str,
+) -> None:
+    buyer_id = int(deal["buyer_company_id"])
+    supplier_id = int(deal["supplier_company_id"])
+    buyer_name = deal["buyer_company_name"]
+    supplier_name = deal["supplier_company_name"]
+    if event == "created":
+        recipient_id = supplier_id
+        heading = f"{buyer_name} предложила вашей компании сделку поставки"
+    elif event == "accepted":
+        recipient_id = buyer_id if actor_company_id == supplier_id else supplier_id
+        heading = f"Компания {supplier_name if actor_company_id == supplier_id else buyer_name} приняла сделку"
+    elif event == "rejected":
+        recipient_id = buyer_id if actor_company_id == supplier_id else supplier_id
+        heading = f"Компания {supplier_name if actor_company_id == supplier_id else buyer_name} отклонила сделку"
+    else:
+        recipient_id = supplier_id if actor_company_id == buyer_id else buyer_id
+        heading = f"Компания {buyer_name if actor_company_id == buyer_id else supplier_name} отменила предложение"
+
+    reward = (
+        f"доля положительной прибыли {deal['profit_share_pct']:g}%"
+        if deal["reward_type"] == "PROFIT_SHARE"
+        else f"выплата {deal['fixed_cash']:,.2f} cash"
+    )
+    message = (
+        f"🤝 {heading}.\n"
+        f"Ресурс: {deal['item_name']} · до {deal['quantity_per_hour']:g} {deal['unit']}/ч.\n"
+        f"Цена: рынок − {deal['discount_pct']:g}%.\n"
+        f"Срок: {_duration_label(deal['term_seconds'])}. Вознаграждение: {reward}.\n"
+        f"Статус: {deal['status']}."
+    )
+    await send_company_dm(session, recipient_id, message)
 
 
 @router.get("/companies")
@@ -114,6 +167,7 @@ async def create_offer(
     return await _mutate(
         session, company, "/api/natbirzha/market/deals", idempotency_key, payload,
         lambda: SupplyDealService.create_offer(session, company, **payload),
+        notification_event="created",
     )
 
 
@@ -202,6 +256,7 @@ async def accept_offer(
     return await _mutate(
         session, company, f"/api/natbirzha/market/deals/{deal_id}/accept", idempotency_key, payload,
         lambda: SupplyDealService.accept(session, company, deal_id),
+        notification_event="accepted",
     )
 
 
@@ -216,6 +271,7 @@ async def reject_offer(
     return await _mutate(
         session, company, f"/api/natbirzha/market/deals/{deal_id}/reject", idempotency_key, payload,
         lambda: SupplyDealService.reject(session, company, deal_id),
+        notification_event="rejected",
     )
 
 
@@ -230,4 +286,5 @@ async def cancel_offer(
     return await _mutate(
         session, company, f"/api/natbirzha/market/deals/{deal_id}/cancel", idempotency_key, payload,
         lambda: SupplyDealService.cancel(session, company, deal_id),
+        notification_event="cancelled",
     )

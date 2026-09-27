@@ -87,15 +87,40 @@ class IdempotencyService:
         response_body: Dict[str, Any],
         status_code: int = 200,
     ) -> Dict[str, Any]:
+        response, _created = await cls.commit_response_once(
+            session,
+            user_id,
+            endpoint,
+            idempotency_key,
+            payload,
+            response_body,
+            status_code=status_code,
+        )
+        return response
+
+    @classmethod
+    async def commit_response_once(
+        cls,
+        session: AsyncSession,
+        user_id: int,
+        endpoint: str,
+        idempotency_key: Optional[str],
+        payload: Any,
+        response_body: Dict[str, Any],
+        status_code: int = 200,
+    ) -> tuple[Dict[str, Any], bool]:
         """Commit business mutation and idempotency record in one DB transaction.
 
         If two workers race with the same key, the unique constraint makes one
         transaction win. The losing transaction is rolled back and returns the
         already committed cached response instead of duplicating the mutation.
+        The boolean is true only for the request that committed the mutation;
+        post-commit side effects such as Telegram notifications use it to avoid
+        duplicate delivery during a concurrent idempotency replay.
         """
         if not idempotency_key:
             await session.commit()
-            return response_body
+            return response_body, True
 
         safe_response = jsonable_encoder(response_body)
         session.add(
@@ -110,10 +135,10 @@ class IdempotencyService:
         )
         try:
             await session.commit()
-            return safe_response
+            return safe_response, True
         except IntegrityError:
             await session.rollback()
             cached = await cls.check_or_conflict(session, user_id, endpoint, idempotency_key, payload)
             if cached:
-                return cached[1]
+                return cached[1], False
             raise

@@ -20,6 +20,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.army_service import ArmyService
 from backend.natbirzha.services.military_infrastructure_service import MilitaryInfrastructureService
+from backend.natbirzha.services.hospital_service import HospitalService
 from backend.natbirzha.services.combat_resolver import ArmySnapshot, PremiumModifiers, resolve_battle
 from backend.natbirzha.services.pve_catalog import PVE_CATALOG_VERSION
 from backend.natbirzha.services.rating_service import RatingService
@@ -213,6 +214,7 @@ class PveService(PveCampaignMixin):
         await cls._check_access(session, locked_company, target, now)
         campaign_rank = await cls._campaign_wins(session, company.id, target.id)
         await MilitaryInfrastructureService.settle_training(session, company.id, now=now)
+        await HospitalService.collect_treated(session, company.id, now=now)
         await MilitaryInfrastructureService.recover_readiness(session, company.id, now=now)
         attacker = await ArmyService.snapshot(session, company.id, for_update=True)
         if not any(attacker.units.get(unit_type, 0) > 0 for unit_type in GROUND_UNITS):
@@ -281,7 +283,9 @@ class PveService(PveCampaignMixin):
                 ),
             ]
         )
-        await ArmyService.apply_losses(session, company.id, result.attacker_losses)
+        casualty_state = await HospitalService.apply_combat_losses(
+            session, company.id, result.attacker_losses, mode="PVE", now=now
+        )
         total_units = max(1, sum(int(value) for value in attacker.units.values()))
         await MilitaryInfrastructureService.reduce_readiness_after_operation(
             session, company.id,
@@ -305,7 +309,8 @@ class PveService(PveCampaignMixin):
         rewards: dict[str, Any] = {
             "cash": 0.0, "xp": 0, "resources": {}, "recovery": reward_budget
         }
-        if won and result.attacker_can_occupy:
+        can_occupy = any(casualty_state["remaining"].get(unit, 0) > 0 for unit in GROUND_UNITS)
+        if won and can_occupy:
             territory_awarded = target.territory_reward if campaign_rank == 0 else 0
             locked_company.territory_tiles += territory_awarded
             locked_company.max_territory = max(
@@ -348,11 +353,11 @@ class PveService(PveCampaignMixin):
             "attacker_score": result.attacker_score,
             "defender_score": result.defender_score,
             "attacker_losses": dict(result.attacker_losses),
+            "attacker_light_wounded": casualty_state["light_wounded"],
+            "hospitalized": casualty_state["hospitalized"],
+            "attacker_fatalities": casualty_state["fatalities"],
             "defender_losses": dict(result.defender_losses),
-            "attacker_remaining": {
-                unit_type: quantity - result.attacker_losses.get(unit_type, 0)
-                for unit_type, quantity in attacker.units.items()
-            },
+            "attacker_remaining": casualty_state["remaining"],
             "defender_remaining": {
                 unit_type: quantity - result.defender_losses.get(unit_type, 0)
                 for unit_type, quantity in defender.units.items()

@@ -32,7 +32,7 @@ CHEMISTRY_BUSINESSES = {
            {"oil_crude": 24, "basic_chem": 4, "energy": 12}, {"lubricants": 18},
            ("Базовые масла", "Пакет присадок", "Фильтрационная линия", "Лаборатория вязкости", "Кластер технических масел"), prerequisite={"polymer_factory_v2": 15}),
         _c("synthetic_materials", "Завод синтетических материалов", "🧬", 6, 460_000, 23,
-           {"plastics": 18, "composite": 2, "basic_chem": 6, "energy": 18}, {"advanced_composite": 10},
+           {"plastics": 18, "metal_structures": 2, "basic_chem": 6, "energy": 18}, {"advanced_composite": 10},
            ("Композитная линия", "Армирование материала", "Высокотемпературная печь", "Робоконтроль", "Синтетический материал-кластер"), prerequisite={"polymer_factory_v2": 25}),
         _c("battery_chemistry", "Аккумуляторная химия", "🔋", 7, 850_000, 29,
            {"lithium_raw": 7, "cobalt_raw": 3, "basic_chem": 5, "energy": 22}, {"lithium_pure": 8, "electrolyte": 10},

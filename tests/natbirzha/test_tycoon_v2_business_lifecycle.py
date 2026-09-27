@@ -31,6 +31,8 @@ def test_business_can_pause_resume_and_sell_but_not_during_upgrade() -> None:
                 NatInventory(company_id=company.id, item_id="water", quantity=100),
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=2),
                 NatInventory(company_id=company.id, item_id="food", quantity=1),
+                NatInventory(company_id=company.id, item_id="ai_compute", quantity=100),
+                NatInventory(company_id=company.id, item_id="beer", quantity=100),
             ])
             await session.commit()
             opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)

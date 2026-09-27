@@ -16,7 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must
 assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
-assert(natHtml.includes('app.js?v=20260927_admin_wait_gate_v1'), 'Natbirzha entrypoint must refresh its cached code after a release');
+assert(/app\.js\?v=[A-Za-z0-9_-]+/.test(natHtml), 'Natbirzha entrypoint must refresh its cached code after a release');
 assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes("market.js?v=20260926_joint_factory_v1"), 'Market changes must refresh the cached market module');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
@@ -54,6 +54,13 @@ const princessTheme = fs.readFileSync(path.join(__dirname, '../frontend/natbirzh
     'a historical PvE victory must not permanently disable the rematch button');
   assert(militaryScreen.includes('campaign_rank'),
     'PvE screen must show the escalating frontier campaign rank');
+  assert(militaryScreen.includes("['hospital', 'Госпиталь']")
+    && militaryScreen.includes('bindHospitalHandlers')
+    && militaryScreen.includes('attacker_fatalities'),
+    'military screen must expose hospital care and casualty results');
+  const hospitalScreen = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/military_hospital.js'), 'utf-8');
+  ['renderHospitalSection', 'data-hospital-action="treat-all"', 'data-ready-count', '+50% cash', 'hospital', 'repair_depot']
+    .forEach((token) => assert(hospitalScreen.includes(token), `hospital screen must expose ${token}`));
 
 console.log('=== [Natbirzha Test 2/5] Testing state.js reactivity & non-destructive updates ===');
 const stateScript = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/state.js'), 'utf-8');
@@ -202,7 +209,8 @@ const requiredMethods = [
   'getStateBonds', 'createBondListing', 'buyBondListing', 'cancelBondListing',
   'getBankruptcyStatus', 'submitRestructuring', 'getIndustryUpgradeCatalog', 'getIndustryUpgrade', 'purchaseIndustryUpgrade',
   'getCreatorWorldResetPreview', 'resetCreatorWorld',
-  'getStateCredit', 'requestStateCredit', 'repayStateCredit', 'renameCompany'
+  'getStateCredit', 'requestStateCredit', 'repayStateCredit', 'renameCompany',
+  'getHospitalStatus', 'startHospitalTreatment', 'startAllHospitalTreatments', 'collectHospitalTreatment'
 ];
 requiredMethods.forEach(m => {
   assert(typeof NatAPI[m] === 'function', `NatAPI.${m} must be defined`);
@@ -421,8 +429,9 @@ assert(appSourceCode.includes('overview.js?v=20260926_local_update_v1'),
   'overview inventory fixes must be loaded from a fresh screen module');
 assert(/market_credit\.js\?v=20260926_local_update_v1/.test(marketCoreCode),
   'market credit screen must use a cache-busted module URL');
-assert(/(\.\.\/)?api\.js\?v=20260926_joint_factory_v1/.test(marketCreditCode),
-  'credit screen must import the current API module containing state-credit methods');
+const activeApiVersion = appSourceCode.match(/api\.js\?v=([^'\"]+)/)?.[1];
+assert(activeApiVersion && marketCreditCode.includes(`api.js?v=${activeApiVersion}`),
+  'credit screen must import the same current API module containing state-credit methods');
 const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
   .replace(/export\s+function\s+mergeNpcRatesIntoMarketItems/, 'function mergeNpcRatesIntoMarketItems')

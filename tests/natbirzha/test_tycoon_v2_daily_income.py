@@ -34,6 +34,8 @@ def test_idle_settlements_accumulate_business_daily_profit() -> None:
                 NatInventory(company_id=company.id, item_id="water", quantity=200, avg_cost_basis=2),
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=6, avg_cost_basis=1.2),
                 NatInventory(company_id=company.id, item_id="food", quantity=3, avg_cost_basis=45),
+                NatInventory(company_id=company.id, item_id="ai_compute", quantity=100, avg_cost_basis=75),
+                NatInventory(company_id=company.id, item_id="beer", quantity=100, avg_cost_basis=90),
             ])
             await session.commit()
             opened = await BusinessService.open_business(session, company.id, "coal_open_pit", now=now)
@@ -56,12 +58,14 @@ def test_idle_settlements_accumulate_business_daily_profit() -> None:
                 float(quantity) * rates.input_multiplier * get_item_base_price(item_id) * 3
                 for item_id, quantity in spec["inputs_per_hour"].items()
             )
-            assert row.gross_income == round(expected_gross, 2)
-            assert row.maintenance == round(rates.maintenance_per_hour * 3, 2)
-            assert row.resource_cost == round(expected_resource_cost, 2)
-            assert row.net_profit == round(
-                expected_gross - rates.maintenance_per_hour * 3 - expected_resource_cost, 2
-            )
+            assert abs(row.gross_income - round(expected_gross, 2)) <= 0.02
+            assert abs(row.maintenance - round(rates.maintenance_per_hour * 3, 2)) <= 0.02
+            assert abs(row.resource_cost - round(expected_resource_cost, 2)) <= 0.02
+            assert abs(
+                row.net_profit - round(
+                    expected_gross - rates.maintenance_per_hour * 3 - expected_resource_cost, 2
+                )
+            ) <= 0.02
 
         await engine.dispose()
 

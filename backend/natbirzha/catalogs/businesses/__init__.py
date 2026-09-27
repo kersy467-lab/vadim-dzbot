@@ -7,6 +7,7 @@ from .chemistry import CHEMISTRY_BUSINESSES
 from .construction import CONSTRUCTION_BUSINESSES
 from .energy import ENERGY_BUSINESSES
 from .brewery import BREWERY_BUSINESSES
+from .ai_data import AI_DATA_BUSINESSES
 from .forestry import FORESTRY_BUSINESSES
 from .industry import INDUSTRY_BUSINESSES as LEGACY_INDUSTRY_BUSINESSES
 from .industry_meta import INDUSTRIES
@@ -30,6 +31,7 @@ from backend.natbirzha.technical_energy import (
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
 from .balance import balance_career_catalog
+from .resource_network import add_ai_compute_demand
 from backend.natbirzha.services.employee_beverage_inputs import (
     add_employee_beverages_to_catalog,
 )
@@ -39,6 +41,9 @@ LEGACY_BUSINESSES: dict[str, dict[str, Any]] = {
     **LEGACY_STARTER_BUSINESSES,
     **LEGACY_INDUSTRY_BUSINESSES,
     **LEGACY_SERVICE_BUSINESSES,
+    # Keep existing save rows readable after forestry is no longer a selectable
+    # career; new accounts use the AI/data-center progression below.
+    **FORESTRY_BUSINESSES,
 }
 for _legacy in LEGACY_BUSINESSES.values():
     _legacy["legacy_hidden"] = True
@@ -59,7 +64,7 @@ CAREER_BUSINESSES: dict[str, dict[str, Any]] = scale_catalog_water_inputs(
         **AGRICULTURE_BUSINESSES,
         **ENERGY_BUSINESSES,
         **BREWERY_BUSINESSES,
-        **FORESTRY_BUSINESSES,
+        **AI_DATA_BUSINESSES,
         **WATER_BUSINESSES,
         **OIL_GAS_BUSINESSES,
         **METALLURGY_BUSINESSES,
@@ -76,6 +81,7 @@ CAREER_BUSINESSES = scale_catalog_energy_inputs(
     input_field="inputs_per_hour",
     resource_production_only=True,
 )
+CAREER_BUSINESSES = add_ai_compute_demand(CAREER_BUSINESSES)
 CAREER_BUSINESSES = balance_career_catalog(CAREER_BUSINESSES)
 HYBRID_BUSINESSES, HYBRID_RECIPES = build_hybrid_catalog(CAREER_BUSINESSES)
 HYBRID_BUSINESSES = balance_career_catalog(HYBRID_BUSINESSES)

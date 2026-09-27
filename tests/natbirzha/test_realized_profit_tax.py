@@ -55,6 +55,14 @@ def test_unsold_resource_output_is_not_taxable_and_costs_are_capitalized() -> No
                 business,
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=100.0, avg_cost_basis=1.2),
                 NatInventory(company_id=company.id, item_id="water", quantity=1_000.0, avg_cost_basis=2.0),
+                NatInventory(
+                    company_id=company.id, item_id="ai_compute", quantity=100.0,
+                    avg_cost_basis=get_item_base_price("ai_compute"),
+                ),
+                NatInventory(
+                    company_id=company.id, item_id="beer", quantity=100.0,
+                    avg_cost_basis=get_item_base_price("beer"),
+                ),
             ])
             await session.flush()
             fuel_before = await session.scalar(select(NatInventory).where(
@@ -67,6 +75,14 @@ def test_unsold_resource_output_is_not_taxable_and_costs_are_capitalized() -> No
                 )
             )
             water_quantity_before = float(water_before.quantity)
+            ai_compute_before = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "ai_compute"
+            ))
+            beer_before = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "beer"
+            ))
+            ai_compute_quantity_before = float(ai_compute_before.quantity)
+            beer_quantity_before = float(beer_before.quantity)
 
             settled = await IdleEconomyService.settle_company(
                 session, company.id, now=period_start + timedelta(hours=1)
@@ -86,10 +102,20 @@ def test_unsold_resource_output_is_not_taxable_and_costs_are_capitalized() -> No
                     NatInventory.company_id == company.id, NatInventory.item_id == "water"
                 )
             )
+            ai_compute_after = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "ai_compute"
+            ))
+            beer_after = await session.scalar(select(NatInventory).where(
+                NatInventory.company_id == company.id, NatInventory.item_id == "beer"
+            ))
             assert output is not None and output.quantity > 0
             consumed_cost = (
                 (fuel_quantity_before - fuel_after.quantity) * 1.2
                 + (water_quantity_before - water_after.quantity) * 2.0
+                + (ai_compute_quantity_before - ai_compute_after.quantity)
+                * get_item_base_price("ai_compute")
+                + (beer_quantity_before - beer_after.quantity)
+                * get_item_base_price("beer")
             )
             capitalized_cost = consumed_cost + settled["maintenance_cash"]
             assert output.avg_cost_basis == pytest.approx(capitalized_cost / output.quantity, abs=1e-5)

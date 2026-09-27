@@ -857,6 +857,7 @@ async def main():
         "tests/natbirzha/test_combat_resolver.py",
         "tests/natbirzha/test_premium_and_licenses.py",
         "tests/natbirzha/test_army_service.py",
+        "tests/natbirzha/test_military_hospital.py",
         "tests/natbirzha/test_pve_wars.py",
         "tests/natbirzha/test_tournament_lifecycle.py",
         "tests/natbirzha/test_tournament_join_api.py",

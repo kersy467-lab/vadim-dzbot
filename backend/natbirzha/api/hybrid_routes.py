@@ -67,6 +67,10 @@ async def hybrid_catalog(
             "business_type": row.business_type,
             "name": row.custom_name or spec["name"],
             "stage": int(row.stage),
+            "target_stage": (
+                int(row.upgrade_target_stage or min(row.stage + 1, spec["max_stage"]))
+                if row.status == "UPGRADING" else int(row.stage)
+            ),
             "status": str(row.status),
             "slot_weight": int(row.slot_weight),
         })

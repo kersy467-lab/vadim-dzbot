@@ -25,13 +25,16 @@ if (!screen.includes("row.available") || !screen.includes('deliveryKey(store.com
   || !screen.includes('30_000')) {
   throw new Error('The City Orders screen must use available inventory and a stable retry key.');
 }
-if (!app.includes("api.js?v=20260926_joint_factory_v1")
-  || !app.includes('market.js?v=20260926_joint_factory_v1')
-  || !market.includes("api.js?v=20260926_joint_factory_v1")
-  || !screen.includes("api.js?v=20260926_joint_factory_v1")
+const sharedApiVersion = app.match(/api\.js\?v=([^'\"]+)/)?.[1];
+const entryVersion = html.match(/app\.js\?v=([^'\"]+)/)?.[1];
+if (!sharedApiVersion
+  || !app.includes(`market.js?v=20260926_joint_factory_v1`)
+  || !market.includes(`api.js?v=${sharedApiVersion}`)
+  || !screen.includes(`api.js?v=${sharedApiVersion}`)
+  || !entryVersion
   || !market.includes("state.js?v=20260926_local_update_v1")
   || !screen.includes("state.js?v=20260926_local_update_v1")
-  || !html.includes('app.js?v=20260926_joint_factory_v1')) {
+  || entryVersion !== '20260927_hospital_v1') {
   throw new Error('City Orders frontend cache-busting or shared API/store module identity is missing.');
 }
 for (const file of [

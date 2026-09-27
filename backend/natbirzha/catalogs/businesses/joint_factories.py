@@ -30,7 +30,7 @@ INDUSTRY_JOINT_GOODS = {
     "metallurgist": "steel",
     "chemist": "fertilizer",
     "construction": "concrete",
-    "forester": "lumber",
+    "forester": "ai_compute",
     "technoprom": "components",
     "logistics": "logistics_capacity",
     "brewery": "beer",

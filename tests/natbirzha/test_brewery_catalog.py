@@ -104,7 +104,9 @@ def test_brewery_starter_matches_employee_beer_demand_across_other_starters() ->
     brewery = starter_business_spec("brewery")
     stage_one = brewery["stage_rates"][1]
     beer_supply = brewery["outputs_per_hour"]["beer"] * stage_one["output"]
-    assert beer_supply / beer_demand == pytest.approx(1.10, abs=0.01)
+    # Replacing the old, lower-value forestry starter with AI compute raises
+    # the employee-beverage demand budget; starter brewing now has a 30% buffer.
+    assert beer_supply / beer_demand == pytest.approx(1.30, abs=0.01)
 
     # The beermaking starter has a modest first level price after unlocking;
     # full-stage profitability remains part of the same calibrated catalog.

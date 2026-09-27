@@ -111,6 +111,19 @@ async def run_async() -> None:
         )
         assert victory["winner"] == "attacker"
         assert victory["territory_awarded"] == 1
+        casualty_total = sum(victory["attacker_losses"].values())
+        assert casualty_total == (
+            sum(victory["attacker_light_wounded"].values())
+            + sum(victory["hospitalized"].values())
+            + sum(victory["attacker_fatalities"].values())
+        )
+        actual_army = {
+            row.unit_type: row.quantity
+            for row in (await session.execute(
+                select(NatArmyUnit).where(NatArmyUnit.company_id == strong.id)
+            )).scalars().all()
+        }
+        assert victory["attacker_remaining"] == actual_army
         assert strong.territory_tiles == before_territory + 1
         assert strong.cash > before_cash
         assert strong.military_rating > 1000

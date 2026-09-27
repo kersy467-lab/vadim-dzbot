@@ -1,14 +1,14 @@
-import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
-import { renderTaxSection } from './market_tax.js?v=20260926_local_update_v1';
-import { renderStateCreditSection } from './market_credit.js?v=20260926_local_update_v1';
-import { createMarketFinance } from './market_finance.js?v=20260926_local_update_v1';
+import { renderTaxSection } from './market_tax.js?v=20260926_local_update_v1&release=20260927_hospital_v1';
+import { renderStateCreditSection } from './market_credit.js?v=20260926_local_update_v1&release=20260927_hospital_v1';
+import { createMarketFinance } from './market_finance.js?v=20260926_local_update_v1&release=20260927_hospital_v1';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260926_local_update_v1';
-import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260926_joint_factory_v1';
-import { renderMarketDeals } from './market_deals.js?v=20260926_joint_factory_v1&joint_factories=1';
-import { renderMarketCityOrders } from './market_city_orders.js?v=20260926_local_update_v1';
+import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260926_joint_factory_v1&release=20260927_hospital_v1';
+import { renderMarketDeals } from './market_deals.js?v=20260926_joint_factory_v1&joint_factories=1&release=20260927_hospital_v1';
+import { renderMarketCityOrders } from './market_city_orders.js?v=20260926_local_update_v1&release=20260927_hospital_v1';
 
 const MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },

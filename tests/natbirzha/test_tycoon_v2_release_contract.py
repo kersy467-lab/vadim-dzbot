@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_career_graph_is_ordered_and_reachable() -> None:
-    by_id = CAREER_BUSINESSES
+    by_id = {
+        business_id: spec for business_id, spec in CAREER_BUSINESSES.items()
+        if not spec.get("hybrid_only")
+    }
     for spec in by_id.values():
         assert spec["max_stage"] == 50
         assert set(spec["milestones"]) == {10, 20, 30, 40, 50}
@@ -36,7 +39,10 @@ def test_every_career_resource_is_localized_and_known() -> None:
 def test_industry_catalog_shape_matches_game_design() -> None:
     for industry_id in INDUSTRIES:
         branch = sorted(
-            (spec for spec in CAREER_BUSINESSES.values() if spec["specialization"] == industry_id),
+            (
+                spec for spec in CAREER_BUSINESSES.values()
+                if spec["specialization"] == industry_id and not spec.get("hybrid_only")
+            ),
             key=lambda spec: spec["industry_order"],
         )
         assert len(branch) >= 9
@@ -44,7 +50,10 @@ def test_industry_catalog_shape_matches_game_design() -> None:
         assert branch[0]["industry_order"] == 1
         assert all(not spec["starter"] for spec in branch[1:])
         assert all(spec["open_resources"] for spec in branch[1:])
-    assert len([s for s in CAREER_BUSINESSES.values() if s["specialization"] == "miner"]) == 12
+    assert len([
+        s for s in CAREER_BUSINESSES.values()
+        if s["specialization"] == "miner" and not s.get("hybrid_only")
+    ]) == 12
 
 
 def test_tax_contract_matches_requested_rules() -> None:

@@ -79,6 +79,13 @@ async def run_async() -> None:
             session, tournament.id, strong, weak.id, "pvp:strong:1", now=now
         )
         assert result["winner"] == "attacker"
+        for side in ("attacker", "defender"):
+            raw = sum(result[f"{side}_losses"].values())
+            assert raw == (
+                sum(result[f"{side}_light_wounded"].values())
+                + sum(result[f"{side}_hospitalized"].values())
+                + sum(result[f"{side}_fatalities"].values())
+            )
         cooldown_until = datetime.fromisoformat(result["cooldown_until"])
         assert cooldown_until.utcoffset() is not None
         assert cooldown_until.replace(tzinfo=None) == now + timedelta(hours=2)

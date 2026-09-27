@@ -7,6 +7,7 @@ export const ITEMS = {
   // Tier 0: Utilities & Naturals
   grid_quota: { name: 'Квота энергосети', icon: '⚡', unit: 'МВт·ч' },
   energy: { name: 'Электроэнергия', icon: '💡', unit: 'МВт·ч' },
+  ai_compute: { name: 'Вычислительная мощность ИИ', icon: '🧠', unit: 'выч. ч' },
   water: { name: 'Техническая вода', icon: '💧', unit: 'м³' },
   clean_water: { name: 'Очищенная вода', icon: '🚰', unit: 'м³' },
   ultrapure_water: { name: 'Сверхчистая технологическая вода', icon: '🔬', unit: 'м³' },

@@ -1,6 +1,7 @@
 """Hybrid creation/sale must preserve ownership, global capacity and capital."""
 
 import asyncio
+from collections import Counter
 
 import pytest
 from sqlalchemy import func, select
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from backend.db.models import Base, User
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.catalogs.businesses import CAREER_BUSINESSES, INDUSTRIES, get_business_spec
+from backend.natbirzha.api.hybrid_routes import hybrid_catalog
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
@@ -80,6 +82,9 @@ async def _fixture(company_count: int = 1):
 
 def test_server_owned_hybrid_recipes_cover_every_active_industry() -> None:
     assert {recipe["specialization"] for recipe in HYBRID_RECIPES.values()} == set(INDUSTRIES)
+    assert Counter(recipe["specialization"] for recipe in HYBRID_RECIPES.values()) == {
+        specialization: 3 for specialization in INDUSTRIES
+    }
     for recipe in HYBRID_RECIPES.values():
         first, second = recipe["source_business_types"]
         assert first != second
@@ -108,6 +113,29 @@ def test_each_hybrid_has_a_balanced_resource_production_spec() -> None:
         assert spec["slot_weight"] == 1
         assert recipe["input_reduction_ratio"] > 0
         assert recipe["output_bonus_ratio"] > 0
+
+
+def test_hybrid_catalog_shows_upgrade_target_level() -> None:
+    async def check() -> None:
+        engine, sessions, company_ids = await _fixture()
+        try:
+            async with sessions() as session:
+                company = await session.get(NatCompany, company_ids[0])
+                source = await session.scalar(select(NatBusiness).where(
+                    NatBusiness.company_id == company_ids[0],
+                    NatBusiness.business_type == "coal_open_pit",
+                ))
+                source.status = "UPGRADING"
+                source.stage = 25
+                source.upgrade_target_stage = 26
+                data = await hybrid_catalog(company, session)
+                row = next(item for item in data["businesses"] if item["id"] == source.id)
+                assert row["stage"] == 25
+                assert row["target_stage"] == 26
+        finally:
+            await engine.dispose()
+
+    asyncio.run(check())
 
 
 def test_global_active_hybrid_limit_is_shared_across_companies() -> None:
@@ -210,7 +238,9 @@ def test_open_requires_the_recipe_source_types_and_eligible_statuses() -> None:
                 mismatched_source.business_type = "iron_quarry"
                 source = await session.get(NatBusiness, wrong_order[0])
                 source.status = "UPGRADING"
-                with pytest.raises(ValueError, match="состоянии|объединить|доступ"):
+                source.stage = 25
+                source.upgrade_target_stage = 26
+                with pytest.raises(ValueError, match="дождитесь улучшения.*25 → 26"):
                     await HybridMergerService.open_hybrid(
                         session, company_ids[0], "hybrid_miner", *wrong_order
                     )

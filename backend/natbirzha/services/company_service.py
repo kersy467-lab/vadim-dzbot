@@ -265,7 +265,7 @@ class CompanyService:
             NatHourlyDividendAccrual, NatHourlyDividendPayment,
             NatInstrumentTrade, NatLoan, NatMarketOrder, NatMarketRestriction,
             NatMarketTrade, NatMarketWarning, NatMilitaryRatingEvent,
-            NatMilitaryUpgrade, NatPremiumLedgerEntry, NatPremiumLicense,
+            NatMilitaryUpgrade, NatPremiumLedgerEntry, NatPremiumLicense, NatHospitalWard,
             NatPveVictory, NatPvpCooldown, NatRestructuring, NatStateBondHolding,
             NatBankruptcyMarketLot, NatStock, NatStockHolding, NatStockOrder, NatTournamentParticipant,
             NatStateCreditLoan, NatSupplyDeal, NatSupplyDealSettlement,
@@ -347,6 +347,7 @@ class CompanyService:
         )))
         await session.execute(delete(NatBattle).where(NatBattle.id.in_(battle_ids)))
         await session.execute(delete(NatArmyUnit).where(NatArmyUnit.company_id == cid))
+        await session.execute(delete(NatHospitalWard).where(NatHospitalWard.company_id == cid))
 
         stock_ids = select(NatStock.id).where(NatStock.company_id == cid)
         hourly_accrual_ids = select(NatHourlyDividendAccrual.id).where(

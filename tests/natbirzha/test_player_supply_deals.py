@@ -284,10 +284,12 @@ async def _offline_interval_intersects_only_active_deal_time() -> None:
     session.add_all(buyer_businesses)
     session.add_all([
         NatInventory(company_id=buyer.id, item_id="fuel_diesel", quantity=100, avg_cost_basis=1),
+        NatInventory(company_id=buyer.id, item_id="ai_compute", quantity=100, avg_cost_basis=1),
         # Career starter recipes now consume a small employee beverage input;
         # seed it here because this fixture intentionally bypasses bootstrap.
         NatInventory(company_id=buyer.id, item_id="beer", quantity=1, avg_cost_basis=0),
         NatInventory(company_id=supplier.id, item_id="energy", quantity=100, avg_cost_basis=10),
+        NatInventory(company_id=supplier.id, item_id="ai_compute", quantity=100, avg_cost_basis=1),
         NatInventory(company_id=supplier.id, item_id="beer", quantity=1, avg_cost_basis=0),
     ])
     await session.flush()

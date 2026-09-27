@@ -25,7 +25,12 @@ FACILITIES: Mapping[str, dict[str, Any]] = {
     "air_defense": {"name": "Центр ПВО", "base_cash": 150_000.0, "items": {"steel": 60.0, "electronics": 10.0}},
     "logistics": {"name": "Военная логистика", "base_cash": 65_000.0, "items": {"fuel_diesel": 80.0, "food": 50.0}},
     "intelligence": {"name": "Разведцентр", "base_cash": 85_000.0, "items": {"electronics": 10.0, "sensors": 5.0}},
+    "hospital": {"name": "Военный госпиталь", "base_cash": 18_000.0, "items": {"steel": 10.0, "electronics": 1.0}},
+    "repair_depot": {"name": "Ремонтная база", "base_cash": 30_000.0, "items": {"steel": 20.0, "electronics": 3.0}},
 }
+
+FACILITY_MAX_LEVELS = {facility: 10 for facility in FACILITIES}
+FACILITY_MAX_LEVELS.update({"hospital": 20, "repair_depot": 20})
 
 UNIT_REQUIREMENTS = {
     "infantry": ("barracks", 0), "border_guards": ("barracks", 1),
@@ -78,13 +83,15 @@ class MilitaryInfrastructureService:
         if spec is None:
             raise ValueError("Неизвестный военный объект")
         current = int(getattr(infrastructure, cls._field(facility)))
-        if current >= 10:
+        max_level = FACILITY_MAX_LEVELS[facility]
+        if current >= max_level:
             raise ValueError("Достигнут максимальный уровень объекта")
         target = current + 1
         factor = 1.62 ** current
         return {
             "facility": facility, "name": spec["name"], "current_level": current,
-            "target_level": target, "cash": round(float(spec["base_cash"]) * factor, 2),
+            "target_level": target, "max_level": max_level,
+            "cash": round(float(spec["base_cash"]) * factor, 2),
             "items": {item: round(float(qty) * (1.35 ** current), 2) for item, qty in spec["items"].items()},
         }
 

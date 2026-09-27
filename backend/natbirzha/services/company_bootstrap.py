@@ -51,6 +51,10 @@ async def bootstrap_company_state(
 
 
 async def _create_legacy_factory(session: AsyncSession, company: NatCompany, *, now) -> None:
+    # The V2 forester key is now the AI/data-center career. Do not attach the
+    # old logging-camp factory to newly bootstrapped AI companies.
+    if company.specialization == "forester":
+        return
     building_type = STARTER_FACTORIES.get(company.specialization)
     if not building_type:
         return

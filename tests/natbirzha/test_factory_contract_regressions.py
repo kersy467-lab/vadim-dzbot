@@ -9,6 +9,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401 - register NATBIRZHA tables
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.api.building_routes import get_buildings_catalog
+from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany, NatFactory
 from backend.natbirzha.migrations import MIGRATIONS
 from backend.natbirzha.models.inventory import get_npc_buy_price, get_npc_sell_price
@@ -45,7 +46,7 @@ def test_new_company_keeps_starter_factory_when_tycoon_v2_is_enabled() -> None:
     asyncio.run(check())
 
 
-def test_forester_is_a_first_class_specialization_with_logging_starter() -> None:
+def test_forester_specialization_bootstraps_ai_business_without_legacy_logging_factory() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -59,12 +60,14 @@ def test_forester_is_a_first_class_specialization_with_logging_starter() -> None
                 name="Forester Bootstrap Regression",
                 specialization="forester",
             )
-            factory = await session.scalar(
-                select(NatFactory).where(NatFactory.company_id == company.id)
+            business = await session.scalar(
+                select(NatBusiness).where(NatBusiness.company_id == company.id)
             )
             assert company.specialization == "forester"
-            assert factory is not None and factory.building_type == "logging_camp"
-            assert factory.specialization == "forester"
+            assert business is not None and business.business_type == "ai_compute_node"
+            assert await session.scalar(
+                select(NatFactory.id).where(NatFactory.company_id == company.id)
+            ) is None
 
         await engine.dispose()
 
@@ -84,7 +87,6 @@ def test_all_eight_factory_branches_bootstrap_their_canonical_starters() -> None
             ("metallurgy", "metallurgist", "steel_mill"),
             ("oil_gas", "oilman", "oil_rig"),
             ("energy", "power_engineer", "solar_plant"),
-            ("forester", "forester", "logging_camp"),
             ("chemist", "chemist", "chemical_plant"),
             ("technoprom", "technoprom", "component_factory"),
         )

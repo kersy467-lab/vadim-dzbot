@@ -10,7 +10,7 @@ VALID_SPECIALIZATIONS: Dict[str, str] = {
     "water": "Водоснабжение",
     "oilman": "Нефтегазовая промышленность",
     "metallurgist": "Металлургия",
-    "forester": "Лесопромышленность",
+    "forester": "ИИ и дата-центры",
     "chemist": "Химическая промышленность",
     "construction": "Строительство",
     "technoprom": "Технологическая промышленность",

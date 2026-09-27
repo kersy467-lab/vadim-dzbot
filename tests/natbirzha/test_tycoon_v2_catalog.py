@@ -19,12 +19,13 @@ from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.business_service import BusinessService
 
 
-def test_v2_catalog_contains_ten_long_industry_careers() -> None:
+def test_v2_catalog_contains_long_industry_careers_and_hybrid_options() -> None:
     counts = Counter(spec["specialization"] for spec in CAREER_BUSINESSES.values())
     assert set(counts) == set(INDUSTRIES)
     assert len(CAREER_BUSINESSES) >= 90
     assert min(counts.values()) >= 9
-    assert counts["miner"] == 12
+    ordinary = [spec for spec in CAREER_BUSINESSES.values() if not spec.get("hybrid_only")]
+    assert sum(spec["specialization"] == "miner" for spec in ordinary) == 12
     assert BUSINESS_CATALOG["coal_open_pit"]["max_stage"] == 50
     assert BUSINESS_CATALOG["uranium_complex_v2"]["outputs_per_hour"]["uranium_raw"] > 0
 
@@ -109,7 +110,10 @@ def _career_profit_per_hour(spec: dict, stage: int) -> float:
 
 def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() -> None:
     ordered = sorted(
-        (spec for spec in CAREER_BUSINESSES.values() if spec["specialization"] == "miner"),
+        (
+            spec for spec in CAREER_BUSINESSES.values()
+            if spec["specialization"] == "miner" and not spec.get("hybrid_only")
+        ),
         key=lambda spec: spec["industry_order"],
     )
     targets = [float(spec["target_open_roi_hours"]) for spec in ordered[:12]]
@@ -117,6 +121,8 @@ def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() 
     assert all(left < right for left, right in zip(targets, targets[1:]))
 
     for spec in CAREER_BUSINESSES.values():
+        if spec.get("hybrid_only"):
+            continue
         target_roi = float(spec["target_open_roi_hours"])
         for stage in range(1, int(spec["max_stage"])):
             current_profit = _career_profit_per_hour(spec, stage)
@@ -142,8 +148,9 @@ def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() 
 
 
 def test_nonstarter_enterprises_require_cross_industry_opening_resources() -> None:
-    starters = [spec for spec in CAREER_BUSINESSES.values() if spec["starter"]]
-    nonstarters = [spec for spec in CAREER_BUSINESSES.values() if not spec["starter"]]
+    ordinary = [spec for spec in CAREER_BUSINESSES.values() if not spec.get("hybrid_only")]
+    starters = [spec for spec in ordinary if spec["starter"]]
+    nonstarters = [spec for spec in ordinary if not spec["starter"]]
     assert len(starters) == len(INDUSTRIES)
     assert all(not spec["open_resources"] for spec in starters)
     assert all(spec["open_resources"] for spec in nonstarters)

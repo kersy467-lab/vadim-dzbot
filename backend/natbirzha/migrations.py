@@ -710,6 +710,14 @@ async def _migrate_v18_joint_factories(conn) -> None:
     await migrate_joint_factories(conn)
 
 
+async def _migrate_v19_hospital_repair(conn) -> None:
+    """Add persistent hospital and repair-depot facility levels."""
+    await _add_columns(conn, "nat_military_infrastructure", {
+        "hospital_level": "INTEGER NOT NULL DEFAULT 1",
+        "repair_depot_level": "INTEGER NOT NULL DEFAULT 1",
+    })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -744,6 +752,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v16_001_liquidity_snapshots", _migrate_v16_liquidity_snapshots),
     ("natbirzha_v17_001_hybrid_mergers", _migrate_v17_hybrid_mergers),
     ("natbirzha_v18_001_joint_factories", _migrate_v18_joint_factories),
+    ("natbirzha_v19_military_hospital_repair", _migrate_v19_hospital_repair),
 )
 
 

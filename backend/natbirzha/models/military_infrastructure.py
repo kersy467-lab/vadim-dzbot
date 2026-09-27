@@ -22,6 +22,8 @@ class NatMilitaryInfrastructure(Base):
     air_defense_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     logistics_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     intelligence_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    hospital_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    repair_depot_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
 
 
 class NatArmyTraining(Base):

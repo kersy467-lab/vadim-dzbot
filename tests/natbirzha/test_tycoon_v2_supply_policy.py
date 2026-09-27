@@ -31,12 +31,17 @@ def test_auto_npc_policy_restock_inputs_before_resource_settlement() -> None:
             company = NatCompany(user_id=9_201, name="Auto Supply", specialization="power_engineer", cash=40_000, level=15)
             session.add(company)
             await session.flush()
-            session.add(NatInventory(company_id=company.id, item_id="water", quantity=100.0))
+            session.add_all([
+                NatInventory(company_id=company.id, item_id="water", quantity=100.0),
+                NatInventory(company_id=company.id, item_id="ai_compute", quantity=100.0),
+                NatInventory(company_id=company.id, item_id="beer", quantity=100.0),
+            ])
             await session.commit()
             opened = await BusinessService.open_business(session, company.id, "diesel_power_station", now=now)
             await SupplyPolicyService.configure(
                 session, opened["business"]["id"], "fuel_diesel", mode="AUTO_NPC",
-                min_hours_stock=1, target_hours_stock=4, max_unit_price=200, allow_state_reserve=True,
+                min_hours_stock=1, target_hours_stock=4, max_unit_price=200,
+                allow_state_reserve=True,
             )
             await IdleEconomyService.settle_company(session, company.id, now=now + timedelta(hours=1))
 

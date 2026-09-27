@@ -1,5 +1,5 @@
-import { NatAPI } from '../api.js?v=20260926_joint_factory_v1';
-import { store } from '../state.js?v=20260926_local_update_v1';
+import { NatAPI } from '../api.js?v=20260927_hospital_v1';
+import { store } from '../state.js?v=20260927_ai_hybrids_v1';
 
 const ALLOWED_SOURCE_STATUSES = new Set([
   'ACTIVE', 'PAUSED_MANUAL', 'PAUSED_SUPPLY', 'PAUSED_MAINTENANCE', 'PAUSED_STORAGE',
@@ -43,7 +43,10 @@ function sourceOptionHtml(option, requiredStage) {
   const options = option.businesses.map((business) => {
     const allowed = ALLOWED_SOURCE_STATUSES.has(String(business.status).toUpperCase())
       && Number(business.stage) >= Number(requiredStage);
-    const status = allowed ? `ур. ${business.stage}` : `${business.status} · ур. ${business.stage}`;
+    const upgrading = String(business.status).toUpperCase() === 'UPGRADING';
+    const status = upgrading
+      ? `улучшается · ур. ${business.stage} → ${business.target_stage || Number(business.stage) + 1}`
+      : allowed ? `ур. ${business.stage}` : `${business.status} · ур. ${business.stage}`;
     return `<option value="${Number(business.id)}" ${allowed ? '' : 'disabled'}>${escapeHtml(business.name)} · ${status}</option>`;
   }).join('');
   return `<label class="block min-w-0"><span class="mb-1 block text-[10px] font-bold text-slate-500">${escapeHtml(option.name)}</span>
@@ -65,19 +68,29 @@ function recipeCard(recipe, data) {
   const enoughCash = Number(data.company_cash || 0) + 1e-9 >= Number(recipe.additional_capital_cost || 0);
   const globalSlotsAvailable = Number(data.global_slots_available || 0) > 0;
   const canOpen = sourcesAvailable && resourcesAvailable && enoughCash && globalSlotsAvailable;
+  const sourceNames = recipe.source_names || recipe.source_options.map((source) => source.name);
+  const upgradingSources = recipe.source_options.flatMap((source) => source.businesses
+    .filter((business) => String(business.status).toUpperCase() === 'UPGRADING')
+    .map((business) => `${business.name} (${business.stage} → ${business.target_stage || Number(business.stage) + 1})`));
   const resourceRows = Object.entries(recipe.resource_requirements || {}).map(([itemId, amount]) => {
     const available = Number(data.inventory?.[itemId] || 0);
     const enough = available + 1e-9 >= Number(amount);
     return `<span class="rounded-lg px-2 py-1 ${enough ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300'}">${escapeHtml(data.resource_names?.[itemId] || itemId)} ${formatQuantity(amount)} <span class="opacity-70">/ ${formatQuantity(available)}</span></span>`;
   }).join('');
+  const sourceHint = !sourcesAvailable && upgradingSources.length
+    ? `Дождитесь окончания улучшения: ${upgradingSources.map(escapeHtml).join(', ')}.`
+    : !sourcesAvailable
+      ? `Для этого гибрида нужны: ${sourceNames.map(escapeHtml).join(' + ')}.`
+      : `Пара для объединения: ${sourceNames.map(escapeHtml).join(' + ')}.`;
   return `<article class="hybrid-recipe-card glass-card rounded-2xl p-4 space-y-3" data-recipe-id="${escapeHtml(recipe.id)}">
     <header><h3 class="text-sm font-black">${escapeHtml(recipe.name)}</h3><p class="mt-1 text-[10px] text-slate-500">${escapeHtml(recipe.description)}</p></header>
+    <p class="text-[10px] text-slate-500">${sourceHint}</p>
     <div class="grid grid-cols-2 gap-2">${recipe.source_options.map((option) => sourceOptionHtml(option, recipe.minimum_source_stage)).join('')}</div>
     <div class="flex flex-wrap gap-1 text-[9px]">${resourceRows}</div>
     <div class="text-[10px] text-slate-500">Дополнительное вложение: <b>${formatCash(recipe.additional_capital_cost)} cash</b> · возврат при продаже: 40% вложений гибрида.</div>
     <div class="text-[9px] text-slate-500">Ресурсы открытия списываются один раз. Гибрид дальше потребляет сырьё и выпускает товар через обычное производство.</div>
     <button type="button" class="hybrid-open-btn w-full rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-40" ${canOpen ? '' : 'disabled'}>
-      ${!globalSlotsAvailable ? 'Достигнут общий лимит гибридов 4/4' : !sourcesAvailable ? 'Нужны два доступных предприятия из пары' : !resourcesAvailable ? 'Не хватает ресурсов для объединения' : !enoughCash ? 'Не хватает cash' : 'Объединить предприятия'}
+      ${!globalSlotsAvailable ? 'Достигнут общий лимит гибридов 4/4' : !sourcesAvailable ? upgradingSources.length ? 'Дождитесь завершения улучшения' : 'Не хватает предприятий из пары' : !resourcesAvailable ? 'Не хватает ресурсов для объединения' : !enoughCash ? 'Не хватает cash' : 'Объединить предприятия'}
     </button>
   </article>`;
 }
@@ -89,7 +102,7 @@ function renderManager(container, showToast, onBack, data) {
     <header><h2 class="text-xl font-black">🔗 Объединение предприятий</h2><p class="mt-1 text-xs text-slate-500">Выберите одну гибридную производственную линию для своей отрасли.</p></header>
     <div class="glass-card rounded-2xl p-3 text-xs"><b>Общий лимит мира: ${Number(data.active_hybrids || 0)}/${Number(data.active_hybrid_limit || 4)}</b><p class="mt-1 text-[10px] text-slate-500">Одновременно может работать не больше четырёх гибридов у всех компаний. Продажа гибрида освобождает место и возвращает исходные предприятия.</p></div>
     ${data.company_hybrids?.length ? `<section class="space-y-2"><h3 class="text-sm font-black">Ваши активные гибриды</h3>${data.company_hybrids.map((hybrid) => `<article class="glass-card rounded-2xl p-4 space-y-2"><div class="flex items-start justify-between gap-2"><div><h4 class="text-xs font-black">${escapeHtml(hybrid.name)}</h4><p class="text-[10px] text-slate-500">Ур. ${Number(hybrid.stage || 1)} · источники: ${(hybrid.source_business_names || []).map(escapeHtml).join(' + ')}</p></div><span class="text-[9px] text-emerald-600">${escapeHtml(hybrid.status)}</span></div><button type="button" class="hybrid-sell-btn w-full rounded-xl border border-rose-300 px-3 py-2 text-[10px] font-bold text-rose-600" data-hybrid-id="${Number(hybrid.id)}">Продать гибрид и восстановить предприятия</button></article>`).join('')}</section>` : ''}
-    <section class="space-y-2"><h3 class="text-sm font-black">Доступный рецепт</h3>${data.recipes?.length ? data.recipes.map((recipe) => recipeCard(recipe, data)).join('') : '<div class="glass-card rounded-xl p-4 text-xs text-slate-500">Для текущей отрасли гибридный рецепт не настроен.</div>'}</section>
+    <section class="space-y-2"><h3 class="text-sm font-black">Варианты объединения · ${Number(data.recipes?.length || 0)}</h3>${data.recipes?.length ? data.recipes.map((recipe) => recipeCard(recipe, data)).join('') : '<div class="glass-card rounded-xl p-4 text-xs text-slate-500">Для текущей отрасли гибридный рецепт не настроен.</div>'}</section>
   </div>`;
 
   container.querySelector('.hybrid-back')?.addEventListener('click', onBack);

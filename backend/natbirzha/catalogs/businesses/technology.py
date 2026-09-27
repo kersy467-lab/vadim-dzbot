@@ -26,7 +26,7 @@ TECHNOLOGY_BUSINESSES = {
            {"components": 10, "copper": 5, "energy": 9}, {"sensors": 12},
            ("Калибровочная лаборатория", "Микромонтаж", "Защищённые корпуса", "Автокалибровка", "Сенсорный технологический кластер"), prerequisite={"electronics_workshop": 15}),
         _t("server_center_v2", "Серверный центр", "🖥️", 4, 145_000, 13,
-           {"electronics": 3, "energy": 22, "water": 4}, {"cloud_compute": 8},
+           {"electronics": 3, "energy": 22, "water": 4}, {"cloud_compute": 8, "servers": 2},
            ("Первый серверный зал", "Резервное питание", "Жидкостное охлаждение", "Оркестрация нагрузки", "Региональный вычислительный центр"), prerequisite={"sensor_factory": 12}),
         _t("automation_factory", "Завод промышленной автоматики", "🤖", 5, 280_000, 18,
            {"components": 12, "sensors": 6, "electrical_equipment": 2, "copper": 6, "energy": 15}, {"automation_systems": 10},

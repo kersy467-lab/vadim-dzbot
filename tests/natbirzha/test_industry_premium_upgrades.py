@@ -301,7 +301,15 @@ def test_pvc_industry_purchase_settles_old_v2_production_before_upgrading() -> N
                 reserved_quantity=0,
                 avg_cost_basis=0,
             )
-            session.add_all((business, factory, grid))
+            ai_compute = NatInventory(
+                company_id=company.id, item_id="ai_compute", quantity=100,
+                reserved_quantity=0, avg_cost_basis=75,
+            )
+            beer = NatInventory(
+                company_id=company.id, item_id="beer", quantity=100,
+                reserved_quantity=0, avg_cost_basis=1,
+            )
+            session.add_all((business, factory, grid, ai_compute, beer))
             await session.flush()
 
             catch_up_limit = production_automation.MAX_AUTOMATION_CATCH_UP_CYCLES

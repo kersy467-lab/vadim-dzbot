@@ -170,14 +170,37 @@ async def run_async() -> None:
         assert data.get("reset") is True
 
     # Verify company is completely removed from DB
+    # 7. Test Creator Self Reset (/api/natbirzha/creator/me/reset)
+    from backend.natbirzha.api.creator_auth import get_current_creator
     async with sessions() as session:
-        remaining_company = await session.scalar(
-            select(NatCompany).where(NatCompany.user_id == user.id)
+        admin_user = User(tg_id=980002, full_name="Creator Admin", role="admin", is_tester=True)
+        session.add(admin_user)
+        await session.flush()
+        admin_company = await CompanyService.create_company(session, admin_user.id, "Admin Corp", "miner")
+        await session.commit()
+
+    async def override_creator():
+        async with sessions() as s:
+            return await s.get(User, admin_user.id)
+
+    app.dependency_overrides[get_current_creator] = override_creator
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/natbirzha/creator/me/reset")
+        assert resp.status_code == 200, f"Expected 200 OK for creator reset, got {resp.status_code}: {resp.text}"
+        creator_data = resp.json()
+        assert creator_data.get("ok") is True
+        assert creator_data.get("deleted_company") == "Admin Corp"
+
+    async with sessions() as session:
+        remaining_admin_comp = await session.scalar(
+            select(NatCompany).where(NatCompany.user_id == admin_user.id)
         )
-        assert remaining_company is None, "Company must be deleted after reset"
+        assert remaining_admin_comp is None, "Creator company must be deleted after self reset"
 
     print("NATBIRZHA company reset complete: PASS")
 
 
 if __name__ == "__main__":
     asyncio.run(run_async())
+

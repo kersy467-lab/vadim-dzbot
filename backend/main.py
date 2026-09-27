@@ -250,7 +250,8 @@ app.include_router(api_router)
 # Healthcheck for Cloudflare Worker & Render
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "class-bot"}
+    from backend.bot.services.startup_notify import get_latest_commit_title
+    return {"status": "ok", "service": "class-bot", "commit": get_latest_commit_title()}
 
 @app.get("/favicon.ico")
 async def favicon():
@@ -264,14 +265,16 @@ class SmartCacheStaticFiles(StaticFiles):
         if norm_path.endswith((".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".ico", ".woff2", ".woff", ".mp3")):
             response.headers["Cache-Control"] = "public, max-age=604800, immutable"
         elif norm_path.endswith((".js", ".css")):
-            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
             return response
         else:
             response.headers["Cache-Control"] = "no-cache"
         if "pragma" in response.headers:
             del response.headers["pragma"]
         return response
+
 
 
 # Static files for Telegram Mini App

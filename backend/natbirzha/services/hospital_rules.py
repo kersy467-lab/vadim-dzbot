@@ -14,6 +14,20 @@ HOSPITAL_BEDS_PER_LEVEL = 500
 REPAIR_BAYS_PER_LEVEL = 50
 MAX_HOSPITAL_LEVEL = 20
 MAX_REPAIR_DEPOT_LEVEL = 20
+MAX_HOSPITAL_CAPACITY = 10_000
+MAX_REPAIR_DEPOT_CAPACITY = 1_000
+
+
+def hospital_capacity(level: int) -> int:
+    """Non-linear hospital capacity: starts smaller (120 at lvl 1) up to 10 000 beds at lvl 20."""
+    lvl = max(0, min(MAX_HOSPITAL_LEVEL, int(level)))
+    return 20 * lvl * (lvl + 5)
+
+
+def repair_depot_capacity(level: int) -> int:
+    """Non-linear repair depot capacity: starts smaller (12 at lvl 1) up to 1 000 bays at lvl 20."""
+    lvl = max(0, min(MAX_REPAIR_DEPOT_LEVEL, int(level)))
+    return 2 * lvl * (lvl + 5)
 
 TREATMENT_CASH_PER_UNIT = {
     "infantry": 10.0,

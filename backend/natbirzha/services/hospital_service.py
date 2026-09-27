@@ -27,6 +27,8 @@ from backend.natbirzha.services.hospital_rules import (
     TREATMENT_CASH_PER_UNIT,
     allocate_capacity,
     classify_losses,
+    hospital_capacity,
+    repair_depot_capacity,
     treatment_duration_minutes,
 )
 from backend.natbirzha.services.military_infrastructure_service import MilitaryInfrastructureService
@@ -114,10 +116,10 @@ class HospitalService:
             for row in wards if row.unit_type in REPAIR_UNITS
         )
         free_hospital = max(
-            0, int(infrastructure.hospital_level) * HOSPITAL_BEDS_PER_LEVEL - occupied_hospital
+            0, hospital_capacity(infrastructure.hospital_level) - occupied_hospital
         )
         free_repair = max(
-            0, int(infrastructure.repair_depot_level) * REPAIR_BAYS_PER_LEVEL - occupied_repair
+            0, repair_depot_capacity(infrastructure.repair_depot_level) - occupied_repair
         )
 
         split = classify_losses(losses, mode)
@@ -349,8 +351,7 @@ class HospitalService:
         hospital_wards = [row for row in wards if row.unit_type in HUMAN_UNITS]
         repair_wards = [row for row in wards if row.unit_type in REPAIR_UNITS]
 
-        def facility(level: int, max_level: int, capacity_per_level: int, rows: list[NatHospitalWard]):
-            capacity = int(level) * capacity_per_level
+        def facility(level: int, max_level: int, capacity: int, rows: list[NatHospitalWard]):
             occupied = sum(int(row.wounded_count) + int(row.healing_count) for row in rows)
             return {
                 "level": int(level),
@@ -375,11 +376,11 @@ class HospitalService:
         return {
             "hospital": facility(
                 infrastructure.hospital_level, MAX_HOSPITAL_LEVEL,
-                HOSPITAL_BEDS_PER_LEVEL, hospital_wards,
+                hospital_capacity(infrastructure.hospital_level), hospital_wards,
             ),
             "repair_depot": facility(
                 infrastructure.repair_depot_level, MAX_REPAIR_DEPOT_LEVEL,
-                REPAIR_BAYS_PER_LEVEL, repair_wards,
+                repair_depot_capacity(infrastructure.repair_depot_level), repair_wards,
             ),
         }
 

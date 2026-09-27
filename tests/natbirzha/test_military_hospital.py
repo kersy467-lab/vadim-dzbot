@@ -14,6 +14,9 @@ from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.models.military_infrastructure import NatMilitaryInfrastructure
 from backend.natbirzha.models.hospital import NatHospitalWard
 from backend.natbirzha.services.army_service import ArmyService
+from backend.natbirzha.services.hospital_rules import (
+    hospital_capacity, repair_depot_capacity,
+)
 from backend.natbirzha.services.hospital_service import HospitalService
 from backend.natbirzha.services.military_infrastructure_service import (
     FACILITY_MAX_LEVELS, MilitaryInfrastructureService,
@@ -93,6 +96,19 @@ async def run_async() -> None:
     else:
         raise AssertionError("Hospital and repair levels must cap at 20")
 
+    assert hospital_capacity(0) == 0
+    assert hospital_capacity(1) == 120
+    assert hospital_capacity(5) == 1000
+    assert hospital_capacity(10) == 3000
+    assert hospital_capacity(20) == 10000
+    assert hospital_capacity(25) == 10000
+    assert repair_depot_capacity(0) == 0
+    assert repair_depot_capacity(1) == 12
+    assert repair_depot_capacity(5) == 100
+    assert repair_depot_capacity(10) == 300
+    assert repair_depot_capacity(20) == 1000
+    assert repair_depot_capacity(25) == 1000
+
     async with sessions() as session:
         company = await _company(
             session, 970001, "Hospital PvE", {"infantry": 300, "tanks": 20}
@@ -112,8 +128,8 @@ async def run_async() -> None:
         overflow = await HospitalService.apply_combat_losses(
             session, company.id, {"infantry": 2_000}, mode="PVE", now=NOW
         )
-        assert overflow["hospitalized"] == {"infantry": 500}
-        assert overflow["fatalities"] == {"infantry": 100}
+        assert overflow["hospitalized"] == {"infantry": 120}
+        assert overflow["fatalities"] == {"infantry": 480}
         assert (await HospitalService.army_counts(session, company.id))["infantry"] == 1_400
 
         repair_overflow_company = await _company(
@@ -122,8 +138,8 @@ async def run_async() -> None:
         repair_overflow = await HospitalService.apply_combat_losses(
             session, repair_overflow_company.id, {"tanks": 300}, mode="PVE", now=NOW
         )
-        assert repair_overflow["hospitalized"] == {"tanks": 50}
-        assert repair_overflow["fatalities"] == {"tanks": 40}
+        assert repair_overflow["hospitalized"] == {"tanks": 12}
+        assert repair_overflow["fatalities"] == {"tanks": 78}
         assert (await HospitalService.army_counts(session, repair_overflow_company.id))["tanks"] == 210
 
         company = await _company(
@@ -137,8 +153,8 @@ async def run_async() -> None:
         assert (await HospitalService.army_counts(session, company.id))["infantry"] == 455
 
         status = await HospitalService.get_status(session, company.id, now=NOW)
-        assert status["hospital"]["capacity"] == 500
-        assert status["repair_depot"]["capacity"] == 50
+        assert status["hospital"]["capacity"] == 120
+        assert status["repair_depot"]["capacity"] == 12
 
         # Treatment reserves beds, charges once, and returns units only when collected.
         started = await HospitalService.start_treatment(

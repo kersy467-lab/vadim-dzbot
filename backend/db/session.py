@@ -35,7 +35,12 @@ def create_configured_engine():
         params = [p for p in query.split("&") if not p.startswith("sslmode") and not p.startswith("channel_binding")]
         url = base_url + ("?" + "&".join(params) if params else "")
 
-    connect_args = {"ssl": "require"} if ("neon.tech" in url or "sslmode=require" in raw_url or "ssl=require" in raw_url) else {}
+    connect_args = {}
+    if any(k in url.lower() for k in ("neon.tech", "supabase", "sslmode=require", "ssl=require")) or "sslmode=require" in raw_url:
+        connect_args["ssl"] = "require"
+    if ":6543" in url or "pooler.supabase" in url:
+        connect_args["statement_cache_size"] = 0
+
     return create_async_engine(
         url,
         echo=False,

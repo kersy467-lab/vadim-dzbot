@@ -39,8 +39,19 @@ async def restore_database(target_url: str, backup_file: str):
     elif clean_url.startswith("postgresql://"):
         clean_url = clean_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+    # Strip query params handled via connect_args
+    raw_query = ""
+    if "?" in clean_url:
+        clean_url, raw_query = clean_url.split("?", 1)
+
+    connect_args = {}
+    if any(k in clean_url.lower() for k in ("neon.tech", "supabase")) or "sslmode=require" in raw_query or "ssl=require" in raw_query:
+        connect_args["ssl"] = "require"
+    if ":6543" in clean_url or "pooler.supabase" in clean_url:
+        connect_args["statement_cache_size"] = 0
+
     print(f"Connecting to target database...")
-    engine = create_async_engine(clean_url, echo=False)
+    engine = create_async_engine(clean_url, echo=False, connect_args=connect_args)
 
     # 1. Create all schema tables
     print("Creating schema tables in target database...")

@@ -192,6 +192,9 @@ def build_hybrid_catalog(
                 unique=False,
             )
             spec["base_maintenance_per_hour"] = maintenance
+            # Hybrid lines are a compact collaboration upgrade with four
+            # progression levels; this is per facility, not a world-wide cap.
+            spec["max_stage"] = 4
             spec["hybrid_only"] = True
             spec["hybrid_source_business_types"] = source_types
             spec["input_reduction_ratio"] = INPUT_REDUCTION_RATIO
@@ -208,6 +211,7 @@ def build_hybrid_catalog(
                 "minimum_source_stage": 1,
                 "source_slot_weight": 1,
                 "hybrid_slot_weight": 1,
+                "max_stage": int(spec["max_stage"]),
                 "additional_capital_cost": extra_capital,
                 "resource_requirements": resources,
                 "input_reduction_ratio": INPUT_REDUCTION_RATIO,

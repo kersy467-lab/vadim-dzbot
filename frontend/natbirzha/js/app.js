@@ -3,7 +3,7 @@ import { store } from './state.js?v=20260926_local_update_v1';
 import { renderOnboarding } from './screens/onboarding.js?v=20260928_brewery_open_v1';
 import { renderOverview } from './screens/overview.js?v=20260928_ai_compute_fix_v1';
 import { renderTycoon } from './screens/tycoon.js?v=20260928_ai_compute_fix_v1';
-import { renderUpgrades } from './screens/upgrades.js?v=20260927_ai_hybrids_v1&release=20260927_hospital_v2';
+import { renderUpgrades } from './screens/upgrades.js?v=20260928_hybrid_level_cap_v1&release=20260928_hybrid_level_cap_v1';
 import { renderMarket } from './screens/market.js?v=20260928_ai_compute_fix_v1&joint_factories=1';
 import { renderStocks } from './screens/stocks.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { renderMilitary } from './screens/military.js?v=20260928_ai_compute_fix_v1';

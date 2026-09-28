@@ -66,10 +66,7 @@ function recipeCard(recipe, data) {
     ([itemId, amount]) => Number(data.inventory?.[itemId] || 0) + 1e-9 >= Number(amount)
   );
   const enoughCash = Number(data.company_cash || 0) + 1e-9 >= Number(recipe.additional_capital_cost || 0);
-  const globalLimit = Number(data.active_hybrid_limit || 5);
-  const globalActive = Number(data.active_hybrids || 0);
-  const globalSlotsAvailable = Number(data.global_slots_available ?? Math.max(0, globalLimit - globalActive)) > 0;
-  const canOpen = sourcesAvailable && resourcesAvailable && enoughCash && globalSlotsAvailable;
+  const canOpen = sourcesAvailable && resourcesAvailable && enoughCash;
   const sourceNames = recipe.source_names || recipe.source_options.map((source) => source.name);
   const upgradingSources = recipe.source_options.flatMap((source) => source.businesses
     .filter((business) => String(business.status).toUpperCase() === 'UPGRADING')
@@ -92,20 +89,17 @@ function recipeCard(recipe, data) {
     <div class="text-[10px] text-slate-500">Дополнительное вложение: <b>${formatCash(recipe.additional_capital_cost)} cash</b> · возврат при продаже: 40% вложений гибрида.</div>
     <div class="text-[9px] text-slate-500">Ресурсы открытия списываются один раз. Гибрид дальше потребляет сырьё и выпускает товар через обычное производство.</div>
     <button type="button" class="hybrid-open-btn w-full rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-40" ${canOpen ? '' : 'disabled'}>
-      ${!globalSlotsAvailable ? `Достигнут общий лимит гибридов ${globalActive}/${globalLimit}` : !sourcesAvailable ? upgradingSources.length ? 'Дождитесь завершения улучшения' : 'Не хватает предприятий из пары' : !resourcesAvailable ? 'Не хватает ресурсов для объединения' : !enoughCash ? 'Не хватает cash' : 'Объединить предприятия'}
+      ${!sourcesAvailable ? upgradingSources.length ? 'Дождитесь завершения улучшения' : 'Не хватает предприятий из пары' : !resourcesAvailable ? 'Не хватает ресурсов для объединения' : !enoughCash ? 'Не хватает cash' : 'Объединить предприятия'}
     </button>
   </article>`;
 }
 
 function renderManager(container, showToast, onBack, data) {
   const companyId = Number(store.company?.id || store.company?.company_id || 0);
-  const globalLimit = Number(data.active_hybrid_limit || 5);
-  const globalActive = Number(data.active_hybrids || 0);
   container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24">
     <button type="button" class="hybrid-back text-xs font-bold text-pink-500">← Прокачка</button>
-    <header><h2 class="text-xl font-black">🔗 Объединение предприятий</h2><p class="mt-1 text-xs text-slate-500">Выберите одну гибридную производственную линию для своей отрасли.</p></header>
-    <div class="glass-card rounded-2xl p-3 text-xs"><b>Общий лимит мира: ${globalActive}/${globalLimit}</b><p class="mt-1 text-[10px] text-slate-500">Одновременно может работать не больше ${globalLimit} гибридов у всех компаний. Продажа гибрида освобождает место и возвращает исходные предприятия.</p></div>
-    ${data.company_hybrids?.length ? `<section class="space-y-2"><h3 class="text-sm font-black">Ваши активные гибриды</h3>${data.company_hybrids.map((hybrid) => `<article class="glass-card rounded-2xl p-4 space-y-2"><div class="flex items-start justify-between gap-2"><div><h4 class="text-xs font-black">${escapeHtml(hybrid.name)}</h4><p class="text-[10px] text-slate-500">Ур. ${Number(hybrid.stage || 1)} · источники: ${(hybrid.source_business_names || []).map(escapeHtml).join(' + ')}</p></div><span class="text-[9px] text-emerald-600">${escapeHtml(hybrid.status)}</span></div><button type="button" class="hybrid-sell-btn w-full rounded-xl border border-rose-300 px-3 py-2 text-[10px] font-bold text-rose-600" data-hybrid-id="${Number(hybrid.id)}">Продать гибрид и восстановить предприятия</button></article>`).join('')}</section>` : ''}
+    <header><h2 class="text-xl font-black">🔗 Объединение предприятий</h2><p class="mt-1 text-xs text-slate-500">Каждый гибрид можно улучшить до 4-го уровня. Общего лимита гибридов на сервере нет; число зависит от свободных слотов вашей компании.</p></header>
+    ${data.company_hybrids?.length ? `<section class="space-y-2"><h3 class="text-sm font-black">Ваши активные гибриды</h3>${data.company_hybrids.map((hybrid) => `<article class="glass-card rounded-2xl p-4 space-y-2"><div class="flex items-start justify-between gap-2"><div><h4 class="text-xs font-black">${escapeHtml(hybrid.name)}</h4><p class="text-[10px] text-slate-500">Ур. ${Number(hybrid.stage || 1)}/${Number(hybrid.max_stage || 4)} · источники: ${(hybrid.source_business_names || []).map(escapeHtml).join(' + ')}</p></div><span class="text-[9px] text-emerald-600">${escapeHtml(hybrid.status)}</span></div><button type="button" class="hybrid-sell-btn w-full rounded-xl border border-rose-300 px-3 py-2 text-[10px] font-bold text-rose-600" data-hybrid-id="${Number(hybrid.id)}">Продать гибрид и восстановить предприятия</button></article>`).join('')}</section>` : ''}
     <section class="space-y-2"><h3 class="text-sm font-black">Варианты объединения · ${Number(data.recipes?.length || 0)}</h3>${data.recipes?.length ? data.recipes.map((recipe) => recipeCard(recipe, data)).join('') : '<div class="glass-card rounded-xl p-4 text-xs text-slate-500">Для текущей отрасли гибридный рецепт не настроен.</div>'}</section>
   </div>`;
 

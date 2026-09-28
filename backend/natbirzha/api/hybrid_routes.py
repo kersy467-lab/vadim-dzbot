@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
@@ -15,9 +15,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.hybrid_mergers import NatHybridMerger
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.auth_service import get_current_company
-from backend.natbirzha.services.hybrid_merger_service import (
-    GLOBAL_ACTIVE_HYBRID_LIMIT, HybridMergerService,
-)
+from backend.natbirzha.services.hybrid_merger_service import HybridMergerService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 
 
@@ -54,10 +52,6 @@ async def hybrid_catalog(
         .where(NatHybridMerger.company_id == company.id, NatHybridMerger.status == "ACTIVE")
         .order_by(NatHybridMerger.created_at, NatHybridMerger.id)
     )).scalars().all()
-    active_global = int(await session.scalar(
-        select(func.count(NatHybridMerger.id)).where(NatHybridMerger.status == "ACTIVE")
-    ) or 0)
-
     business_by_id = {row.id: row for row in businesses}
     business_rows = []
     for row in businesses:
@@ -95,6 +89,7 @@ async def hybrid_catalog(
             **recipe,
             "name": business_spec.get("name", recipe["id"]),
             "description": business_spec.get("description", ""),
+            "max_stage": int(business_spec.get("max_stage", 4)),
             "additional_capital_cost": float(recipe["additional_capital_cost"]),
             "source_options": source_options,
             "source_names": [spec.get("name", "Предприятие") for spec in source_specs],
@@ -110,6 +105,7 @@ async def hybrid_catalog(
             "name": (hybrid_spec or {}).get("name", "Гибридный комплекс"),
             "hybrid_business_id": merger.hybrid_business_id,
             "stage": int(hybrid.stage) if hybrid is not None else None,
+            "max_stage": int((hybrid_spec or {}).get("max_stage", 4)),
             "status": hybrid.status if hybrid is not None else "MISSING",
             "source_business_ids": [merger.source_business_a_id, merger.source_business_b_id],
             "source_business_names": [
@@ -135,9 +131,6 @@ async def hybrid_catalog(
     return {
         "specialization": company.specialization,
         "company_cash": round(float(company.cash), 2),
-        "active_hybrids": active_global,
-        "active_hybrid_limit": GLOBAL_ACTIVE_HYBRID_LIMIT,
-        "global_slots_available": max(0, GLOBAL_ACTIVE_HYBRID_LIMIT - active_global),
         "company_hybrids": active_rows,
         "businesses": business_rows,
         "recipes": recipe_rows,

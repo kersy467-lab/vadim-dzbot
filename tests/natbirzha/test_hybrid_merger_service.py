@@ -16,7 +16,6 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.models.hybrid_mergers import NatHybridMerger
 from backend.natbirzha.services.hybrid_merger_service import (
-    GLOBAL_ACTIVE_HYBRID_LIMIT,
     HYBRID_RECIPES,
     HybridMergerService,
 )
@@ -96,8 +95,11 @@ def test_server_owned_hybrid_recipes_cover_every_active_industry() -> None:
         assert all(quantity > 0 for quantity in recipe["resource_requirements"].values())
 
 
-def test_global_active_hybrid_capacity_has_five_slots() -> None:
-    assert GLOBAL_ACTIVE_HYBRID_LIMIT == 5
+def test_each_hybrid_has_a_four_level_upgrade_cap() -> None:
+    for recipe in HYBRID_RECIPES.values():
+        spec = get_business_spec(recipe["business_type"])
+        assert recipe["max_stage"] == 4
+        assert spec is not None and spec["max_stage"] == 4
 
 
 def test_each_hybrid_has_a_balanced_resource_production_spec() -> None:
@@ -133,8 +135,9 @@ def test_hybrid_catalog_shows_upgrade_target_level() -> None:
                 source.stage = 25
                 source.upgrade_target_stage = 26
                 data = await hybrid_catalog(company, session)
-                assert data["active_hybrid_limit"] == 5
-                assert data["global_slots_available"] == 5
+                assert "active_hybrid_limit" not in data
+                recipe = next(item for item in data["recipes"] if item["id"] == "hybrid_miner")
+                assert recipe["max_stage"] == 4
                 row = next(item for item in data["businesses"] if item["id"] == source.id)
                 assert row["stage"] == 25
                 assert row["target_stage"] == 26
@@ -144,42 +147,21 @@ def test_hybrid_catalog_shows_upgrade_target_level() -> None:
     asyncio.run(check())
 
 
-def test_global_active_hybrid_limit_is_shared_across_companies() -> None:
+def test_hybrid_creation_has_no_server_wide_limit() -> None:
     async def check() -> None:
-        engine, sessions, company_ids = await _fixture(GLOBAL_ACTIVE_HYBRID_LIMIT + 1)
+        engine, sessions, company_ids = await _fixture(6)
         try:
             async with sessions() as session:
-                opened_hybrids = []
-                for company_id in company_ids[:GLOBAL_ACTIVE_HYBRID_LIMIT]:
+                for company_id in company_ids:
                     source_ids = await _source_ids(company_id, session)
-                    opened = await HybridMergerService.open_hybrid(
+                    await HybridMergerService.open_hybrid(
                         session, company_id, "hybrid_miner", *source_ids
                     )
-                    opened_hybrids.append(opened)
                 await session.flush()
-                with pytest.raises(ValueError, match="максимум.*5|5.*гибрид"):
-                    last_sources = await _source_ids(company_ids[GLOBAL_ACTIVE_HYBRID_LIMIT], session)
-                    await HybridMergerService.open_hybrid(
-                        session,
-                        company_ids[GLOBAL_ACTIVE_HYBRID_LIMIT],
-                        "hybrid_miner",
-                        *last_sources,
-                    )
                 active_count = await session.scalar(
                     select(func.count(NatHybridMerger.id)).where(NatHybridMerger.status == "ACTIVE")
                 )
-                assert active_count == GLOBAL_ACTIVE_HYBRID_LIMIT
-                await HybridMergerService.sell_hybrid(
-                    session, company_ids[0], opened_hybrids[0]["id"]
-                )
-                last_sources = await _source_ids(company_ids[-1], session)
-                await HybridMergerService.open_hybrid(
-                    session, company_ids[-1], "hybrid_miner", *last_sources
-                )
-                active_count = await session.scalar(
-                    select(func.count(NatHybridMerger.id)).where(NatHybridMerger.status == "ACTIVE")
-                )
-                assert active_count == GLOBAL_ACTIVE_HYBRID_LIMIT
+                assert active_count == len(company_ids)
         finally:
             await engine.dispose()
 

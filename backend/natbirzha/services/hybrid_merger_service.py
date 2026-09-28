@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.catalogs.businesses import HYBRID_RECIPES, get_business_spec
@@ -14,9 +14,6 @@ from backend.natbirzha.models.hybrid_mergers import NatHybridMerger
 from backend.natbirzha.services.business_resource_service import consume_business_resources
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
-
-GLOBAL_ACTIVE_HYBRID_LIMIT = 5
-_HYBRID_GLOBAL_LOCK_KEY = 0x4E41544859425249
 
 _SOURCE_STATUSES = frozenset({
     "ACTIVE",
@@ -29,23 +26,6 @@ _SOURCE_STATUSES = frozenset({
 
 class HybridMergerService:
     """Owns hybrid slot, source business, inventory and additional capital state."""
-
-    @staticmethod
-    async def _lock_global_hybrid_capacity(session: AsyncSession) -> None:
-        """Serialize global slot changes across app workers on PostgreSQL."""
-        bind = session.get_bind()
-        if bind.dialect.name == "postgresql":
-            await session.execute(
-                text("SELECT pg_advisory_xact_lock(:lock_key)"),
-                {"lock_key": _HYBRID_GLOBAL_LOCK_KEY},
-            )
-            return
-
-        # Lock a stable server-wide row set on other databases. This is mainly
-        # for local SQLite/dev environments, which do not support advisory locks.
-        await session.execute(
-            select(NatCompany.id).order_by(NatCompany.id).with_for_update()
-        )
 
     @staticmethod
     async def _locked_company(session: AsyncSession, company_id: int) -> NatCompany:
@@ -97,7 +77,6 @@ class HybridMergerService:
         """Form a hybrid, stop its sources, and charge only additional capital."""
         current = normalize_dt(now or get_game_now())
         await IdleEconomyService.settle_company(session, company_id, now=current)
-        await cls._lock_global_hybrid_capacity(session)
         company = await cls._locked_company(session, company_id)
         recipe = cls._recipe(recipe_id)
         business_spec = get_business_spec(recipe["business_type"])
@@ -106,14 +85,6 @@ class HybridMergerService:
 
         if company.specialization != recipe["specialization"]:
             raise ValueError("Рецепт гибрида недоступен для отрасли вашей компании")
-
-        active_count = int(await session.scalar(
-            select(func.count(NatHybridMerger.id)).where(NatHybridMerger.status == "ACTIVE")
-        ) or 0)
-        if active_count >= GLOBAL_ACTIVE_HYBRID_LIMIT:
-            raise ValueError(
-                f"Достигнут глобальный максимум: одновременно доступны только {GLOBAL_ACTIVE_HYBRID_LIMIT} гибридов"
-            )
 
         source_a, source_b = await cls._locked_sources(
             session,
@@ -210,8 +181,6 @@ class HybridMergerService:
             "additional_capital_invested": extra_capital,
             "resource_requirements": dict(recipe["resource_requirements"]),
             "remaining_cash": company.cash,
-            "active_hybrid_limit": GLOBAL_ACTIVE_HYBRID_LIMIT,
-            "active_hybrids": active_count + 1,
         }
 
     @classmethod
@@ -226,7 +195,6 @@ class HybridMergerService:
         """Sell a hybrid, restore its saved sources and refund extra capital only."""
         current = normalize_dt(now or get_game_now())
         await IdleEconomyService.settle_company(session, company_id, now=current)
-        await cls._lock_global_hybrid_capacity(session)
         company = await cls._locked_company(session, company_id)
         hybrid = await session.scalar(
             select(NatHybridMerger)
@@ -297,12 +265,10 @@ class HybridMergerService:
             "refund": refund,
             "remaining_cash": company.cash,
             "restored_business_ids": [source_a.id, source_b.id],
-            "active_hybrid_limit": GLOBAL_ACTIVE_HYBRID_LIMIT,
         }
 
 
 __all__ = [
-    "GLOBAL_ACTIVE_HYBRID_LIMIT",
     "HYBRID_RECIPES",
     "HybridMergerService",
 ]

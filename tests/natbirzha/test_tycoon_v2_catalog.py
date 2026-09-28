@@ -80,7 +80,9 @@ def test_every_career_business_is_profitable_at_reference_market_prices() -> Non
         profit_after_tax = (revenue - input_cost - rates.maintenance_per_hour) * (1 - nat_settings.TAX_RATE)
         assert profit_after_tax > 0, spec["id"]
         opening_capital = investment_curve(spec)[1]
-        assert abs(opening_capital / profit_after_tax - spec["target_open_roi_hours"]) <= .05, spec["id"]
+        actual_payback = opening_capital / profit_after_tax
+        assert abs(actual_payback - spec["actual_open_roi_hours"]) <= .05, spec["id"]
+        assert actual_payback <= spec["target_open_roi_hours"] + .05, spec["id"]
 
 
 def test_water_demand_multiplier_preserves_price_and_target_return() -> None:
@@ -88,7 +90,8 @@ def test_water_demand_multiplier_preserves_price_and_target_return() -> None:
         spec = CAREER_BUSINESSES[business_id]
         assert spec["inputs_per_hour"].get("water", 0) > 0, business_id
         assert CANONICAL_ITEMS["water"]["base_price"] == 2
-        assert spec["stage_rates"][1]["payback_hours"] == spec["target_open_roi_hours"]
+        assert spec["stage_rates"][1]["payback_hours"] == spec["actual_open_roi_hours"]
+        assert spec["actual_open_roi_hours"] <= spec["target_open_roi_hours"]
 
 
 def _career_profit_per_hour(spec: dict, stage: int) -> float:
@@ -137,14 +140,15 @@ def test_career_investment_has_ten_hour_start_and_compounding_upgrade_returns() 
             payback = all_in_cost / marginal_profit if marginal_profit > 0 else float("inf")
             assert marginal_profit > 0, (spec["id"], stage)
             assert payback <= target_roi, (spec["id"], stage, payback, target_roi)
-        assert abs(
-            investment_curve(spec)[1] / _career_profit_per_hour(spec, 1) - target_roi
-        ) <= .05, spec["id"]
-        assert abs(
+        opening_roi = investment_curve(spec)[1] / _career_profit_per_hour(spec, 1)
+        full_roi = (
             investment_curve(spec)[spec["max_stage"]]
             / _career_profit_per_hour(spec, spec["max_stage"])
-            - 8.5
-        ) <= .05, spec["id"]
+        )
+        assert abs(opening_roi - spec["actual_open_roi_hours"]) <= .05, spec["id"]
+        assert opening_roi <= target_roi + .05, spec["id"]
+        assert abs(full_roi - spec["full_stage_payback_hours"]) <= .05, spec["id"]
+        assert full_roi <= 8.5 + .05, spec["id"]
 
 
 def test_nonstarter_enterprises_require_cross_industry_opening_resources() -> None:

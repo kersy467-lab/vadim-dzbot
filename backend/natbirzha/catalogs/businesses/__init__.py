@@ -30,7 +30,7 @@ from backend.natbirzha.technical_energy import (
 )
 from .technology import TECHNOLOGY_BUSINESSES
 from .water import WATER_BUSINESSES
-from .balance import balance_career_catalog
+from .balance import balance_career_catalog, cap_career_catalog_expenses
 from .resource_network import add_ai_compute_demand
 from backend.natbirzha.services.employee_beverage_inputs import (
     add_employee_beverages_to_catalog,
@@ -87,6 +87,7 @@ HYBRID_BUSINESSES, HYBRID_RECIPES = build_hybrid_catalog(CAREER_BUSINESSES)
 HYBRID_BUSINESSES = balance_career_catalog(HYBRID_BUSINESSES)
 CAREER_BUSINESSES = {**CAREER_BUSINESSES, **HYBRID_BUSINESSES}
 CAREER_BUSINESSES = add_employee_beverages_to_catalog(CAREER_BUSINESSES)
+CAREER_BUSINESSES = cap_career_catalog_expenses(CAREER_BUSINESSES)
 JOINT_FACTORY_RECIPES = build_joint_factory_catalog(CAREER_BUSINESSES)
 # Keep already-running AI/forestry collaboration factories settling after the
 # specialization rename and partnership refresh. These recipes are never

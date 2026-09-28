@@ -1,7 +1,7 @@
 const screens = {
   onboarding: ['./screens/onboarding.js?v=20260928_mobile_perf_v1', 'renderOnboarding'],
   overview: ['./screens/overview.js?v=20260928_mobile_perf_v1', 'renderOverview'],
-  production: ['./screens/tycoon.js?v=20260928_mobile_perf_v1', 'renderTycoon'],
+  production: ['./screens/tycoon.js?v=20260928_factory_readiness_v1', 'renderTycoon'],
   upgrades: ['./screens/upgrades.js?v=20260928_mobile_perf_v1', 'renderUpgrades'],
   market: ['./screens/market.js?v=20260928_mobile_perf_v1', 'renderMarket'],
   stocks: ['./screens/stocks.js?v=20260928_mobile_perf_v1', 'renderStocks'],

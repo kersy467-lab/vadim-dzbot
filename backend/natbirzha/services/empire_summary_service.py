@@ -300,6 +300,9 @@ class EmpireSummaryService:
                 "next_unlock_level": 15 if company.level < 15 else (25 if company.level < 25 else (35 if company.level < 35 else (50 if company.level < 50 else None))),
             },
             "businesses": serialized,
+            "inventory_available": {
+                item_id: round(quantity, 6) for item_id, quantity in inventory.items()
+            },
             "generated_at": normalize_dt(now or get_game_now()),
         }
 

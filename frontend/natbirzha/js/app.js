@@ -1,7 +1,7 @@
 import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260927_hospital_v2';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen } from './screen_loader.js?v=20260928_mobile_perf_v1';
+import { loadScreen } from './screen_loader.js?v=20260928_factory_readiness_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 // Telegram Haptic Feedback Helper

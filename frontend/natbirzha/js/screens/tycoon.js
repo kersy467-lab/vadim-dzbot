@@ -3,6 +3,7 @@ import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
+import { renderProductionReadiness } from './tycoon_production_status.js?v=20260928_factory_readiness_v1';
 
 let refreshTimer = null;
 let releaseRefreshCleanup = null;
@@ -236,6 +237,7 @@ function render(root, state, showToast) {
     : Math.max(0, Math.min(100, Number(progression.level_progress_pct || 0)));
   root.innerHTML = `<div class="tycoon-screen space-y-4 max-w-md mx-auto p-4 pb-24">
     <div class="tycoon-hero"><div><div class="text-xs uppercase tracking-widest text-pink-200">НАТБИРЖА · IDLE TYCOON</div><h2 class="text-2xl font-black text-white mt-1">${esc(getSpecializationName(specialization))}</h2><p class="text-xs text-pink-100/80 mt-1">Ваша отрасль — отдельная карьерная ветка. Предприятия работают постоянно, пока хватает снабжения.</p></div><span class="text-4xl">🏭</span></div>
+    ${renderProductionReadiness(summary)}
     <div class="tycoon-stat-grid"><div class="tycoon-stat"><span>Баланс</span><b>${money(summary.cash)} cash</b></div><div class="tycoon-stat"><span>Оценка прибыли · после налога ${taxRate}%</span><b class="${profit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${profit >= 0 ? '+' : ''}${money(profit)} cash-экв./ч</b></div><div class="tycoon-stat"><span>Стресс-сценарий NPC</span><b class="${npcProfit >= 0 ? 'tycoon-rate-positive' : 'tycoon-rate-negative'}">${npcProfit >= 0 ? '+' : ''}${money(npcProfit)} cash-экв./ч</b></div><div class="tycoon-stat"><span>Компания</span><b>ур. ${summary.level || 1}</b></div><div class="tycoon-stat"><span>Мощности</span><b>${summary.slots?.used || 0}/${summary.slots?.max || 0}</b></div><div class="tycoon-stat"><span>Крупные проекты</span><b>${summary.project_slots?.used || 0}/${summary.project_slots?.max || 1}</b></div></div>
     <p class="text-[10px] text-slate-500 dark:text-slate-300">Ресурсы остаются на складе и оцениваются по базовым ценам после налога ${taxRate}%; эта оценка не означает поступление cash. Сценарий NPC не учитывает общий лимит Госрезерва 1 000 000 cash на товар в сутки и не гарантирует продажу всего выпуска.</p>
     <section class="rounded-2xl border border-indigo-300/50 bg-indigo-50/80 dark:bg-indigo-950/30 p-3.5" aria-label="Прогресс уровня компании">
@@ -318,6 +320,7 @@ async function reload(root, showToast) {
     max_level: summary.progression?.max_level,
     era: summary.progression?.era,
     mastery: summary.progression?.mastery,
+    inventory_available: summary.inventory_available,
   });
   render(root, { summary, catalog: catalog.items || [], assetCatalog, settlement: summary.settlement }, showToast);
 }

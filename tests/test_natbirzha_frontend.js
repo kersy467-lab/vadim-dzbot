@@ -414,8 +414,8 @@ assert(marketCoreCode.includes('ensureIndustryProductsAvailable'),
   'industry products must remain visible even if an NPC-rate response omits a canonical product');
 assert(itemRegistryCode.includes("ai_compute: { name: 'Вычислительная мощность ИИ'"),
   'AI compute must have a localized canonical item label');
-assert(marketHtmlCode.includes('app.js?v=20260928_ai_compute_fix_v1'),
-  'the app entrypoint must use a fresh cache key for the AI compute resource fix');
+assert(marketHtmlCode.includes('app.js?v=20260928_brewery_open_v1'),
+  'the app entrypoint must use a fresh cache key for the brewery availability update');
 assert(appSourceCode.includes('market.js?v=20260928_ai_compute_fix_v1'),
   'the market screen must use a fresh cache key so the AI output list refreshes');
 assert(marketCoreCode.includes('finance.renderStocks') && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),

@@ -47,27 +47,7 @@ class IndustrySelectionService:
         )
         missing_industries: list[str] = []
         if industry_id == cls.RARE_INDUSTRY_ID:
-            missing_industries = [
-                other_id
-                for other_id in INDUSTRIES
-                if other_id != cls.RARE_INDUSTRY_ID and counts.get(other_id, 0) < 1
-            ]
-            if missing_industries:
-                missing_names = [
-                    str(INDUSTRIES.get(other_id, {}).get("name", other_id))
-                    for other_id in missing_industries
-                ]
-                reason = (
-                    "Пивоварня станет доступна, когда в каждой другой отрасли будет "
-                    "хотя бы одна компания. Пока без компаний: "
-                    + ", ".join(missing_names)
-                    + "."
-                )
-            else:
-                reason = (
-                    "Пивоварня доступна: во всех остальных отраслях уже есть "
-                    "хотя бы одна компания."
-                )
+            reason = "Пивоварение открыто для выбора."
         else:
             reason = f"Отрасль «{name}» доступна для выбора."
 

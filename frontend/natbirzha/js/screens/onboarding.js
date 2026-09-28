@@ -42,7 +42,7 @@ function industryCard(industry, selected, live) {
   const color = live?.status_color || 'yellow';
   const available = live
     ? live.available !== false
-    : industry.id !== 'brewery';
+    : true;
   const label = available
     ? (live?.status_label || 'Считаем рынок…')
     : '🔒 Пока недоступна';

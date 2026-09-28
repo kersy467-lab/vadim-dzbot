@@ -813,6 +813,11 @@ def test_keyboards_and_fastapi():
 
     res_health = client.get("/health")
     assert res_health.status_code == 200
+    assert res_health.json() == {"status": "ok"}
+
+    res_health_head = client.head("/health")
+    assert res_health_head.status_code == 200
+    assert len(res_health_head.content) == 0
 
     res_app = client.get("/app")
     assert res_app.status_code == 200

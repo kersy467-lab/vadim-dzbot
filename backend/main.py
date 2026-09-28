@@ -247,11 +247,13 @@ app.middleware("http")(enforce_api_access)
 # Include API routes
 app.include_router(api_router)
 
-# Healthcheck for Cloudflare Worker & Render
-@app.get("/health")
-async def health_check():
-    from backend.bot.services.startup_notify import get_latest_commit_title
-    return {"status": "ok", "service": "class-bot", "commit": get_latest_commit_title()}
+# Healthcheck for Cloudflare Worker, Render & external monitors (cron-job.org)
+@app.api_route("/health", methods=["GET", "HEAD"])
+@app.api_route("/health/", methods=["GET", "HEAD"])
+async def health_check(request: Request):
+    if request.method == "HEAD":
+        return Response(content=b"", status_code=200, media_type="application/json", headers={"Content-Length": "0"})
+    return Response(content=b'{"status":"ok"}', status_code=200, media_type="application/json")
 
 @app.get("/favicon.ico")
 async def favicon():
@@ -274,8 +276,6 @@ class SmartCacheStaticFiles(StaticFiles):
         if "pragma" in response.headers:
             del response.headers["pragma"]
         return response
-
-
 
 # Static files for Telegram Mini App
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")

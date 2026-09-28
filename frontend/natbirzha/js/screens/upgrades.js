@@ -1,7 +1,7 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getBuildingName, getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
-import { renderHybridManager } from './hybrids.js?v=20260927_ai_hybrids_v1&release=20260927_hospital_v2';
+import { renderHybridManager } from './hybrids.js?v=20260928_joint_factory_slot_v1&release=20260928_city_orders_v1';
 
 const LABELS = {
   workers: '👷 Работники',

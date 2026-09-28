@@ -18,7 +18,7 @@ from backend.natbirzha.models.city_orders import (
 )
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import NatStateTreasury
-from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
+from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
 from backend.natbirzha.services.city_order_rates import (
     active_city_order_industries, primary_output, sector_output_rate,
 )
@@ -31,6 +31,7 @@ from backend.natbirzha.services.state_treasury_service import StateTreasuryServi
 class CityOrderService:
     ORDER_INTERVAL = timedelta(minutes=30)
     ORDER_TTL = timedelta(hours=1)
+    PRICE_PREMIUM_PCT = 20
     order_model = NatCityOrder
 
     @classmethod
@@ -71,7 +72,8 @@ class CityOrderService:
         if output is None:
             return {"created": False, "reason": "industry_has_no_priced_output", "expired_count": expired_count}
         item_id, starter = output
-        price = Decimal(str(CANONICAL_ITEMS[item_id]["base_price"]))
+        reference_price = Decimal(str(get_item_base_price(item_id)))
+        price = money(reference_price * (Decimal("1") + Decimal(cls.PRICE_PREMIUM_PCT) / Decimal("100")))
         hourly_rate = await sector_output_rate(session, industry, item_id, starter)
         quantity = cls._quantity(Decimal(str(hourly_rate)) * Decimal("0.5"))
         if quantity <= 0:

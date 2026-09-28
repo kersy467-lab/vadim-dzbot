@@ -15,7 +15,7 @@ from backend.natbirzha.services.business_resource_service import consume_busines
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 
 
-GLOBAL_ACTIVE_HYBRID_LIMIT = 4
+GLOBAL_ACTIVE_HYBRID_LIMIT = 5
 _HYBRID_GLOBAL_LOCK_KEY = 0x4E41544859425249
 
 _SOURCE_STATUSES = frozenset({
@@ -111,7 +111,9 @@ class HybridMergerService:
             select(func.count(NatHybridMerger.id)).where(NatHybridMerger.status == "ACTIVE")
         ) or 0)
         if active_count >= GLOBAL_ACTIVE_HYBRID_LIMIT:
-            raise ValueError("Достигнут глобальный максимум: одновременно доступны только 4 гибрида")
+            raise ValueError(
+                f"Достигнут глобальный максимум: одновременно доступны только {GLOBAL_ACTIVE_HYBRID_LIMIT} гибридов"
+            )
 
         source_a, source_b = await cls._locked_sources(
             session,

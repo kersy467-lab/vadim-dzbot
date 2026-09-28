@@ -172,10 +172,63 @@ def test_order_quantity_uses_active_output_or_starter_and_shrinks_to_treasury() 
                 order = result["order"]
                 price = Decimal(str(CANONICAL_ITEMS[order["item_id"]]["base_price"]))
                 treasury = await session.get(NatStateTreasury, 1)
-                assert order["unit_price"] == float(price)
+                assert order["unit_price"] == float(price * Decimal("1.20"))
                 assert Decimal(str(order["reserved_cash"])) <= Decimal("1.00")
                 assert Decimal(str(treasury.cash)) >= 0
                 assert order["quantity"] > 0
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_ai_city_order_pays_market_reference_plus_twenty_percent(monkeypatch) -> None:
+    async def check() -> None:
+        engine, sessions, company_ids = await _fixture()
+        now = datetime(2026, 9, 26, 12, 0)
+        try:
+            monkeypatch.setattr(
+                "backend.natbirzha.services.city_order_service.active_city_order_industries",
+                lambda: ["ai_data"],
+            )
+            monkeypatch.setattr(
+                "backend.natbirzha.services.city_order_service.primary_output",
+                lambda _industry: (
+                    "ai_compute",
+                    {"outputs_per_hour": {"ai_compute": 160.0}},
+                ),
+            )
+
+            async def output_rate(_session, _industry, _item_id, _starter):
+                return 160.0
+
+            monkeypatch.setattr(
+                "backend.natbirzha.services.city_order_service.sector_output_rate",
+                output_rate,
+            )
+
+            async with sessions() as session:
+                result = await CityOrderService.issue_due(session, now=now)
+                order = result["order"]
+                assert order["item_id"] == "ai_compute"
+                assert order["quantity"] == pytest.approx(80.0)
+                assert order["unit_price"] == pytest.approx(90.0)
+                assert order["reserved_cash"] == pytest.approx(7_200.0)
+
+                session.add(NatInventory(
+                    company_id=company_ids[0], item_id="ai_compute", quantity=80.0,
+                    avg_cost_basis=65.0,
+                ))
+                await session.flush()
+                payout = await CityOrderService.deliver(
+                    session, company_ids[0], order["id"], 80.0,
+                    idempotency_key="ai-city-order-80",
+                    now=now + timedelta(minutes=1),
+                )
+                assert payout["cash_amount"] == pytest.approx(7_200.0)
+                company = await session.get(NatCompany, company_ids[0])
+                assert company.cash == pytest.approx(8_200.0)
                 await session.commit()
         finally:
             await engine.dispose()

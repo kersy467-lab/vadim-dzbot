@@ -400,6 +400,8 @@ assert(upgradeScreenCode.includes('renderHybridManager') && hybridScreenCode.inc
   'upgrade screen must provide access to industry hybrid enterprises');
 assert(hybridScreenCode.includes('active_hybrid_limit') && hybridScreenCode.includes('sellHybrid'),
   'hybrid screen must explain the global cap and allow selling a hybrid');
+assert(hybridScreenCode.includes('active_hybrid_limit || 5') && !hybridScreenCode.includes('4/4'),
+  'hybrid screen must show the server-provided five-slot world capacity');
 assert(natApiCode.includes('getHybridCatalog:') && natApiCode.includes('openHybrid:') && natApiCode.includes('sellHybrid:'),
   'hybrid API client must support discovery, formation and sale');
 

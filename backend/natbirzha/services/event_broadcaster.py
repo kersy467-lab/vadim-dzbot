@@ -95,12 +95,10 @@ class EventBroadcaster:
                 return False
 
             candidates: list[int] = []
-            if cls._cached_chat_id is not None:
-                candidates.append(cls._cached_chat_id)
-
             cfg_id = cls.get_configured_chat_id()
-            if cfg_id not in candidates:
-                candidates.append(cfg_id)
+            candidates.append(cfg_id)
+            if cls._cached_chat_id is not None and cls._cached_chat_id not in candidates:
+                candidates.append(cls._cached_chat_id)
 
             for known_id in (-1004491945174, -4491945174, -5495179388, -1005495179388):
                 if known_id not in candidates:

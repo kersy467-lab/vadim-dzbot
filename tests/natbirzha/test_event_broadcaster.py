@@ -268,6 +268,22 @@ def test_fallback_to_supergroup_chat_id():
     asyncio.run(run())
 
 
+def test_configured_events_chat_is_tried_before_a_stale_cached_group():
+    async def run():
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock(return_value=True)
+        EventBroadcaster._cached_chat_id = -1005495179388
+
+        with patch.object(EventBroadcaster, "_get_bot", return_value=mock_bot), \
+             patch.object(EventBroadcaster, "get_configured_chat_id", return_value=-1004491945174):
+            success = await EventBroadcaster.send_message("City order")
+
+        assert success is True
+        assert mock_bot.send_message.call_args_list[0].kwargs["chat_id"] == -1004491945174
+
+    asyncio.run(run())
+
+
 def test_broadcast_creator_warning_with_owner_tag():
     async def run():
         mock_bot = MagicMock()

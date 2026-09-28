@@ -96,6 +96,10 @@ def test_server_owned_hybrid_recipes_cover_every_active_industry() -> None:
         assert all(quantity > 0 for quantity in recipe["resource_requirements"].values())
 
 
+def test_global_active_hybrid_capacity_has_five_slots() -> None:
+    assert GLOBAL_ACTIVE_HYBRID_LIMIT == 5
+
+
 def test_each_hybrid_has_a_balanced_resource_production_spec() -> None:
     assert {recipe["specialization"] for recipe in HYBRID_RECIPES.values()} == set(INDUSTRIES)
     for recipe in HYBRID_RECIPES.values():
@@ -129,6 +133,8 @@ def test_hybrid_catalog_shows_upgrade_target_level() -> None:
                 source.stage = 25
                 source.upgrade_target_stage = 26
                 data = await hybrid_catalog(company, session)
+                assert data["active_hybrid_limit"] == 5
+                assert data["global_slots_available"] == 5
                 row = next(item for item in data["businesses"] if item["id"] == source.id)
                 assert row["stage"] == 25
                 assert row["target_stage"] == 26
@@ -151,7 +157,7 @@ def test_global_active_hybrid_limit_is_shared_across_companies() -> None:
                     )
                     opened_hybrids.append(opened)
                 await session.flush()
-                with pytest.raises(ValueError, match="максимум.*4|4.*гибрид"):
+                with pytest.raises(ValueError, match="максимум.*5|5.*гибрид"):
                     last_sources = await _source_ids(company_ids[GLOBAL_ACTIVE_HYBRID_LIMIT], session)
                     await HybridMergerService.open_hybrid(
                         session,

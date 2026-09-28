@@ -15,7 +15,9 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.hybrid_mergers import NatHybridMerger
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.auth_service import get_current_company
-from backend.natbirzha.services.hybrid_merger_service import HybridMergerService
+from backend.natbirzha.services.hybrid_merger_service import (
+    GLOBAL_ACTIVE_HYBRID_LIMIT, HybridMergerService,
+)
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 
 
@@ -134,8 +136,8 @@ async def hybrid_catalog(
         "specialization": company.specialization,
         "company_cash": round(float(company.cash), 2),
         "active_hybrids": active_global,
-        "active_hybrid_limit": 4,
-        "global_slots_available": max(0, 4 - active_global),
+        "active_hybrid_limit": GLOBAL_ACTIVE_HYBRID_LIMIT,
+        "global_slots_available": max(0, GLOBAL_ACTIVE_HYBRID_LIMIT - active_global),
         "company_hybrids": active_rows,
         "businesses": business_rows,
         "recipes": recipe_rows,

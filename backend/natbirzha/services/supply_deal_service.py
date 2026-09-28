@@ -33,8 +33,20 @@ class SupplyDealService:
     MAX_DISCOUNT_PCT = 50.0
     MAX_PROFIT_SHARE_PCT = 50.0
     MAX_QUANTITY_PER_HOUR = 1_000_000.0
-    DELIVERY_BATCH_SIZE = 100.0
+    DELIVERY_BATCH_SIZE = 10.0
+    WATER_DELIVERY_BATCH_SIZE = 100.0
+    HIGH_VALUE_DELIVERY_BATCH_SIZE = 2.0
+    HIGH_VALUE_PRICE_THRESHOLD = 500.0
     STATUSES = frozenset({"PENDING", "ACTIVE", "COMPLETED", "REJECTED", "CANCELLED", "BREACHED"})
+
+    @classmethod
+    def delivery_batch_size(cls, item_id: str, reference_price: float) -> float:
+        """Choose a full-lot transfer size based on the resource's market value."""
+        if item_id == "water":
+            return cls.WATER_DELIVERY_BATCH_SIZE
+        if math.isfinite(float(reference_price)) and float(reference_price) > cls.HIGH_VALUE_PRICE_THRESHOLD:
+            return cls.HIGH_VALUE_DELIVERY_BATCH_SIZE
+        return cls.DELIVERY_BATCH_SIZE
 
     @staticmethod
     async def current_reference_price(session: AsyncSession, item_id: str, *, exclude_company_id: int) -> float:
@@ -622,7 +634,7 @@ class SupplyDealService:
         end: datetime,
         now: datetime,
     ) -> list[dict[str, Any]]:
-        """Transfer fixed 100-unit batches once accumulated deal quota permits them."""
+        """Transfer fixed item-specific batches once accumulated deal quota permits them."""
         seconds = max(0.0, (end - start).total_seconds())
         if seconds <= 1e-6:
             return []
@@ -651,12 +663,6 @@ class SupplyDealService:
                 NatInventory.company_id == buyer.id, NatInventory.item_id == deal.item_id
             ).with_for_update())
             buyer_quantity = float(inventory.quantity) if inventory else 0.0
-            batch_size = cls.DELIVERY_BATCH_SIZE
-            # A contract replenishes a depleted input stock in complete lots;
-            # it never dribbles out the current tick's 1–2 unit consumption.
-            if buyer_quantity >= batch_size - 1e-9:
-                continue
-
             accrued_seconds = max(
                 0.0,
                 (active_end - normalize_dt(deal.starts_at)).total_seconds(),
@@ -664,14 +670,24 @@ class SupplyDealService:
             accrued_quota = float(deal.quantity_per_hour) * accrued_seconds / 3600
             already_delivered = await cls._delivered_through(session, deal.id, active_end)
             remaining_quota = max(0.0, accrued_quota - already_delivered)
-            if remaining_quota + 1e-9 < batch_size:
+            minimum_batch = cls.HIGH_VALUE_DELIVERY_BATCH_SIZE
+            if remaining_quota + 1e-9 < minimum_batch:
                 continue
             supplier_inventory = await session.scalar(select(NatInventory).where(
                 NatInventory.company_id == deal.supplier_company_id,
                 NatInventory.item_id == deal.item_id,
             ).with_for_update())
             supplier_available = float(supplier_inventory.available_quantity) if supplier_inventory else 0.0
+            if supplier_available + 1e-9 < minimum_batch:
+                continue
             reference = await cls.current_reference_price(session, deal.item_id, exclude_company_id=buyer.id)
+            batch_size = cls.delivery_batch_size(deal.item_id, reference)
+            # Contracts transfer complete item-specific lots, never a trickle
+            # of the current production tick's fractional input consumption.
+            if buyer_quantity >= batch_size - 1e-9:
+                continue
+            if remaining_quota + 1e-9 < batch_size:
+                continue
             unit_price = round(max(0.000001, reference * (1 - float(deal.discount_pct) / 100)), 6)
             storage_cap = await InventoryCapacityService.for_item(
                 session, buyer, deal.item_id

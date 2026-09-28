@@ -395,7 +395,7 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         stage=1, status="ACTIVE", last_settled_at=start,
     )
     supplier_stock = NatInventory(
-        company_id=supplier.id, item_id="energy", quantity=99, avg_cost_basis=1,
+        company_id=supplier.id, item_id="energy", quantity=9, avg_cost_basis=1,
     )
     buyer_inputs = [
         NatInventory(company_id=buyer.id, item_id=item, quantity=100, avg_cost_basis=1)
@@ -416,48 +416,90 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         )
         price = reference * 0.8
         before_buyer_cash, before_supplier_cash = buyer.cash, supplier.cash
-        too_early = await SupplyDealService.fulfill_resource_interval(
+        too_little_stock = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
             start=start, end=start + timedelta(minutes=15), now=now,
         )
-        assert too_early == []  # accrued quota is below one full 100-unit batch
+        assert too_little_stock == []  # supplier cannot fill a complete 10-unit batch
+        supplier_stock.quantity = 10
         transfers = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
-            start=start + timedelta(minutes=15), end=start + timedelta(hours=1), now=now,
-        )
-        assert transfers == []  # supplier only has 99; deals never send partial batches
-        supplier_stock.quantity = 107
-        transfers = await SupplyDealService.fulfill_resource_interval(
-            session, buyer, buyer_business, spec,
-            start=start + timedelta(minutes=15), end=start + timedelta(hours=1), now=now,
+            start=start, end=start + timedelta(minutes=15), now=now,
         )
         assert len(transfers) == 1
-        assert transfers[0]["quantity"] == 100
+        assert transfers[0]["quantity"] == 10
         buyer_energy = await session.scalar(select(NatInventory).where(
             NatInventory.company_id == buyer.id, NatInventory.item_id == "energy"
         ))
-        assert buyer_energy is not None and buyer_energy.quantity == 100
-        assert supplier_stock.quantity == 7
-        assert abs((before_buyer_cash - buyer.cash) - 100 * price) < 1e-5
-        assert abs((supplier.cash - before_supplier_cash) - 100 * price) < 1e-5
+        assert buyer_energy is not None and buyer_energy.quantity == 10
+        assert supplier_stock.quantity == 0
+        assert abs((before_buyer_cash - buyer.cash) - 10 * price) < 1e-5
+        assert abs((supplier.cash - before_supplier_cash) - 10 * price) < 1e-5
         period_start, _ = get_period_bounds(now)
         seller_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
             NatCompanyProfitPeriod.company_id == supplier.id,
             NatCompanyProfitPeriod.period_start == period_start,
         ))
         assert seller_profit is not None
-        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 100.0)
+        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 10.0)
 
         buyer_energy.quantity = 0
         buyer.cash = 0
-        supplier_stock.quantity = 100
+        supplier_stock.quantity = 10
         no_cash = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
-            start=start + timedelta(hours=1), end=start + timedelta(hours=2), now=now,
+            start=start + timedelta(minutes=15), end=start + timedelta(minutes=30), now=now,
         )
         assert no_cash == []
         assert buyer.cash == 0
-        assert supplier_stock.quantity == 100
+        assert supplier_stock.quantity == 10
+        await session.commit()
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+async def _high_value_resource_uses_two_unit_batches() -> None:
+    engine, session, buyer, supplier = await _fixture()
+    start = get_game_now().replace(microsecond=0)
+    supplier.specialization = "technoprom"
+    supplier_business = await session.scalar(select(NatBusiness).where(
+        NatBusiness.company_id == supplier.id
+    ))
+    supplier_business.business_type = "server_center_v2"
+    supplier_business.specialization = "technoprom"
+    buyer_business = NatBusiness(
+        company_id=buyer.id, business_type="cloud_ai_center", specialization="ai_data",
+        stage=1, status="ACTIVE", last_settled_at=start,
+    )
+    stock = NatInventory(
+        company_id=supplier.id, item_id="servers", quantity=2, avg_cost_basis=500,
+    )
+    session.add_all((buyer_business, stock))
+    await session.flush()
+    try:
+        offer = await SupplyDealService.create_offer(
+            session, buyer, supplier_company_id=supplier.id, item_id="servers",
+            quantity_per_hour=10, discount_pct=0, term_seconds=1800,
+            reward_type="PROFIT_SHARE", profit_share_pct=1, now=start,
+        )
+        await SupplyDealService.accept(session, supplier, offer.id, now=start)
+        reference = await SupplyDealService.current_reference_price(
+            session, "servers", exclude_company_id=buyer.id,
+        )
+        assert reference > 500
+        transfers = await SupplyDealService.fulfill_resource_interval(
+            session, buyer, buyer_business, get_business_spec("cloud_ai_center"),
+            start=start, end=start + timedelta(minutes=12), now=start + timedelta(minutes=12),
+        )
+        assert len(transfers) == 1
+        assert transfers[0]["quantity"] == 2
+        assert stock.quantity == 0
+        buyer_stock = await session.scalar(select(NatInventory).where(
+            NatInventory.company_id == buyer.id, NatInventory.item_id == "servers",
+        ))
+        assert buyer_stock is not None and buyer_stock.quantity == 2
+        assert buyer.cash == pytest.approx(100_000 - 2 * reference)
         await session.commit()
     finally:
         await session.close()
@@ -566,6 +608,7 @@ async def run_async() -> None:
     await _fixed_payout_is_atomic()
     await _concurrent_accept_cannot_double_pay()
     await _delivery_respects_supplier_inventory_demand_quota_and_cash()
+    await _high_value_resource_uses_two_unit_batches()
     await _offline_interval_intersects_only_active_deal_time()
     await _profit_share_is_positive_only_and_idempotent()
     await _api_rejects_non_participants()
@@ -575,6 +618,13 @@ async def run_async() -> None:
 
 def test_player_supply_deals() -> None:
     asyncio.run(run_async())
+
+
+def test_deal_delivery_batch_size_preserves_water_and_scales_other_items() -> None:
+    assert SupplyDealService.delivery_batch_size("water", 2.0) == 100
+    assert SupplyDealService.delivery_batch_size("water", 900.0) == 100
+    assert SupplyDealService.delivery_batch_size("energy", 500.0) == 10
+    assert SupplyDealService.delivery_batch_size("servers", 500.01) == 2
 
 
 if __name__ == "__main__":

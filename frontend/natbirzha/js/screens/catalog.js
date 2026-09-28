@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 

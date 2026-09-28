@@ -62,45 +62,70 @@ class NPCQuotaMixin:
         item_id: str,
         action: str,
     ) -> Dict[str, Any]:
+        return (await cls.get_quota_statuses(session, [item_id], action))[item_id]
+
+    @classmethod
+    async def get_quota_statuses(
+        cls,
+        session: AsyncSession,
+        item_ids: list[str],
+        action: str,
+    ) -> Dict[str, Dict[str, Any]]:
         action = action.upper()
-        quota_info = await cls.get_daily_quota(session, item_id, action)
-        quota = quota_info["daily_quota"]
-        if quota is None:
-            return {
-                **quota_info,
-                "remaining_npc_quota": None,
-                "remaining_npc_cash_quota": None,
-                "quota_label": "Скупка Госрезервом: без ограничений" if action == "SELL" else "",
-            }
-        usage = await session.scalar(
-            select(NatNpcDailyVolume).where(
-                NatNpcDailyVolume.calendar_date == get_game_today(),
-                NatNpcDailyVolume.item_id == item_id,
-                NatNpcDailyVolume.action == action,
-            )
-        )
-        if action == "SELL":
-            unit_price = get_npc_buy_price(item_id)
-            cash_limit = float(quota_info["daily_quota_cash"] or 0.0)
-            remaining_cash = max(
-                0.0,
-                round(
-                    cash_limit - (float(usage.used_cash) if usage else 0.0),
-                    2,
-                ),
-            )
-            quantity_remaining = max(0.0, float(quota) - (float(usage.used_quantity) if usage else 0.0))
-            remaining = min(quantity_remaining, remaining_cash / max(0.01, unit_price))
-        else:
-            used = float(usage.used_quantity) if usage else 0.0
-            remaining = max(0.0, float(quota) - used)
-            remaining_cash = None
-        return {
-            **quota_info,
-            "remaining_npc_quota": remaining,
-            "remaining_npc_cash_quota": remaining_cash,
-            "quota_label": cls._quota_label(item_id, action, float(quota), remaining),
+        quota_info_by_item = {
+            item_id: await cls.get_daily_quota(session, item_id, action)
+            for item_id in item_ids
         }
+        limited_item_ids = [
+            item_id for item_id, quota_info in quota_info_by_item.items()
+            if quota_info["daily_quota"] is not None
+        ]
+        usage_by_item = {}
+        if limited_item_ids:
+            usages = (await session.execute(
+                select(NatNpcDailyVolume).where(
+                    NatNpcDailyVolume.calendar_date == get_game_today(),
+                    NatNpcDailyVolume.item_id.in_(limited_item_ids),
+                    NatNpcDailyVolume.action == action,
+                )
+            )).scalars().all()
+            usage_by_item = {usage.item_id: usage for usage in usages}
+
+        statuses = {}
+        for item_id, quota_info in quota_info_by_item.items():
+            quota = quota_info["daily_quota"]
+            usage = usage_by_item.get(item_id)
+            if quota is None:
+                statuses[item_id] = {
+                    **quota_info,
+                    "remaining_npc_quota": None,
+                    "remaining_npc_cash_quota": None,
+                    "quota_label": "Скупка Госрезервом: без ограничений" if action == "SELL" else "",
+                }
+                continue
+            if action == "SELL":
+                unit_price = get_npc_buy_price(item_id)
+                cash_limit = float(quota_info["daily_quota_cash"] or 0.0)
+                remaining_cash = max(
+                    0.0,
+                    round(cash_limit - (float(usage.used_cash) if usage else 0.0), 2),
+                )
+                quantity_remaining = max(
+                    0.0,
+                    float(quota) - (float(usage.used_quantity) if usage else 0.0),
+                )
+                remaining = min(quantity_remaining, remaining_cash / max(0.01, unit_price))
+            else:
+                used = float(usage.used_quantity) if usage else 0.0
+                remaining = max(0.0, float(quota) - used)
+                remaining_cash = None
+            statuses[item_id] = {
+                **quota_info,
+                "remaining_npc_quota": remaining,
+                "remaining_npc_cash_quota": remaining_cash,
+                "quota_label": cls._quota_label(item_id, action, float(quota), remaining),
+            }
+        return statuses
 
     @classmethod
     async def _reserve_volume(

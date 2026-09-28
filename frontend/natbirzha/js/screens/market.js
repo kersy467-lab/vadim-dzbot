@@ -1,29 +1,34 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { disposeCurrentScreen } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
+import { getItemInfo, ITEMS } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260928_ai_compute_fix_v1';
-import { createMarketSectionLoader } from './market_section_loader.js?v=20260928_mobile_perf_v1';
-import { renderCommodityOrderbookView } from './market_orderbook_view.js?v=20260928_mobile_perf_v1';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260928_market_frontend_perf_v1';
+import { createMarketSectionLoader } from './market_section_loader.js?v=20260928_market_frontend_perf_v1';
+import { renderCommodityOrderbookView } from './market_orderbook_view.js?v=20260928_market_frontend_perf_v1';
 
-const MARKET_ITEMS = [
-  { id: 'steel', name: 'Сталь', unit: 'т', base: 90.0, buy: 72.0, sell: 135.0 },
-  { id: 'iron_ore', name: 'Железная руда', unit: 'т', base: 35.0, buy: 28.0, sell: 52.5 },
-  { id: 'coal', name: 'Каменный уголь', unit: 'т', base: 30.0, buy: 24.0, sell: 45.0 },
-  { id: 'energy', name: 'Электроэнергия', unit: 'МВт·ч', base: 10.0, buy: 8.0, sell: 15.0 },
-  { id: 'oil_crude', name: 'Сырая нефть', unit: 'барр.', base: 50.0, buy: 40.0, sell: 75.0 },
-  { id: 'fuel_diesel', name: 'Дизельное топливо', unit: 'л', base: 1.2, buy: 0.96, sell: 1.8 },
-  { id: 'grain', name: 'Зерно', unit: 'т', base: 20.0, buy: 16.0, sell: 30.0 },
-  { id: 'fertilizer', name: 'Удобрения', unit: 'т', base: 50.0, buy: 40.0, sell: 75.0 },
-  { id: 'wood_raw', name: 'Лес-кругляк', unit: 'м³', base: 25.0, buy: 20.0, sell: 37.5 },
-  { id: 'aluminum', name: 'Алюминий', unit: 'т', base: 110.0, buy: 88.0, sell: 165.0 },
+const SEED_MARKET_ITEMS = [
+  { id: 'steel', name: 'Сталь', unit: 'т' },
+  { id: 'iron_ore', name: 'Железная руда', unit: 'т' },
+  { id: 'coal', name: 'Каменный уголь', unit: 'т' },
+  { id: 'energy', name: 'Электроэнергия', unit: 'МВт·ч' },
+  { id: 'oil_crude', name: 'Сырая нефть', unit: 'барр.' },
+  { id: 'fuel_diesel', name: 'Дизельное топливо', unit: 'л' },
+  { id: 'grain', name: 'Зерно', unit: 'т' },
+  { id: 'fertilizer', name: 'Удобрения', unit: 'т' },
+  { id: 'wood_raw', name: 'Лес-кругляк', unit: 'м³' },
+  { id: 'aluminum', name: 'Алюминий', unit: 'т' },
 ];
+const SEEDED_ITEM_IDS = new Set(SEED_MARKET_ITEMS.map((item) => item.id));
+const MARKET_ITEMS = [
+  ...SEED_MARKET_ITEMS,
+  ...Object.entries(ITEMS)
+    .filter(([itemId]) => !SEEDED_ITEM_IDS.has(itemId))
+    .map(([id, item]) => ({ id, name: item.name, unit: item.unit })),
+].map((item) => ({ ...item, base: null, buy: null, sell: null }));
 
-// The server's NPC-rate registry is the source of truth.  Keep the small
-// seed list for a fast first render, then merge every server item into it so
-// production outputs (for example natural gas and copper) are never hidden
-// just because the frontend seed list was not updated.
+// The local canonical item registry provides an immediate full catalog.
+// Server NPC rates are merged only for the selected material's detail view.
 export function mergeNpcRatesIntoMarketItems(rates, seedItems = MARKET_ITEMS) {
   const items = seedItems.map(item => ({ ...item }));
   for (const rate of Array.isArray(rates) ? rates : []) {
@@ -97,6 +102,7 @@ export async function renderMarket(container, showToast) {
   let orderbookRequestId = 0;
   let marketDataPromise = null;
   let marketDataLoaded = false;
+  let companyInputPromise = null;
   let companyInputIds = [];
   const commodityCatalogState = { category: 'search', query: '', liquidityLoaded: false };
 
@@ -104,21 +110,14 @@ export async function renderMarket(container, showToast) {
     if (marketDataLoaded) return;
     if (!marketDataPromise) {
       marketDataPromise = Promise.all([
-        NatAPI.getNpcRates().catch(() => null),
         NatAPI.getRecipes().catch(() => null),
         NatAPI.getBusinessCatalog().catch(() => ({ items: [] })),
-        NatAPI.getEmpireSummary().catch(() => null),
-      ]).then(([ratesData, loadedRecipes, businessCatalog, empireSummary]) => {
+      ]).then(([loadedRecipes, businessCatalog]) => {
         recipesData = loadedRecipes || recipesData;
-        if (Array.isArray(ratesData?.rates)) {
-          marketItems = mergeNpcRatesIntoMarketItems(ratesData.rates, marketItems);
-        }
         const industryOutputs = getIndustryOutputIds(
           store.company?.specialization, recipesData.recipes, businessCatalog?.items || []
         );
-        companyInputIds = getCompanyInputIds(
-          empireSummary?.businesses, store.factories, recipesData.recipes
-        );
+        companyInputIds = getCompanyInputIds([], store.factories, recipesData.recipes);
         marketItems = prioritizeIndustryItems(ensureIndustryProductsAvailable(marketItems, industryOutputs), industryOutputs);
         marketDataLoaded = true;
         return companyInputIds;
@@ -127,16 +126,28 @@ export async function renderMarket(container, showToast) {
     return marketDataPromise;
   }
 
-  async function loadOrderbook() {
-    const requestId = ++orderbookRequestId;
+  async function ensureCompanyInputs() {
+    await ensureMarketData();
+    if (!companyInputPromise) {
+      companyInputPromise = NatAPI.getEmpireSummary().catch(() => null).then((summary) => {
+        companyInputIds = getCompanyInputIds(
+          summary?.businesses, store.factories, recipesData.recipes
+        );
+        return companyInputIds;
+      });
+    }
+    return companyInputPromise;
+  }
+
+  async function loadOrderbook(itemId = selectedItemId, requestId = ++orderbookRequestId) {
     orderbookData = null;
     try {
-      const data = await NatAPI.getOrderbook(selectedItemId);
-      if (requestId !== orderbookRequestId) return false;
+      const data = await NatAPI.getOrderbook(itemId);
+      if (requestId !== orderbookRequestId || itemId !== selectedItemId) return false;
       orderbookData = data;
       return true;
     } catch (err) {
-      if (requestId !== orderbookRequestId) return false;
+      if (requestId !== orderbookRequestId || itemId !== selectedItemId) return false;
       console.error('Failed to load orderbook:', err);
       return false;
     }
@@ -144,26 +155,37 @@ export async function renderMarket(container, showToast) {
 
 
 
-  async function refreshNpcRates() {
-    const data = await NatAPI.getNpcRates().catch(() => null);
+  async function refreshNpcRates(itemId = selectedItemId, requestId = orderbookRequestId) {
+    const data = await NatAPI.getNpcRates(itemId).catch(() => null);
+    if (requestId !== orderbookRequestId || itemId !== selectedItemId) return null;
     if (data && Array.isArray(data.rates)) {
       marketItems = mergeNpcRatesIntoMarketItems(data.rates, marketItems);
     }
     return data;
   }
   function renderCommodityBrowser() {
-    if (!marketDataLoaded) return;
+    orderbookRequestId += 1;
     renderCommodityCatalog(container, {
       items: marketItems,
       inventory: store.inventory,
       inputIds: companyInputIds,
       state: commodityCatalogState,
       loadLiquidity: () => NatAPI.getMarketLiquidity(),
+      loadCompanyInputs: ensureCompanyInputs,
       onBack: renderMarketHome,
       onSelect: async (itemId) => {
         if (!marketItems.some((item) => item.id === itemId)) return;
+        sectionLoader.invalidate();
         selectedItemId = itemId;
-        await loadOrderbook();
+        const requestId = ++orderbookRequestId;
+        orderbookData = null;
+        container.innerHTML = `<div class="market-contrast-surface max-w-md mx-auto p-8 text-center text-sm text-slate-400"><button type="button" class="market-back mb-4 text-xs font-bold text-pink-500">← Список сырья</button><div>Загружаем котировку и стакан…</div></div>`;
+        container.querySelector('.market-back')?.addEventListener('click', renderCommodityBrowser);
+        await Promise.all([
+          loadOrderbook(itemId, requestId),
+          refreshNpcRates(itemId, requestId),
+        ]);
+        if (requestId !== orderbookRequestId || !container.isConnected) return;
         renderView();
       },
     });
@@ -171,6 +193,7 @@ export async function renderMarket(container, showToast) {
 
   function renderMarketHome() {
     sectionLoader.invalidate();
+    orderbookRequestId += 1;
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bankruptcy_market"><div class="text-2xl">🏭</div><div class="font-black mt-2">Рынок банкротов</div><div class="text-xs text-slate-500">Заводы конфискованных компаний, наценка государства 30%</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% от чистой прибыли каждые 12 часов, задолженность и штрафы</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_credit"><div class="text-2xl">🏦</div><div class="font-black mt-2">Кредит государства</div><div class="text-xs text-slate-500">Ставка повышена до 20% в день · выдача после одобрения</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left border border-cyan-300/60" data-section="city_orders"><div class="text-2xl">🏙️</div><div class="font-black mt-2">Заказы города</div><div class="text-xs text-slate-500">Сдавайте ресурсы в госзаказы и получайте оплату</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left border border-indigo-300/60" data-section="deals"><div class="text-2xl">🤝</div><div class="font-black mt-2">Сделки</div><div class="text-xs text-slate-500">Договорные поставки между компаниями</div></button></div></div>`;
     container.querySelectorAll('.market-section-btn').forEach((button) => button.addEventListener('click', () => {
       void sectionLoader.open(button.dataset.section);

@@ -22,3 +22,17 @@
 1. Запустить проверку синтаксиса: `python -m py_compile ...` (для Python) или `node -c ...` (для JS).
 2. Запустить полный набор тестов проекта: `python tests/test_suite.py`.
 3. Убедиться, что нет циклических импортов (`Circular Import`) и все тесты проходят со статусом `=== ALL TESTS PASSED SUCCESSFULLY! ZERO ERRORS! ===`.
+
+## 4. Git и деплой — обязательные правила пользователя
+- Всегда выполнять команды из `C:\Users\User\Documents\antigravity\mysterious-darwin\dzbot`.
+- Для каждой команды Git указывать `-c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot`.
+- В PowerShell перед Git-командами, которым может понадобиться сеть, задавать `$env:GIT_TERMINAL_PROMPT=0`.
+- Стандартный коммит: добавить все файлы, относящиеся к завершённой задаче, и создать коммит с понятным сообщением.
+- Полный деплой всегда отправляет один и тот же коммит в обе ветки (`main` и `dev`) каждого из трёх remote (`origin`, `vadim`, `mybot`):
+  1. `git -c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot push origin main`
+  2. `git -c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot push origin dev`
+  3. `git -c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot push vadim main`
+  4. `git -c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot push vadim dev`
+  5. `git -c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot push mybot main`
+  6. `git -c safe.directory=C:/Users/User/Documents/antigravity/mysterious-darwin/dzbot push mybot dev`
+- До отправки синхронизировать локальные `main` и `dev` на коммите деплоя; после отправки проверить, что все шесть remote-веток указывают на него.

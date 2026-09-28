@@ -244,7 +244,9 @@ export const NatAPI = {
   cancelJointFactoryProposal: (proposal_id) => request(`/api/natbirzha/joint-factories/proposals/${parseInt(proposal_id, 10)}/cancel`, { method: 'POST' }),
   requestJointFactoryUpgrade: (factory_id) => request(`/api/natbirzha/joint-factories/${parseInt(factory_id, 10)}/upgrade`, { method: 'POST' }),
   claimJointFactory: (factory_id) => request(`/api/natbirzha/joint-factories/${parseInt(factory_id, 10)}/claim`, { method: 'POST' }),
-  getNpcRates: () => request('/api/natbirzha/market/npc/rates'),
+  getNpcRates: (itemId = null) => request(
+    `/api/natbirzha/market/npc/rates${itemId ? `?item_id=${encodeURIComponent(itemId)}` : ''}`
+  ),
   placeOrder: (payload) => request('/api/natbirzha/market/order/place', { method: 'POST', body: JSON.stringify(payload) }),
   cancelOrder: (order_id) => request('/api/natbirzha/market/order/cancel', { method: 'POST', body: JSON.stringify({ order_id: parseInt(order_id, 10) }) }),
   npcTrade: (payload) => request('/api/natbirzha/market/npc/trade', { method: 'POST', body: JSON.stringify(payload) }),

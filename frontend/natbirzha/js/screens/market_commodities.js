@@ -88,15 +88,15 @@ export function renderCommodityCatalog(container, options) {
   const rows = visibleItems.map((item) => {
     const meta = getItemInfo(item.id);
     const unit = item.unit || meta.unit || 'шт.';
-    const priceLabel = state.category === 'industry'
-      ? `Скупка NPC · ${formatPrice(item.buy)} cash/${escapeMarketText(unit)}`
+    const categoryLabel = state.category === 'industry'
+      ? 'Моя продукция'
       : state.category === 'needed'
-        ? `Продажа NPC · ${formatPrice(item.sell)} cash/${escapeMarketText(unit)}`
-        : `Сдать ${formatPrice(item.buy)} · купить ${formatPrice(item.sell)} cash/${escapeMarketText(unit)}`;
+        ? 'Входное сырьё'
+        : 'Открыть стакан';
     const stock = Number(inventory?.[item.id] || 0);
     return `<button type="button" class="market-commodity-row flex w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-left" data-commodity-item="${escapeMarketText(item.id)}">
       <span class="shrink-0 text-lg" aria-hidden="true">${escapeMarketText(meta.icon || '📦')}</span>
-      <span class="min-w-0 flex-1"><span class="block truncate text-xs font-bold text-slate-900 dark:text-white">${escapeMarketText(item.name)}</span><span class="block truncate text-[9px] text-slate-500">${priceLabel} · склад ${formatPrice(stock)} ${escapeMarketText(unit)}</span></span>
+      <span class="min-w-0 flex-1"><span class="block truncate text-xs font-bold text-slate-900 dark:text-white">${escapeMarketText(item.name)}</span><span class="block truncate text-[9px] text-slate-500">${categoryLabel} · склад ${formatPrice(stock)} ${escapeMarketText(unit)}</span></span>
       <span class="shrink-0 text-base text-pink-500" aria-hidden="true">›</span>
     </button>`;
   }).join('');
@@ -104,7 +104,9 @@ export function renderCommodityCatalog(container, options) {
   const emptyText = state.category === 'industry'
     ? 'В отраслевой ветке пока нет материалов для продажи.'
     : state.category === 'needed'
-      ? 'У построенных предприятий сейчас нет входного сырья.'
+      ? state.companyInputsLoading
+        ? 'Загружаем входное сырьё предприятий…'
+        : 'У построенных предприятий сейчас нет входного сырья.'
       : 'По этому запросу ничего не найдено.';
 
   container.innerHTML = `<div class="market-contrast-surface space-y-3 max-w-md mx-auto p-4 pb-24">
@@ -124,6 +126,22 @@ export function renderCommodityCatalog(container, options) {
       state.category = button.dataset.category;
       state.query = '';
       renderCommodityCatalog(container, options);
+      if (state.category === 'needed' && !state.companyInputsLoaded && !state.companyInputsLoading) {
+        state.companyInputsLoading = true;
+        renderCommodityCatalog(container, options);
+        Promise.resolve(options.loadCompanyInputs?.())
+          .then((inputIds) => {
+            options.inputIds = Array.isArray(inputIds) ? inputIds : [];
+            state.companyInputsLoaded = true;
+          })
+          .catch(() => {
+            state.companyInputsLoaded = true;
+          })
+          .finally(() => {
+            state.companyInputsLoading = false;
+            if (state.category === 'needed') renderCommodityCatalog(container, options);
+          });
+      }
       if (state.category === 'liquidity' && !state.liquidityLoaded && !state.liquidityLoading) {
         state.liquidityLoading = true;
         state.liquidityError = null;

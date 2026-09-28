@@ -145,7 +145,7 @@ def test_industry_upgrade_preserves_legacy_levels_and_caps_at_200_percent() -> N
     asyncio.run(check())
 
 
-def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs() -> None:
+def test_factory_cycle_applies_industry_bonus_to_output_without_more_inputs() -> None:
     from datetime import timedelta
 
     from sqlalchemy import select
@@ -166,7 +166,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 name="Factory PVC Output",
                 specialization="metallurgist",
                 level=8,
-                industry_upgrade_levels_json={"metallurgist": 40},
+                industry_upgrade_levels_json={"metallurgist": 1},
             )
             session.add(company)
             await session.flush()
@@ -195,8 +195,9 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 session, company, factory, now=now
             )
             assert started["success"] is True
-            assert steel.quantity == 4
-            assert energy.quantity == 44
+            # A PVC output bonus must not charge the extra production inputs.
+            assert steel.quantity == 8
+            assert energy.quantity == 143
             factory = await session.scalar(
                 select(NatFactory).where(NatFactory.id == factory.id)
             )
@@ -205,7 +206,7 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 now=now + timedelta(seconds=started["duration_seconds"] + 1),
             )
             assert completed["success"] is True
-            assert completed["outputs_produced"]["rolled_metal"] == 6.0
+            assert completed["outputs_produced"]["rolled_metal"] == 2.1
 
             # A cycle consumes and snapshots its start-time multiplier. Buying
             # an upgrade while it runs cannot grant additional output.
@@ -215,8 +216,8 @@ def test_factory_cycle_uses_completion_time_industry_bonus_without_more_inputs()
                 session, company, factory, now=next_cycle_start
             )
             assert second_started["success"] is True
-            assert steel.quantity == 2
-            assert energy.quantity == 0
+            assert steel.quantity == 6
+            assert energy.quantity == 110
             company.industry_upgrade_levels_json = {"metallurgist": 1}
             factory = await session.scalar(
                 select(NatFactory).where(NatFactory.id == factory.id)

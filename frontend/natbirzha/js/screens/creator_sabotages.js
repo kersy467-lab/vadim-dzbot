@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 
 export async function loadCreatorSabotages(el, showToast) {
   const [activeRes, catalogRes] = await Promise.all([

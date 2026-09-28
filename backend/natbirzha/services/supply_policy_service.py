@@ -151,17 +151,21 @@ class SupplyPolicyService:
         company: NatCompany,
         business: NatBusiness,
         spec: dict[str, Any],
+        *,
+        policies: list[NatBusinessSupplyPolicy] | None = None,
+        inventory_cache: dict[str, NatInventory | None] | None = None,
     ) -> list[dict[str, Any]]:
         """Keep configured stock targets: player asks first, State reserve only as fallback."""
-        policies = list((await session.execute(
-            select(NatBusinessSupplyPolicy)
-            .where(
-                NatBusinessSupplyPolicy.business_id == business.id,
-                NatBusinessSupplyPolicy.mode != "MANUAL",
-            )
-            .order_by(NatBusinessSupplyPolicy.item_id)
-            .with_for_update()
-        )).scalars().all())
+        if policies is None:
+            policies = list((await session.execute(
+                select(NatBusinessSupplyPolicy)
+                .where(
+                    NatBusinessSupplyPolicy.business_id == business.id,
+                    NatBusinessSupplyPolicy.mode != "MANUAL",
+                )
+                .order_by(NatBusinessSupplyPolicy.item_id)
+                .with_for_update()
+            )).scalars().all())
         results: list[dict[str, Any]] = []
         rates = resource_business_rates(
             business, spec, upgrading=business.status == "UPGRADING"
@@ -170,11 +174,16 @@ class SupplyPolicyService:
             input_rate = float(spec["inputs_per_hour"].get(policy.item_id, 0.0)) * rates.input_multiplier
             if input_rate <= 0:
                 continue
-            inventory = await session.scalar(
-                select(NatInventory)
-                .where(NatInventory.company_id == company.id, NatInventory.item_id == policy.item_id)
-                .with_for_update()
-            )
+            if inventory_cache is not None and policy.item_id in inventory_cache:
+                inventory = inventory_cache[policy.item_id]
+            else:
+                inventory = await session.scalar(
+                    select(NatInventory)
+                    .where(NatInventory.company_id == company.id, NatInventory.item_id == policy.item_id)
+                    .with_for_update()
+                )
+                if inventory_cache is not None:
+                    inventory_cache[policy.item_id] = inventory
             available = float(inventory.available_quantity) if inventory else 0.0
             minimum = input_rate * float(policy.min_hours_stock)
             target = input_rate * float(policy.target_hours_stock)
@@ -212,6 +221,10 @@ class SupplyPolicyService:
                     await session.flush()
             purchased = float(market_result.get("purchased", 0.0))
             results.append({"source": "MARKET", **market_result})
+            if inventory_cache is not None and inventory is None and purchased > 1e-9:
+                # A procurement service may have inserted this row. Drop the
+                # negative snapshot so the following production segment reads it.
+                inventory_cache.pop(policy.item_id, None)
             remaining = round(max(0.0, need - purchased), 6)
             allow_reserve = policy.mode in {"AUTO_NPC", "AUTO_MARKET_NPC"} and policy.allow_state_reserve
             if remaining <= 0 or not allow_reserve:
@@ -225,6 +238,10 @@ class SupplyPolicyService:
                     session, company, policy.item_id, "BUY", remaining
                 )
                 results.append({"source": "STATE", **npc_result})
+                if inventory_cache is not None and inventory is None and float(
+                    npc_result.get("purchased", npc_result.get("quantity", 0.0)) or 0.0
+                ) > 1e-9:
+                    inventory_cache.pop(policy.item_id, None)
             except ValueError as exc:
                 results.append({"source": "STATE", "item_id": policy.item_id, "success": False, "reason": str(exc)})
         return results

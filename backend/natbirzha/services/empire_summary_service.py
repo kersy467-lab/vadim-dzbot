@@ -220,9 +220,15 @@ class EmpireSummaryService:
             select(NatInventory).where(NatInventory.company_id == company.id)
         )).scalars().all()
         inventory = {row.item_id: float(row.available_quantity) for row in inventory_rows}
-        visible_businesses = [
+        catalog_businesses = [
             business for business in businesses
             if not (get_business_spec(business.business_type) or {}).get("legacy_hidden", False)
+        ]
+        # Hybrid source rows remain persisted so they can be restored on sale,
+        # but are not active businesses and must not appear as operating plants.
+        visible_businesses = [
+            business for business in catalog_businesses
+            if business.status != "MERGING"
         ]
         ids = [business.id for business in visible_businesses]
         policy_rows = [] if not ids else list((await session.execute(
@@ -300,6 +306,10 @@ class EmpireSummaryService:
                 "next_unlock_level": 15 if company.level < 15 else (25 if company.level < 25 else (35 if company.level < 35 else (50 if company.level < 50 else None))),
             },
             "businesses": serialized,
+            "catalog_businesses": [
+                {"business_type": business.business_type, "stage": int(business.stage)}
+                for business in catalog_businesses
+            ],
             "inventory_available": {
                 item_id: round(quantity, 6) for item_id, quantity in inventory.items()
             },

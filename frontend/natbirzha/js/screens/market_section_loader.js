@@ -59,7 +59,7 @@ export function createMarketSectionLoader(container, showToast, onBack, loadComm
     const currentRequest = ++requestId;
     if (['portfolio', 'stocks', 'bonds', 'reference'].includes(section)) return openFinance(section, currentRequest);
     if (section === 'commodities') {
-      showLoading();
+      renderCommodities();
       try {
         await loadCommodities();
         if (currentRequest === requestId && container.isConnected) renderCommodities();

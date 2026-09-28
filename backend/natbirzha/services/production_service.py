@@ -168,17 +168,17 @@ class ProductionTickEngine(ProductionAutomationMixin):
                 "available": factory.workers,
             }
 
-        # Scale inputs by the same total multiplier used for output. Persist it
-        # now so upgrades or efficiency changes cannot increase a funded cycle's
-        # yield before collection.
-        output_multiplier = (
-            cls.output_multiplier(factory, company)
-            * cls.get_effective_efficiency(company, factory)
-        )
+        # PVC industry upgrades are an output bonus, as they are for V2
+        # businesses. Keep them out of input consumption; otherwise the bonus
+        # raises input costs at the same rate and is barely useful. Snapshot
+        # boosted output now so upgrades bought mid-cycle cannot affect it.
+        efficiency = cls.get_effective_efficiency(company, factory)
+        input_multiplier = cls.output_multiplier(factory) * efficiency
+        output_multiplier = cls.output_multiplier(factory, company) * efficiency
         requirements: Dict[str, float] = {}
         locked_inputs: Dict[str, NatInventory] = {}
         for item_id, quantity in recipe["inputs"].items():
-            needed = round(float(quantity) * output_multiplier, 4)
+            needed = round(float(quantity) * input_multiplier, 4)
             requirements[item_id] = needed
             inv = await cls._inventory(session, company.id, item_id, for_update=True)
             available = inv.available_quantity if inv else 0.0

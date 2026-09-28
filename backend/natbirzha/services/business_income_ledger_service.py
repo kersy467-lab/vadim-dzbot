@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.models.business import NatBusinessIncomeDaily
+from backend.natbirzha.models.business import NatBusinessIncomeDaily, NatBusinessIncomePeriod
 
 
 class BusinessIncomeLedgerService:
@@ -46,18 +46,26 @@ class BusinessIncomeLedgerService:
         maintenance: float,
         salary: float = 0.0,
         resource_cost: float = 0.0,
+        row_cache: dict[tuple[int, date], NatBusinessIncomeDaily | None] | None = None,
+        flush: bool = True,
     ) -> None:
         """Upsert one server-settled operating result into its game-day ledger."""
         if not any((gross, maintenance, salary, resource_cost)):
             return
-        row = await session.scalar(
-            select(NatBusinessIncomeDaily)
-            .where(NatBusinessIncomeDaily.business_id == business_id, NatBusinessIncomeDaily.date == day)
-            .with_for_update()
-        )
+        key = (business_id, day)
+        if row_cache is not None and key in row_cache:
+            row = row_cache[key]
+        else:
+            row = await session.scalar(
+                select(NatBusinessIncomeDaily)
+                .where(NatBusinessIncomeDaily.business_id == business_id, NatBusinessIncomeDaily.date == day)
+                .with_for_update()
+            )
         if row is None:
             row = NatBusinessIncomeDaily(business_id=business_id, date=day)
             session.add(row)
+        if row_cache is not None:
+            row_cache[key] = row
         row.gross_income = round(float(row.gross_income or 0.0) + gross, 2)
         row.maintenance = round(float(row.maintenance or 0.0) + maintenance, 2)
         row.salary = round(float(row.salary or 0.0) + salary, 2)
@@ -66,7 +74,8 @@ class BusinessIncomeLedgerService:
             float(row.gross_income or 0.0) - float(row.maintenance or 0.0)
             - float(row.salary or 0.0) - float(row.resource_cost or 0.0), 2
         )
-        await session.flush()
+        if flush:
+            await session.flush()
 
     @staticmethod
     async def record_period(
@@ -79,22 +88,29 @@ class BusinessIncomeLedgerService:
         maintenance: float,
         salary: float = 0.0,
         resource_cost: float = 0.0,
+        row_cache: dict[tuple[int, datetime], NatBusinessIncomePeriod | None] | None = None,
+        flush: bool = True,
     ) -> None:
         """Upsert one 12-hour operating period result."""
         if not any((gross, maintenance, salary, resource_cost)):
             return
-        from backend.natbirzha.models.business import NatBusinessIncomePeriod
-        row = await session.scalar(
-            select(NatBusinessIncomePeriod)
-            .where(
-                NatBusinessIncomePeriod.business_id == business_id,
-                NatBusinessIncomePeriod.period_start == p_start,
+        key = (business_id, p_start)
+        if row_cache is not None and key in row_cache:
+            row = row_cache[key]
+        else:
+            row = await session.scalar(
+                select(NatBusinessIncomePeriod)
+                .where(
+                    NatBusinessIncomePeriod.business_id == business_id,
+                    NatBusinessIncomePeriod.period_start == p_start,
+                )
+                .with_for_update()
             )
-            .with_for_update()
-        )
         if row is None:
             row = NatBusinessIncomePeriod(business_id=business_id, period_start=p_start, period_end=p_end)
             session.add(row)
+        if row_cache is not None:
+            row_cache[key] = row
         row.gross_income = round(float(row.gross_income or 0.0) + gross, 2)
         row.maintenance = round(float(row.maintenance or 0.0) + maintenance, 2)
         row.salary = round(float(row.salary or 0.0) + salary, 2)
@@ -103,7 +119,8 @@ class BusinessIncomeLedgerService:
             float(row.gross_income or 0.0) - float(row.maintenance or 0.0)
             - float(row.salary or 0.0) - float(row.resource_cost or 0.0), 2
         )
-        await session.flush()
+        if flush:
+            await session.flush()
 
     @classmethod
     async def record_interval(
@@ -117,6 +134,9 @@ class BusinessIncomeLedgerService:
         maintenance: float,
         salary: float = 0.0,
         resource_cost: float = 0.0,
+        daily_row_cache: dict[tuple[int, date], NatBusinessIncomeDaily | None] | None = None,
+        period_row_cache: dict[tuple[int, datetime], NatBusinessIncomePeriod | None] | None = None,
+        flush: bool = True,
     ) -> None:
         """Split one lazy-settlement result across the actual calendar days and 12-hour periods worked."""
         total_seconds = max(0.0, float(worked_hours)) * 3600.0
@@ -143,6 +163,8 @@ class BusinessIncomeLedgerService:
                 maintenance=maintenance * fraction,
                 salary=salary * fraction,
                 resource_cost=resource_cost * fraction,
+                row_cache=daily_row_cache,
+                flush=flush,
             )
             cursor = segment_end
 
@@ -167,6 +189,8 @@ class BusinessIncomeLedgerService:
                 maintenance=maintenance * fraction,
                 salary=salary * fraction,
                 resource_cost=resource_cost * fraction,
+                row_cache=period_row_cache,
+                flush=flush,
             )
             p_cursor = segment_end
 

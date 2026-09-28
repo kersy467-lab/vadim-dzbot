@@ -45,7 +45,7 @@ async def _create_solar_factory(session, *, company_spec: str = "power_engineer"
     return company, factory, grid
 
 
-def test_maximum_legacy_bonuses_scale_inputs_with_actual_output() -> None:
+def test_maximum_industry_bonus_boosts_output_without_scaling_inputs() -> None:
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -65,7 +65,9 @@ def test_maximum_legacy_bonuses_scale_inputs_with_actual_output() -> None:
             await session.refresh(factory)
             await session.refresh(grid)
             assert factory.cycle_output_multiplier == 5.25
-            assert grid.quantity == 94.75
+            # Worker and technology multipliers still consume proportionally,
+            # but the +200% PVC industry perk only increases output.
+            assert grid.quantity == 98.25
 
             completed = await ProductionTickEngine.complete_cycle(
                 session, company, factory, now=now + timedelta(seconds=60),

@@ -17,7 +17,7 @@ assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(/app\.js\?v=[A-Za-z0-9_-]+/.test(natHtml), 'Natbirzha entrypoint must refresh its cached code after a release');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes("market.js?v=20260928_ai_compute_fix_v1"), 'Market changes must refresh the cached market module');
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes("market.js?v=20260928_market_frontend_perf_v1"), 'Market changes must refresh the cached market module');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -270,9 +270,12 @@ assert(onboardingCode.includes('цвет — рекомендация, а не �
 });
 
 const marketCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
+const screenLoaderCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8');
+const marketLoaderCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_section_loader.js'), 'utf-8');
 const marketTaxCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_tax.js'), 'utf-8');
-assert(marketCode.includes('data-section=\"tax\"') && marketCode.includes('renderTaxSection'),
-  'market home must expose the mandatory tax section');
+assert(marketCode.includes('data-section=\"tax\"') && marketLoaderCode.includes("tax: ['./market_tax.js")
+  && marketLoaderCode.includes("'renderTaxSection'"),
+  'market home and lazy section loader must expose the mandatory tax section');
 assert(marketTaxCode.includes('налог сразу к оплате') && marketTaxCode.includes('После закрытия 12-часового периода'),
   'tax screen must explain that tax is due and production stops when each 12-hour period closes');
 assert(marketCode.indexOf('data-section=\"tax\"') < marketCode.indexOf('data-section=\"state_credit\"'),
@@ -292,8 +295,8 @@ assert(creatorScreenCode.includes('grid grid-cols-3') && !creatorScreenCode.incl
   'government controls must be visible in a wrapping grid instead of hidden in a horizontal tab strip');
 assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"') && creatorScreenCode.includes('data-tab="sabotages"'),
   'player bankruptcy, bond bankruptcy and sabotages sections must remain directly navigable');
-assert(/creator\.js\?v=[^'\"]+/.test(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8')),
-  'app.js must reload the updated creator panel module');
+assert(screenLoaderCode.includes("./screens/creator.js?v=20260928_mobile_perf_v1"),
+  'the screen loader must reload the updated creator panel module');
 assert(/creator_credit\.js\?v=20260926_local_update_v1/.test(creatorScreenCode)
   && /creator_players\.js\?v=20260926_local_update_v1/.test(creatorScreenCode)
   && /creator_bond_api\.js\?v=20260926_joint_factory_v1/.test(creatorScreenCode)
@@ -379,11 +382,13 @@ const appSourceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzh
 const itemRegistryCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/items.js'), 'utf-8');
 const marketHtmlCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');
 const marketCommodityCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_commodities.js'), 'utf-8');
+const marketOrderbookCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_orderbook_view.js'), 'utf-8');
+const marketSectionLoaderCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_section_loader.js'), 'utf-8');
 const marketFinanceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_finance.js'), 'utf-8');
 const marketCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
 const stockScreenCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/stocks.js'), 'utf-8');
 const natApiCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/api.js'), 'utf-8');
-assert(marketCoreCode.includes('finally'), 'market.js place order must have finally block to re-enable button');
+assert(marketOrderbookCode.includes('finally'), 'market orderbook must re-enable the order button after a request');
 assert(marketCoreCode.includes('renderCommodityCatalog'), 'commodity market must route to its material catalog');
 assert(marketCommodityCode.includes('commodity-category-tab'), 'commodity market must expose category tabs');
 assert(marketCommodityCode.includes('market-commodity-row'), 'commodity categories must use compact horizontal rows');
@@ -405,22 +410,22 @@ assert(hybridScreenCode.includes('до 4-го уровня') && hybridScreenCode
 assert(natApiCode.includes('getHybridCatalog:') && natApiCode.includes('openHybrid:') && natApiCode.includes('sellHybrid:'),
   'hybrid API client must support discovery, formation and sale');
 
-// Every canonical production output must be selectable in the NPC market.
-// The API is the source of truth; this regression test prevents a hard-coded
-// subset from silently hiding outputs such as natural gas and copper.
-assert(marketCoreCode.includes('mergeNpcRatesIntoMarketItems'),
-  'market.js must merge every server NPC rate into the resource selector');
+// Every canonical production output must be selectable in the NPC market,
+// while prices and quotes load only after the player selects a material.
+assert(marketCoreCode.includes('mergeNpcRatesIntoMarketItems')
+  && marketCoreCode.includes('NatAPI.getNpcRates(itemId)'),
+  'market.js must merge the selected server quote into the selected material only');
 assert(marketCoreCode.includes('getIndustryOutputIds') && marketCoreCode.includes('prioritizeIndustryItems'),
   'market.js must prioritize products from the company\'s own industry');
 assert(marketCoreCode.includes('ensureIndustryProductsAvailable'),
   'industry products must remain visible even if an NPC-rate response omits a canonical product');
 assert(itemRegistryCode.includes("ai_compute: { name: 'Вычислительная мощность ИИ'"),
   'AI compute must have a localized canonical item label');
-assert(marketHtmlCode.includes('app.js?v=20260928_brewery_open_v1'),
-  'the app entrypoint must use a fresh cache key for the brewery availability update');
-assert(appSourceCode.includes('market.js?v=20260928_ai_compute_fix_v1'),
+assert(marketHtmlCode.includes('app.js?v=20260928_market_frontend_perf_v1'),
+  'the app entrypoint must use a fresh cache key for the market and upgrade loading update');
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes('market.js?v=20260928_market_frontend_perf_v1'),
   'the market screen must use a fresh cache key so the AI output list refreshes');
-assert(marketCoreCode.includes('finance.renderStocks') && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),
+assert(marketSectionLoaderCode.includes("stocks: 'renderStocks'") && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),
   'the reachable stocks section must expose IPO and its dividend policy');
 assert(marketFinanceCode.includes('NatAPI.issueIPO'),
   'the reachable stocks section must submit the IPO request');
@@ -437,9 +442,9 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
-assert(appSourceCode.includes('overview.js?v=20260928_ai_compute_fix_v1'),
+assert(screenLoaderCode.includes('overview.js?v=20260928_mobile_perf_v1'),
   'overview inventory fixes must be loaded from a fresh screen module');
-assert(/market_credit\.js\?v=20260926_local_update_v1/.test(marketCoreCode),
+assert(marketSectionLoaderCode.includes("state_credit: ['./market_credit.js?v=20260928_mobile_perf_v1'"),
   'market credit screen must use a cache-busted module URL');
 const activeApiVersion = appSourceCode.match(/api\.js\?v=([^'\"]+)/)?.[1];
 assert(activeApiVersion && marketCreditCode.includes(`api.js?v=${activeApiVersion}`),
@@ -457,12 +462,16 @@ const commodityHelperCode = marketCommodityCode
   .replace(/export\s+function\s+rankLiquidityRows/, 'function rankLiquidityRows')
   .replace(/export\s+function\s+getCompanyInputIds/, 'function getCompanyInputIds')
   .replace(/export\s+function\s+renderCommodityCatalog[\s\S]*/, '');
-const marketHelperFn = new Function('getItemInfo', `${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
+const canonicalItemRegistryCode = itemRegistryCode
+  .replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =')
+  .replace(/export\s+function\s+getItemInfo/, 'function getItemInfo');
+const { ITEMS: canonicalItemsForMarket } = new Function(`${canonicalItemRegistryCode}\nreturn { ITEMS };`)();
+const marketHelperFn = new Function('getItemInfo', 'ITEMS', `${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
 const { MARKET_ITEMS: initialMarketItems, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems } = marketHelperFn((itemId) => (
   itemId === 'ai_compute'
     ? { name: 'Вычислительная мощность ИИ', icon: '🧠', unit: 'выч. ч' }
     : { name: 'Неизвестный ресурс', icon: '📦', unit: 'шт.' }
-));
+), canonicalItemsForMarket);
 const { getCompanyInputIds, rankLiquidityRows } = new Function(`${commodityHelperCode}\nreturn { getCompanyInputIds, rankLiquidityRows };`)();
 assert.deepStrictEqual(
   rankLiquidityRows([
@@ -536,7 +545,7 @@ assert(milCode.includes('joinAlliance'), 'military.js must support joining allia
 assert(milCode.includes('PvE-границы'), 'military.js must expose PvE borders');
 assert(milCode.includes('attackPveTarget'), 'military.js must wire PvE attacks');
 assert(milCode.includes('Требования к армии'), 'PvE cards must explain mixed-army requirements');
-assert(milCode.includes('force_composition'), 'PvE cards must explain when army composition blocks an attack');
+assert(milCode.includes('hasMissingRequirements'), 'PvE cards must explain when army composition blocks an attack');
 assert(milCode.includes('attackTournamentTarget'), 'military.js must wire tournament PvP attacks');
 assert(milCode.includes('getTournamentHistory'), 'military.js must show tournament history and personal results');
 assert(milCode.includes('joinTournament'), 'military.js must submit tournament registration');

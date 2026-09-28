@@ -25,19 +25,25 @@ class CompanyProfitLedgerService:
         maintenance: float = 0.0,
         salary: float = 0.0,
         other_expenses: float = 0.0,
+        row_cache: dict[tuple[int, datetime], NatCompanyProfitPeriod | None] | None = None,
+        flush: bool = True,
     ) -> NatCompanyProfitPeriod | None:
         amounts = (revenue, financial_income, cost_of_goods_sold, maintenance, salary, other_expenses)
         if not any(abs(float(value or 0.0)) > 1e-9 for value in amounts):
             return None
 
-        row = await session.scalar(
-            select(NatCompanyProfitPeriod)
-            .where(
-                NatCompanyProfitPeriod.company_id == company_id,
-                NatCompanyProfitPeriod.period_start == period_start,
+        key = (company_id, period_start)
+        if row_cache is not None and key in row_cache:
+            row = row_cache[key]
+        else:
+            row = await session.scalar(
+                select(NatCompanyProfitPeriod)
+                .where(
+                    NatCompanyProfitPeriod.company_id == company_id,
+                    NatCompanyProfitPeriod.period_start == period_start,
+                )
+                .with_for_update()
             )
-            .with_for_update()
-        )
         if row is None:
             row = NatCompanyProfitPeriod(
                 company_id=company_id,
@@ -45,6 +51,8 @@ class CompanyProfitLedgerService:
                 period_end=period_end,
             )
             session.add(row)
+        if row_cache is not None:
+            row_cache[key] = row
         for field, value in (
             ("realized_revenue", revenue),
             ("financial_income", financial_income),
@@ -54,7 +62,8 @@ class CompanyProfitLedgerService:
             ("other_expenses", other_expenses),
         ):
             setattr(row, field, round(float(getattr(row, field) or 0.0) + float(value or 0.0), 6))
-        await session.flush()
+        if flush:
+            await session.flush()
         return row
 
     @classmethod
@@ -96,6 +105,8 @@ class CompanyProfitLedgerService:
         maintenance: float = 0.0,
         salary: float = 0.0,
         other_expenses: float = 0.0,
+        row_cache: dict[tuple[int, datetime], NatCompanyProfitPeriod | None] | None = None,
+        flush: bool = True,
     ) -> None:
         total_seconds = max(0.0, float(worked_hours)) * 3600.0
         if total_seconds <= 1e-9:
@@ -129,6 +140,8 @@ class CompanyProfitLedgerService:
                 maintenance=totals["maintenance"] * fraction,
                 salary=totals["salary"] * fraction,
                 other_expenses=totals["other_expenses"] * fraction,
+                row_cache=row_cache,
+                flush=flush,
             )
             cursor = segment_end
 

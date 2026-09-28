@@ -20,6 +20,7 @@ from backend.natbirzha.services.hybrid_merger_service import (
     HybridMergerService,
 )
 from backend.natbirzha.services.business_service import BusinessService
+from backend.natbirzha.services.empire_summary_service import EmpireSummaryService
 
 
 MINER_SOURCE_TYPES = ("coal_open_pit", "iron_quarry")
@@ -345,6 +346,56 @@ def test_hybrid_catalog_entry_cannot_be_opened_as_a_standalone_business() -> Non
                         NatHybridMerger.company_id == company_ids[0]
                     )
                 ) == 0
+        finally:
+            await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_hybrid_sources_are_hidden_from_active_company_businesses() -> None:
+    async def check() -> None:
+        engine, sessions, company_ids = await _fixture()
+        try:
+            async with sessions() as session:
+                company = await session.get(NatCompany, company_ids[0])
+                source_ids = await _source_ids(company.id, session)
+                opened = await HybridMergerService.open_hybrid(
+                    session, company.id, "hybrid_miner", *source_ids
+                )
+
+                summary = await EmpireSummaryService.build(session, company.id)
+                active_ids = {row["id"] for row in summary["businesses"]}
+                assert active_ids == {opened["hybrid_business_id"]}
+                assert {row["business_type"] for row in summary["catalog_businesses"]} >= set(MINER_SOURCE_TYPES)
+
+                stored_sources = [await session.get(NatBusiness, source_id) for source_id in source_ids]
+                assert all(row.status == "MERGING" for row in stored_sources)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_hybrid_sources_are_not_offered_for_another_merger() -> None:
+    async def check() -> None:
+        engine, sessions, company_ids = await _fixture()
+        try:
+            async with sessions() as session:
+                company = await session.get(NatCompany, company_ids[0])
+                source_ids = await _source_ids(company.id, session)
+                await HybridMergerService.open_hybrid(
+                    session, company.id, "hybrid_miner", *source_ids
+                )
+
+                data = await hybrid_catalog(company, session)
+                offered_ids = {row["id"] for row in data["businesses"]}
+                assert offered_ids.isdisjoint(source_ids)
+                assert all(
+                    business["id"] not in source_ids
+                    for recipe in data["recipes"]
+                    for option in recipe["source_options"]
+                    for business in option["businesses"]
+                )
         finally:
             await engine.dispose()
 

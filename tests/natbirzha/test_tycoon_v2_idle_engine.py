@@ -1,14 +1,19 @@
 """Lazy settlement rules for career NATBIRZHA 2.0 businesses."""
 
 import asyncio
+from collections import Counter
 from datetime import datetime, timedelta
+from math import isclose
+import re
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.catalogs.businesses import get_business_spec
+from backend.natbirzha.config import get_game_now
+from backend.natbirzha.api.business_routes import empire_summary
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
@@ -167,6 +172,191 @@ def test_idle_settlement_never_moves_a_business_clock_backwards() -> None:
             assert settlement["settled_hours"] == 0.0
             assert company.cash == 100_000.0
             assert business.last_settled_at == start
+
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_idle_settlement_batches_contract_license_checks() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            now = get_game_now()
+            company = NatCompany(
+                user_id=8_009,
+                name="License Batch Corp",
+                specialization="miner",
+                cash=100_000,
+            )
+            session.add(company)
+            await session.flush()
+            businesses = [
+                NatBusiness(
+                    company_id=company.id,
+                    business_type="coal_open_pit",
+                    specialization="miner",
+                    stage=1,
+                    status="ACTIVE",
+                    last_settled_at=now - timedelta(hours=1),
+                    metadata_json={"contract_license": "missing-test-license"},
+                )
+                for _ in range(24)
+            ]
+            session.add_all(businesses)
+            await session.flush()
+
+            license_queries = []
+
+            def capture_license_query(_conn, _cursor, statement, *_args):
+                if "from nat_premium_licenses" in statement.lower():
+                    license_queries.append(statement)
+
+            event.listen(engine.sync_engine, "before_cursor_execute", capture_license_query)
+            try:
+                await IdleEconomyService.settle_company(session, company.id, now=now)
+            finally:
+                event.remove(engine.sync_engine, "before_cursor_execute", capture_license_query)
+
+            assert len(license_queries) <= 1, (
+                "contract license checks should use one batch query per company; "
+                f"got {len(license_queries)} for {len(businesses)} leased businesses"
+            )
+            assert all(business.status == "PAUSED_MANUAL" for business in businesses)
+            assert all(business.metadata_json["contract_expired"] for business in businesses)
+
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_empire_summary_bounds_cold_and_warm_resource_settlement_queries() -> None:
+    async def check() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            now = get_game_now()
+            company = NatCompany(
+                user_id=8_010,
+                name="Settlement Query Budget Corp",
+                specialization="miner",
+                level=40,
+                cash=1_000_000,
+            )
+            session.add(company)
+            await session.flush()
+            spec = get_business_spec("coal_open_pit")
+            item_ids = set(spec["inputs_per_hour"]) | set(spec["outputs_per_hour"])
+            session.add_all([
+                NatInventory(
+                    company_id=company.id,
+                    item_id=item_id,
+                    quantity=1_000_000.0 if item_id in spec["inputs_per_hour"] else 0.0,
+                    reserved_quantity=0.0,
+                    avg_cost_basis=1.0,
+                )
+                for item_id in item_ids
+            ])
+            businesses = [
+                NatBusiness(
+                    company_id=company.id,
+                    business_type=spec["id"],
+                    specialization="miner",
+                    stage=1,
+                    status="ACTIVE",
+                    last_settled_at=now - timedelta(hours=24),
+                    metadata_json={},
+                )
+                for _ in range(30)
+            ]
+            session.add_all(businesses)
+            await session.flush()
+
+            for label in ("cold", "warm"):
+                statements = []
+
+                def capture_statement(_conn, _cursor, statement, *_args):
+                    statements.append(statement.lower())
+
+                event.listen(engine.sync_engine, "before_cursor_execute", capture_statement)
+                try:
+                    summary = await empire_summary(company, session)
+                finally:
+                    event.remove(engine.sync_engine, "before_cursor_execute", capture_statement)
+
+                select_statements = [sql for sql in statements if sql.lstrip().startswith("select")]
+                inventory_reads = sum("from nat_inventory" in sql for sql in select_statements)
+                policy_reads = sum("from nat_business_supply_policies" in sql for sql in select_statements)
+                deal_reads = sum("from nat_supply_deals" in sql for sql in select_statements)
+                daily_reads = sum("from nat_business_income_daily" in sql for sql in select_statements)
+                business_period_reads = sum("from nat_business_income_periods" in sql for sql in select_statements)
+                table_reads = Counter(
+                    table
+                    for sql in select_statements
+                    for table in re.findall(r"\bfrom\s+([a-z_][a-z0-9_]*)", sql)
+                )
+                operation_counts = Counter()
+                for sql in statements:
+                    operation_match = re.match(r"\s*(select|insert|update|delete)\b", sql)
+                    if operation_match:
+                        operation_counts[operation_match.group(1)] += 1
+                assert (
+                    inventory_reads <= 2
+                    and policy_reads <= 2
+                    and daily_reads <= 1
+                    and business_period_reads <= 1
+                    and deal_reads <= 6
+                    and len(statements) <= 230
+                ), (
+                    f"{label} settlement query budget exceeded for 30 resource businesses: "
+                    f"total={len(statements)}, inventory={inventory_reads}, "
+                    f"policies={policy_reads}, daily={daily_reads}, "
+                    f"business_periods={business_period_reads}, deals={deal_reads}, "
+                    f"tables={dict(table_reads)}"
+                )
+                print(
+                    f"{label} query profile: total={len(statements)}, "
+                    f"inventory={inventory_reads}, policies={policy_reads}, "
+                    f"daily={daily_reads}, business_periods={business_period_reads}, "
+                    f"deals={deal_reads}, operations={dict(operation_counts)}, "
+                    f"tables={dict(table_reads)}"
+                )
+                if label == "cold":
+                    settlement = summary["settlement"]
+                    rates = resource_business_rates(businesses[0], spec, upgrading=False)
+                    outputs = {
+                        row.item_id: float(row.quantity)
+                        for row in (await session.execute(
+                            select(NatInventory).where(
+                                NatInventory.company_id == company.id,
+                                NatInventory.item_id.in_(spec["outputs_per_hour"]),
+                            )
+                        )).scalars().all()
+                    }
+                    expected_value = round(sum(
+                        outputs.get(item_id, 0.0) * CANONICAL_ITEMS[item_id]["base_price"]
+                        for item_id in spec["outputs_per_hour"]
+                    ), 2)
+                    output_hours = [
+                        outputs.get(item_id, 0.0)
+                        / (float(quantity) * rates.output_multiplier * len(businesses))
+                        for item_id, quantity in spec["outputs_per_hour"].items()
+                    ]
+                    expected_maintenance = round(
+                        rates.maintenance_per_hour * output_hours[0] * len(businesses), 2
+                    )
+                    assert 0 < settlement["settled_hours"] <= 24
+                    assert settlement["gross_cash"] == 0.0
+                    assert isclose(settlement["gross_value"], expected_value, abs_tol=0.02)
+                    assert settlement["maintenance_cash"] == expected_maintenance
+                    assert settlement["net_cash"] == round(-expected_maintenance, 2)
 
         await engine.dispose()
 

@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 import { store } from '../state.js?v=20260927_ai_hybrids_v1';
 
 const ALLOWED_SOURCE_STATUSES = new Set([

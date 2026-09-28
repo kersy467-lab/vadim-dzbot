@@ -153,8 +153,24 @@ class IdleEconomyService:
 
     @staticmethod
     async def _locked_inventory(
-        session: AsyncSession, company_id: int, item_id: str, *, create: bool = False
+        session: AsyncSession,
+        company_id: int,
+        item_id: str,
+        *,
+        create: bool = False,
+        inventory_cache: dict[str, NatInventory | None] | None = None,
     ) -> NatInventory | None:
+        if inventory_cache is not None and item_id in inventory_cache:
+            inventory = inventory_cache[item_id]
+            if inventory is not None:
+                return inventory
+            if not create:
+                return None
+            inventory = NatInventory(company_id=company_id, item_id=item_id, quantity=0.0)
+            session.add(inventory)
+            await session.flush()
+            inventory_cache[item_id] = inventory
+            return inventory
         inventory = await session.scalar(
             select(NatInventory)
             .where(NatInventory.company_id == company_id, NatInventory.item_id == item_id)
@@ -164,6 +180,8 @@ class IdleEconomyService:
             inventory = NatInventory(company_id=company_id, item_id=item_id, quantity=0.0)
             session.add(inventory)
             await session.flush()
+        if inventory_cache is not None and inventory is not None:
+            inventory_cache[item_id] = inventory
         return inventory
 
     @staticmethod
@@ -191,6 +209,7 @@ class IdleEconomyService:
         upgrading: bool,
         industry_bonus_multiplier: float = 1.0,
         storage_capacity_by_item: dict[str, float] | None = None,
+        inventory_cache: dict[str, NatInventory | None] | None = None,
     ) -> tuple[float, float, float, float, list[str]]:
         """Consume inputs and return revenue, maintenance, worked hours and input cost basis."""
         if hours <= 0 or business.status in {
@@ -213,7 +232,9 @@ class IdleEconomyService:
         missing: list[str] = []
         inventories: dict[str, NatInventory | None] = {}
         for item_id, rate in inputs.items():
-            inventory = await cls._locked_inventory(session, company_id, item_id)
+            inventory = await cls._locked_inventory(
+                session, company_id, item_id, inventory_cache=inventory_cache
+            )
             inventories[item_id] = inventory
             available = float(inventory.available_quantity) if inventory else 0.0
             actual_hours = min(actual_hours, available / rate)
@@ -229,7 +250,10 @@ class IdleEconomyService:
                 rate = float(base_rate) * rates.output_multiplier
                 if rate <= 0:
                     continue
-                output = await cls._locked_inventory(session, company_id, item_id, create=True)
+                output = await cls._locked_inventory(
+                    session, company_id, item_id, create=True,
+                    inventory_cache=inventory_cache,
+                )
                 output_rows[item_id] = output
                 cap = max(default_cap, float(storage_capacity_by_item.get(item_id, default_cap)))
                 free = max(0.0, cap - float(output.quantity))
@@ -295,6 +319,7 @@ class IdleEconomyService:
         cls, session: AsyncSession, business: NatBusiness, spec: dict[str, Any], *, now: datetime,
         cap_hours: int, industry_bonus_multiplier: float = 1.0,
         storage_capacity_by_item: dict[str, float] | None = None,
+        inventory_cache: dict[str, NatInventory | None] | None = None,
     ) -> dict[str, Any]:
         last_settled = normalize_dt(business.last_settled_at)
         if last_settled is None or now <= last_settled:
@@ -320,6 +345,7 @@ class IdleEconomyService:
                 hours=(ready_at - cursor).total_seconds() / 3600, upgrading=True,
                 industry_bonus_multiplier=industry_bonus_multiplier,
                 storage_capacity_by_item=storage_capacity_by_item,
+                inventory_cache=inventory_cache,
             )
             gross += earned
             maintenance += paid
@@ -333,6 +359,7 @@ class IdleEconomyService:
             upgrading=business.status == "UPGRADING",
             industry_bonus_multiplier=industry_bonus_multiplier,
             storage_capacity_by_item=storage_capacity_by_item,
+            inventory_cache=inventory_cache,
         )
         gross += earned
         maintenance += paid

@@ -633,19 +633,30 @@ class SupplyDealService:
         start: datetime,
         end: datetime,
         now: datetime,
+        deals: list[NatSupplyDeal] | None = None,
+        inventory_cache: dict[str, NatInventory | None] | None = None,
     ) -> list[dict[str, Any]]:
         """Transfer fixed item-specific batches once accumulated deal quota permits them."""
         seconds = max(0.0, (end - start).total_seconds())
         if seconds <= 1e-6:
             return []
-        deals = (await session.execute(
-            select(NatSupplyDeal).where(
-                NatSupplyDeal.buyer_company_id == buyer.id,
-                NatSupplyDeal.status == "ACTIVE",
-                NatSupplyDeal.starts_at < end,
-                NatSupplyDeal.expires_at > start,
-            ).order_by(NatSupplyDeal.id).with_for_update()
-        )).scalars().all()
+        if deals is None:
+            deals = list((await session.execute(
+                select(NatSupplyDeal).where(
+                    NatSupplyDeal.buyer_company_id == buyer.id,
+                    NatSupplyDeal.status == "ACTIVE",
+                    NatSupplyDeal.starts_at < end,
+                    NatSupplyDeal.expires_at > start,
+                ).order_by(NatSupplyDeal.id).with_for_update()
+            )).scalars().all())
+        else:
+            deals = [
+                deal for deal in deals
+                if deal.buyer_company_id == buyer.id
+                and deal.status == "ACTIVE"
+                and normalize_dt(deal.starts_at) < end
+                and normalize_dt(deal.expires_at) > start
+            ]
         if not deals:
             return []
         rates = resource_business_rates(business, spec, upgrading=business.status == "UPGRADING")
@@ -659,9 +670,14 @@ class SupplyDealService:
             overlap_seconds = max(0.0, (active_end - active_start).total_seconds())
             if overlap_seconds <= 1e-6:
                 continue
-            inventory = await session.scalar(select(NatInventory).where(
-                NatInventory.company_id == buyer.id, NatInventory.item_id == deal.item_id
-            ).with_for_update())
+            if inventory_cache is not None and deal.item_id in inventory_cache:
+                inventory = inventory_cache[deal.item_id]
+            else:
+                inventory = await session.scalar(select(NatInventory).where(
+                    NatInventory.company_id == buyer.id, NatInventory.item_id == deal.item_id
+                ).with_for_update())
+                if inventory_cache is not None:
+                    inventory_cache[deal.item_id] = inventory
             buyer_quantity = float(inventory.quantity) if inventory else 0.0
             accrued_seconds = max(
                 0.0,
@@ -716,6 +732,8 @@ class SupplyDealService:
                     avg_cost_basis=unit_price,
                 )
                 session.add(inventory)
+                if inventory_cache is not None:
+                    inventory_cache[deal.item_id] = inventory
             else:
                 old_quantity = float(inventory.quantity)
                 new_quantity = old_quantity + quantity

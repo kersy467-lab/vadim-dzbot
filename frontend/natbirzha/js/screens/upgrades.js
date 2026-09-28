@@ -1,6 +1,7 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getBuildingName, getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { renderHybridManager } from './hybrids.js?v=20260928_hybrid_level_cap_v1&release=20260928_hybrid_level_cap_v1';
 
 const LABELS = {
@@ -10,98 +11,138 @@ const LABELS = {
   level: '⬆️ Уровень завода',
 };
 
+let upgradesRenderGeneration = 0;
+let unregisterUpgradesCleanup = null;
+
 export async function renderUpgrades(container, showToast) {
+  const generation = ++upgradesRenderGeneration;
+  unregisterUpgradesCleanup?.();
+  unregisterUpgradesCleanup = registerScreenCleanup(() => {
+    if (generation === upgradesRenderGeneration) upgradesRenderGeneration += 1;
+    unregisterUpgradesCleanup = null;
+  });
+  const cachedFactories = Array.isArray(store.factories) ? store.factories : [];
+  if (cachedFactories.length) renderFactoryUpgrades(container, showToast, cachedFactories);
+  else renderUpgradeLoading(container);
+
+  void refreshUpgradeScreen(container, showToast, generation);
+}
+
+async function refreshUpgradeScreen(container, showToast, generation) {
+  const isCurrent = () => generation === upgradesRenderGeneration && container.isConnected;
   try {
     const summary = await NatAPI.getEmpireSummary();
+    if (!isCurrent()) return;
     const businesses = Array.isArray(summary?.businesses) ? summary.businesses : [];
     if (businesses.length) {
-      const availableBusinesses = businesses.filter((business) =>
-        business.next_upgrade && !business.contract_expired && business.status !== 'UPGRADING'
-      );
-      const wrapper = document.createElement('div');
-      wrapper.className = 'space-y-4 max-w-md mx-auto p-4 pb-24';
-      wrapper.innerHTML = `<div class="space-y-3"><header><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></header><button id="hybrid-manager-open" type="button" class="w-full rounded-2xl border border-indigo-300/60 bg-indigo-50/60 dark:bg-indigo-950/20 p-3 text-left"><span class="block text-xs font-black">🔗 Объединение предприятий</span><span class="mt-1 block text-[10px] text-slate-500">Каждый гибрид улучшается до 4-го уровня · лимита на сервер нет</span></button></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
-      wrapper.querySelector('#hybrid-manager-open')?.addEventListener('click', () => {
-        renderHybridManager(container, showToast, () => renderUpgrades(container, showToast));
-      });
-      const upgradeAllButton = wrapper.querySelector('#upgrade-all-businesses');
-      upgradeAllButton?.addEventListener('click', async () => {
-        upgradeAllButton.disabled = true;
-        try {
-          const result = await NatAPI.upgradeAllBusinesses();
-          store.setCompany(await NatAPI.getMyCompany());
-          if (result.started_count) {
-            showToast(
-              `На прокачку поставлено ${result.started_count} предприятий · списано ${Number(result.total_cost).toLocaleString('ru-RU')} cash`,
-              'success',
-            );
-          } else {
-            showToast('Нет предприятий, доступных для прокачки.', 'info');
-          }
-          await renderUpgrades(container, showToast);
-        } catch (error) {
-          showToast(error.message, 'error');
-          upgradeAllButton.disabled = false;
-        }
-      });
-      const list = document.createElement('div');
-      list.className = 'space-y-3';
-      for (const business of businesses) {
-        const card = document.createElement('div');
-        card.className = 'glass-card rounded-2xl p-4 space-y-2';
-        const title = document.createElement('div');
-        title.className = 'text-sm font-black';
-        title.textContent = business.catalog_name || business.name || 'Предприятие';
-        const level = document.createElement('div');
-        level.className = 'text-[10px] text-slate-500';
-        level.textContent = getSpecializationName(business.specialization) + ' · уровень ' + business.stage + '/' + business.max_stage;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'w-full rounded-xl bg-blue-600 text-white py-2 text-xs font-bold disabled:opacity-50';
-        const next = business.next_upgrade;
-        const upgrading = business.status === 'UPGRADING';
-        button.textContent = upgrading
-          ? 'Улучшение выполняется'
-          : business.contract_expired
-            ? 'Контракт PVC истёк'
-            : next
-              ? 'Улучшить до ' + next.target_stage + ' · ' + Number(next.cost).toLocaleString('ru-RU') + ' cash'
-              : 'Максимальный уровень';
-        button.disabled = upgrading || Boolean(business.contract_expired) || !next;
-        button.addEventListener('click', async () => {
-          button.disabled = true;
-          try {
-            await NatAPI.upgradeBusiness(business.id);
-            store.setCompany(await NatAPI.getMyCompany());
-            showToast('Улучшение предприятия запущено', 'success');
-            await renderUpgrades(container, showToast);
-          } catch (error) {
-            showToast(error.message, 'error');
-            button.disabled = false;
-          }
-        });
-        card.append(title, level, button);
-        list.append(card);
-      }
-      wrapper.append(list);
-      container.replaceChildren(wrapper);
+      renderBusinessUpgrades(container, showToast, businesses);
       return;
     }
   } catch (error) {
+    if (error?.name === 'AbortError' || !isCurrent()) return;
     console.warn('Could not refresh V2 businesses for upgrades:', error);
   }
 
-  let factories = store.factories || [];
-  try {
-    const data = await NatAPI.getProductionStatus();
-    if (Array.isArray(data?.factories)) {
-      factories = data.factories;
-      store.updateCompany({ factories });
+  let factories = Array.isArray(store.factories) ? store.factories : [];
+  if (!factories.length || !factories.every((factory) => Array.isArray(factory?.upgrade_options))) {
+    try {
+      const data = await NatAPI.getProductionStatus();
+      if (!isCurrent()) return;
+      if (Array.isArray(data?.factories)) {
+        factories = data.factories;
+        store.updateCompany({ factories });
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError' || !isCurrent()) return;
+      console.warn('Could not refresh factories for upgrades:', error);
     }
-  } catch (error) {
-    console.warn('Could not refresh factories for upgrades:', error);
   }
 
+  if (isCurrent()) renderFactoryUpgrades(container, showToast, factories);
+}
+
+function renderUpgradeLoading(container) {
+  container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24">
+    <header><h2 class="text-xl font-black">Прокачка</h2><p class="text-xs text-slate-500">Проверяем доступные улучшения…</p></header>
+    <div class="glass-card rounded-2xl p-6 text-center text-sm text-slate-500">Загружаем улучшения предприятий…</div>
+  </div>`;
+}
+
+function renderBusinessUpgrades(container, showToast, businesses) {
+  const availableBusinesses = businesses.filter((business) =>
+    business.next_upgrade && !business.contract_expired && business.status !== 'UPGRADING'
+  );
+  const wrapper = document.createElement('div');
+  wrapper.className = 'space-y-4 max-w-md mx-auto p-4 pb-24';
+  wrapper.innerHTML = `<div class="space-y-3"><header><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></header><button id="hybrid-manager-open" type="button" class="w-full rounded-2xl border border-indigo-300/60 bg-indigo-50/60 dark:bg-indigo-950/20 p-3 text-left"><span class="block text-xs font-black">🔗 Объединение предприятий</span><span class="mt-1 block text-[10px] text-slate-500">Каждый гибрид улучшается до 4-го уровня · лимита на сервер нет</span></button></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
+  wrapper.querySelector('#hybrid-manager-open')?.addEventListener('click', () => {
+    renderHybridManager(container, showToast, () => renderUpgrades(container, showToast));
+  });
+  const upgradeAllButton = wrapper.querySelector('#upgrade-all-businesses');
+  upgradeAllButton?.addEventListener('click', async () => {
+    upgradeAllButton.disabled = true;
+    try {
+      const result = await NatAPI.upgradeAllBusinesses();
+      store.setCompany(await NatAPI.getMyCompany());
+      if (result.started_count) {
+        showToast(
+          `На прокачку поставлено ${result.started_count} предприятий · списано ${Number(result.total_cost).toLocaleString('ru-RU')} cash`,
+          'success',
+        );
+      } else {
+        showToast('Нет предприятий, доступных для прокачки.', 'info');
+      }
+      await renderUpgrades(container, showToast);
+    } catch (error) {
+      showToast(error.message, 'error');
+      upgradeAllButton.disabled = false;
+    }
+  });
+
+  const list = document.createElement('div');
+  list.className = 'space-y-3';
+  for (const business of businesses) {
+    const card = document.createElement('div');
+    card.className = 'glass-card rounded-2xl p-4 space-y-2';
+    const title = document.createElement('div');
+    title.className = 'text-sm font-black';
+    title.textContent = business.catalog_name || business.name || 'Предприятие';
+    const level = document.createElement('div');
+    level.className = 'text-[10px] text-slate-500';
+    level.textContent = getSpecializationName(business.specialization) + ' · уровень ' + business.stage + '/' + business.max_stage;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'w-full rounded-xl bg-blue-600 text-white py-2 text-xs font-bold disabled:opacity-50';
+    const next = business.next_upgrade;
+    const upgrading = business.status === 'UPGRADING';
+    button.textContent = upgrading
+      ? 'Улучшение выполняется'
+      : business.contract_expired
+        ? 'Контракт PVC истёк'
+        : next
+          ? 'Улучшить до ' + next.target_stage + ' · ' + Number(next.cost).toLocaleString('ru-RU') + ' cash'
+          : 'Максимальный уровень';
+    button.disabled = upgrading || Boolean(business.contract_expired) || !next;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await NatAPI.upgradeBusiness(business.id);
+        store.setCompany(await NatAPI.getMyCompany());
+        showToast('Улучшение предприятия запущено', 'success');
+        await renderUpgrades(container, showToast);
+      } catch (error) {
+        showToast(error.message, 'error');
+        button.disabled = false;
+      }
+    });
+    card.append(title, level, button);
+    list.append(card);
+  }
+  wrapper.append(list);
+  container.replaceChildren(wrapper);
+}
+
+function renderFactoryUpgrades(container, showToast, factories) {
   const mastery = store.company?.mastery;
   container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24">
     <div>

@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
@@ -218,12 +218,13 @@ function render(root, state, showToast) {
   const summary = state.summary || {};
   const progression = summary.progression || {};
   const businesses = summary.businesses || [];
+  const catalogBusinesses = summary.catalog_businesses || businesses;
   const specialization = summary.specialization || store.company?.specialization;
   const ownCatalog = state.catalog
     .filter((item) => item.specialization === specialization)
     .sort((a, b) => Number(a.industry_order) - Number(b.industry_order));
   const owned = new Map();
-  businesses.forEach((item) => {
+  catalogBusinesses.forEach((item) => {
     const instances = owned.get(item.business_type) || [];
     instances.push(item);
     owned.set(item.business_type, instances);

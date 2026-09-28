@@ -56,7 +56,7 @@ async def hybrid_catalog(
     business_rows = []
     for row in businesses:
         spec = get_business_spec(row.business_type)
-        if not spec or spec.get("hybrid_only"):
+        if not spec or spec.get("hybrid_only") or row.status == "MERGING":
             continue
         business_rows.append({
             "id": row.id,

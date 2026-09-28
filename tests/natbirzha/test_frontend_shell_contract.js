@@ -16,7 +16,7 @@ assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(natHtml.includes('id="access-wait-screen"'), 'admin-only release gate must include the full-screen waiting view');
 assert(natHtml.includes('Патч варится, бро.'), 'full-screen waiting view must show the selected release quote');
-assert(natHtml.includes('app.js?v=20260928_startup_batch100_v1'), 'Natbirzha entrypoint must bust its cache for startup and deal delivery changes');
+assert(natHtml.includes('app.js?v=20260928_market_frontend_perf_v1'), 'Natbirzha entrypoint must bust its cache for market and upgrade loading changes');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 const appScript = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/app.js'), 'utf-8');

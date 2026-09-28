@@ -6,7 +6,8 @@ from datetime import timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
-from sqlalchemy import select
+from sqlalchemy import event, select
+from fastapi import HTTPException
 
 from backend.db.models import Base
 from backend.db.session import async_session_factory, engine
@@ -98,13 +99,50 @@ async def run_checks():
         assert exhausted["success"] is False
         assert exhausted["reason"] == "npc_daily_quota_exceeded"
 
-        rate_payload = await get_npc_rates(session)
+        statement_count = 0
+
+        def count_market_rate_queries(*_args):
+            nonlocal statement_count
+            statement_count += 1
+
+        event.listen(engine.sync_engine, "before_cursor_execute", count_market_rate_queries)
+        try:
+            rate_payload = await get_npc_rates(session)
+        finally:
+            event.remove(engine.sync_engine, "before_cursor_execute", count_market_rate_queries)
+        assert statement_count <= 2, (
+            "NPC rates should read daily quota usage in a bounded number of queries; "
+            f"got {statement_count} SQL statements"
+        )
         energy_rate = next(row for row in rate_payload["rates"] if row["item_id"] == "energy")
+        targeted_statement_count = 0
+
+        def count_targeted_query(*_args):
+            nonlocal targeted_statement_count
+            targeted_statement_count += 1
+
+        event.listen(engine.sync_engine, "before_cursor_execute", count_targeted_query)
+        try:
+            targeted_payload = await get_npc_rates(session, item_id="energy")
+        finally:
+            event.remove(engine.sync_engine, "before_cursor_execute", count_targeted_query)
+        assert targeted_statement_count <= 1, (
+            "a targeted ordinary-item quote should use at most one quota query; "
+            f"got {targeted_statement_count} SQL statements"
+        )
+        assert [row["item_id"] for row in targeted_payload["rates"]] == ["energy"]
+        assert targeted_payload["rates"][0] == energy_rate
         assert energy_rate["daily_quota"] is None
         assert energy_rate["player_sell_daily_quota"] == 1250.0
         assert energy_rate["player_sell_remaining_quota"] == 0.0
         assert energy_rate["player_sell_remaining_cash"] == 0.0
         assert "Осталось выкупить сегодня" in energy_rate["player_sell_quota_label"]
+        try:
+            await get_npc_rates(session, item_id="not-a-canonical-item")
+        except HTTPException as exc:
+            assert exc.status_code == 400
+        else:
+            raise AssertionError("targeted NPC rates should reject unknown item IDs")
 
         # Check precision validation still works
         fractional_sale = await NPCReserveService.execute_npc_trade(

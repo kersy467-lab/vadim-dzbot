@@ -1,7 +1,7 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260927_hospital_v2';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260928_market_frontend_perf_v1';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen, preloadScreen } from './screen_loader.js?v=20260928_initial_screen_preload_v2';
+import { loadScreen, preloadScreen } from './screen_loader.js?v=20260928_market_frontend_perf_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 // Start fetching the only possible initial screens while auth and company data load.
@@ -179,16 +179,20 @@ async function renderScreenOnce() {
 
   // Render selected screen
   container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка...</div>';
+  renderContainer.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка...</div>';
   const renderScreen = await loadScreen(renderTab);
-  await renderScreen(renderContainer, showToast);
-  // The screen renders off-DOM. An outdated request can therefore never
-  // replace the currently selected tab after its fetches complete.
   if (renderNavigationId !== navigationId) {
-    disposeCurrentScreen();
     renderRequested = true;
     return;
   }
   container.replaceChildren(renderContainer);
+  await renderScreen(renderContainer, showToast);
+  // Navigation aborts the active screen's requests; keep rendering serialized
+  // and let only the latest navigation continue through the coordinator loop.
+  if (renderNavigationId !== navigationId) {
+    disposeCurrentScreen();
+    renderRequested = true;
+  }
 }
 
 // Coalesce rapid navigation into the latest requested tab. Screen renderers keep

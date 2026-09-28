@@ -7,6 +7,12 @@ export function renderCommodityOrderbookView(options) {
     const tradeHistory = orderbookData?.history || [];
     const userOrders = orderbookData?.user_orders || [];
     const userInvQty = store.inventory[selectedItemId] || 0;
+    const formatQuote = (value) => {
+      const price = Number(value);
+      return Number.isFinite(price) && price > 0 ? price.toFixed(2) : '—';
+    };
+    const hasNpcQuote = Number.isFinite(Number(itemInfo.buy)) && Number(itemInfo.buy) > 0
+      && Number.isFinite(Number(itemInfo.sell)) && Number(itemInfo.sell) > 0;
   
     container.innerHTML = `
       <div class="space-y-4 max-w-md mx-auto p-4 pb-24">
@@ -19,26 +25,26 @@ export function renderCommodityOrderbookView(options) {
             <span class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
               Резервный фонд NPC (Гарантированный коридор)
             </span>
-            <span class="text-[10px] font-mono text-slate-400">База: ${itemInfo.base} cash</span>
+            <span class="text-[10px] font-mono text-slate-400">База: ${formatQuote(itemInfo.base)} cash</span>
           </div>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
               <div class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Скупка NPC (Пол -20%)</div>
-              <div class="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">${itemInfo.buy.toFixed(2)} cash</div>
-              <button class="npc-sell-btn mt-1 w-full py-1 rounded bg-emerald-600 text-white font-bold text-[11px] active:scale-95 transition-all disabled:opacity-50">
+              <div class="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">${formatQuote(itemInfo.buy)} cash</div>
+              <button class="npc-sell-btn mt-1 w-full py-1 rounded bg-emerald-600 text-white font-bold text-[11px] active:scale-95 transition-all disabled:opacity-50" ${hasNpcQuote ? '' : 'disabled'}>
                 Сдать NPC
               </button>
             </div>
             <div class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
               <div class="text-[10px] font-semibold text-rose-700 dark:text-rose-300">Продажа NPC (Потолок +50%)</div>
-              <div class="font-mono font-black text-sm text-rose-600 dark:text-rose-400">${itemInfo.sell.toFixed(2)} cash</div>
-              <button class="npc-buy-btn mt-1 w-full py-1 rounded bg-rose-600 text-white font-bold text-[11px] active:scale-95 transition-all">
+              <div class="font-mono font-black text-sm text-rose-600 dark:text-rose-400">${formatQuote(itemInfo.sell)} cash</div>
+              <button class="npc-buy-btn mt-1 w-full py-1 rounded bg-rose-600 text-white font-bold text-[11px] active:scale-95 transition-all disabled:opacity-50" ${hasNpcQuote ? '' : 'disabled'}>
                 Купить у NPC
               </button>
             </div>
           </div>
           <div class="rounded-lg bg-emerald-50/70 px-2.5 py-2 text-[10px] text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-200">
-            Скупка этого товара Госрезервом: ${Number.isFinite(itemInfo.playerSellRemainingCash) ? `${itemInfo.playerSellRemainingCash.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} cash (${Number(itemInfo.playerSellRemainingQuantity || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${itemInfo.unit})` : 'без ограничений'}.
+            ${hasNpcQuote ? `Скупка этого товара Госрезервом: ${Number.isFinite(itemInfo.playerSellRemainingCash) ? `${itemInfo.playerSellRemainingCash.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} cash (${Number(itemInfo.playerSellRemainingQuantity || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${itemInfo.unit})` : 'без ограничений'}.` : 'Котировка недоступна. Обновите раздел и повторите попытку.'}
           </div>
           <div class="text-[10px] text-slate-400">
             На вашем складе: <span class="font-mono font-bold text-slate-700 dark:text-slate-200">${userInvQty} ${itemInfo.unit}</span>
@@ -101,7 +107,7 @@ export function renderCommodityOrderbookView(options) {
               </div>
               <div>
                 <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Цена (cash)</label>
-                <input type="number" id="order-price" min="0.1" step="0.1" value="${itemInfo.base}" required class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white" />
+                <input type="number" id="order-price" min="0.1" step="0.1" value="${hasNpcQuote ? formatQuote(itemInfo.base) : ''}" required class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white" />
               </div>
             </div>
   
@@ -139,7 +145,7 @@ export function renderCommodityOrderbookView(options) {
   
     // NPC Trade handlers
     container.querySelector('.npc-sell-btn')?.addEventListener('click', async () => {
-      const qtyStr = prompt(`Сколько единиц ${itemInfo.name} сдать NPC по цене ${itemInfo.buy.toFixed(2)} cash?`, '10');
+      const qtyStr = prompt(`Сколько единиц ${itemInfo.name} сдать NPC по цене ${formatQuote(itemInfo.buy)} cash?`, '10');
       const qty = parseFloat(qtyStr);
       if (!qty || qty <= 0) return;
       try {
@@ -155,7 +161,7 @@ export function renderCommodityOrderbookView(options) {
     });
   
     container.querySelector('.npc-buy-btn')?.addEventListener('click', async () => {
-      const qtyStr = prompt(`Сколько единиц ${itemInfo.name} купить у NPC по цене ${itemInfo.sell.toFixed(2)} cash?`, '10');
+      const qtyStr = prompt(`Сколько единиц ${itemInfo.name} купить у NPC по цене ${formatQuote(itemInfo.sell)} cash?`, '10');
       const qty = parseFloat(qtyStr);
       if (!qty || qty <= 0) return;
       try {

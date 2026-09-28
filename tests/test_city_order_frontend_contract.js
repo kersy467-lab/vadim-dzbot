@@ -7,6 +7,8 @@ const market = read('frontend/natbirzha/js/screens/market.js');
 const screen = read('frontend/natbirzha/js/screens/market_city_orders.js');
 const api = read('frontend/natbirzha/js/api.js');
 const app = read('frontend/natbirzha/js/app.js');
+const marketLoader = read('frontend/natbirzha/js/screens/market_section_loader.js');
+const screenLoader = read('frontend/natbirzha/js/screen_loader.js');
 const html = read('frontend/natbirzha/index.html');
 
 const cityMenu = market.indexOf('data-section="city_orders"');
@@ -14,7 +16,10 @@ const dealsMenu = market.indexOf('data-section="deals"');
 if (cityMenu < 0 || dealsMenu < 0 || cityMenu >= dealsMenu) {
   throw new Error('City Orders must appear immediately before Deals in the market menu.');
 }
-if (!market.includes("section === 'city_orders'")) throw new Error('City Orders menu action is not wired.');
+if (!marketLoader.includes("city_orders: ['./market_city_orders.js")
+  || !marketLoader.includes("'renderMarketCityOrders'")) {
+  throw new Error('City Orders menu action is not wired through the lazy section loader.');
+}
 if (!api.includes('getCityOrders:') || !api.includes('deliverCityOrder:')) {
   throw new Error('City Orders API methods are missing.');
 }
@@ -29,7 +34,7 @@ const sharedApiVersion = app.match(/api\.js\?v=([^'\"]+)/)?.[1];
 const sharedStateVersion = app.match(/state\.js\?v=([^'\"]+)/)?.[1];
 const entryVersion = html.match(/app\.js\?v=([^'\"]+)/)?.[1];
 if (!sharedApiVersion
-  || !app.includes(`market.js?v=20260926_joint_factory_v1`)
+  || !screenLoader.includes(`./screens/market.js?v=20260928_market_frontend_perf_v1`)
   || !market.includes(`api.js?v=${sharedApiVersion}`)
   || !screen.includes(`api.js?v=${sharedApiVersion}`)
   || !sharedStateVersion

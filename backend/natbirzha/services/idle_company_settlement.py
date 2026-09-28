@@ -1,7 +1,7 @@
 """Company-level orchestration for lazy V2 settlement and tax enforcement."""
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Type
 
 from sqlalchemy import select
@@ -9,9 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import get_game_tz, normalize_dt
-from backend.natbirzha.models.business import NatBusiness
+from backend.natbirzha.models.business import (
+    NatBusiness, NatBusinessIncomeDaily, NatBusinessIncomePeriod,
+)
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.models.premium import NatPremiumLicense
+from backend.natbirzha.models.business_assets import NatBusinessSupplyPolicy
 from backend.natbirzha.models.stocks import NatStock
+from backend.natbirzha.models.tax import NatCompanyProfitPeriod
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
 from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
 from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
@@ -102,16 +108,28 @@ async def settle_company(
     # without production back-pay when their contract expires.
     license_now = current.replace(tzinfo=get_game_tz()).astimezone(timezone.utc).replace(tzinfo=None)
     expired_contract_ids: set[int] = set()
+    license_codes = {
+        str((business.metadata_json or {}).get("contract_license"))
+        for business in visible
+        if (business.metadata_json or {}).get("contract_license")
+    }
+    active_license_codes = set()
+    if license_codes:
+        active_license_codes = set((await session.scalars(
+            select(NatPremiumLicense.license_code).where(
+                NatPremiumLicense.company_id == company.id,
+                NatPremiumLicense.license_code.in_(license_codes),
+                NatPremiumLicense.status == "ACTIVE",
+                NatPremiumLicense.starts_at <= license_now,
+                NatPremiumLicense.expires_at > license_now,
+            )
+        )).all())
     for business in visible:
         metadata = dict(business.metadata_json or {})
         license_code = metadata.get("contract_license")
         if not license_code:
             continue
-        from backend.natbirzha.services.premium_service import PremiumService
-
-        license_active = await PremiumService.is_license_active(
-            session, company.id, str(license_code), now=license_now
-        )
+        license_active = str(license_code) in active_license_codes
         spec = get_business_spec(business.business_type)
         ready_at = normalize_dt(business.upgrade_ready_at)
         if license_active:
@@ -173,6 +191,112 @@ async def settle_company(
         session, company.id, start=deal_window_start, end=effective_current
     ) if process_deals else []
 
+    resource_business_specs = {
+        business.id: spec
+        for business in businesses
+        if (spec := get_business_spec(business.business_type))
+        and spec.get("mechanic") == "resource_production"
+        and business.id not in expired_contract_ids
+    }
+    inventory_item_ids = {
+        item_id
+        for spec in resource_business_specs.values()
+        for item_id in (*spec.get("inputs_per_hour", {}), *spec.get("outputs_per_hour", {}))
+    }
+    inventory_cache: dict[str, NatInventory | None] = {}
+    if inventory_item_ids:
+        inventory_rows = (await session.execute(
+            select(NatInventory)
+            .where(
+                NatInventory.company_id == company.id,
+                NatInventory.item_id.in_(inventory_item_ids),
+            )
+            .order_by(NatInventory.item_id)
+            .with_for_update()
+        )).scalars().all()
+        inventory_cache.update({item_id: None for item_id in inventory_item_ids})
+        inventory_cache.update({row.item_id: row for row in inventory_rows})
+
+    policies_by_business: dict[int, list[NatBusinessSupplyPolicy]] = defaultdict(list)
+    resource_business_ids = list(resource_business_specs)
+    if resource_business_ids:
+        policies = (await session.execute(
+            select(NatBusinessSupplyPolicy)
+            .where(
+                NatBusinessSupplyPolicy.business_id.in_(resource_business_ids),
+                NatBusinessSupplyPolicy.mode != "MANUAL",
+            )
+            .order_by(NatBusinessSupplyPolicy.business_id, NatBusinessSupplyPolicy.item_id)
+            .with_for_update()
+        )).scalars().all()
+        for policy in policies:
+            policies_by_business[policy.business_id].append(policy)
+
+    daily_ledger_keys: set[tuple[int, date]] = set()
+    business_period_keys: set[tuple[int, datetime]] = set()
+    for business in businesses:
+        if business.id in expired_contract_ids:
+            continue
+        spec = get_business_spec(business.business_type)
+        if not spec or spec.get("legacy_hidden") or spec.get("mechanic") not in {
+            "cash_income", "resource_production"
+        }:
+            continue
+        start = normalize_dt(business.last_settled_at) or effective_current
+        end = min(
+            effective_current,
+            start + timedelta(hours=max(1, int(cap_hours))),
+        )
+        daily_cursor = start
+        while daily_cursor < end:
+            daily_ledger_keys.add((business.id, daily_cursor.date()))
+            next_day = datetime.combine(daily_cursor.date() + timedelta(days=1), datetime.min.time())
+            daily_cursor = min(end, next_day)
+        period_cursor = start
+        while period_cursor < end:
+            period_start, period_end = get_period_bounds(period_cursor)
+            business_period_keys.add((business.id, period_start))
+            period_cursor = min(end, period_end)
+
+    daily_ledger_cache: dict[tuple[int, date], NatBusinessIncomeDaily | None] = {
+        key: None for key in daily_ledger_keys
+    }
+    if daily_ledger_keys:
+        daily_rows = (await session.execute(
+            select(NatBusinessIncomeDaily)
+            .where(
+                NatBusinessIncomeDaily.business_id.in_({key[0] for key in daily_ledger_keys}),
+                NatBusinessIncomeDaily.date.in_({key[1] for key in daily_ledger_keys}),
+            )
+            .order_by(NatBusinessIncomeDaily.business_id, NatBusinessIncomeDaily.date)
+            .with_for_update()
+        )).scalars().all()
+        daily_ledger_cache.update({
+            (row.business_id, row.date): row for row in daily_rows
+        })
+
+    business_period_cache: dict[tuple[int, datetime], NatBusinessIncomePeriod | None] = {
+        key: None for key in business_period_keys
+    }
+    if business_period_keys:
+        period_rows = (await session.execute(
+            select(NatBusinessIncomePeriod)
+            .where(
+                NatBusinessIncomePeriod.business_id.in_({key[0] for key in business_period_keys}),
+                NatBusinessIncomePeriod.period_start.in_({key[1] for key in business_period_keys}),
+            )
+            .order_by(
+                NatBusinessIncomePeriod.business_id,
+                NatBusinessIncomePeriod.period_start,
+            )
+            .with_for_update()
+        )).scalars().all()
+        business_period_cache.update({
+            (row.business_id, row.period_start): row for row in period_rows
+        })
+
+    company_profit_period_cache: dict[tuple[int, datetime], NatCompanyProfitPeriod | None] = {}
+
     gross = gross_cash = gross_value = maintenance = settled_hours = skipped_hours = 0.0
     hourly_cash_income: dict[datetime, float] = defaultdict(float)
     profit_slices: list[dict[str, Any]] = []
@@ -229,14 +353,20 @@ async def settle_company(
                         await SupplyDealService.fulfill_resource_interval(
                             session, company, business, spec,
                             start=segment_start, end=segment_end, now=current,
+                            deals=active_deals, inventory_cache=inventory_cache,
                         )
                     # Contract stock is offered first; the established market/NPC
                     # policy remains the fallback for any unmet input requirement.
-                    await SupplyPolicyService.auto_procure(session, company, business, spec)
+                    await SupplyPolicyService.auto_procure(
+                        session, company, business, spec,
+                        policies=policies_by_business.get(business.id, []),
+                        inventory_cache=inventory_cache,
+                    )
                     result = await engine._settle_resource_business(
                         session, business, spec, now=segment_end, cap_hours=cap_hours,
                         industry_bonus_multiplier=industry_bonus,
                         storage_capacity_by_item=storage_capacity_by_item,
+                        inventory_cache=inventory_cache,
                     )
                 else:
                     result = engine._settle_business(
@@ -269,6 +399,9 @@ async def settle_company(
                     gross=segment_gross,
                     maintenance=segment_maintenance,
                     resource_cost=segment_resource_cost,
+                    daily_row_cache=daily_ledger_cache,
+                    period_row_cache=business_period_cache,
+                    flush=False,
                 )
                 # Cash businesses realize their income as it is earned. Legacy
                 # NPC-sale resource businesses do too; HOLD production remains
@@ -282,6 +415,8 @@ async def settle_company(
                         revenue=biz_gross_cash,
                         cost_of_goods_sold=segment_resource_cost,
                         maintenance=segment_maintenance,
+                        row_cache=company_profit_period_cache,
+                        flush=False,
                     )
                 for hour_start, cash_income in BusinessIncomeLedgerService.split_interval_by_hour(
                     segment_start, segment_worked, biz_gross_cash,

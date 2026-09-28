@@ -54,11 +54,11 @@ assert(
 assert(
   api.includes('NatAPI') && app.includes("./api.js?v=20260928_market_frontend_perf_v1")
     && screenLoader.includes("./screens/market.js?v=20260928_market_frontend_perf_v1")
-    && screenLoader.includes("./screens/upgrades.js?v=20260928_market_frontend_perf_v1")
+    && screenLoader.includes("./screens/upgrades.js?v=20260928_upgrade_legacy_cleanup_v1")
     && screenLoader.includes("./screens/tycoon.js?v=20260928_market_frontend_perf_v1")
-    && app.includes("./screen_loader.js?v=20260928_market_frontend_perf_v1")
-    && indexHtml.includes('/js/app.js?v=20260928_market_frontend_perf_v1'),
-  'changed frontend entry, loader, market, and upgrades assets should use the shared cache-bust version',
+    && app.includes("./screen_loader.js?v=20260928_upgrade_legacy_cleanup_v1")
+    && indexHtml.includes('/js/app.js?v=20260928_upgrade_legacy_cleanup_v1'),
+  'changed frontend entry, loader, and upgrade assets should use fresh cache-bust versions',
 );
 const apiImportVersions = new Set(javascriptFiles(path.join(__dirname, '../../frontend/natbirzha/js'))
   .flatMap((file) => [...fs.readFileSync(file, 'utf8').matchAll(/(?:^|\/)api\.js\?v=([^&'"\s]+)/g)].map((match) => match[1])));
@@ -85,11 +85,17 @@ assert(
 );
 
 const renderUpgradesStart = upgrades.indexOf('export async function renderUpgrades');
-const cachedFactoriesIndex = upgrades.indexOf('renderFactoryUpgrades(container, showToast, cachedFactories)', renderUpgradesStart);
+const loadingScreenIndex = upgrades.indexOf('renderUpgradeLoading(container)', renderUpgradesStart);
 const empireSummaryIndex = upgrades.indexOf('await NatAPI.getEmpireSummary()', renderUpgradesStart);
 assert(
-  cachedFactoriesIndex !== -1 && empireSummaryIndex !== -1 && cachedFactoriesIndex < empireSummaryIndex,
-  'the upgrades screen should display cached factory upgrades before waiting for empire summary',
+  loadingScreenIndex !== -1 && empireSummaryIndex !== -1 && loadingScreenIndex < empireSummaryIndex,
+  'the upgrades screen should show a loading state before waiting for the V2 empire summary',
+);
+assert(
+  !upgrades.includes('renderFactoryUpgrades')
+    && !upgrades.includes('NatAPI.getProductionStatus()')
+    && !upgrades.includes('Прокачка производств'),
+  'the obsolete factory-upgrade UI must never flash while the V2 upgrades screen is loading',
 );
 assert(
   upgrades.includes('registerScreenCleanup')

@@ -31,12 +31,6 @@ const princessTheme = fs.readFileSync(path.join(__dirname, '../frontend/natbirzh
   assert(princessTheme.includes('.dark .bg-slate-50') && princessTheme.includes('.dark .bg-white'),
     'dark princess theme must override light card utilities instead of rendering grey/white cards');
 
-  const upgradesScreen = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/upgrades.js'), 'utf-8');
-  assert(upgradesScreen.includes('upgrade-locked-btn'),
-    'locked upgrade controls must have a dedicated readable visual treatment');
-  assert(!upgradesScreen.includes('bg-slate-800/60 text-slate-500 py-2 text-[10px] font-bold cursor-not-allowed'),
-    'locked upgrade controls must not be rendered as low-contrast grey buttons');
-
   const overviewScreen = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/overview.js'), 'utf-8');
   assert(overviewScreen.includes('capital_plan'),
     'overview must render the API capital plan when a company reaches its capital milestone');
@@ -421,8 +415,8 @@ assert(marketCoreCode.includes('ensureIndustryProductsAvailable'),
   'industry products must remain visible even if an NPC-rate response omits a canonical product');
 assert(itemRegistryCode.includes("ai_compute: { name: 'Вычислительная мощность ИИ'"),
   'AI compute must have a localized canonical item label');
-assert(marketHtmlCode.includes('app.js?v=20260928_market_frontend_perf_v1'),
-  'the app entrypoint must use a fresh cache key for the market and upgrade loading update');
+assert(marketHtmlCode.includes('app.js?v=20260928_upgrade_legacy_cleanup_v1'),
+  'the app entrypoint must use a fresh cache key for the upgrade screen cleanup');
 assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes('market.js?v=20260928_market_frontend_perf_v1'),
   'the market screen must use a fresh cache key so the AI output list refreshes');
 assert(marketSectionLoaderCode.includes("stocks: 'renderStocks'") && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),
@@ -592,11 +586,10 @@ assert(creatorPlayersCode.includes('getCreatorPlayers') && creatorPlayersCode.in
 
 
 const upgradesCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/upgrades.js'), 'utf-8');
-assert(upgradesCode.includes('upgrade_options'), 'upgrades.js must render server-authoritative upgrade options');
-assert(!upgradesCode.includes('calcUpgrade('), 'upgrades.js must not duplicate upgrade price formulas');
-assert(upgradesCode.includes('upgrade-help-btn'), 'blocked upgrades must link to relevant help');
-assert(upgradesCode.includes('max_level') && upgradesCode.includes('Автозапуск'),
-  'automation upgrade card must show the server max tier and explain the automatic cycle behavior');
+assert(upgradesCode.includes('upgradeBusiness') && upgradesCode.includes('upgrade-all-businesses'),
+  'upgrades.js must expose server-authoritative V2 enterprise upgrades');
+assert(!upgradesCode.includes('renderFactoryUpgrades') && !upgradesCode.includes('getProductionStatus()'),
+  'upgrades.js must not retain the obsolete factory-upgrade screen or its fallback request');
 
 const overviewCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/overview.js'), 'utf-8');
 assert(overviewCode.includes('rename-company-btn') && overviewCode.includes('NatAPI.renameCompany'),

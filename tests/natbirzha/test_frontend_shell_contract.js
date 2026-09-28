@@ -16,9 +16,12 @@ assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(natHtml.includes('id="access-wait-screen"'), 'admin-only release gate must include the full-screen waiting view');
 assert(natHtml.includes('Патч варится, бро.'), 'full-screen waiting view must show the selected release quote');
-assert(natHtml.includes('app.js?v=20260928_pre_release_audit_v1'), 'Natbirzha entrypoint must bust its cache for the access gate release');
+assert(natHtml.includes('app.js?v=20260928_startup_batch100_v1'), 'Natbirzha entrypoint must bust its cache for startup and deal delivery changes');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
+const appScript = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/app.js'), 'utf-8');
+assert(!appScript.includes('await waitForTelegramWebApp(1500)'),
+  'app startup must not impose a 1.5-second Telegram identity wait');
 console.log('index.html structure and scripts verified!');
 
 const princessTheme = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/css/princess-theme.css'), 'utf-8');
@@ -212,6 +215,7 @@ assert(apiScript.includes('joinTournament:'), 'api.js must expose tournament reg
 console.log('api.js methods, auth headers and error handling resilience verified!');
 
 const marketScreen = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/screens/market.js'), 'utf-8');
-assert(marketScreen.includes("market_deals.js?v=20260926_joint_factory_v1"), 'Market must load the separately cached deal screen');
+const marketSectionLoader = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/screens/market_section_loader.js'), 'utf-8');
+assert(marketSectionLoader.includes("./market_deals.js?v=20260928_mobile_perf_v1"), 'Market must load the separately cached deal screen');
 assert(marketScreen.indexOf('data-section="state_credit"') < marketScreen.indexOf('data-section="deals"'),
   'Deals must be the final section in the market menu');

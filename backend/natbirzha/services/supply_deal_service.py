@@ -33,6 +33,7 @@ class SupplyDealService:
     MAX_DISCOUNT_PCT = 50.0
     MAX_PROFIT_SHARE_PCT = 50.0
     MAX_QUANTITY_PER_HOUR = 1_000_000.0
+    DELIVERY_BATCH_SIZE = 100.0
     STATUSES = frozenset({"PENDING", "ACTIVE", "COMPLETED", "REJECTED", "CANCELLED", "BREACHED"})
 
     @staticmethod
@@ -621,7 +622,7 @@ class SupplyDealService:
         end: datetime,
         now: datetime,
     ) -> list[dict[str, Any]]:
-        """Transfer only current input need, with seller inventory and hourly quota enforced."""
+        """Transfer fixed 100-unit batches once accumulated deal quota permits them."""
         seconds = max(0.0, (end - start).total_seconds())
         if seconds <= 1e-6:
             return []
@@ -649,15 +650,21 @@ class SupplyDealService:
             inventory = await session.scalar(select(NatInventory).where(
                 NatInventory.company_id == buyer.id, NatInventory.item_id == deal.item_id
             ).with_for_update())
-            demand = inputs[deal.item_id] * (overlap_seconds / 3600)
-            available = float(inventory.available_quantity) if inventory else 0.0
-            needed = max(0.0, demand - available)
-            if needed <= 1e-9:
+            buyer_quantity = float(inventory.quantity) if inventory else 0.0
+            batch_size = cls.DELIVERY_BATCH_SIZE
+            # A contract replenishes a depleted input stock in complete lots;
+            # it never dribbles out the current tick's 1–2 unit consumption.
+            if buyer_quantity >= batch_size - 1e-9:
                 continue
 
-            used = await cls._delivered_during(session, deal.id, active_start, active_end)
-            quota = max(0.0, float(deal.quantity_per_hour) * overlap_seconds / 3600 - used)
-            if quota <= 1e-9:
+            accrued_seconds = max(
+                0.0,
+                (active_end - normalize_dt(deal.starts_at)).total_seconds(),
+            )
+            accrued_quota = float(deal.quantity_per_hour) * accrued_seconds / 3600
+            already_delivered = await cls._delivered_through(session, deal.id, active_end)
+            remaining_quota = max(0.0, accrued_quota - already_delivered)
+            if remaining_quota + 1e-9 < batch_size:
                 continue
             supplier_inventory = await session.scalar(select(NatInventory).where(
                 NatInventory.company_id == deal.supplier_company_id,
@@ -666,15 +673,18 @@ class SupplyDealService:
             supplier_available = float(supplier_inventory.available_quantity) if supplier_inventory else 0.0
             reference = await cls.current_reference_price(session, deal.item_id, exclude_company_id=buyer.id)
             unit_price = round(max(0.000001, reference * (1 - float(deal.discount_pct) / 100)), 6)
-            buyer_quantity = float(inventory.quantity) if inventory else 0.0
             storage_cap = await InventoryCapacityService.for_item(
                 session, buyer, deal.item_id
             )
             storage_free = max(0.0, storage_cap - buyer_quantity)
             cash_affordable = max(0.0, float(buyer.cash)) / unit_price
-            quantity = round(min(needed, quota, supplier_available, storage_free, cash_affordable), 6)
-            if quantity <= 1e-9:
+            if (
+                supplier_available + 1e-9 < batch_size
+                or storage_free + 1e-9 < batch_size
+                or cash_affordable + 1e-9 < batch_size
+            ):
                 continue
+            quantity = batch_size
             amount = round(quantity * unit_price, 6)
             if amount <= 0 or float(buyer.cash) + 1e-9 < amount:
                 continue
@@ -745,26 +755,18 @@ class SupplyDealService:
                 "deal_id": deal.id, "item_id": deal.item_id, "quantity": quantity,
                 "unit_price": unit_price, "cash_amount": amount,
             })
-            needed = max(0.0, needed - quantity)
         if transfers:
             await session.flush()
         return transfers
 
     @staticmethod
-    async def _delivered_during(session: AsyncSession, deal_id: int, start: datetime, end: datetime) -> float:
-        rows = (await session.execute(select(NatSupplyDealSettlement).where(
+    async def _delivered_through(session: AsyncSession, deal_id: int, end: datetime) -> float:
+        rows = (await session.execute(select(NatSupplyDealSettlement.quantity).where(
             NatSupplyDealSettlement.deal_id == deal_id,
             NatSupplyDealSettlement.settlement_type == "DELIVERY",
-            NatSupplyDealSettlement.period_start < end,
-            NatSupplyDealSettlement.period_end > start,
+            NatSupplyDealSettlement.period_end <= end,
         ))).scalars().all()
-        total = 0.0
-        for row in rows:
-            row_start, row_end = normalize_dt(row.period_start), normalize_dt(row.period_end)
-            duration = max(1.0, (row_end - row_start).total_seconds())
-            overlap = max(0.0, (min(end, row_end) - max(start, row_start)).total_seconds())
-            total += float(row.quantity) * overlap / duration
-        return round(total, 6)
+        return round(sum(float(quantity or 0.0) for quantity in rows), 6)
 
     @staticmethod
     async def _record_daily_financials(session: AsyncSession, buyer_id: int, supplier_id: int, amount: float, now: datetime) -> None:

@@ -322,8 +322,8 @@ async def _offline_interval_intersects_only_active_deal_time() -> None:
         share = [row for row in entries if row.settlement_type == "PROFIT_SHARE"]
         assert deal_rows[0].status == "COMPLETED"
         assert len(delivery) == 1, entries
-        assert abs(delivery[0].quantity - (100 / 6)) < 1e-4, delivery[0].quantity
-        assert buyer_water is None or buyer_water.quantity < 1e-6
+        assert delivery[0].quantity == 100, delivery[0].quantity
+        assert buyer_water is not None and buyer_water.quantity == pytest.approx(66.666667, abs=1e-4)
         assert buyer_energy is not None and buyer_energy.quantity > 0, buyer_energy.quantity if buyer_energy else None
         assert share == []
         assert settlement["profit_share_paid_cash"] == 0
@@ -395,7 +395,7 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         stage=1, status="ACTIVE", last_settled_at=start,
     )
     supplier_stock = NatInventory(
-        company_id=supplier.id, item_id="energy", quantity=7, avg_cost_basis=1,
+        company_id=supplier.id, item_id="energy", quantity=99, avg_cost_basis=1,
     )
     buyer_inputs = [
         NatInventory(company_id=buyer.id, item_id=item, quantity=100, avg_cost_basis=1)
@@ -406,7 +406,7 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
     try:
         offer = await SupplyDealService.create_offer(
             session, buyer, supplier_company_id=supplier.id, item_id="energy",
-            quantity_per_hour=100, discount_pct=20, term_seconds=1800,
+            quantity_per_hour=100, discount_pct=20, term_seconds=7200,
             reward_type="PROFIT_SHARE", profit_share_pct=1, now=start,
         )
         await SupplyDealService.accept(session, supplier, offer.id, now=start)
@@ -416,36 +416,48 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         )
         price = reference * 0.8
         before_buyer_cash, before_supplier_cash = buyer.cash, supplier.cash
-        transfers = await SupplyDealService.fulfill_resource_interval(
+        too_early = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
             start=start, end=start + timedelta(minutes=15), now=now,
         )
+        assert too_early == []  # accrued quota is below one full 100-unit batch
+        transfers = await SupplyDealService.fulfill_resource_interval(
+            session, buyer, buyer_business, spec,
+            start=start + timedelta(minutes=15), end=start + timedelta(hours=1), now=now,
+        )
+        assert transfers == []  # supplier only has 99; deals never send partial batches
+        supplier_stock.quantity = 107
+        transfers = await SupplyDealService.fulfill_resource_interval(
+            session, buyer, buyer_business, spec,
+            start=start + timedelta(minutes=15), end=start + timedelta(hours=1), now=now,
+        )
         assert len(transfers) == 1
-        assert transfers[0]["quantity"] == 7  # below the 25-unit quota and 22-unit demand
+        assert transfers[0]["quantity"] == 100
         buyer_energy = await session.scalar(select(NatInventory).where(
             NatInventory.company_id == buyer.id, NatInventory.item_id == "energy"
         ))
-        assert buyer_energy is not None and buyer_energy.quantity == 7
-        assert supplier_stock.quantity == 0
-        assert abs((before_buyer_cash - buyer.cash) - 7 * price) < 1e-5
-        assert abs((supplier.cash - before_supplier_cash) - 7 * price) < 1e-5
+        assert buyer_energy is not None and buyer_energy.quantity == 100
+        assert supplier_stock.quantity == 7
+        assert abs((before_buyer_cash - buyer.cash) - 100 * price) < 1e-5
+        assert abs((supplier.cash - before_supplier_cash) - 100 * price) < 1e-5
         period_start, _ = get_period_bounds(now)
         seller_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
             NatCompanyProfitPeriod.company_id == supplier.id,
             NatCompanyProfitPeriod.period_start == period_start,
         ))
         assert seller_profit is not None
-        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 7.0)
+        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 100.0)
 
+        buyer_energy.quantity = 0
         buyer.cash = 0
-        supplier_stock.quantity = 10
+        supplier_stock.quantity = 100
         no_cash = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
-            start=start + timedelta(minutes=15), end=start + timedelta(minutes=30), now=now,
+            start=start + timedelta(hours=1), end=start + timedelta(hours=2), now=now,
         )
         assert no_cash == []
         assert buyer.cash == 0
-        assert supplier_stock.quantity == 10
+        assert supplier_stock.quantity == 100
         await session.commit()
     finally:
         await session.close()

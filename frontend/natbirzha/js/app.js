@@ -256,29 +256,8 @@ function setupNavigation() {
   creatorButton?.addEventListener('click', () => navigateTo('creator'));
 }
 
-function waitForTelegramWebApp(timeoutMs = 1500) {
-  return new Promise((resolve) => {
-    const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
-    if (tg?.initData && tg.initData.length > 0) {
-      return resolve();
-    }
-    const start = Date.now();
-    const check = () => {
-      const currentTg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
-      if ((currentTg?.initData && currentTg.initData.length > 0) || Date.now() - start >= timeoutMs) {
-        resolve();
-      } else {
-        setTimeout(check, 50);
-      }
-    };
-    setTimeout(check, 50);
-  });
-}
-
 // App Initialization
 export async function initApp() {
-  await waitForTelegramWebApp(1500);
-
   const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
   if (tg) {
     try { tg.ready?.(); } catch (_) {}

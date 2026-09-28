@@ -69,6 +69,7 @@ async def get_market_liquidity(
         total_seller_cash = report["total_seller_cash_received"]
         total_fees = report["total_market_fees"]
         sale_count = report["sale_count"]
+        coverage = report["coverage"]
     else:
         window_start = snapshot.window_start
         sectors = snapshot.sectors_json or {}
@@ -77,6 +78,7 @@ async def get_market_liquidity(
         total_seller_cash = float(snapshot.total_seller_cash_received or 0.0)
         total_fees = float(snapshot.total_market_fees or 0.0)
         sale_count = int(snapshot.sale_count or 0)
+        coverage = snapshot.coverage_json or {}
 
     return {
         "window_start": window_start.isoformat(),
@@ -89,7 +91,7 @@ async def get_market_liquidity(
         "sale_count": sale_count,
         "items": _ranking_from_json(sectors, unassigned),
         "sectors": sectors,
-        "coverage": report["coverage"] if snapshot is None else snapshot.coverage_json,
+        "coverage": coverage,
     }
 
 

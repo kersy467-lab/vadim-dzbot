@@ -87,7 +87,8 @@ class BusinessService:
     @staticmethod
     async def _locked_company(session: AsyncSession, company_id: int) -> NatCompany:
         company = await session.scalar(
-            select(NatCompany).where(NatCompany.id == company_id).with_for_update()
+            select(NatCompany).where(NatCompany.id == company_id)
+            .with_for_update().execution_options(populate_existing=True)
         )
         if company is None:
             raise ValueError("Компания не найдена")

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import get_game_now, normalize_dt
@@ -221,6 +221,13 @@ class ProductionAutomationMixin:
             select(NatFactory.id).where(
                 NatFactory.company_id == company_id,
                 NatFactory.is_active == True,
+                or_(
+                    NatFactory.cycle_ready_at <= current,
+                    and_(
+                        NatFactory.automation_enabled == True,
+                        NatFactory.cycle_ready_at.is_(None),
+                    ),
+                ),
             )
         )
         completed: List[Dict[str, Any]] = []
@@ -287,7 +294,17 @@ class ProductionAutomationMixin:
         result = await session.execute(
             select(NatFactory.id, NatFactory.company_id)
             .join(NatCompany, NatFactory.company_id == NatCompany.id)
-            .where(NatFactory.is_active == True, NatCompany.is_bankrupt == False)
+            .where(
+                NatFactory.is_active == True,
+                NatCompany.is_bankrupt == False,
+                or_(
+                    NatFactory.cycle_ready_at <= current,
+                    and_(
+                        NatFactory.automation_enabled == True,
+                        NatFactory.cycle_ready_at.is_(None),
+                    ),
+                ),
+            )
         )
         completed = 0
         started = 0

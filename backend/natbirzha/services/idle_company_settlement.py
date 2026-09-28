@@ -80,7 +80,8 @@ async def settle_company(
             await settle_company(engine, session, supplier_id, current=current, process_deals=False)
 
     company = await session.scalar(
-        select(NatCompany).where(NatCompany.id == company_id).with_for_update()
+        select(NatCompany).where(NatCompany.id == company_id)
+        .with_for_update().execution_options(populate_existing=True)
     )
     if company is None:
         raise ValueError("Компания не найдена")

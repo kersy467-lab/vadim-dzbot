@@ -29,16 +29,21 @@ def test_water_inputs_are_multiplied_in_both_live_production_catalogs() -> None:
     assert get_item_base_price("water") == 2
 
 
-def test_energy_inputs_are_multiplied_elevenfold_in_all_live_catalogs() -> None:
+def test_energy_inputs_apply_demand_multiplier_then_industry_reduction() -> None:
     factory_spec = get_building_spec("steel_mill")
     business_spec = get_business_spec("steel_plant_v2")
     wind_park = get_business_spec("wind_park_v2")
-    assert factory_spec is not None and factory_spec["inputs"]["energy"] == 44
-    assert factory_spec["alternate_recipes"][0]["inputs"]["energy"] == 77
-    assert factory_spec["alternate_recipes"][1]["inputs"]["energy"] == 11
-    assert business_spec is not None and business_spec["inputs_per_hour"]["energy"] == 154
+    ai_node = get_business_spec("ai_compute_node")
+    assert factory_spec is not None and factory_spec["inputs"]["energy"] == 33
+    assert factory_spec["alternate_recipes"][0]["inputs"]["energy"] == 57.75
+    assert factory_spec["alternate_recipes"][1]["inputs"]["energy"] == 8.25
+    assert business_spec is not None and business_spec["inputs_per_hour"]["energy"] == 115.5
     assert wind_park is not None and wind_park["outputs_per_hour"]["energy"] > 0
+    assert ai_node is not None
+    assert ai_node["inputs_per_hour"]["energy"] == 138.6
+    assert ai_node["inputs_per_hour"]["water"] == 56.5
     assert get_item_base_price("energy") == 10
+    assert get_item_base_price("ai_compute") == 93.75
 
 
 def test_factory_cycle_consumes_scaled_technical_water() -> None:

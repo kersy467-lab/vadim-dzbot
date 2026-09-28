@@ -1,8 +1,11 @@
 import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260927_hospital_v2';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen } from './screen_loader.js?v=20260928_factory_readiness_v1';
+import { loadScreen, preloadScreen } from './screen_loader.js?v=20260928_initial_screen_preload_v2';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
+
+// Start fetching the only possible initial screens while auth and company data load.
+void Promise.all([preloadScreen('overview'), preloadScreen('onboarding')]);
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {
@@ -226,14 +229,31 @@ export async function navigateTo(tab) {
 }
 
 // Setup bottom navigation listeners
+function preloadScreenOnIntent(button, tab) {
+  if (!button || !tab) return;
+  let requested = false;
+  const preload = () => {
+    if (requested || tab === store.currentTab) return;
+    requested = true;
+    void preloadScreen(tab);
+  };
+
+  button.addEventListener('pointerenter', preload, { once: true });
+  button.addEventListener('touchstart', preload, { once: true, passive: true });
+  button.addEventListener('focus', preload, { once: true });
+}
+
 function setupNavigation() {
   document.querySelectorAll('.nav-tab').forEach(btn => {
+    const tab = btn.getAttribute('data-tab');
+    preloadScreenOnIntent(btn, tab);
     btn.addEventListener('click', () => {
-      const tab = btn.getAttribute('data-tab');
       if (tab && tab !== store.currentTab) navigateTo(tab);
     });
   });
-  document.getElementById('creator-nav-btn')?.addEventListener('click', () => navigateTo('creator'));
+  const creatorButton = document.getElementById('creator-nav-btn');
+  preloadScreenOnIntent(creatorButton, 'creator');
+  creatorButton?.addEventListener('click', () => navigateTo('creator'));
 }
 
 function waitForTelegramWebApp(timeoutMs = 1500) {

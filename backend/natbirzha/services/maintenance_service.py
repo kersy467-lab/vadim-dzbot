@@ -24,23 +24,25 @@ class MaintenanceService:
         explicitly override that initial default.
         """
         result = await session.execute(
-            select(ClassSetting).where(ClassSetting.key == MAINTENANCE_SETTING_KEY)
+            select(ClassSetting.key, ClassSetting.value).where(
+                ClassSetting.key.in_((
+                    MAINTENANCE_SETTING_KEY,
+                    LEGACY_MAINTENANCE_SETTING_KEY,
+                ))
+            )
         )
-        row = result.scalar_one_or_none()
-        if row and row.value:
-            return row.value.strip().lower() in ("true", "1", "yes", "on")
+        values = dict(result.all())
+        current_value = values.get(MAINTENANCE_SETTING_KEY)
+        if current_value:
+            return current_value.strip().lower() in ("true", "1", "yes", "on")
 
         # The old key controlled only a frontend notice. Preserve an active
         # legacy break, but do not let its old "false" value override the new
         # launch-only default on a fresh rollout.
-        legacy_result = await session.execute(
-            select(ClassSetting).where(ClassSetting.key == LEGACY_MAINTENANCE_SETTING_KEY)
-        )
-        legacy_row = legacy_result.scalar_one_or_none()
+        legacy_value = values.get(LEGACY_MAINTENANCE_SETTING_KEY)
         legacy_active = bool(
-            legacy_row
-            and legacy_row.value
-            and legacy_row.value.strip().lower() in ("true", "1", "yes", "on")
+            legacy_value
+            and legacy_value.strip().lower() in ("true", "1", "yes", "on")
         )
         if legacy_active:
             return True

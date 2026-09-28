@@ -15,7 +15,7 @@ from backend.natbirzha.models.inventory import (
 )
 from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.services.npc_quota_service import NPCQuotaMixin
-from backend.natbirzha.services.progression_service import apply_xp
+from backend.natbirzha.services.progression_service import apply_xp, economy_xp_from_value
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
@@ -235,7 +235,7 @@ class NPCReserveService(NPCQuotaMixin):
         )
         fin.gross_revenue = round(fin.gross_revenue + total_payout, 2)
         fin.closed_profit = round(fin.gross_revenue - fin.opex, 2)
-        xp_gain = max(1, int(quantity * 2))
+        xp_gain = economy_xp_from_value(total_payout)
         apply_xp(company, xp_gain)
         await EconomyMetricsService.record(
             session, company_id=company.id, flow="SOURCE", category="npc_sell",

@@ -7,6 +7,8 @@ from typing import Any, Dict
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
 
+ECONOMY_XP_VALUE_PER_POINT = 40.0
+
 
 def _transition_cost(current_level: int) -> int:
     """XP earned while at ``current_level`` to unlock the next level.
@@ -128,4 +130,15 @@ def apply_xp(company: NatCompany, amount: int) -> Dict[str, Any]:
     return snapshot
 
 
-__all__ = ["apply_xp", "mastery_xp_required_for_rank", "progress_snapshot", "xp_required_for_level"]
+def economy_xp_from_value(value: float) -> int:
+    """Award source XP by economic value, independent of the resource's unit."""
+    return max(1, int(max(0.0, float(value)) / ECONOMY_XP_VALUE_PER_POINT))
+
+
+__all__ = [
+    "apply_xp",
+    "economy_xp_from_value",
+    "mastery_xp_required_for_rank",
+    "progress_snapshot",
+    "xp_required_for_level",
+]

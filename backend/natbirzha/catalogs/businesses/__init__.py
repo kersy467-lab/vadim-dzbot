@@ -25,6 +25,7 @@ from backend.natbirzha.technical_water import (
     scale_catalog_water_inputs,
 )
 from backend.natbirzha.technical_energy import (
+    apply_industry_resource_usage_adjustments,
     recalibrate_scaled_energy_outputs,
     scale_catalog_energy_inputs,
 )
@@ -88,6 +89,11 @@ HYBRID_BUSINESSES = balance_career_catalog(HYBRID_BUSINESSES)
 CAREER_BUSINESSES = {**CAREER_BUSINESSES, **HYBRID_BUSINESSES}
 CAREER_BUSINESSES = add_employee_beverages_to_catalog(CAREER_BUSINESSES)
 CAREER_BUSINESSES = cap_career_catalog_expenses(CAREER_BUSINESSES)
+CAREER_BUSINESSES = apply_industry_resource_usage_adjustments(
+    CAREER_BUSINESSES,
+    input_field="inputs_per_hour",
+    resource_production_only=True,
+)
 JOINT_FACTORY_RECIPES = build_joint_factory_catalog(CAREER_BUSINESSES)
 # Keep already-running AI/forestry collaboration factories settling after the
 # specialization rename and partnership refresh. These recipes are never

@@ -125,7 +125,8 @@ class UpgradeService:
             raise ValueError(f"Unknown upgrade type: '{kind}'")
 
         locked_company = (await session.execute(
-            select(NatCompany).where(NatCompany.id == company.id).with_for_update()
+            select(NatCompany).where(NatCompany.id == company.id)
+            .with_for_update().execution_options(populate_existing=True)
         )).scalar_one_or_none()
         if not locked_company:
             raise ValueError("Company not found")

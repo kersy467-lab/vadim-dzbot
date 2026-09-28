@@ -120,17 +120,27 @@ class CompanyService:
         return await CompanyService.calculate_audited_nav(session, company)
 
     @staticmethod
-    async def calculate_audited_nav(session: AsyncSession, company: NatCompany) -> float:
-        """Calculates Net Asset Value: Cash + Land + Factories + Inventory."""
+    async def calculate_audited_nav(
+        session: AsyncSession,
+        company: NatCompany,
+        *,
+        factories: list[NatFactory] | None = None,
+        inventory: list[NatInventory] | None = None,
+    ) -> float:
+        """Calculate NAV, reusing factory and inventory rows when already loaded."""
         total_nav = float(company.cash)
         # Land valuation: 10,000 cash per tile
         total_nav += company.territory_tiles * 10000.0
 
-        # Factories valuation: 25,000 cash per level
-        fac_res = await session.execute(select(NatFactory).where(NatFactory.company_id == company.id))
-        factories = fac_res.scalars().all()
-        for f in factories:
-            total_nav += f.level * 25000.0
+        # Reuse the rows from company status when present; this avoids loading
+        # the same factories and inventory twice in a single screen request.
+        if factories is None:
+            fac_res = await session.execute(
+                select(NatFactory).where(NatFactory.company_id == company.id)
+            )
+            factories = fac_res.scalars().all()
+        for factory in factories:
+            total_nav += factory.level * 25000.0
 
         # Tycoon V2 enterprises are real company assets too. Legacy hidden
         # aggregate rows are intentionally excluded from the new economy.
@@ -146,12 +156,15 @@ class CompanyService:
                 total_nav += max(0.0, float(business.capital_invested)) * 0.70
 
         # Inventory valuation at base price
-        inv_res = await session.execute(select(NatInventory).where(NatInventory.company_id == company.id))
-        inventory = inv_res.scalars().all()
-        for it in inventory:
-            if it.quantity > 0:
+        if inventory is None:
+            inv_res = await session.execute(
+                select(NatInventory).where(NatInventory.company_id == company.id)
+            )
+            inventory = inv_res.scalars().all()
+        for item in inventory:
+            if item.quantity > 0:
                 try:
-                    total_nav += it.quantity * get_item_base_price(it.item_id)
+                    total_nav += item.quantity * get_item_base_price(item.item_id)
                 except ValueError:
                     pass
 

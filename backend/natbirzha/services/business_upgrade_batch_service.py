@@ -27,7 +27,8 @@ class BusinessUpgradeBatchService:
         moment = normalize_dt(now or get_game_now())
         await IdleEconomyService.settle_company(session, company_id, now=moment)
         company = await session.scalar(
-            select(NatCompany).where(NatCompany.id == company_id).with_for_update()
+            select(NatCompany).where(NatCompany.id == company_id)
+            .with_for_update().execution_options(populate_existing=True)
         )
         if company is None:
             raise ValueError("Компания не найдена")

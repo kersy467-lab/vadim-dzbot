@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import get_game_now, normalize_dt, nat_settings
 from backend.natbirzha.models.company import NatCompany, NatFactory
-from backend.natbirzha.models.inventory import NatInventory
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.recipes import get_recipe, get_recipe_for_factory
 from backend.natbirzha.services.upgrade_service import UpgradeService
 from backend.natbirzha.services.premium_service import PremiumLicenseRequired, PremiumService
-from backend.natbirzha.services.progression_service import apply_xp
+from backend.natbirzha.services.progression_service import apply_xp, economy_xp_from_value
 from backend.natbirzha.services.production_automation import ProductionAutomationMixin
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
@@ -310,7 +310,11 @@ class ProductionTickEngine(ProductionAutomationMixin):
         for item_id, quantity in outputs.items():
             output_inventory[item_id].quantity = round(output_inventory[item_id].quantity + quantity, 4)
 
-        xp_gain = max(1, int(sum(outputs.values()) * 5))
+        output_value = sum(
+            max(0.0, float(quantity)) * float(CANONICAL_ITEMS[item_id]["base_price"])
+            for item_id, quantity in outputs.items()
+        )
+        xp_gain = economy_xp_from_value(output_value)
         apply_xp(company, xp_gain)
         for item_id, quantity in outputs.items():
             await EconomyMetricsService.record(

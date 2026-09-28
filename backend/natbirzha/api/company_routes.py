@@ -94,7 +94,6 @@ async def get_company_status(
     company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session)
 ):
-    nav = await CompanyService.calculate_audited_nav(session, company)
     from backend.natbirzha.models.inventory import NatInventory
     inv_res = await session.execute(select(NatInventory).where(NatInventory.company_id == company.id))
     inventory_rows = inv_res.scalars().all()
@@ -109,6 +108,9 @@ async def get_company_status(
     from backend.natbirzha.models.company import NatFactory
     fac_res = await session.execute(select(NatFactory).where(NatFactory.company_id == company.id))
     factory_rows = fac_res.scalars().all()
+    nav = await CompanyService.calculate_audited_nav(
+        session, company, factories=factory_rows, inventory=inventory_rows
+    )
     from backend.natbirzha.services.building_catalog import get_building_spec
     from backend.natbirzha.services.building_service import BuildingService
     from backend.natbirzha.config import get_game_tz

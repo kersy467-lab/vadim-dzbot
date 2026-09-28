@@ -13,6 +13,27 @@ const screens = {
 
 export async function loadScreen(tab) {
   const [path, exportName] = screens[tab] || screens.overview;
-  const module = await import(path);
+  const module = await loadScreenModule(path);
   return module[exportName];
+}
+
+const screenModulePromises = new Map();
+
+function loadScreenModule(path) {
+  if (!screenModulePromises.has(path)) {
+    let promise;
+    promise = import(path).catch((error) => {
+      if (screenModulePromises.get(path) === promise) {
+        screenModulePromises.delete(path);
+      }
+      throw error;
+    });
+    screenModulePromises.set(path, promise);
+  }
+  return screenModulePromises.get(path);
+}
+
+export function preloadScreen(tab) {
+  const [path] = screens[tab] || screens.overview;
+  return loadScreenModule(path).then(() => undefined, () => undefined);
 }

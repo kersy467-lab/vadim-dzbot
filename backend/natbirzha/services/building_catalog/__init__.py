@@ -1,7 +1,10 @@
 from typing import Dict, Any, List, Optional
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.technical_water import scale_catalog_water_inputs
-from backend.natbirzha.technical_energy import scale_catalog_energy_inputs
+from backend.natbirzha.technical_energy import (
+    apply_industry_resource_usage_adjustments,
+    scale_catalog_energy_inputs,
+)
 from backend.natbirzha.services.building_catalog.buildings_part1 import PART1_BUILDINGS
 from backend.natbirzha.services.building_catalog.buildings_part2 import PART2_BUILDINGS
 from backend.natbirzha.services.building_catalog.resolver import (
@@ -12,6 +15,10 @@ CANONICAL_BUILDINGS: Dict[str, Dict[str, Any]] = scale_catalog_energy_inputs(
     scale_catalog_water_inputs(
         {**PART1_BUILDINGS, **PART2_BUILDINGS}, input_field="inputs"
     ),
+    input_field="inputs",
+)
+CANONICAL_BUILDINGS = apply_industry_resource_usage_adjustments(
+    CANONICAL_BUILDINGS,
     input_field="inputs",
 )
 

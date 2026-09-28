@@ -101,7 +101,7 @@ CANONICAL_ITEMS: Dict[str, Dict[str, Any]] = {
     "electrical_equipment": {"name": "Электротехническое оборудование", "category": "finished", "unit": "компл.", "base_price": 360.0},
     "sensors": {"name": "Промышленные датчики", "category": "finished", "unit": "шт.", "base_price": 280.0},
     "automation_systems": {"name": "Системы промышленной автоматики", "category": "hightech", "unit": "компл.", "base_price": 750.0},
-    "ai_compute": {"name": "Вычислительная мощность ИИ", "category": "service", "unit": "выч. ч", "base_price": 93.75},
+    "ai_compute": {"name": "Вычислительная мощность ИИ", "category": "service", "unit": "выч. ч", "base_price": 112.5},
     "servers": {"name": "Серверные стойки", "category": "finished", "unit": "шт.", "base_price": 850.0},
     "robots": {"name": "Промышленные роботы", "category": "finished", "unit": "шт.", "base_price": 1200.0},
     "ai_accelerator": {"name": "AI-ускорители", "category": "finished", "unit": "шт.", "base_price": 2500.0},

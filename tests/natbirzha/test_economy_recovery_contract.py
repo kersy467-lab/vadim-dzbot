@@ -42,7 +42,7 @@ def test_ai_data_centers_replace_forestry_and_supply_industry_demand() -> None:
 
     # Every other sector starts with a small AI-service input, dips at midgame,
     # and pays more again as later production tiers automate.
-    assert CAREER_BUSINESSES["grain_farm_v2"]["resource_network_inputs"]["ai_compute"] == 1.0
+    assert CAREER_BUSINESSES["grain_farm_v2"]["resource_network_inputs"]["ai_compute"] == 1.15
     assert CAREER_BUSINESSES["lubricant_factory_v2"]["resource_network_inputs"]["ai_compute"] < 1.0
     assert CAREER_BUSINESSES["agro_holding_v2"]["resource_network_inputs"]["ai_compute"] > 1.0
 

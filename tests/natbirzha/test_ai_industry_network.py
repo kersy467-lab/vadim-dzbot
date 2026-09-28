@@ -11,6 +11,8 @@ from backend.natbirzha.catalogs.businesses import (
 from backend.natbirzha.catalogs.businesses.ai_data import AI_DATA_BUSINESSES
 from backend.natbirzha.catalogs.businesses.joint_factories import INDUSTRY_PARTNERSHIPS
 from backend.natbirzha.services.company_constants import SPECIALIZATION_ALIASES, VALID_SPECIALIZATIONS
+from backend.natbirzha.catalogs.businesses.resource_network import AI_COMPUTE_DEMAND_BY_ORDER
+from backend.natbirzha.models.inventory import get_item_base_price
 
 
 def test_ai_industry_has_a_real_canonical_specialization_and_legacy_alias() -> None:
@@ -57,6 +59,15 @@ def test_early_ai_enterprises_use_regular_water_and_no_electronic_chips() -> Non
 
     midgame_inputs = CAREER_BUSINESSES["cloud_ai_center"]["inputs_per_hour"]
     assert midgame_inputs.get("clean_water", 0) > 0
+
+
+def test_ai_compute_price_and_demand_are_increased_for_player_industries() -> None:
+    assert get_item_base_price("ai_compute") == 112.5
+    assert AI_COMPUTE_DEMAND_BY_ORDER[1] == 1.15
+    assert AI_COMPUTE_DEMAND_BY_ORDER[12] == 32.2
+    assert CAREER_BUSINESSES["coal_open_pit"]["inputs_per_hour"]["ai_compute"] == 1.15
+    assert CAREER_BUSINESSES["uranium_complex_v2"]["inputs_per_hour"]["ai_compute"] == 32.2
+    assert "ai_compute" not in CAREER_BUSINESSES["ai_compute_node"]["inputs_per_hour"]
 
 
 def test_ai_industry_key_migration_preserves_running_joint_factories() -> None:

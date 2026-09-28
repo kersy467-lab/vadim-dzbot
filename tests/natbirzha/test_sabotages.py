@@ -35,7 +35,7 @@ def test_sabotages_catalog_completeness():
         "commodity_boom",
         "tech_deficit",
         "bad_harvest",
-        "deforestation_ban",
+        "ai_datacenter_outage",
         # 3 new losses for all:
         "hyperinflation",
         "national_sanctions",
@@ -45,6 +45,8 @@ def test_sabotages_catalog_completeness():
         "state_subsidies",
     ]
     assert len(SABOTAGES_CATALOG) == 17
+    assert "deforestation_ban" not in SABOTAGES_CATALOG
+    assert get_sabotage_spec("deforestation_ban")["id"] == "ai_datacenter_outage"
     for sab_id in required_ids:
         assert sab_id in SABOTAGES_CATALOG
         spec = get_sabotage_spec(sab_id)
@@ -53,6 +55,32 @@ def test_sabotages_catalog_completeness():
         assert spec["icon"]
         assert spec["description"]
         assert spec["duration_hours"] in (12, 18, 24, 48)
+        assert "ai_data" in spec["income_multipliers"]
+
+
+def test_ai_datacenter_outage_increases_compute_price_and_hits_ai_income():
+    async def run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            now = get_game_now().replace(minute=0, second=0, microsecond=0)
+            await SabotageService.start_sabotage(
+                session, sabotage_id="ai_datacenter_outage", actor_id=1, now=now
+            )
+            assert SabotageService.get_income_multiplier("ai_data") == 0.60
+            assert get_item_base_price("ai_compute") == 168.75
+
+            await SabotageService.stop_sabotage(
+                session, actor_id=1, sabotage_id="ai_datacenter_outage", now=now
+            )
+            assert get_item_base_price("ai_compute") == 112.5
+
+        await engine.dispose()
+
+    asyncio.run(run())
 
 
 def test_two_concurrent_sabotages_and_compounded_multipliers():

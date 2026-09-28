@@ -213,8 +213,8 @@ def test_ai_city_order_pays_market_reference_plus_twenty_percent(monkeypatch) ->
                 order = result["order"]
                 assert order["item_id"] == "ai_compute"
                 assert order["quantity"] == pytest.approx(80.0)
-                assert order["unit_price"] == pytest.approx(90.0)
-                assert order["reserved_cash"] == pytest.approx(7_200.0)
+                assert order["unit_price"] == pytest.approx(135.0)
+                assert order["reserved_cash"] == pytest.approx(10_800.0)
 
                 session.add(NatInventory(
                     company_id=company_ids[0], item_id="ai_compute", quantity=80.0,
@@ -226,9 +226,9 @@ def test_ai_city_order_pays_market_reference_plus_twenty_percent(monkeypatch) ->
                     idempotency_key="ai-city-order-80",
                     now=now + timedelta(minutes=1),
                 )
-                assert payout["cash_amount"] == pytest.approx(7_200.0)
+                assert payout["cash_amount"] == pytest.approx(10_800.0)
                 company = await session.get(NatCompany, company_ids[0])
-                assert company.cash == pytest.approx(8_200.0)
+                assert company.cash == pytest.approx(11_800.0)
                 await session.commit()
         finally:
             await engine.dispose()

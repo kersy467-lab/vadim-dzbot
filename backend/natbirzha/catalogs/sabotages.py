@@ -131,7 +131,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
         "icon": "💧",
         "name": "Водный дефицит",
         "duration_hours": 24,
-        "description": "Засуха и обмеление водохранилищ. Вода дорожает, сельское хозяйство и химпром терпят рекордные убытки.",
+        "description": "Засуха и обмеление водохранилищ. Вода дорожает, сельское хозяйство, химпром и охлаждаемые дата-центры несут потери.",
         "one_time_stock_shock": 0.0,
         "credit_rate_delta": 0.0,
         "bond_price_mult": 1.0,
@@ -142,6 +142,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "agrarian": 0.65,
             "chemist": 0.80,
             "metallurgist": 0.80,
+            "ai_data": 0.80,
         },
         "other_income_mult": 0.90,
         "resource_multipliers": {
@@ -150,7 +151,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "ultrapure_water": 1.60,
         },
         "news_headline": "💧 Рекордная засуха: острый дефицит воды!",
-        "news_body": "Тарифы на воду взлетели на +60%! Все предприятия теряют 10% дохода от водного дефицита. Сельское хозяйство теряет 35%, химия и металлургия по 20%.",
+        "news_body": "Тарифы на воду взлетели на +60%! Большинство отраслей теряет 10% дохода. Сельское хозяйство теряет 35%, химия, металлургия и охлаждаемые дата-центры ИИ — по 20%.",
         "end_headline": "🌧️ Уровень воды в водохранилищах восстановлен",
         "end_body": "Ограничения на водопользование сняты. Цены на воду и доходы производств нормализованы.",
     },
@@ -203,6 +204,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "metallurgist": 1.20,
             "power_engineer": 1.10,
             "miner": 1.10,
+            "ai_data": 1.10,
         },
         "other_income_mult": 1.0,
         "resource_multipliers": {
@@ -215,7 +217,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "construction_capacity": 1.15,
         },
         "news_headline": "🏗️ Старт масштабной государственной стройки!",
-        "news_body": "Взрывной спрос на стройматериалы (+15% к цене). Доходы строителей +35%, металлургов +20%, энергетиков и горняков +10%!",
+        "news_body": "Взрывной спрос на стройматериалы (+15% к цене). Доходы строителей +35%, металлургов +20%, энергетиков, горняков и дата-центров ИИ +10%!",
         "end_headline": "🏢 Основной этап госстройки завершён",
         "end_body": "Госзаказ закрыт, спрос и цены на стройматериалы вернулись на рыночные уровни.",
     },
@@ -236,6 +238,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "oilman": 1.20,
             "construction": 0.90,
             "technoprom": 0.90,
+            "ai_data": 0.90,
         },
         "other_income_mult": 1.0,
         "resource_multipliers": {
@@ -254,7 +257,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "silver_ore": 1.25,
         },
         "news_headline": "💎 Мировой сырьевой бум!",
-        "news_body": "Цены на добываемое сырье взлетели на +25%. Доходы горняков +30%, металлургов +20%, нефтяников +20%. Стройка и IT теряют по 10%.",
+        "news_body": "Цены на добываемое сырье взлетели на +25%. Доходы горняков +30%, металлургов +20%, нефтяников +20%. Стройка, IT и дата-центры ИИ теряют по 10%.",
         "end_headline": "📉 Сырьевой рынок стабилизировался",
         "end_body": "Ажиотаж на первичное сырье спал, маржинальность отраслей вернулась к базовым значениям.",
     },
@@ -274,6 +277,7 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "power_engineer": 0.80,
             "logistics": 0.80,
             "chemist": 0.80,
+            "ai_data": 0.70,
         },
         "other_income_mult": 0.85,
         "resource_multipliers": {
@@ -282,9 +286,10 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
             "servers": 1.60,
             "ai_accelerator": 1.60,
             "quantum_modules": 1.60,
+            "ai_compute": 1.60,
         },
         "news_headline": "💾 Глобальный кризис полупроводников!",
-        "news_body": "Цены на чипы и электронику взлетели на +60%! Все предприятия теряют 15% дохода от нехватки компонентов. Энергетика, логистика и химия теряют по 20%.",
+        "news_body": "Цены на чипы, вычислительную мощность ИИ и электронику взлетели на +60%! Все предприятия теряют 15% дохода. Энергетика, логистика и химия теряют по 20%, отрасль ИИ — 30% из-за нехватки ускорителей.",
         "end_headline": "🔬 Фабрики чипов восстановили объемы производства",
         "end_body": "Дефицит компонентов ликвидирован, цены на вычислительные модули нормализованы.",
     },
@@ -321,35 +326,32 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
         "end_headline": "🍞 Продовольственный рынок насыщен",
         "end_body": "Поставки зерна и продовольствия восполнены из резервов. Цены на продукты вернулись в норму.",
     },
-    "deforestation_ban": {
-        "id": "deforestation_ban",
-        "icon": "🌲",
-        "name": "Запрет на вырубку леса",
+    "ai_datacenter_outage": {
+        "id": "ai_datacenter_outage",
+        "icon": "🧠",
+        "name": "Сбой дата-центров ИИ",
         "duration_hours": 24,
-        "description": "Экологический мораторий на вырубку. Кругляк и пиломатериалы в дефиците, лесопилки простаивают, стройки тормозят.",
+        "description": "Крупные дата-центры остановились из-за сбоя энергоснабжения и серверного охлаждения. Вычислительные мощности ИИ дорожают, отрасли теряют доступ к облачным сервисам.",
         "one_time_stock_shock": 0.0,
         "credit_rate_delta": 0.0,
         "bond_price_mult": 1.0,
         "block_dividends": False,
         "block_new_credits": False,
         "income_multipliers": {
-            "construction": 0.75,
-            "chemist": 0.85,
+            "ai_data": 0.60,
+            "technoprom": 0.85,
         },
         "other_income_mult": 0.90,
         "resource_multipliers": {
-            "wood_raw": 1.50,
-            "lumber": 1.50,
-            "cellulose": 1.50,
-            "composite": 1.50,
-            "cardboard": 1.50,
-            "paper": 1.50,
-            "engineered_wood": 1.50,
+            "ai_compute": 1.50,
+            "cloud_compute": 1.25,
+            "servers": 1.20,
+            "ai_accelerator": 1.20,
         },
-        "news_headline": "🌲 Введён жесткий экологический мораторий на вырубку леса!",
-        "news_body": "Древесина и пиломатериалы подорожали на +50%! Все предприятия теряют 10% дохода — дефицит материалов бьёт по всей экономике. Лесозаготовка -25%, стройка и химия -25%. В этот раз нет победителей — запасы исчерпаны у всех.",
-        "end_headline": "🪵 Экологический мораторий на вырубку снят",
-        "end_body": "Выделены новые квоты лесного фонда. Цены на древесину и пиломатериалы нормализованы.",
+        "news_headline": "🧠 Сбой дата-центров ИИ: вычислительных мощностей не хватает!",
+        "news_body": "Вычислительная мощность ИИ подорожала на 50%, облачные контракты — на 25%. Доход отрасли ИИ упал на 40%, технопрома — на 15%, остальных отраслей — на 10%.",
+        "end_headline": "🖥️ Дата-центры ИИ снова работают",
+        "end_body": "Серверные кластеры восстановлены, облачные мощности и вычислительные контракты вернулись к обычной цене.",
     },
     "hyperinflation": {
         "id": "hyperinflation",
@@ -471,6 +473,15 @@ SABOTAGES_CATALOG: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# Explicitly include the AI industry in every event's industry effects. For
+# broad events it receives the same baseline multiplier as other industries;
+# targeted crises above define a distinct AI effect.
+for _sabotage_spec in SABOTAGES_CATALOG.values():
+    _industry_multipliers = _sabotage_spec.setdefault("income_multipliers", {})
+    _industry_multipliers.setdefault(
+        "ai_data", float(_sabotage_spec.get("other_income_mult", 1.0))
+    )
+
 SPECIALIZATION_ALIASES = {
     "builder": "construction",
     "construction": "construction",
@@ -499,7 +510,12 @@ SPECIALIZATION_ALIASES = {
 
 
 def get_sabotage_spec(sabotage_id: str) -> Optional[Dict[str, Any]]:
-    return SABOTAGES_CATALOG.get((sabotage_id or "").strip().lower())
+    clean_id = (sabotage_id or "").strip().lower()
+    if clean_id == "deforestation_ban":
+        # Active records or stale clients from old releases are redirected to
+        # the replacement event while the public catalog exposes AI only.
+        clean_id = "ai_datacenter_outage"
+    return SABOTAGES_CATALOG.get(clean_id)
 
 
 def normalize_specialization(spec: str) -> str:

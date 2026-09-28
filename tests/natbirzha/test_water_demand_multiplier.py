@@ -43,7 +43,7 @@ def test_energy_inputs_apply_demand_multiplier_then_industry_reduction() -> None
     assert ai_node["inputs_per_hour"]["energy"] == 138.6
     assert ai_node["inputs_per_hour"]["water"] == 56.5
     assert get_item_base_price("energy") == 10
-    assert get_item_base_price("ai_compute") == 93.75
+    assert get_item_base_price("ai_compute") == 112.5
 
 
 def test_factory_cycle_consumes_scaled_technical_water() -> None:

@@ -34,7 +34,10 @@ def test_idle_settlements_accumulate_business_daily_profit() -> None:
                 NatInventory(company_id=company.id, item_id="water", quantity=200, avg_cost_basis=2),
                 NatInventory(company_id=company.id, item_id="fuel_diesel", quantity=6, avg_cost_basis=1.2),
                 NatInventory(company_id=company.id, item_id="food", quantity=3, avg_cost_basis=45),
-                NatInventory(company_id=company.id, item_id="ai_compute", quantity=100, avg_cost_basis=75),
+                NatInventory(
+                    company_id=company.id, item_id="ai_compute", quantity=100,
+                    avg_cost_basis=get_item_base_price("ai_compute"),
+                ),
                 NatInventory(company_id=company.id, item_id="beer", quantity=100, avg_cost_basis=90),
             ])
             await session.commit()

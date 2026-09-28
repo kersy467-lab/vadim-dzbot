@@ -1,4 +1,5 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -27,12 +28,20 @@ export async function renderMarketCityOrders(container, showToast, onBack) {
   let active = true;
   let busy = false;
   let refreshTimer = null;
-  const leave = () => {
-    if (!active) return;
+  let releaseScreenCleanup = null;
+  const stopRefresh = () => {
     active = false;
     if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = null;
+    releaseScreenCleanup?.();
+    releaseScreenCleanup = null;
+  };
+  const leave = () => {
+    if (!active) return;
+    stopRefresh();
     onBack();
   };
+  releaseScreenCleanup = registerScreenCleanup(stopRefresh);
   const renderLoading = () => {
     container.innerHTML = '<div class="max-w-md mx-auto p-4"><button class="city-orders-back text-sm font-bold text-pink-500">← Биржа</button><p class="mt-5 text-sm text-slate-500">Загружаем городские заказы…</p></div>';
     container.querySelector('.city-orders-back')?.addEventListener('click', leave);
@@ -130,7 +139,11 @@ export async function renderMarketCityOrders(container, showToast, onBack) {
   await load();
   if (active) {
     refreshTimer = setInterval(() => {
-      if (!busy && !container.querySelector('.city-delivery-qty:focus')) void load();
+      if (!container.isConnected) {
+        stopRefresh();
+        return;
+      }
+      if (!document.hidden && !busy && !container.querySelector('.city-delivery-qty:focus')) void load();
     }, 30_000);
   }
 }

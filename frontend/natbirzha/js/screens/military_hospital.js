@@ -1,6 +1,7 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 const FACILITIES = {
   hospital: { title: 'Военный госпиталь', icon: '🏥', barClass: 'bg-emerald-500' },
@@ -257,27 +258,37 @@ export function bindHospitalHandlers(container, { showToast, onRefresh } = {}) {
     }
   };
 
-  const timer = setInterval(() => {
-    const nodes = container.querySelectorAll('[data-hospital-timer]');
-    if (!nodes.length) { clearInterval(timer); return; }
-    nodes.forEach((node) => {
-      const remaining = timeLeft(node.dataset.readyAt);
-      node.textContent = remaining === 'завершено' ? '✓ Готово к выдаче' : remaining;
-      if (remaining === 'завершено') {
-        const card = node.closest('[data-hospital-ward]');
-        const header = card?.querySelector('.flex.items-start.justify-between');
-        if (header && !header.querySelector('[data-hospital-action="collect"]')) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.dataset.hospitalAction = 'collect';
-          button.dataset.unitType = card.dataset.hospitalWard;
-          button.className = 'rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white';
-          button.textContent = `Забрать ${number(node.dataset.readyCount)}`;
-          header.append(button);
-        }
+  if (container.querySelector('[data-hospital-timer]')) {
+    let releaseTimerCleanup = () => {};
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      if (!container.isConnected) {
+        clearInterval(timer);
+        releaseTimerCleanup();
+        return;
       }
-    });
-  }, 1000);
+      const nodes = container.querySelectorAll('[data-hospital-timer]');
+      if (!nodes.length) { clearInterval(timer); releaseTimerCleanup(); return; }
+      nodes.forEach((node) => {
+        const remaining = timeLeft(node.dataset.readyAt);
+        node.textContent = remaining === 'завершено' ? '✓ Готово к выдаче' : remaining;
+        if (remaining === 'завершено') {
+          const card = node.closest('[data-hospital-ward]');
+          const header = card?.querySelector('.flex.items-start.justify-between');
+          if (header && !header.querySelector('[data-hospital-action="collect"]')) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.hospitalAction = 'collect';
+            button.dataset.unitType = card.dataset.hospitalWard;
+            button.className = 'rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white';
+            button.textContent = `Забрать ${number(node.dataset.readyCount)}`;
+            header.append(button);
+          }
+        }
+      });
+    }, 1000);
+    releaseTimerCleanup = registerScreenCleanup(() => clearInterval(timer));
+  }
 
   const input = (event) => {
     const slider = event.target.closest?.('[data-hospital-slider]');

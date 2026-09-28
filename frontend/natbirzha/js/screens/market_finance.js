@@ -40,13 +40,22 @@ export function createMarketFinance(container, showToast, onBack) {
   const shell = (title, subtitle, body) => `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><button class="market-back text-xs font-bold text-blue-600">← Все разделы рынка</button><div><h2 class="text-xl font-black">${title}</h2><p class="text-xs text-slate-500">${subtitle}</p></div>${body}</div>`;
   const bindBack = (target = onBack) => container.querySelector('.market-back')?.addEventListener('click', target);
 
-  async function load() {
-    const [instrumentResult, bondResult, stockResult] = await Promise.allSettled([
-      NatAPI.getReferenceInstruments(), NatAPI.getStateBonds(), NatAPI.getStocksList(),
-    ]);
-    if (instrumentResult.status === 'fulfilled') instruments = instrumentResult.value || instruments;
-    if (bondResult.status === 'fulfilled') bonds = bondResult.value || bonds;
-    if (stockResult.status === 'fulfilled') stocks = stockResult.value || stocks;
+  async function load(section = 'all') {
+    const requests = {
+      reference: () => NatAPI.getReferenceInstruments(),
+      bonds: () => NatAPI.getStateBonds(),
+      stocks: () => NatAPI.getStocksList(),
+    };
+    const sections = section === 'all' ? Object.keys(requests) : [section];
+    const selected = sections.filter((key) => requests[key]);
+    const results = await Promise.allSettled(selected.map((key) => requests[key]()));
+    results.forEach((result, index) => {
+      if (result.status !== 'fulfilled') return;
+      const key = selected[index];
+      if (key === 'reference') instruments = result.value || instruments;
+      if (key === 'bonds') bonds = result.value || bonds;
+      if (key === 'stocks') stocks = result.value || stocks;
+    });
   }
 
   async function renderPortfolio() {

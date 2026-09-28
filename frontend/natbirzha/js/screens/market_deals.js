@@ -1,4 +1,5 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { formatNumber } from '../format.js';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { renderMarketJointFactories } from './market_joint_factories.js?v=20260926_joint_factories_v1&release=20260927_hospital_v2';
@@ -27,6 +28,7 @@ const formatRemaining = (seconds) => {
 
 export async function renderMarketDeals(container, showToast, onBack) {
   let viewTimer = null;
+  let active = true;
   let selectedCompany = null;
   let selectedResource = null;
 
@@ -34,6 +36,10 @@ export async function renderMarketDeals(container, showToast, onBack) {
     if (viewTimer) clearInterval(viewTimer);
     viewTimer = null;
   };
+  registerScreenCleanup(() => {
+    active = false;
+    clearTimer();
+  });
   const toast = (message, type = 'success') => showToast?.(message, type);
   const shell = (title, body) => {
     clearTimer();
@@ -192,16 +198,18 @@ export async function renderMarketDeals(container, showToast, onBack) {
   }
 
   async function renderList(view) {
+    if (!active) return;
     const labels = { incoming: 'Входящие', outgoing: 'Исходящие', active: 'Активные', history: 'История' };
     shell(labels[view] || 'Сделки', '<div class="text-sm text-slate-500">Загружаю…</div>');
     try {
       const data = await NatAPI.getSupplyDeals(view);
+      if (!active) return;
       const items = data.items || [];
       const cards = items.map((deal) => `<button class="deal-open glass-card rounded-xl p-3 w-full text-left" data-id="${Number(deal.id)}">
         <div class="flex items-center justify-between gap-2"><b>${esc(deal.item_name)}</b><span class="text-xs ${deal.status === 'ACTIVE' ? 'text-emerald-500' : 'text-slate-500'}">${esc(dealStatus(deal.status))}</span></div>
         <div class="text-xs text-slate-500 mt-1">${deal.viewer_role === 'buyer' ? `Поставщик: ${esc(deal.supplier_company_name)}` : `Покупатель: ${esc(deal.buyer_company_name)}`}</div>
         <div class="text-xs mt-2">${quantity(deal.quantity_per_hour, `${deal.unit}/ч`)} · ${cash(deal.unit_price)} / ${esc(deal.unit)}</div>
-        ${deal.status === 'ACTIVE' ? `<div class="text-xs text-indigo-500 mt-1">Осталось: <span class="deal-countdown" data-remaining="${Number(deal.remaining_seconds) || 0}">${formatRemaining(deal.remaining_seconds)}</span></div>` : ''}
+        ${deal.status === 'ACTIVE' ? `<div class="text-xs text-indigo-500 mt-1">Осталось: <span class="deal-countdown" data-remaining="${Number(deal.remaining_seconds) || 0}" data-expires-at="${esc(deal.expires_at || '')}">${formatRemaining(deal.remaining_seconds)}</span></div>` : ''}
       </button>`).join('');
       shell(labels[view], `${items.length ? `<div class="space-y-2">${cards}</div>` : '<div class="glass-card rounded-xl p-4 text-sm text-slate-500">В этом разделе пока нет сделок.</div>'}`);
       container.querySelectorAll('.deal-open').forEach((button) => button.addEventListener('click', () => renderDealDetail(Number(button.dataset.id))));
@@ -212,17 +220,24 @@ export async function renderMarketDeals(container, showToast, onBack) {
   }
 
   function startCountdowns() {
+    if (!active || !container.querySelector('.deal-countdown')) return;
     viewTimer = setInterval(() => container.querySelectorAll('.deal-countdown').forEach((node) => {
-      const remaining = Math.max(0, Number(node.dataset.remaining) - 1);
+      if (document.hidden) return;
+      const deadline = Date.parse(node.dataset.expiresAt || '');
+      const remaining = Number.isFinite(deadline)
+        ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+        : Math.max(0, Number(node.dataset.remaining) - 1);
       node.dataset.remaining = String(remaining);
       node.textContent = formatRemaining(remaining);
     }), 1000);
   }
 
   async function renderDealDetail(dealId, initial = null) {
+    if (!active) return;
     shell('Детали сделки', '<div class="text-sm text-slate-500">Загружаю условия…</div>');
     try {
       const deal = initial || await NatAPI.getSupplyDeal(dealId);
+      if (!active) return;
       const reward = deal.reward_type === 'PROFIT_SHARE'
         ? `${formatNumber(deal.profit_share_pct, 1)}% положительной прибыли покупателя`
         : `единовременно ${cash(deal.fixed_cash)}`;
@@ -239,7 +254,7 @@ export async function renderMarketDeals(container, showToast, onBack) {
         <div>Начальная оценка рынка: ${cash(deal.quoted_reference_price)} / ${esc(deal.unit)}</div>
         <div>Срок: ${esc(TERMS.find(([seconds]) => seconds === Number(deal.term_seconds))?.[1] || `${deal.term_seconds} сек`)}</div>
         <div>Вознаграждение: <b>${esc(reward)}</b></div>
-        ${deal.status === 'ACTIVE' ? `<div class="text-indigo-500">⏳ Осталось: <span id="deal-detail-countdown" data-remaining="${Number(deal.remaining_seconds) || 0}">${formatRemaining(deal.remaining_seconds)}</span></div>` : ''}
+        ${deal.status === 'ACTIVE' ? `<div class="text-indigo-500">⏳ Осталось: <span id="deal-detail-countdown" data-remaining="${Number(deal.remaining_seconds) || 0}" data-expires-at="${esc(deal.expires_at || '')}">${formatRemaining(deal.remaining_seconds)}</span></div>` : ''}
         <div class="grid grid-cols-2 gap-2 text-xs pt-2"><div>Поставлено<br><b>${quantity(deal.delivered_quantity, deal.unit)}</b></div><div>Оплачено за ресурс<br><b>${cash(deal.resource_cash_paid)}</b></div><div>Экономия покупателя<br><b>${cash(deal.savings_cash)}</b></div>${deal.reward_type === 'PROFIT_SHARE' ? `<div>Доля прибыли выплачена<br><b>${cash(deal.profit_share_paid)}</b></div>` : `<div>Фиксированно выплачено<br><b>${cash(deal.fixed_cash_paid)}</b></div>`}</div>
         <div class="text-[10px] text-slate-500">Начало: ${esc(deal.starts_at || 'после принятия')}<br>Окончание: ${esc(deal.expires_at || '—')}</div>
         ${incoming ? '<div class="grid grid-cols-2 gap-2 pt-2"><button id="deal-accept" class="rounded-xl p-3 font-bold bg-emerald-600 text-white">✅ Принять</button><button id="deal-reject" class="rounded-xl p-3 font-bold bg-rose-600 text-white">❌ Отклонить</button></div>' : ''}
@@ -259,9 +274,13 @@ export async function renderMarketDeals(container, showToast, onBack) {
       container.querySelector('#deal-cancel')?.addEventListener('click', () => mutate('cancel'));
       if (deal.status === 'ACTIVE') {
         viewTimer = setInterval(() => {
+          if (document.hidden) return;
           const node = container.querySelector('#deal-detail-countdown');
           if (!node) return;
-          const remaining = Math.max(0, Number(node.dataset.remaining) - 1);
+          const deadline = Date.parse(node.dataset.expiresAt || '');
+          const remaining = Number.isFinite(deadline)
+            ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+            : Math.max(0, Number(node.dataset.remaining) - 1);
           node.dataset.remaining = String(remaining);
           node.textContent = formatRemaining(remaining);
         }, 1000);

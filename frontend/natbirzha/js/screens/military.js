@@ -2,8 +2,9 @@ import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { renderTournamentSection } from './military_tournament.js?v=20260926_local_update_v1';
-import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260928_ai_compute_fix_v1';
+import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260928_mobile_perf_v1';
 
+import { armyRequirementText, esc, number, timeLeft, unavailableReason } from './military_helpers.js?v=20260928_mobile_perf_v1';
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },
   { id: 'border_guards', name: 'Пограничники', icon: '🚧', role: 'Оборона и снижение наземных потерь', cost: '100 cash + снаряжение' },
@@ -41,45 +42,6 @@ const SECTIONS = [
   ['premium', 'PVC'],
   ['hospital', 'Госпиталь'],
 ];
-
-const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, ch => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-}[ch]));
-const number = (value) => Number(value || 0).toLocaleString('ru-RU');
-
-function timeLeft(value) {
-  if (!value) return 'нет таймера';
-  const seconds = Math.max(0, Math.floor((new Date(value).getTime() - Date.now()) / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return seconds <= 0 ? 'завершено' : `${hours} ч ${minutes} мин`;
-}
-
-function unavailableReason(reason) {
-  return {
-    company_level: 'Нужен более высокий уровень компании',
-    prerequisite: 'Сначала захватите предыдущую корпорацию',
-    force_composition: 'Состав армии не соответствует требованиям этого тира',
-    insufficient_force_composition: 'Состав армии не соответствует требованиям этого тира',
-    already_conquered: 'Территория уже захвачена',
-    cooldown: 'Повторная атака пока на кулдауне',
-  }[reason] || 'Цель сейчас недоступна';
-}
-
-function armyRequirementText(requirements = {}, missing = {}) {
-  const labels = {
-    ground_total: 'Наземные войска',
-    border_guards: 'Пограничники',
-    tanks: 'Бронетехника',
-    drones: 'БПЛА',
-    aircraft: 'Авиация',
-    air_defense: 'ПВО',
-  };
-  return Object.entries(requirements).map(([unit, required]) => {
-    const gap = missing?.[unit];
-    return `${labels[unit] || unit}: ${number(required)}${gap ? ` (не хватает ${number(gap.missing)})` : ''}`;
-  }).join(' · ');
-}
 
 export async function renderMilitary(container, showToast) {
   let activeSection = 'army';

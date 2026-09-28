@@ -1,16 +1,8 @@
 import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20260927_hospital_v2';
 import { store } from './state.js?v=20260926_local_update_v1';
-import { renderOnboarding } from './screens/onboarding.js?v=20260928_brewery_open_v1';
-import { renderOverview } from './screens/overview.js?v=20260928_ai_compute_fix_v1';
-import { renderTycoon } from './screens/tycoon.js?v=20260928_ai_compute_fix_v1';
-import { renderUpgrades } from './screens/upgrades.js?v=20260928_hybrid_level_cap_v1&release=20260928_hybrid_level_cap_v1';
-import { renderMarket } from './screens/market.js?v=20260928_ai_compute_fix_v1&joint_factories=1';
-import { renderStocks } from './screens/stocks.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
-import { renderMilitary } from './screens/military.js?v=20260928_ai_compute_fix_v1';
-import { renderCreator } from './screens/creator.js?v=20260928_ai_compute_fix_v1';
-import { renderLeaderboard } from './screens/leaderboard.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
-import { renderHelp } from './screens/help.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
+import { loadScreen } from './screen_loader.js?v=20260928_mobile_perf_v1';
+import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 // Telegram Haptic Feedback Helper
 export function triggerHaptic(type = 'light') {
@@ -84,6 +76,7 @@ let navigationId = 0;
 let navigationAbortController = null;
 
 function beginNavigationScope() {
+  disposeCurrentScreen();
   navigationId += 1;
   navigationAbortController?.abort();
   navigationAbortController = new AbortController();
@@ -137,7 +130,8 @@ async function renderScreenOnce() {
   if (!store.hasCompany() && renderTab !== 'creator') {
     document.getElementById('bottom-nav')?.classList.add('hidden');
     document.getElementById('header-stats')?.classList.add('hidden');
-    renderOnboarding(renderContainer, showToast);
+    const renderOnboarding = await loadScreen('onboarding');
+    await renderOnboarding(renderContainer, showToast);
     if (renderNavigationId !== navigationId) {
       renderRequested = true;
       return;
@@ -182,40 +176,12 @@ async function renderScreenOnce() {
 
   // Render selected screen
   container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка...</div>';
-  switch (renderTab) {
-    case 'overview':
-      renderOverview(renderContainer, showToast);
-      break;
-    case 'production':
-      await renderTycoon(renderContainer, showToast);
-      break;
-    case 'upgrades':
-      await renderUpgrades(renderContainer, showToast);
-      break;
-    case 'market':
-      await renderMarket(renderContainer, showToast);
-      break;
-    case 'stocks':
-      await renderStocks(renderContainer, showToast);
-      break;
-    case 'military':
-      await renderMilitary(renderContainer, showToast);
-      break;
-    case 'leaderboard':
-      await renderLeaderboard(renderContainer, showToast);
-      break;
-    case 'help':
-      renderHelp(renderContainer, showToast);
-      break;
-    case 'creator':
-      await renderCreator(renderContainer, showToast);
-      break;
-    default:
-      renderOverview(renderContainer, showToast);
-  }
+  const renderScreen = await loadScreen(renderTab);
+  await renderScreen(renderContainer, showToast);
   // The screen renders off-DOM. An outdated request can therefore never
   // replace the currently selected tab after its fetches complete.
   if (renderNavigationId !== navigationId) {
+    disposeCurrentScreen();
     renderRequested = true;
     return;
   }

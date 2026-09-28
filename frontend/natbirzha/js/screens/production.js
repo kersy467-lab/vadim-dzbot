@@ -4,10 +4,19 @@ import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getBuildingName } from '../localization.js?v=20260926_local_update_v1';
 import { buildFactoryPages } from '../factory_map.js?v=20260926_local_update_v1';
 import { openCatalogModal } from './catalog.js?v=20260928_ai_compute_fix_v1';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 let cachedRecipes = null;
 let selectedPage = 1;
 let cycleInterval = null;
+let releaseCycleCleanup = null;
+
+function stopCycleTimer() {
+  if (cycleInterval) clearInterval(cycleInterval);
+  cycleInterval = null;
+  releaseCycleCleanup?.();
+  releaseCycleCleanup = null;
+}
 
 async function getOrFetchRecipes() {
   if (cachedRecipes && Object.keys(cachedRecipes).length > 0) return cachedRecipes;
@@ -184,8 +193,8 @@ function factorySlot(factory, state) {
   return `<article class="factory-slot ${statusClass} factory-start-card" data-factory-id="${factory.id}" tabindex="0" role="button" aria-label="${title}">
     <div class="flex items-start justify-between gap-1"><span class="factory-slot-icon">${icon}</span><span class="factory-slot-meta">ур. ${factory.level || 1}</span></div>
     <div class="factory-slot-title" title="${title}">${title}</div>
-    <div class="factory-slot-meta">${escapeHtml(status)}</div>
-    <div class="factory-slot-progress"><span style="width:${progress}%"></span></div>
+    <div class="factory-slot-meta" data-cycle-status>${escapeHtml(status)}</div>
+    <div class="factory-slot-progress"><span data-cycle-progress style="width:${progress}%"></span></div>
     <div class="factory-slot-meta truncate" title="${escapeHtml(recipeSummary(selected.recipe))}">${escapeHtml(recipeSummary(selected.recipe))}</div>
     ${recipeSelector(factory, selected)}
     <div class="text-[9px] font-semibold ${autoState.cls}" title="${escapeHtml(factory.automation_pause_reason || '')}">${escapeHtml(autoState.label)}</div>
@@ -299,19 +308,54 @@ function openFactoryDetails(container, state) {
 }
 
 function bindCountdown(root, state, showToast) {
-  if (cycleInterval) clearInterval(cycleInterval);
+  stopCycleTimer();
+  const factoryById = new Map(state.factories.map((factory) => [String(factory.id), factory]));
+  const durationByFactory = new Map(state.factories.map((factory) => {
+    const selected = recipeFor(factory, state.recipes, state);
+    const duration = Math.max(1, Number(selected.recipe?.duration || selected.recipe?.base_duration || factory.cycle_duration || 60));
+    return [String(factory.id), duration];
+  }));
+  if (!state.factories.some((factory) => {
+    const cycle = cycleState(factory);
+    return cycle.running && !cycle.ready;
+  })) return;
+
   cycleInterval = setInterval(() => {
-    const active = state.factories.some((factory) => {
+    if (document.hidden) return;
+    if (!root.isConnected) {
+      stopCycleTimer();
+      return;
+    }
+
+    let active = false;
+    let hasReadyFactory = false;
+    root.querySelectorAll('.factory-start-card[data-factory-id]').forEach((card) => {
+      const factory = factoryById.get(String(card.dataset.factoryId));
+      if (!factory) return;
       const cycle = cycleState(factory);
-      return cycle.running && !cycle.ready;
+      const status = card.querySelector('[data-cycle-status]');
+      const progressBar = card.querySelector('[data-cycle-progress]');
+      if (cycle.ready) {
+        hasReadyFactory = true;
+        return;
+      }
+      if (!cycle.running) return;
+      active = true;
+      if (status) status.textContent = `⏳ ${cycle.remaining} сек.`;
+      if (progressBar) {
+        const duration = durationByFactory.get(String(factory.id)) || 60;
+        const progress = Math.max(4, Math.min(96, Math.round((1 - cycle.remaining / duration) * 100)));
+        progressBar.style.width = `${progress}%`;
+      }
     });
-    if (!active) {
-      clearInterval(cycleInterval);
+    if (hasReadyFactory) {
+      stopCycleTimer();
       renderMap(root, state, showToast);
       return;
     }
-    renderMap(root, state, showToast);
+    if (!active) stopCycleTimer();
   }, 1000);
+  releaseCycleCleanup = registerScreenCleanup(stopCycleTimer);
 }
 
 export async function renderProduction(container, showToast) {

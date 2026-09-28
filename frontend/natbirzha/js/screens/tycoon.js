@@ -2,9 +2,18 @@ import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 let refreshTimer = null;
+let releaseRefreshCleanup = null;
 let compactBusinessView = false;
+
+function stopRefreshTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = null;
+  releaseRefreshCleanup?.();
+  releaseRefreshCleanup = null;
+}
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -354,15 +363,22 @@ function bind(root, showToast) {
 }
 
 export async function renderTycoon(container, showToast) {
-  if (refreshTimer) clearInterval(refreshTimer);
+  stopRefreshTimer();
   container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400">Загрузка отрасли…</div>';
   try {
     await reload(container, showToast);
+    if (!container.querySelector('[data-countdown]')) return;
     refreshTimer = setInterval(() => {
+      if (document.hidden) return;
+      if (!container.isConnected) {
+        stopRefreshTimer();
+        return;
+      }
       container.querySelectorAll('[data-countdown]').forEach((node) => {
         node.textContent = duration(remainingUntil(node.dataset.countdown));
       });
     }, 1000);
+    releaseRefreshCleanup = registerScreenCleanup(stopRefreshTimer);
   } catch (error) {
     container.innerHTML = `<div class="p-8 text-center"><div class="text-3xl">⚠️</div><p class="mt-2 text-sm font-bold">Не удалось открыть предприятия</p><p class="mt-1 text-xs text-slate-500">${esc(error.message)}</p></div>`;
   }

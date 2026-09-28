@@ -63,13 +63,6 @@ for business_id, name, icon, order, cost, level, inputs, outputs, prerequisite, 
         starter=order == 1,
         tags=("ai", "machine-learning", "data-center", "production"),
     )
-    # The first AI milestone must be buildable before a player can unlock
-    # server and chip production. Use common early-game utilities at stage 10.
-    early_scale = max(1.0, order * 0.65)
-    spec["milestones"][10]["resources"] = {
-        "energy": round(30.0 * early_scale, 2),
-        "water": round(30.0 * early_scale, 2),
-    }
     AI_DATA_BUSINESSES[business_id] = spec
 
 

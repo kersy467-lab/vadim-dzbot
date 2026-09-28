@@ -224,6 +224,19 @@ def career_business(
         unique=unique,
         tags=tuple(tags),
     )
+    # Keep milestone upgrades available throughout the shared early-game
+    # economy. The themed milestone generator can otherwise require advanced
+    # goods (chips, servers, machinery) that are unavailable when players need
+    # to upgrade their first factories. Energy and water are produced from the
+    # start in every branch; quantities still grow with enterprise order and
+    # milestone stage to preserve progression.
+    milestone_scale = max(1.0, order * 0.65)
+    for index, stage in enumerate(MILESTONE_STAGES):
+        quantity = round(15.0 * milestone_scale * (index + 1) ** 1.55, 2)
+        spec["milestones"][stage]["resources"] = {
+            "energy": quantity,
+            "water": quantity,
+        }
     spec["output_balance_factor"] = output_balance_factor
     spec["target_open_roi_hours"] = target_roi_hours
     spec["upgrade_cost_base_multiplier"] = 0.05

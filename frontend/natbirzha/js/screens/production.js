@@ -1,9 +1,9 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getBuildingName } from '../localization.js?v=20260926_local_update_v1';
 import { buildFactoryPages } from '../factory_map.js?v=20260926_local_update_v1';
-import { openCatalogModal } from './catalog.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
+import { openCatalogModal } from './catalog.js?v=20260928_ai_compute_fix_v1';
 
 let cachedRecipes = null;
 let selectedPage = 1;

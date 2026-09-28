@@ -1,8 +1,8 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { renderTournamentSection } from './military_tournament.js?v=20260926_local_update_v1';
-import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260927_hospital_v3';
+import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20260928_ai_compute_fix_v1';
 
 const UNITS = [
   { id: 'infantry', name: 'Пехота', icon: '🪖', role: 'Удерживает захваченную землю', cost: '50 cash' },

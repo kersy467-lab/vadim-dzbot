@@ -1,11 +1,11 @@
 import { NatAPI } from '../api.js?v=20260927_hospital_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
 import { renderTaxSection } from './market_tax.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { renderStateCreditSection } from './market_credit.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { createMarketFinance } from './market_finance.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260926_local_update_v1';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260928_ai_compute_fix_v1';
 import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260926_joint_factory_v1&release=20260927_hospital_v2';
 import { renderMarketDeals } from './market_deals.js?v=20260926_joint_factory_v1&joint_factories=1&release=20260927_hospital_v2';
 import { renderMarketCityOrders } from './market_city_orders.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
@@ -71,6 +71,19 @@ export function getIndustryOutputIds(specialization, recipes, businessCatalog = 
   return [...outputs];
 }
 
+export function ensureIndustryProductsAvailable(items, outputIds, itemInfo = getItemInfo) {
+  const result = Array.isArray(items) ? items.map((item) => ({ ...item })) : [];
+  const existingIds = new Set(result.map((item) => String(item?.id || '')));
+  for (const rawId of Array.isArray(outputIds) ? outputIds : []) {
+    const itemId = String(rawId || '').trim();
+    if (!itemId || existingIds.has(itemId)) continue;
+    const metadata = itemInfo(itemId);
+    result.push({ id: itemId, name: metadata.name, unit: metadata.unit });
+    existingIds.add(itemId);
+  }
+  return result;
+}
+
 export function prioritizeIndustryItems(items, preferredIds) {
   const preferred = new Set(Array.isArray(preferredIds) ? preferredIds : []);
   return (Array.isArray(items) ? items : [])
@@ -134,6 +147,7 @@ export async function renderMarket(container, showToast) {
   const companyInputIds = getCompanyInputIds(
     empireSummary?.businesses, store.factories, recipesData.recipes
   );
+  marketItems = ensureIndustryProductsAvailable(marketItems, industryOutputs);
   marketItems = prioritizeIndustryItems(marketItems, industryOutputs);
 
 

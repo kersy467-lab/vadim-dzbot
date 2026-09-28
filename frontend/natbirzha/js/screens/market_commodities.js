@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 
 export function getCompanyInputIds(businesses, factories, recipes) {
   const inputs = new Set();

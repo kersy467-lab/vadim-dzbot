@@ -17,7 +17,7 @@ assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(/app\.js\?v=[A-Za-z0-9_-]+/.test(natHtml), 'Natbirzha entrypoint must refresh its cached code after a release');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes("market.js?v=20260926_joint_factory_v1"), 'Market changes must refresh the cached market module');
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8').includes("market.js?v=20260928_ai_compute_fix_v1"), 'Market changes must refresh the cached market module');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -376,6 +376,8 @@ assert(startedFactory.cycle_ready_at === startResult.ready_at && startedFactory.
 
 const marketCoreCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
 const appSourceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8');
+const itemRegistryCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/items.js'), 'utf-8');
+const marketHtmlCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');
 const marketCommodityCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_commodities.js'), 'utf-8');
 const marketFinanceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_finance.js'), 'utf-8');
 const marketCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
@@ -408,6 +410,14 @@ assert(marketCoreCode.includes('mergeNpcRatesIntoMarketItems'),
   'market.js must merge every server NPC rate into the resource selector');
 assert(marketCoreCode.includes('getIndustryOutputIds') && marketCoreCode.includes('prioritizeIndustryItems'),
   'market.js must prioritize products from the company\'s own industry');
+assert(marketCoreCode.includes('ensureIndustryProductsAvailable'),
+  'industry products must remain visible even if an NPC-rate response omits a canonical product');
+assert(itemRegistryCode.includes("ai_compute: { name: 'Вычислительная мощность ИИ'"),
+  'AI compute must have a localized canonical item label');
+assert(marketHtmlCode.includes('app.js?v=20260928_ai_compute_fix_v1'),
+  'the app entrypoint must use a fresh cache key for the AI compute resource fix');
+assert(appSourceCode.includes('market.js?v=20260928_ai_compute_fix_v1'),
+  'the market screen must use a fresh cache key so the AI output list refreshes');
 assert(marketCoreCode.includes('finance.renderStocks') && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),
   'the reachable stocks section must expose IPO and its dividend policy');
 assert(marketFinanceCode.includes('NatAPI.issueIPO'),
@@ -425,7 +435,7 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
-assert(appSourceCode.includes('overview.js?v=20260926_local_update_v1'),
+assert(appSourceCode.includes('overview.js?v=20260928_ai_compute_fix_v1'),
   'overview inventory fixes must be loaded from a fresh screen module');
 assert(/market_credit\.js\?v=20260926_local_update_v1/.test(marketCoreCode),
   'market credit screen must use a cache-busted module URL');
@@ -436,6 +446,7 @@ const marketHelperCode = marketCoreCode
   .replace(/^import[^;]+;\s*$/gm, '')
   .replace(/export\s+function\s+mergeNpcRatesIntoMarketItems/, 'function mergeNpcRatesIntoMarketItems')
   .replace(/export\s+function\s+getIndustryOutputIds/, 'function getIndustryOutputIds')
+  .replace(/export\s+function\s+ensureIndustryProductsAvailable/, 'function ensureIndustryProductsAvailable')
   .replace(/export\s+function\s+prioritizeIndustryItems/, 'function prioritizeIndustryItems')
   .replace(/export\s+async\s+function\s+renderMarket[\s\S]*/, '')
   .replace(/export\s+function\s+renderMarket[\s\S]*/, '');
@@ -444,8 +455,12 @@ const commodityHelperCode = marketCommodityCode
   .replace(/export\s+function\s+rankLiquidityRows/, 'function rankLiquidityRows')
   .replace(/export\s+function\s+getCompanyInputIds/, 'function getCompanyInputIds')
   .replace(/export\s+function\s+renderCommodityCatalog[\s\S]*/, '');
-const marketHelperFn = new Function(`${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
-const { MARKET_ITEMS: initialMarketItems, getIndustryOutputIds, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems } = marketHelperFn();
+const marketHelperFn = new Function('getItemInfo', `${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
+const { MARKET_ITEMS: initialMarketItems, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems } = marketHelperFn((itemId) => (
+  itemId === 'ai_compute'
+    ? { name: 'Вычислительная мощность ИИ', icon: '🧠', unit: 'выч. ч' }
+    : { name: 'Неизвестный ресурс', icon: '📦', unit: 'шт.' }
+));
 const { getCompanyInputIds, rankLiquidityRows } = new Function(`${commodityHelperCode}\nreturn { getCompanyInputIds, rankLiquidityRows };`)();
 assert.deepStrictEqual(
   rankLiquidityRows([
@@ -483,6 +498,17 @@ const oilOutputs = getIndustryOutputIds('oilman', {
 });
 assert(oilOutputs.includes('oil_crude') && oilOutputs.includes('gas_natural') && !oilOutputs.includes('coal'),
   'industry output discovery must use recipe specialization and exact outputs');
+const aiOutputs = getIndustryOutputIds('ai_data', {}, [
+  { specialization: 'ai_data', outputs_per_hour: { ai_compute: 18 } },
+]);
+const aiMarketItems = prioritizeIndustryItems(
+  ensureIndustryProductsAvailable([], aiOutputs),
+  aiOutputs,
+);
+assert(aiMarketItems.length === 1 && aiMarketItems[0].id === 'ai_compute',
+  'AI compute must appear in the company product list even when NPC rates omit it');
+assert(aiMarketItems[0].name === 'Вычислительная мощность ИИ' && aiMarketItems[0].unit === 'выч. ч',
+  'AI compute must show its localized name and unit in the market');
 const prioritizedMarketItems = prioritizeIndustryItems([
   { id: 'steel', name: 'Сталь' },
   { id: 'gas_natural', name: 'Природный газ' },

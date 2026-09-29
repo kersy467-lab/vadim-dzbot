@@ -1,20 +1,40 @@
 """Pure calendar and period rules for NATBIRZHA mandatory company tax."""
 
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
-from backend.natbirzha.config import nat_settings
+from backend.natbirzha.config import get_game_tz, nat_settings
 
 
 def get_period_bounds(dt: datetime) -> tuple[datetime, datetime]:
-    """Return [start, end) of the 12-hour tax period containing dt."""
-    norm = dt.replace(minute=0, second=0, microsecond=0)
-    if norm.hour < 12:
-        start = datetime.combine(norm.date(), time(0, 0, 0))
-        end = datetime.combine(norm.date(), time(12, 0, 0))
-    else:
-        start = datetime.combine(norm.date(), time(12, 0, 0))
-        end = datetime.combine(norm.date() + timedelta(days=1), time(0, 0, 0))
-    return start, end
+    """Return the daily tax window ending at 11:00 in the configured tax timezone.
+
+    Stored ledger timestamps are naive game-time values, so boundaries are
+    converted back to GAME_TIMEZONE before being returned.
+    """
+    game_tz = get_game_tz()
+    tax_tz = ZoneInfo(getattr(nat_settings, "TAX_SETTLEMENT_TIMEZONE", "Asia/Yekaterinburg"))
+    game_dt = dt.replace(tzinfo=game_tz) if dt.tzinfo is None else dt.astimezone(game_tz)
+    tax_dt = game_dt.astimezone(tax_tz)
+    hour = max(0, min(23, int(getattr(nat_settings, "TAX_SETTLEMENT_HOUR", 11))))
+    start = datetime.combine(tax_dt.date(), time(hour), tzinfo=tax_tz)
+    if tax_dt < start:
+        start -= timedelta(days=1)
+    duration_hours = max(1, int(getattr(nat_settings, "TAX_PERIOD_HOURS", 24)))
+    end = start + timedelta(hours=duration_hours)
+    return (
+        start.astimezone(game_tz).replace(tzinfo=None),
+        end.astimezone(game_tz).replace(tzinfo=None),
+    )
+
+
+def tax_boundary_for_date(day: date) -> datetime:
+    """Return that date's 11:00 UTC+5 close, represented in game time."""
+    game_tz = get_game_tz()
+    tax_tz = ZoneInfo(getattr(nat_settings, "TAX_SETTLEMENT_TIMEZONE", "Asia/Yekaterinburg"))
+    hour = max(0, min(23, int(getattr(nat_settings, "TAX_SETTLEMENT_HOUR", 11))))
+    boundary = datetime.combine(day, time(hour), tzinfo=tax_tz)
+    return boundary.astimezone(game_tz).replace(tzinfo=None)
 
 
 def period_grace_until(period_end: datetime) -> datetime:
@@ -61,6 +81,7 @@ def penalty_days(tax_date: date, today: date) -> int:
 
 __all__ = [
     "get_period_bounds",
+    "tax_boundary_for_date",
     "period_grace_until",
     "period_production_deadline",
     "overdue_hours",

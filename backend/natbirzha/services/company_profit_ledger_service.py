@@ -1,4 +1,4 @@
-"""Company-wide 12-hour ledger of realized net profit."""
+"""Company-wide daily ledger of realized net profit."""
 
 from datetime import datetime, timedelta
 

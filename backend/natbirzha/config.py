@@ -38,11 +38,12 @@ class NatbirzhaSettings(BaseSettings):
         description="Public Telegram chat ID for broadcasting Natbirzha game events",
     )
 
-    # Mandatory company income tax. Tax is assessed every 12 hours on positive
-    # operating profit. Unpaid tax blocks production when the period closes;
-    # a non-compounding +3% hourly penalty starts after each full overdue hour.
+    # Mandatory tax is assessed once daily on positive realized net profit.
+    # The close is fixed to 11:00 in UTC+5 (Asia/Yekaterinburg / MSK+2).
     TAX_RATE: float = 0.13
-    TAX_PERIOD_HOURS: int = 12
+    TAX_PERIOD_HOURS: int = 24
+    TAX_SETTLEMENT_HOUR: int = 11
+    TAX_SETTLEMENT_TIMEZONE: str = "Asia/Yekaterinburg"
     TAX_GRACE_HOURS: int = 0
     TAX_HOURLY_PENALTY_RATE: float = 0.03
     TAX_GRACE_DAYS: int = 3  # legacy compatibility alias

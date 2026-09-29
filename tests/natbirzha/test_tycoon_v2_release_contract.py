@@ -58,6 +58,9 @@ def test_industry_catalog_shape_matches_game_design() -> None:
 
 def test_tax_contract_matches_requested_rules() -> None:
     assert float(nat_settings.TAX_RATE) == 0.13
+    assert int(nat_settings.TAX_PERIOD_HOURS) == 24
+    assert int(nat_settings.TAX_SETTLEMENT_HOUR) == 11
+    assert nat_settings.TAX_SETTLEMENT_TIMEZONE == "Asia/Yekaterinburg"
     assert int(nat_settings.TAX_GRACE_DAYS) == 3
     assert float(nat_settings.TAX_DAILY_PENALTY_RATE) == 0.50
 
@@ -65,11 +68,14 @@ def test_tax_contract_matches_requested_rules() -> None:
 def test_frontend_enforces_industry_branch_and_tax_navigation() -> None:
     tycoon = (ROOT / "frontend/natbirzha/js/screens/tycoon.js").read_text(encoding="utf-8")
     market = (ROOT / "frontend/natbirzha/js/screens/market.js").read_text(encoding="utf-8")
+    market_loader = (ROOT / "frontend/natbirzha/js/screens/market_section_loader.js").read_text(encoding="utf-8")
+    market_tax = (ROOT / "frontend/natbirzha/js/screens/market_tax.js").read_text(encoding="utf-8")
     onboarding = (ROOT / "frontend/natbirzha/js/screens/onboarding.js").read_text(encoding="utf-8")
     assert ".filter((item) => item.specialization === specialization)" in tycoon
     assert "Ваша отрасль — отдельная карьерная ветка" in tycoon
     assert "Каждые ${business.resource_tick_minutes || 15} мин" in tycoon
-    assert 'data-section="tax"' in market and "renderTaxSection" in market
+    assert 'data-section="tax"' in market and "market_tax.js" in market_loader
+    assert "11:00 MSK+2" in market_tax
     assert "company-count" in onboarding and "status_color" in onboarding
 
 

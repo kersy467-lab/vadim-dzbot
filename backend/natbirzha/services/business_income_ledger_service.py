@@ -91,7 +91,7 @@ class BusinessIncomeLedgerService:
         row_cache: dict[tuple[int, datetime], NatBusinessIncomePeriod | None] | None = None,
         flush: bool = True,
     ) -> None:
-        """Upsert one 12-hour operating period result."""
+        """Upsert one operating result for a configured tax period."""
         if not any((gross, maintenance, salary, resource_cost)):
             return
         key = (business_id, p_start)
@@ -138,7 +138,7 @@ class BusinessIncomeLedgerService:
         period_row_cache: dict[tuple[int, datetime], NatBusinessIncomePeriod | None] | None = None,
         flush: bool = True,
     ) -> None:
-        """Split one lazy-settlement result across the actual calendar days and 12-hour periods worked."""
+        """Split one lazy-settlement result across calendar days and configured tax periods."""
         total_seconds = max(0.0, float(worked_hours)) * 3600.0
         if total_seconds <= 1e-9:
             return
@@ -168,7 +168,7 @@ class BusinessIncomeLedgerService:
             )
             cursor = segment_end
 
-        # 2. Record 12-hour period ledger (for mandatory taxation)
+        # 2. Record the configured tax-period ledger.
         from backend.natbirzha.tax_rules import get_period_bounds
         p_cursor = start
         p_allocated = 0.0

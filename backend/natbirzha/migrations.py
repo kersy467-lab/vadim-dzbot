@@ -760,6 +760,32 @@ async def _migrate_v21_state_market_advances(conn) -> None:
     })
 
 
+async def _migrate_v22_stock_trade_price_guard(conn) -> None:
+    """Persist external share-trade prints for quote consensus and impact limits."""
+    identity = "INTEGER PRIMARY KEY AUTOINCREMENT" if conn.dialect.name == "sqlite" else "SERIAL PRIMARY KEY"
+    await conn.execute(text(f"""
+        CREATE TABLE IF NOT EXISTS nat_stock_trades (
+            id {identity},
+            stock_id INTEGER NOT NULL REFERENCES nat_stocks(id) ON DELETE CASCADE,
+            buyer_company_id INTEGER NOT NULL,
+            seller_company_id INTEGER NOT NULL,
+            buyer_user_id BIGINT NOT NULL,
+            seller_user_id BIGINT NOT NULL,
+            shares_count INTEGER NOT NULL,
+            price FLOAT NOT NULL,
+            executed_at TIMESTAMP NOT NULL
+        )
+    """))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_nat_stock_trades_stock_id "
+        "ON nat_stock_trades (stock_id)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_nat_stock_trades_executed_at "
+        "ON nat_stock_trades (executed_at)"
+    ))
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -797,6 +823,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v19_military_hospital_repair", _migrate_v19_hospital_repair),
     ("natbirzha_v20_ai_industry_key", _migrate_v20_ai_industry_key),
     ("natbirzha_v21_state_market_advances", _migrate_v21_state_market_advances),
+    ("natbirzha_v22_001_stock_trade_price_guard", _migrate_v22_stock_trade_price_guard),
 )
 
 

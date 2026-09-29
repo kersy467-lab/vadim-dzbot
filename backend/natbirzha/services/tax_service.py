@@ -1,11 +1,11 @@
-"""Mandatory 12-hour net-profit tax, immediate production blocking and 3% hourly simple penalty."""
+"""Mandatory daily net-profit tax, production blocking and 3% hourly simple penalty."""
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.natbirzha.config import get_game_now, nat_settings
+from backend.natbirzha.config import get_game_now, get_game_tz, nat_settings
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.tax import NatCompanyProfitPeriod, NatTaxPeriod
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
@@ -16,6 +16,7 @@ from backend.natbirzha.tax_rules import (
     overdue_hours,
     period_grace_until,
     period_production_deadline,
+    tax_boundary_for_date,
 )
 
 
@@ -30,7 +31,7 @@ def _normalize_time(now: datetime | None = None, today: date | None = None) -> d
 
 
 class TaxService:
-    """Tax positive realized net profit per closed 12-hour period; penalties are simple +3%/hour."""
+    """Tax positive realized net profit per closed daily period; penalties are simple +3%/hour."""
 
     @classmethod
     def _is_overdue(cls, row: NatTaxPeriod, now: datetime) -> bool:
@@ -70,7 +71,7 @@ class TaxService:
         now: datetime | None = None,
         today: date | None = None,
     ) -> list[NatTaxPeriod]:
-        """Create closed 12-hour period liabilities and assess non-compounding +3%/hour overdue penalties."""
+        """Create closed daily liabilities and assess non-compounding +3%/hour overdue penalties."""
         current_dt = _normalize_time(now=now, today=today)
         profits = await cls._profit_by_period(session, company_id, before=current_dt)
         rows = list((await session.execute(
@@ -88,6 +89,10 @@ class TaxService:
             if principal <= 0 and p_start not in by_start:
                 continue
             row = by_start.get(p_start)
+            # Keep existing 12-hour liabilities intact after the schedule change,
+            # but don't create new midnight/noon liabilities from legacy ledger rows.
+            if row is None and (p_end - p_start) != timedelta(hours=int(nat_settings.TAX_PERIOD_HOURS)):
+                continue
             if row is None:
                 row = NatTaxPeriod(
                     company_id=company_id,
@@ -184,12 +189,15 @@ class TaxService:
     @staticmethod
     def production_deadline(val: datetime | date) -> datetime:
         if isinstance(val, datetime):
-            if val.minute == 0 and val.second == 0 and val.hour in (0, 12):
-                return period_grace_until(val)
-            _, p_end = get_period_bounds(val)
-            return period_production_deadline(p_end)
-        p_end = datetime.combine(val, time(12, 0, 0))
-        return period_production_deadline(p_end)
+            current = val.replace(tzinfo=None) if val.tzinfo is None else val.astimezone(
+                get_game_tz()
+            ).replace(tzinfo=None)
+            _, previous_end = get_period_bounds(current - timedelta(seconds=1))
+            if previous_end == current:
+                return period_grace_until(current)
+            _, period_end = get_period_bounds(current)
+            return period_production_deadline(period_end)
+        return period_production_deadline(tax_boundary_for_date(val))
 
     @classmethod
     async def pay(

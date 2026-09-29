@@ -71,7 +71,7 @@ def test_idle_settlement_applies_once_and_stops_at_tax_period_close() -> None:
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
-        start = datetime(2026, 9, 20, 12, 0)
+        start = datetime(2026, 9, 20, 11, 0)
 
         async with sessions() as session:
             company, business = await create_mining_business(session, last_settled_at=start)
@@ -98,14 +98,14 @@ def test_idle_settlement_applies_once_and_stops_at_tax_period_close() -> None:
                 session,
                 company.id,
                 start,
-                start + timedelta(hours=12),
+                start + timedelta(hours=24),
                 revenue=1_000.0,
             )
 
-            # Unpaid tax blocks production at the close of its 12-hour period,
+            # Unpaid tax blocks production at the close of its daily period,
             # even when the requested offline window is longer.
             capped = await IdleEconomyService.settle_company(session, company.id, now=start + timedelta(hours=50))
-            assert capped["settled_hours"] == 11.0
+            assert capped["settled_hours"] == 23.0
             assert capped["tax_blocked"] is True
             assert business.last_settled_at == start + timedelta(hours=50)
 

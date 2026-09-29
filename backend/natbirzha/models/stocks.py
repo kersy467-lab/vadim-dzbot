@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from typing import Optional
 from sqlalchemy import (
-    Integer, String, Float, Boolean, DateTime, Date,
+    Integer, BigInteger, String, Float, Boolean, DateTime, Date,
     ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -41,6 +41,25 @@ class NatStockPriceSnapshot(Base):
     price: Mapped[float] = mapped_column(Float, nullable=False)
     valuation: Mapped[float] = mapped_column(Float, nullable=False)
     captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class NatStockTrade(Base):
+    """External stock trade print used to calculate a manipulation-resistant quote."""
+
+    __tablename__ = "nat_stock_trades"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stock_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nat_stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Keep identity snapshots so price evidence survives company reset/deletion.
+    buyer_company_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    seller_company_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    buyer_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    seller_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    shares_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    executed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
 
 
 class NatStockHolding(Base):

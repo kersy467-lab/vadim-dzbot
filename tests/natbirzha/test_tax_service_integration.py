@@ -1,4 +1,4 @@
-"""Database-level contract for the mandatory NATBIRZHA profit tax (12h cycle, 13% net tax, 3% hourly simple penalty)."""
+"""Database-level contract for daily NATBIRZHA profit tax (13% net tax, 3% hourly simple penalty)."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -19,20 +19,21 @@ from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.sabotage_service import SabotageService
 from backend.natbirzha.services.tax_service import TaxService
+from backend.natbirzha.tax_rules import get_period_bounds, overdue_hours
 
 
-def test_tax_penalty_and_block_start_after_closed_12h_period() -> None:
-    """After the 12-hour earning period closes, unpaid tax blocks production and incurs hourly penalties."""
+def test_tax_penalty_and_block_start_after_closed_daily_period() -> None:
+    """After the 24-hour earning period closes at 11:00, unpaid tax blocks production and incurs penalties."""
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 
-        now = get_game_now().replace(microsecond=0)
-        # Period ended 6 hours ago; no extra grace period is granted.
-        p_end = now - timedelta(hours=6)
-        p_start = p_end - timedelta(hours=12)
+        # Period ended 6 hours ago at the scheduled 11:00 UTC+5 close.
+        p_end = datetime(2026, 9, 25, 11, 0)
+        now = p_end + timedelta(hours=6)
+        p_start = p_end - timedelta(hours=24)
 
         async with sessions() as session:
             company = NatCompany(
@@ -71,10 +72,12 @@ def test_overdue_tax_penalty_block_and_payment() -> None:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 
+        # Period ended 22 hours ago at the scheduled 11:00 UTC+5 close.
         now = get_game_now().replace(microsecond=0)
-        # Period ended 22 hours ago -> 22 full overdue hours.
-        p_end = now - timedelta(hours=22)
-        p_start = p_end - timedelta(hours=12)
+        current_period_start, _ = get_period_bounds(now)
+        p_end = current_period_start - timedelta(hours=24)
+        overdue = overdue_hours(p_end, now)
+        p_start = p_end - timedelta(hours=24)
 
         async with sessions() as session:
             company = NatCompany(
@@ -91,24 +94,26 @@ def test_overdue_tax_penalty_block_and_payment() -> None:
             summary = await TaxService.summary(session, company.id, now=now)
             # Principal: 1000 * 13% = 130.0
             assert summary["principal_due"] == 130.0
-            # Simple penalty: 130 * 3% * 22 hours = 85.8
-            assert summary["penalty_due"] == 85.8
-            assert summary["total_due"] == 215.8
+            expected_penalty = round(130.0 * 0.03 * overdue, 2)
+            assert overdue > 0
+            assert summary["penalty_due"] == expected_penalty
+            expected_total = round(130.0 + expected_penalty, 2)
+            assert summary["total_due"] == expected_total
             assert summary["blocked"] is True
 
             # Repeated call must not compound penalty
             repeated = await TaxService.summary(session, company.id, now=now)
-            assert repeated["total_due"] == 215.8
+            assert repeated["total_due"] == expected_total
 
             result = await TaxService.pay(session, company.id)
-            assert result["paid_now"] == 215.8
+            assert result["paid_now"] == expected_total
             assert result["total_due"] == 0.0
             assert result["blocked"] is False
-            assert result["cash"] == 784.2
+            assert result["cash"] == round(1_000.0 - expected_total, 2)
 
             treasury = await session.scalar(select(NatStateTreasury))
             assert treasury is not None
-            assert treasury.cash >= 169.0
+            assert treasury.cash >= expected_total
 
         await engine.dispose()
 
@@ -116,26 +121,26 @@ def test_overdue_tax_penalty_block_and_payment() -> None:
 
 
 def test_tax_uses_closed_period_net_profit_and_fixed_13_percent(monkeypatch) -> None:
-    """Tax is 13% of company-wide net operating profit, assessed only after 12 hours."""
+    """Tax is 13% of company-wide net operating profit, assessed at the daily 11:00 close."""
     async def check() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 
-        period_start = datetime(2026, 9, 25, 0, 0)
-        period_end = period_start + timedelta(hours=12)
+        period_start = datetime(2026, 9, 24, 11, 0)
+        period_end = period_start + timedelta(hours=24)
         async with sessions() as session:
             company = NatCompany(
                 user_id=77_004, name="Net Profit Corp", specialization="miner", cash=10_000.0
             )
             session.add(company)
             await session.flush()
-            # Company-wide net is (3000 revenue - 1320 maintenance - 600 COGS) = 1080.
-            # Record the first 11 hours, then verify no tax is due before the 12h close.
+            # Company-wide net is (6000 revenue - 2640 maintenance - 1200 COGS) = 2160.
+            # Record the first 23 hours, then verify no tax is due before the daily close.
             await CompanyProfitLedgerService.record_interval(
-                session, company.id, period_start, 11,
-                revenue=250 * 11, maintenance=110 * 11, cost_of_goods_sold=50 * 11,
+                session, company.id, period_start, 23,
+                revenue=250 * 23, maintenance=110 * 23, cost_of_goods_sold=50 * 23,
             )
 
             before_close = await TaxService.summary(
@@ -144,20 +149,20 @@ def test_tax_uses_closed_period_net_profit_and_fixed_13_percent(monkeypatch) -> 
             assert before_close["principal_due"] == 0.0
 
             await CompanyProfitLedgerService.record_interval(
-                session, company.id, period_start + timedelta(hours=11), 1,
+                session, company.id, period_start + timedelta(hours=23), 1,
                 revenue=250, maintenance=110, cost_of_goods_sold=50,
             )
             row = await session.scalar(select(NatCompanyProfitPeriod).where(
                 NatCompanyProfitPeriod.company_id == company.id,
                 NatCompanyProfitPeriod.period_start == period_start,
             ))
-            assert row is not None and row.operating_profit == 1_080.0
+            assert row is not None and row.operating_profit == 2_160.0
 
             summary = await TaxService.summary(session, company.id, now=period_end)
             assert summary["rate_pct"] == 13.0
-            assert summary["principal_due"] == 140.4
+            assert summary["principal_due"] == 280.8
             liability = summary["liabilities"][0]
-            assert liability["taxable_profit"] == 1080.0
+            assert liability["taxable_profit"] == 2_160.0
 
         await engine.dispose()
 
@@ -173,11 +178,11 @@ def test_offline_settlement_keeps_production_before_tax_stop_deadline() -> None:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 
-        period_start = datetime(2026, 9, 25, 0, 0)
-        period_end = datetime(2026, 9, 25, 12, 0)
+        period_start = datetime(2026, 9, 24, 11, 0)
+        period_end = datetime(2026, 9, 25, 11, 0)
         stop_at = period_end
         settled_at = datetime(2026, 9, 25, 18, 0)
-        work_started = datetime(2026, 9, 25, 9, 0)
+        work_started = datetime(2026, 9, 25, 8, 0)
 
         async with sessions() as session:
             company = NatCompany(

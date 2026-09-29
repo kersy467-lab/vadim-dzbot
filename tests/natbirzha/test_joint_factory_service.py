@@ -250,9 +250,9 @@ def test_joint_factory_respects_ordinary_business_tax_production_deadline():
                 result = await JointFactorySettlementService.settle_for_company(
                     session, company_ids[0], now=datetime(2026, 9, 26, 13)
                 )
-                assert result[0]["settled_hours"] == pytest.approx(1.0)
+                assert result[0]["settled_hours"] == pytest.approx(2.0)
                 expected = {
-                    item: float(rate)
+                    item: float(rate) * 2
                     for item, rate in JOINT_FACTORY_RECIPES[RECIPE_ID]["levels"][0]["outputs_per_hour"].items()
                 }
                 assert factory.total_produced_json == pytest.approx(expected)

@@ -38,7 +38,7 @@ export function createMarketSectionLoader(container, showToast, onBack, loadComm
   async function openLazy(section, currentRequest) {
     const modules = {
       bankruptcy_market: ['./bankruptcy_market.js?v=20260928_mobile_perf_v1', 'renderBankruptcyMarket'],
-      tax: ['./market_tax.js?v=20260928_mobile_perf_v1', 'renderTaxSection'],
+      tax: ['./market_tax.js?v=20260929_stock_tax_safety_v1', 'renderTaxSection'],
       state_credit: ['./market_credit.js?v=20260928_mobile_perf_v1', 'renderStateCreditSection'],
       city_orders: ['./market_city_orders.js?v=20260928_mobile_perf_v1', 'renderMarketCityOrders'],
       deals: ['./market_deals.js?v=20260928_mobile_perf_v1', 'renderMarketDeals'],

@@ -113,7 +113,7 @@ class StockService:
         *,
         commit: bool = False,
     ) -> int:
-        """Reprice listed shares whose company valuation is at least 10 minutes old."""
+        """Refresh due fundamentals and repair quotes outside the audited value guard."""
         current_time = now or get_game_now()
         refresh_before = current_time - timedelta(
             minutes=nat_settings.STOCK_VALUATION_REFRESH_MINUTES
@@ -121,25 +121,39 @@ class StockService:
         rows = await session.execute(
             select(NatStock, NatCompany)
             .join(NatCompany, NatStock.company_id == NatCompany.id)
-            .where(
-                NatStock.is_listed == True,
-                (NatStock.valuation_updated_at.is_(None))
-                | (NatStock.valuation_updated_at <= refresh_before),
-            )
+            .where(NatStock.is_listed == True)
         )
         refreshed = 0
         for stock, company in rows.all():
-            valuation = await StockService.calculate_company_valuation(session, company)
-            fair_price = valuation / max(1, stock.total_shares)
+            is_due = (
+                stock.valuation_updated_at is None
+                or stock.valuation_updated_at <= refresh_before
+            )
+            prior_fair = max(
+                0.01,
+                float(stock.last_valuation or 0.0) / max(1, int(stock.total_shares or 1)),
+            )
+            prior_quote = max(0.01, float(stock.current_price or prior_fair))
+            quote_outside_fair_guard = (
+                prior_quote < prior_fair * 0.75 - 1e-9
+                or prior_quote > prior_fair * 1.25 + 1e-9
+            )
+            if not is_due and not quote_outside_fair_guard:
+                continue
+
+            valuation = (
+                await StockService.calculate_company_valuation(session, company)
+                if is_due else float(stock.last_valuation or 0.0)
+            )
+            fair_price = valuation / max(1, int(stock.total_shares or 1))
             pressure = await StockOrderbookService.market_pressure(session, stock)
-            # Fundamentals remain the anchor; real order-book imbalance can move the quote
-            # by up to roughly 10% around it, while the blend prevents 10-minute jumps.
             market_price = StockService.blended_market_price(
-                fair_price, float(stock.current_price or fair_price), pressure
+                fair_price, prior_quote, pressure
             )
             stock.last_valuation = valuation
             stock.current_price = market_price
-            stock.valuation_updated_at = current_time
+            if is_due:
+                stock.valuation_updated_at = current_time
             await StockService.record_price_snapshot(session, stock, current_time)
             refreshed += 1
         if refreshed:

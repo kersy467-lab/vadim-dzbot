@@ -17,6 +17,7 @@ from backend.natbirzha.models.market import NatMarketOrder, NatMarketTrade
 from backend.natbirzha.models.stocks import (
     NatStock,
     NatStockPriceSnapshot,
+    NatStockTrade,
     NatStockHolding,
     NatStockOrder,
     NatDividend,
@@ -111,6 +112,7 @@ __all__ = [
     "NatMarketTrade",
     "NatStock",
     "NatStockPriceSnapshot",
+    "NatStockTrade",
     "NatStockHolding",
     "NatStockOrder",
     "NatDividend",

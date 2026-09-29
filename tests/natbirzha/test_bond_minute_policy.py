@@ -71,7 +71,8 @@ def test_coupon_rate_of_30_percent_yields_15_percent_per_day() -> None:
             ))
             assert buyer_tax_period is not None, "Received bond coupons must enter the company's net-profit ledger"
             assert buyer_tax_period.financial_income == round(one_minute, 6)
-            await TaxService.summary(session, buyer.id, now=issued_at + timedelta(hours=12))
+            # The first daily tax period closes at 11:00 UTC+5, 23 hours after issue.
+            await TaxService.summary(session, buyer.id, now=issued_at + timedelta(hours=23))
             bond_tax = await session.scalar(select(NatTaxPeriod).where(NatTaxPeriod.company_id == buyer.id))
             assert bond_tax is not None
             assert bond_tax.taxable_profit == round(one_minute, 2)

@@ -39,7 +39,7 @@ class NatTaxDaily(Base):
 
 
 class NatTaxPeriod(Base):
-    """12-hour game period tax liability with +3%/hour simple overdue penalty."""
+    """Daily game-period tax liability with +3%/hour simple overdue penalty."""
 
     __tablename__ = "nat_tax_periods"
     __table_args__ = (UniqueConstraint("company_id", "period_start", name="uq_nat_tax_period_company_start"),)
@@ -70,7 +70,7 @@ class NatTaxPeriod(Base):
 
 
 class NatCompanyProfitPeriod(Base):
-    """Company-wide realized net result for one 12-hour tax period."""
+    """Company-wide realized net result for one daily tax period."""
 
     __tablename__ = "nat_company_profit_periods"
     __table_args__ = (

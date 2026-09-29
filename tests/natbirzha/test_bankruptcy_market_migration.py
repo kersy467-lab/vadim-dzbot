@@ -11,6 +11,7 @@ from backend.natbirzha.migrations import MIGRATIONS, run_natbirzha_migrations
 def test_bankruptcy_market_migration_is_registered_and_repeatable() -> None:
     versions = [version for version, _ in MIGRATIONS]
     assert "natbirzha_v7_001_bankruptcy_market" in versions
+    assert "natbirzha_v22_001_stock_trade_price_guard" in versions
 
     async def run() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -36,11 +37,12 @@ def test_bankruptcy_market_migration_is_registered_and_repeatable() -> None:
                 (calendar_date, item_id, action, used_quantity)
                 VALUES ('2026-09-24', 'energy', 'SELL', 1)
             """))
-            # Leave bankruptcy-market and the following deal migration pending;
-            # they must both run even though v8 now follows v7 in the sequence.
+            # Leave older entries and the new stock-ledger migration pending;
+            # the runner must apply them exactly once in sequence.
             pending = {
                 "natbirzha_v7_001_bankruptcy_market",
                 "natbirzha_v8_001_player_supply_deals",
+                "natbirzha_v22_001_stock_trade_price_guard",
             }
             for version, _ in MIGRATIONS:
                 if version in pending:
@@ -96,6 +98,7 @@ def test_bankruptcy_market_migration_is_registered_and_repeatable() -> None:
         assert "used_cash" in npc_columns
         assert initial_used_cash == 0.0
         assert "nat_bankruptcy_market_lots" in tables
+        assert "nat_stock_trades" in tables
         assert applied == 1
 
     asyncio.run(run())

@@ -84,7 +84,7 @@ class NatBusinessIncomeDaily(Base):
 
 
 class NatBusinessIncomePeriod(Base):
-    """12-hour period operating profit aggregates used for mandatory taxation."""
+    """Tax-period operating profit aggregates used for mandatory taxation."""
 
     __tablename__ = "nat_business_income_periods"
     __table_args__ = (

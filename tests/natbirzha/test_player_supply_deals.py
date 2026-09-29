@@ -459,7 +459,7 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         await engine.dispose()
 
 
-async def _high_value_resource_uses_two_unit_batches() -> None:
+async def _high_value_resource_uses_one_unit_batches() -> None:
     engine, session, buyer, supplier = await _fixture()
     start = get_game_now().replace(microsecond=0)
     supplier.specialization = "technoprom"
@@ -493,13 +493,13 @@ async def _high_value_resource_uses_two_unit_batches() -> None:
             start=start, end=start + timedelta(minutes=12), now=start + timedelta(minutes=12),
         )
         assert len(transfers) == 1
-        assert transfers[0]["quantity"] == 2
-        assert stock.quantity == 0
+        assert transfers[0]["quantity"] == 1
+        assert stock.quantity == 1
         buyer_stock = await session.scalar(select(NatInventory).where(
             NatInventory.company_id == buyer.id, NatInventory.item_id == "servers",
         ))
-        assert buyer_stock is not None and buyer_stock.quantity == 2
-        assert buyer.cash == pytest.approx(100_000 - 2 * reference)
+        assert buyer_stock is not None and buyer_stock.quantity == 1
+        assert buyer.cash == pytest.approx(100_000 - reference)
         await session.commit()
     finally:
         await session.close()
@@ -608,7 +608,7 @@ async def run_async() -> None:
     await _fixed_payout_is_atomic()
     await _concurrent_accept_cannot_double_pay()
     await _delivery_respects_supplier_inventory_demand_quota_and_cash()
-    await _high_value_resource_uses_two_unit_batches()
+    await _high_value_resource_uses_one_unit_batches()
     await _offline_interval_intersects_only_active_deal_time()
     await _profit_share_is_positive_only_and_idempotent()
     await _api_rejects_non_participants()
@@ -620,11 +620,11 @@ def test_player_supply_deals() -> None:
     asyncio.run(run_async())
 
 
-def test_deal_delivery_batch_size_preserves_water_and_scales_other_items() -> None:
+def test_deal_delivery_batch_size_preserves_water_and_uses_requested_lots() -> None:
     assert SupplyDealService.delivery_batch_size("water", 2.0) == 100
     assert SupplyDealService.delivery_batch_size("water", 900.0) == 100
-    assert SupplyDealService.delivery_batch_size("energy", 500.0) == 10
-    assert SupplyDealService.delivery_batch_size("servers", 500.01) == 2
+    assert SupplyDealService.delivery_batch_size("energy", 500.0) == 5
+    assert SupplyDealService.delivery_batch_size("servers", 500.01) == 1
 
 
 if __name__ == "__main__":

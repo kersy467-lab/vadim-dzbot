@@ -88,7 +88,8 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
     await session.execute(update(NatBankruptcyMarketLot).where(
         NatBankruptcyMarketLot.status == "ACTIVE",
         or_(
-            NatBankruptcyMarketLot.former_company_id == cid,
+            (NatBankruptcyMarketLot.former_company_id == cid)
+            & (NatBankruptcyMarketLot.asset_kind != "STOCK"),
             (NatBankruptcyMarketLot.asset_kind == "FACTORY") & NatBankruptcyMarketLot.asset_id.in_(reset_factory_ids),
             (NatBankruptcyMarketLot.asset_kind == "BUSINESS") & NatBankruptcyMarketLot.asset_id.in_(reset_business_ids),
             (NatBankruptcyMarketLot.asset_kind == "STOCK") & NatBankruptcyMarketLot.asset_id.in_(reset_stock_ids),

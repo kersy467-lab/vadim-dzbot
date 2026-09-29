@@ -323,19 +323,26 @@ def test_company_reset_cancels_bankruptcy_lots_with_removed_assets() -> None:
         async with sessions() as session:
             former_owner_user = User(tg_id=820_010, full_name="Former Owner")
             issuer_user = User(tg_id=820_011, full_name="Issuer")
-            session.add_all([former_owner_user, issuer_user])
+            surviving_issuer_user = User(tg_id=820_012, full_name="Surviving Issuer")
+            session.add_all([former_owner_user, issuer_user, surviving_issuer_user])
             await session.flush()
             former_owner = NatCompany(
                 user_id=former_owner_user.id, name="Former Owner Co", specialization="miner",
             )
             issuer = NatCompany(user_id=issuer_user.id, name="Issuer Co", specialization="miner")
-            session.add_all([former_owner, issuer])
+            surviving_issuer = NatCompany(
+                user_id=surviving_issuer_user.id, name="Surviving Issuer Co", specialization="miner",
+            )
+            session.add_all([former_owner, issuer, surviving_issuer])
             await session.flush()
             factory = NatFactory(
                 company_id=former_owner.id, building_type="mine", specialization="miner",
             )
             stock = NatStock(company_id=issuer.id, current_price=20, is_listed=True)
-            session.add_all([factory, stock])
+            surviving_stock = NatStock(
+                company_id=surviving_issuer.id, current_price=30, is_listed=True,
+            )
+            session.add_all([factory, stock, surviving_stock])
             await session.flush()
             lots = [
                 NatBankruptcyMarketLot(
@@ -350,18 +357,33 @@ def test_company_reset_cancels_bankruptcy_lots_with_removed_assets() -> None:
                     asset_type="company_stock", title="Issuer stock", industry="miner",
                     asset_level=1, quantity=10, cost_basis=200, ask_price=200, status="ACTIVE",
                 ),
+                NatBankruptcyMarketLot(
+                    operation_key="reset-stock-holder", former_company_id=former_owner.id,
+                    former_company_name=former_owner.name, asset_kind="STOCK", asset_id=surviving_stock.id,
+                    asset_type="company_stock", title="Surviving issuer stock", industry="miner",
+                    asset_level=1, quantity=5, cost_basis=150, ask_price=150, status="ACTIVE",
+                ),
             ]
             session.add_all(lots)
+            session.add(NatStockHolding(
+                stock_id=surviving_stock.id, holder_company_id=former_owner.id,
+                shares_count=5, avg_price=30,
+            ))
             await session.flush()
             await CompanyService.reset_company_for_user(session, issuer_user.id, commit=False)
             await session.refresh(lots[0])
             await session.refresh(lots[1])
             assert lots[0].status == "ACTIVE"  # The former owner remains intact.
             assert lots[1].status == "CANCELLED"  # The stock issuer was reset.
+            assert lots[2].status == "ACTIVE"  # A stock lot survives resetting only its former holder.
 
             await CompanyService.reset_company_for_user(session, former_owner_user.id, commit=False)
             await session.refresh(lots[0])
+            await session.refresh(lots[2])
             assert lots[0].status == "CANCELLED"
+            assert lots[2].status == "ACTIVE"
+            assert lots[2].former_company_id is None
+            assert await session.get(NatStock, surviving_stock.id) is not None
 
         await engine.dispose()
 

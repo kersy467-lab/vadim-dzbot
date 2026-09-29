@@ -26,6 +26,13 @@ function money(value) {
   return Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
 }
 
+function moneyPrecise(value) {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount)
+    ? amount.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
+    : '0';
+}
+
 function resourceQuantity(value) {
   const quantity = Number(value);
   if (!Number.isFinite(quantity) || quantity <= 0) return '';
@@ -194,8 +201,11 @@ function requirementState(item, summary, owned, catalogMap) {
       missing.push(`${catalogMap.get(id)?.name || 'предыдущее предприятие'} ур. ${stage}`);
     }
   });
-  if (Number(summary.cash || 0) < Number(item.open_cost || 0)) missing.push('недостаточно cash');
-  return { available: missing.length === 0, missing };
+  const cashShortfall = Math.max(
+    0,
+    Number(item.open_cost || 0) - Number(summary.cash || 0),
+  );
+  return { available: missing.length === 0 && cashShortfall <= 0, missing, cashShortfall };
 }
 
 function catalogCard(item, requirement, ownedCount) {
@@ -209,7 +219,11 @@ function catalogCard(item, requirement, ownedCount) {
     <div class="mt-2 text-xs"><span class="text-slate-400">Производит</span><div class="mt-1">${output}</div></div>
     ${firstMilestone ? `<div class="mt-2 text-xs text-amber-700 dark:text-amber-300">Первый рубеж: <b>${esc(firstMilestone.label)}</b></div>` : ''}
     ${Object.keys(item.open_resources || {}).length ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-300"><span class="text-slate-400">Ресурсы открытия:</span> ${resourceRequirements(item.open_resources)}</div>` : ''}
-    <div class="mt-2 text-xs text-slate-500 dark:text-slate-300">${requirement.missing.length ? `Нужно: ${esc(requirement.missing.join(' · '))}` : `Открытие: ${money(item.open_cost)} cash`}</div>
+    <div class="mt-2 rounded-xl bg-slate-100/80 dark:bg-slate-900/40 p-2.5 text-xs text-slate-600 dark:text-slate-200">
+      <div class="flex items-center justify-between gap-2"><span>Цена открытия</span><b class="whitespace-nowrap">${money(item.open_cost)} cash</b></div>
+      ${requirement.cashShortfall > 0 ? `<div class="mt-1 font-semibold text-amber-700 dark:text-amber-300">Накопить ещё: ${moneyPrecise(requirement.cashShortfall)} cash</div>` : ''}
+    </div>
+    ${requirement.missing.length ? `<div class="mt-2 text-xs text-slate-500 dark:text-slate-300">Другие требования: ${esc(requirement.missing.join(' · '))}</div>` : ''}
     <button type="button" class="tycoon-open-btn" data-action="open" data-type="${esc(item.id)}" ${disabled ? 'disabled' : ''}>${uniqueOwned ? 'Уникальное предприятие уже открыто' : requirement.available ? `${ownedCount ? 'Открыть ещё' : 'Открыть'} за ${money(item.open_cost)} cash` : 'Пока недоступно'}</button>
   </article>`;
 }

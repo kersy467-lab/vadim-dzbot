@@ -38,7 +38,8 @@ async def run() -> None:
                 ),
             ])
         company = NatCompany(user_id=991101, name="Chart Corp", specialization="miner")
-        session.add(company)
+        buyer = NatCompany(user_id=991102, name="Chart Buyer", specialization="miner")
+        session.add_all([company, buyer])
         await session.flush()
         stock = NatStock(company_id=company.id, is_listed=True, current_price=12.5, last_valuation=125000)
         bond = NatStateBond(
@@ -55,12 +56,12 @@ async def run() -> None:
                 quantity=1, unit_price=103, status="OPEN", created_at=now,
             ),
             NatMarketTrade(
-                item_id="iron_ore", buyer_company_id=company.id, seller_company_id=company.id,
+                item_id="iron_ore", buyer_company_id=buyer.id, seller_company_id=company.id,
                 price=34, quantity=5, total_amount=170, fee_amount=1,
                 executed_at=now - timedelta(days=1),
             ),
             NatMarketTrade(
-                item_id="iron_ore", buyer_company_id=company.id, seller_company_id=company.id,
+                item_id="iron_ore", buyer_company_id=buyer.id, seller_company_id=company.id,
                 price=38, quantity=5, total_amount=190, fee_amount=1,
                 executed_at=now,
             ),
@@ -72,7 +73,8 @@ async def run() -> None:
         stocks = await get_stocks_market(session=session)
         assert len(stocks["stocks"][0]["history"]) >= 2
         bonds = await StateBondService.list_bonds(session)
-        assert bonds[0]["history"][0]["price"] == 103
+        assert bonds[0]["history"][0]["price"] == 100
+        assert bonds[0]["market_price"] == 103
         orderbook = await MarketService.get_orderbook(session, "iron_ore")
         assert [point["price"] for point in orderbook["history"]] == [34, 38]
     await engine.dispose()

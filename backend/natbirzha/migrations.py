@@ -745,6 +745,21 @@ async def _migrate_v20_ai_industry_key(conn) -> None:
             """))
 
 
+async def _migrate_v21_state_market_advances(conn) -> None:
+    """Record state-funded sell inventory and treasury repayments per trade."""
+    await _add_columns(conn, "nat_market_orders", {
+        "state_advance_amount": "FLOAT NOT NULL DEFAULT 0",
+        "state_advance_quantity": "FLOAT NOT NULL DEFAULT 0",
+        "state_advance_remaining_amount": "FLOAT NOT NULL DEFAULT 0",
+        "state_advance_remaining_quantity": "FLOAT NOT NULL DEFAULT 0",
+        "state_advance_reference_price": "FLOAT",
+        "state_advance_reason": "VARCHAR(40)",
+    })
+    await _add_columns(conn, "nat_market_trades", {
+        "state_repayment_amount": "FLOAT NOT NULL DEFAULT 0",
+    })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -781,6 +796,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v18_001_joint_factories", _migrate_v18_joint_factories),
     ("natbirzha_v19_military_hospital_repair", _migrate_v19_hospital_repair),
     ("natbirzha_v20_ai_industry_key", _migrate_v20_ai_industry_key),
+    ("natbirzha_v21_state_market_advances", _migrate_v21_state_market_advances),
 )
 
 

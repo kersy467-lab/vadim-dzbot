@@ -6,6 +6,7 @@ from backend.natbirzha.config import nat_settings, get_game_now, get_game_today,
 from backend.natbirzha.models.company import NatCompany, NatFactory
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
+from backend.natbirzha.models.market import NatMarketOrder
 from backend.db.models import User
 from backend.natbirzha.services.access_control import is_creator_user, get_creator_tg_ids
 
@@ -271,13 +272,32 @@ class CompanyService:
         }
 
     @classmethod
-    async def reset_company_for_user(cls, session: AsyncSession, user_id: int, commit: bool = True) -> bool:
+    async def reset_company_for_user(
+        cls,
+        session: AsyncSession,
+        user_id: int,
+        commit: bool = True,
+        *,
+        allow_market_advance_wipe: bool = False,
+    ) -> bool:
         """Completely reset and remove all company assets for a user so they can restart."""
         cid = await session.scalar(
             select(NatCompany.id).where(NatCompany.user_id == user_id)
         )
         if cid is None:
             return False
+        if not allow_market_advance_wipe:
+            funded_order = await session.scalar(select(NatMarketOrder.id).where(
+                NatMarketOrder.company_id == cid,
+                NatMarketOrder.order_type == "SELL",
+                NatMarketOrder.status == "ACTIVE",
+                NatMarketOrder.remaining_qty > 0,
+                NatMarketOrder.state_advance_remaining_quantity > 1e-9,
+            ).limit(1))
+            if funded_order is not None:
+                raise ValueError(
+                    "Нельзя сбросить компанию, пока не продан товар, профинансированный казной."
+                )
 
         # Close shared production before the reset takes the company lock on
         # its own. The JV service locks both partners in stable ID order.
@@ -293,6 +313,20 @@ class CompanyService:
         )
         if comp is None:
             return False
+        # The early check gives a fast error. Recheck under the company row
+        # lock to close the race with a concurrent market order placement.
+        if not allow_market_advance_wipe:
+            funded_order = await session.scalar(select(NatMarketOrder.id).where(
+                NatMarketOrder.company_id == cid,
+                NatMarketOrder.order_type == "SELL",
+                NatMarketOrder.status == "ACTIVE",
+                NatMarketOrder.remaining_qty > 0,
+                NatMarketOrder.state_advance_remaining_quantity > 1e-9,
+            ).limit(1))
+            if funded_order is not None:
+                raise ValueError(
+                    "Нельзя сбросить компанию, пока не продан товар, профинансированный казной."
+                )
         await JointFactorySettlementService.preserve_partner_stock_on_reset(session, cid)
 
         await delete_company_complete_state(session, cid)

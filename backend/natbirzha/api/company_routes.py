@@ -355,7 +355,10 @@ async def reset_company_route(
     cached = await IdempotencyService.check_or_conflict(session, user.id, endpoint, idempotency_key, {})
     if cached:
         return cached[1]
-    ok = await CompanyService.reset_company_for_user(session, user.id, commit=False)
+    try:
+        ok = await CompanyService.reset_company_for_user(session, user.id, commit=False)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     resp = {
         "success": True,
         "reset": ok,

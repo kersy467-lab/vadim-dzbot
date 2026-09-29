@@ -44,6 +44,9 @@ async def reset_self(
     company_id = company.id
     try:
         await CompanyService.reset_company_for_user(session, admin.id, commit=True)
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка сброса: {exc}") from exc

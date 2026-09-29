@@ -13,6 +13,8 @@ from backend.db.models import Base, User
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany, NatFactory
+from backend.natbirzha.models.creator import NatStateTreasury
+from backend.natbirzha.models.market import NatMarketOrder
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.models.season import NatSeasonResetOperation
 from backend.natbirzha.services.season_reset_service import SeasonResetService
@@ -46,7 +48,16 @@ async def run_async() -> None:
         old_player = NatCompany(user_id=player.id, name="Player Corp", specialization="ai_data", cash=999)
         session.add_all([old_creator, old_tester, old_player])
         await session.flush()
-        session.add(NatFactory(company_id=old_player.id, building_type="ai_compute_node", specialization="ai_data"))
+        session.add_all([
+            NatFactory(company_id=old_player.id, building_type="ai_compute_node", specialization="ai_data"),
+            NatStateTreasury(id=1, cash=900_000),
+            NatMarketOrder(
+                company_id=old_player.id, order_type="SELL", item_id="steel", price=100,
+                quantity=300, remaining_qty=100, status="ACTIVE",
+                state_advance_amount=30_000, state_advance_quantity=300,
+                state_advance_remaining_amount=10_000, state_advance_remaining_quantity=100,
+            ),
+        ])
         await session.commit()
 
         preview = await SeasonResetService.preview(session)
@@ -64,6 +75,7 @@ async def run_async() -> None:
         assert by_name["Tester Corp"].pvc_balance == 200
         assert by_name["Player Corp"].cash == 50_000
         assert by_name["Player Corp"].level == 1 and by_name["Player Corp"].territory_tiles == 4
+        assert (await session.get(NatStateTreasury, 1)).cash == 910_000
         assert len((await session.execute(select(NatFactory))).scalars().all()) == 1
         assert len((await session.execute(select(NatBusiness))).scalars().all()) == 3
         replay = await SeasonResetService.execute(

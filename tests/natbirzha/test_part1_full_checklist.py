@@ -116,13 +116,13 @@ async def _test_full_part1_and_creator_checklist():
         # 6. State price restriction is enforced on every market mutation.
         warning = await client.post(
             "/api/natbirzha/creator/market/warnings",
-            headers={**auth_admin, "Idempotency-Key": "warning-checklist-1"},
+            headers={**auth_admin, "Idempotency-Key": f"warning-checklist-{player_tg}"},
             json={"company_id": company_id, "reason": "Попытка демпинга"},
         )
         assert warning.status_code == 200
         restriction = await client.post(
             "/api/natbirzha/creator/market/restrictions",
-            headers={**auth_admin, "Idempotency-Key": "restriction-checklist-1"},
+            headers={**auth_admin, "Idempotency-Key": f"restriction-checklist-{player_tg}"},
             json={"item_id": "iron_ore", "min_price": 50.0, "max_price": 150.0, "reason": "Стабилизация цен"},
         )
         assert restriction.status_code == 200

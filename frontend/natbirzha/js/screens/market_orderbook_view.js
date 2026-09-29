@@ -130,9 +130,17 @@ export function renderCommodityOrderbookView(options) {
                     </span>
                     <span>${o.remaining_quantity} @ ${o.price} cash</span>
                   </div>
-                  <button class="cancel-order-btn text-rose-500 hover:text-rose-700 text-[11px] font-bold" data-order-id="${o.id}">
-                    Отменить
-                  </button>
+                  ${Number(o.state_advance_remaining_quantity || 0) > 0 ? `
+                    <div class="text-[10px] text-amber-600 dark:text-amber-300 text-right">
+                      🔒 Казна профинансировала ${Number(o.state_advance_amount || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash.<br>
+                      Осталось продать ${Number(o.state_advance_remaining_quantity).toLocaleString('ru-RU', { maximumFractionDigits: 6 })}; снять нельзя.
+                    </div>
+                  ` : `
+                    <button class="cancel-order-btn text-rose-500 hover:text-rose-700 text-[11px] font-bold" data-order-id="${o.id}">
+                      Отменить
+                    </button>
+                  `}
+                  ${Number(o.state_advance_remaining_quantity || 0) > 0 ? `<span class="text-slate-400 text-[11px] font-bold">🔒 Снять нельзя</span>` : ''}
                 </div>
               `).join('')}
             </div>
@@ -189,8 +197,18 @@ export function renderCommodityOrderbookView(options) {
           btn.disabled = true;
           btn.innerText = 'Размещение...';
         }
-        await NatAPI.placeOrder({ item_id: selectedItemId, side, amount, price });
-        showToast('Ордер успешно выставлен!', 'success');
+        const result = await NatAPI.placeOrder({ item_id: selectedItemId, side, amount, price });
+        if (side.toUpperCase() === 'SELL' && Number(result?.state_advance_amount || 0) > 0) {
+          showToast(`Казна авансировала ${Number(result.state_advance_amount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} cash. Профинансированный товар нельзя снять.`, 'success');
+        } else if (side.toUpperCase() === 'SELL' && result?.state_advance_reason === 'PRICE_ABOVE_REFERENCE') {
+          showToast(`Заявка выставлена без аванса: цена выше рыночного ориентира ${formatQuote(result.state_advance_reference_price)} cash.`, 'info');
+        } else if (side.toUpperCase() === 'SELL' && result?.state_advance_reason === 'NO_MARKET_REFERENCE') {
+          showToast('Заявка выставлена без аванса: пока недостаточно реальных сделок для ценового ориентира.', 'info');
+        } else if (side.toUpperCase() === 'SELL' && result?.state_advance_reason === 'TREASURY_EMPTY') {
+          showToast('Заявка выставлена, но в казне сейчас недостаточно денег для аванса.', 'info');
+        } else {
+          showToast('Ордер успешно выставлен!', 'success');
+        }
         const refreshed = await NatAPI.getMyCompany();
         store.setCompany(refreshed);
         await loadOrderbook();

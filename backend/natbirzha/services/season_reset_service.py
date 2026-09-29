@@ -4,17 +4,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import User
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.creator import NatCreatorAuditLog, NatStateBond
+from backend.natbirzha.models.creator import NatCreatorAuditLog, NatStateBond, NatStateTreasury
+from backend.natbirzha.models.market import NatMarketOrder
 from backend.natbirzha.models.military import NatTournament
 from backend.natbirzha.models.season import NatSeasonResetOperation
 from backend.natbirzha.services.access_control import is_creator_user
 from backend.natbirzha.services.company_service import CompanyService
+from backend.natbirzha.services.market_settlement import money
+from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
 class SeasonResetService:
@@ -64,11 +67,29 @@ class SeasonResetService:
         session.add(operation)
         await session.flush()
 
+        # Outstanding advances are backed by orders that this full wipe deletes.
+        # Return their unpaid principal first so a reset cannot drain the treasury.
+        outstanding_advances = float(await session.scalar(select(
+            func.coalesce(func.sum(NatMarketOrder.state_advance_remaining_amount), 0.0)
+        ).where(
+            NatMarketOrder.order_type == "SELL",
+            NatMarketOrder.status == "ACTIVE",
+            NatMarketOrder.remaining_qty > 0,
+            NatMarketOrder.state_advance_remaining_quantity > 1e-9,
+        )) or 0.0)
+        if outstanding_advances > 0:
+            treasury = await StateTreasuryService.get_or_create(
+                session, commit=False, for_update=True
+            )
+            treasury.cash = float(money(float(treasury.cash or 0.0) + outstanding_advances))
+
         # First clear per-company records with the existing exhaustive reset logic.
         # The Telegram user rows survive, so permissions and identities are retained.
         blueprints = [(company.user_id, company.name, company.specialization) for company, _user in rows]
         for user_id, _name, _specialization in blueprints:
-            await CompanyService.reset_company_for_user(session, user_id, commit=False)
+            await CompanyService.reset_company_for_user(
+                session, user_id, commit=False, allow_market_advance_wipe=True
+            )
 
         # A season owns its event and government issue state; player-owned rows
         # have already been removed above before their parent records disappear.

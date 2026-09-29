@@ -83,6 +83,12 @@ async def create_order(
         "quantity": order.quantity,
         "remaining_qty": order.remaining_qty,
         "status": order.status,
+        "state_advance_amount": order.state_advance_amount,
+        "state_advance_quantity": order.state_advance_quantity,
+        "state_advance_remaining_amount": order.state_advance_remaining_amount,
+        "state_advance_remaining_quantity": order.state_advance_remaining_quantity,
+        "state_advance_reference_price": order.state_advance_reference_price,
+        "state_advance_reason": order.state_advance_reason,
     }
     result = await IdempotencyService.commit_response(
         session, company.user_id, endpoint, idempotency_key, payload, response
@@ -114,7 +120,10 @@ async def cancel_order(
     if cached:
         return cached[1]
 
-    success = await MarketService.cancel_order(session, company, order_id, commit=False)
+    try:
+        success = await MarketService.cancel_order(session, company, order_id, commit=False)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not success:
         raise HTTPException(status_code=404, detail="Active order not found or not owned by company.")
     response = {"success": True, "cancelled_order_id": order_id}

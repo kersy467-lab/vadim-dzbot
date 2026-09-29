@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import get_game_now, get_game_today, nat_settings
@@ -24,6 +24,7 @@ from backend.natbirzha.models.state_shares import NatStateShare, NatStateShareHo
 from backend.natbirzha.models.stocks import NatStockOrder
 from backend.natbirzha.services.bankruptcy_market_service import BankruptcyMarketService
 from backend.natbirzha.services.market_service import MarketService
+from backend.natbirzha.services.market_advance_service import MarketAdvanceService
 from backend.natbirzha.services.state_share_service import StateShareService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 from backend.natbirzha.services.event_broadcaster import EventBroadcaster
@@ -43,6 +44,12 @@ class ForcedBankruptcyService:
             ).order_by(NatMarketOrder.id.asc()).with_for_update()
         )).scalars().all()
         for order in orders:
+            if (
+                order.order_type == "SELL"
+                and float(order.state_advance_remaining_quantity or 0.0) > 1e-9
+            ):
+                await MarketAdvanceService.preserve_collateral_during_bankruptcy(session, order)
+                continue
             await MarketService.cancel_order(session, company, order.id, commit=False)
 
     @staticmethod
@@ -73,10 +80,21 @@ class ForcedBankruptcyService:
         sales: dict[str, float] = {}
         for inventory in rows:
             original_quantity = max(0.0, float(inventory.quantity))
-            offered = round(original_quantity * SEIZED_FRACTION, 4)
+            protected_quantity = await session.scalar(select(
+                func.coalesce(func.sum(NatMarketOrder.remaining_qty), 0.0)
+            ).where(
+                NatMarketOrder.company_id == company.id,
+                NatMarketOrder.item_id == inventory.item_id,
+                NatMarketOrder.order_type == "SELL",
+                NatMarketOrder.status == "ACTIVE",
+                NatMarketOrder.state_advance_remaining_quantity > 1e-9,
+            ))
+            protected_quantity = min(original_quantity, max(0.0, float(protected_quantity or 0.0)))
+            free_quantity = max(0.0, original_quantity - protected_quantity)
+            offered = round(free_quantity * SEIZED_FRACTION, 4)
             remaining_offer = offered
             if offered <= 0:
-                inventory.reserved_quantity = 0.0
+                inventory.reserved_quantity = protected_quantity
                 continue
             bids = (await session.execute(
                 select(NatMarketOrder).where(
@@ -167,8 +185,8 @@ class ForcedBankruptcyService:
                         float(financials.gross_revenue) - float(financials.opex), 2
                     )
             # Unsold confiscated stock disappears. The unseized 30% remains with the bankrupt.
-            inventory.quantity = round(original_quantity * RETAINED_FRACTION, 4)
-            inventory.reserved_quantity = 0.0
+            inventory.quantity = round(protected_quantity + free_quantity * RETAINED_FRACTION, 4)
+            inventory.reserved_quantity = min(inventory.quantity, protected_quantity)
         return sales
 
     @staticmethod

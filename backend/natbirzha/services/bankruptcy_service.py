@@ -11,6 +11,7 @@ from backend.natbirzha.models.market import NatMarketOrder
 from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.event_broadcaster import EventBroadcaster
+from backend.natbirzha.services.market_advance_service import MarketAdvanceService
 
 class BankruptcyService:
     @staticmethod
@@ -86,6 +87,12 @@ class BankruptcyService:
             )
         )
         for m_ord in market_orders_res.scalars().all():
+            if (
+                m_ord.order_type == "SELL"
+                and float(m_ord.state_advance_remaining_quantity or 0.0) > 1e-9
+            ):
+                await MarketAdvanceService.preserve_collateral_during_bankruptcy(session, m_ord)
+                continue
             m_ord.status = "CANCELLED"
             m_ord.closed_at = now
             if m_ord.order_type == "SELL":

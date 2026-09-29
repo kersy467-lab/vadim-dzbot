@@ -50,6 +50,10 @@ async def cancel_market_order(
         refund = await remaining_buy_escrow(session, order)
         company.cash = float(money(Decimal(str(company.cash)) + refund))
     elif order.order_type == "SELL":
+        if float(order.state_advance_remaining_quantity or 0.0) > 1e-9:
+            raise ValueError(
+                "Нельзя снять товар, профинансированный казной: сначала продайте этот объём."
+            )
         inventory = await session.scalar(
             select(NatInventory).where(
                 NatInventory.company_id == company.id, NatInventory.item_id == order.item_id

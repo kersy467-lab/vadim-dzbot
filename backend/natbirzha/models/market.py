@@ -22,6 +22,14 @@ class NatMarketOrder(Base):
     price: Mapped[float] = mapped_column(Float, nullable=False)
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     remaining_qty: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # State advances are secured by this sell order's reserved inventory.
+    state_advance_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    state_advance_quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    state_advance_remaining_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    state_advance_remaining_quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    state_advance_reference_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    state_advance_reason: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False, index=True)  # ACTIVE, FILLED, CANCELLED
     
@@ -44,5 +52,6 @@ class NatMarketTrade(Base):
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     total_amount: Mapped[float] = mapped_column(Float, nullable=False)
     fee_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    state_repayment_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     
     executed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)

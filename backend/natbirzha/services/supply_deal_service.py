@@ -623,6 +623,54 @@ class SupplyDealService:
         return payout_total
 
     @classmethod
+    async def _buyer_item_demand_rate(
+        cls,
+        session: AsyncSession,
+        buyer_company_id: int,
+        item_id: str,
+    ) -> float:
+        """Sum the buyer's hourly production demand for an item across businesses."""
+        cache = session.info.setdefault("_supply_deal_item_demand_rates", {})
+        cache_key = (int(buyer_company_id), item_id)
+        if cache_key in cache:
+            return float(cache[cache_key])
+
+        excluded_statuses = (
+            "PAUSED_MANUAL",
+            "PAUSED_MAINTENANCE",
+            "PAUSED_STORAGE",
+            "BANKRUPT",
+            "MERGING",
+        )
+        businesses = (await session.execute(
+            select(NatBusiness).where(
+                NatBusiness.company_id == buyer_company_id,
+                NatBusiness.status.notin_(excluded_statuses),
+            ).order_by(NatBusiness.id)
+        )).scalars().all()
+        demand_per_hour = 0.0
+        for candidate in businesses:
+            candidate_spec = get_business_spec(candidate.business_type)
+            if (
+                not candidate_spec
+                or candidate_spec.get("mechanic") != "resource_production"
+            ):
+                continue
+            base_rate = float(candidate_spec.get("inputs_per_hour", {}).get(item_id, 0.0) or 0.0)
+            if base_rate <= 0:
+                continue
+            candidate_rates = resource_business_rates(
+                candidate,
+                candidate_spec,
+                upgrading=candidate.status == "UPGRADING",
+            )
+            demand_per_hour += base_rate * candidate_rates.input_multiplier
+
+        result = round(max(0.0, demand_per_hour), 6)
+        cache[cache_key] = result
+        return result
+
+    @classmethod
     async def fulfill_resource_interval(
         cls,
         session: AsyncSession,
@@ -636,7 +684,7 @@ class SupplyDealService:
         deals: list[NatSupplyDeal] | None = None,
         inventory_cache: dict[str, NatInventory | None] | None = None,
     ) -> list[dict[str, Any]]:
-        """Transfer fixed item-specific batches once accumulated deal quota permits them."""
+        """Transfer fixed lots up to quota while maintaining a demand-sized stock buffer."""
         seconds = max(0.0, (end - start).total_seconds())
         if seconds <= 1e-6:
             return []
@@ -679,6 +727,7 @@ class SupplyDealService:
                 if inventory_cache is not None:
                     inventory_cache[deal.item_id] = inventory
             buyer_quantity = float(inventory.quantity) if inventory else 0.0
+            buyer_available = float(inventory.available_quantity) if inventory else 0.0
             accrued_seconds = max(
                 0.0,
                 (active_end - normalize_dt(deal.starts_at)).total_seconds(),
@@ -690,18 +739,19 @@ class SupplyDealService:
             batch_size = cls.delivery_batch_size(deal.item_id, reference)
             if remaining_quota + 1e-9 < batch_size:
                 continue
+            demand_per_hour = await cls._buyer_item_demand_rate(session, buyer.id, deal.item_id)
+            if demand_per_hour <= 1e-9:
+                continue
+            demand_horizon_hours = max(1.0, overlap_seconds / 3600)
+            target_stock = demand_per_hour * demand_horizon_hours + batch_size
+            if buyer_available + 1e-9 >= target_stock:
+                continue
             supplier_inventory = await session.scalar(select(NatInventory).where(
                 NatInventory.company_id == deal.supplier_company_id,
                 NatInventory.item_id == deal.item_id,
             ).with_for_update())
             supplier_available = float(supplier_inventory.available_quantity) if supplier_inventory else 0.0
             if supplier_available + 1e-9 < batch_size:
-                continue
-            # Contracts transfer complete item-specific lots, never a trickle
-            # of the current production tick's fractional input consumption.
-            if buyer_quantity >= batch_size - 1e-9:
-                continue
-            if remaining_quota + 1e-9 < batch_size:
                 continue
             unit_price = round(max(0.000001, reference * (1 - float(deal.discount_pct) / 100)), 6)
             storage_cap = await InventoryCapacityService.for_item(

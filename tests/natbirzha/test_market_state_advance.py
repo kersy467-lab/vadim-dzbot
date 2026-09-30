@@ -171,6 +171,7 @@ def test_one_collusive_high_price_trade_does_not_raise_advance_reference() -> No
             assert treasury.cash == 100_000
             book = await MarketService.get_orderbook(session, "steel")
             assert [point["price"] for point in book["history"]][-1] == 500
+            assert book["advance_reference_price"] == 100
         await engine.dispose()
 
     asyncio.run(check())
@@ -233,6 +234,7 @@ def test_no_trade_history_means_no_advance_and_self_trade_is_not_a_reference() -
             assert ask.status == "ACTIVE"
             assert ask.state_advance_amount == 0
             assert book["history"] == []
+            assert book["advance_reference_price"] is None
         await engine.dispose()
 
     asyncio.run(check())

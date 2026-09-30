@@ -74,21 +74,31 @@ class MarketAdvanceService:
         return result.scalars().all()
 
     @classmethod
+    def reference_price_from_history(cls, history, *, now=None) -> float | None:
+        """Use recent, independent trade evidence to calculate the advance limit."""
+        current = normalize_dt(now or get_game_now())
+        recent_history = [
+            trade for trade in history
+            if normalize_dt(trade.executed_at) >= current - REFERENCE_WINDOW
+        ]
+        counterparties = {
+            tuple(sorted((int(trade.buyer_company_id), int(trade.seller_company_id))))
+            for trade in recent_history
+        }
+        if len(recent_history) < MIN_REFERENCE_TRADES or len(counterparties) < 2:
+            return None
+        last_price = float(recent_history[0].price)
+        median_price = float(median(float(trade.price) for trade in recent_history))
+        return round(min(last_price, median_price), 6)
+
+    @classmethod
     async def reference_price(cls, session: AsyncSession, item_id: str, *, now=None) -> float | None:
         """Use the visible latest trade only when 24h market evidence supports it."""
         current = normalize_dt(now or get_game_now())
         history = await cls.external_trade_history(
             session, item_id, since=current - REFERENCE_WINDOW
         )
-        counterparties = {
-            tuple(sorted((int(trade.buyer_company_id), int(trade.seller_company_id))))
-            for trade in history
-        }
-        if len(history) < MIN_REFERENCE_TRADES or len(counterparties) < 2:
-            return None
-        last_price = float(history[0].price)
-        median_price = float(median(float(trade.price) for trade in history))
-        return round(min(last_price, median_price), 6)
+        return cls.reference_price_from_history(history, now=current)
 
     @staticmethod
     async def has_active_advances(session: AsyncSession, item_id: str) -> bool:

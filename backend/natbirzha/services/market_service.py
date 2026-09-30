@@ -53,6 +53,9 @@ class MarketService:
             for row in asks_res.scalars().all()
         ]
         trades = await MarketAdvanceService.external_trade_history(session, item_id)
+        advance_reference_price = MarketAdvanceService.reference_price_from_history(
+            trades, now=get_game_now()
+        )
         history = [
             {"timestamp": trade.executed_at.isoformat(), "price": trade.price}
             for trade in reversed(trades)
@@ -90,6 +93,7 @@ class MarketService:
             "bids": bids,
             "asks": asks,
             "history": history,
+            "advance_reference_price": advance_reference_price,
             "user_orders": user_orders,
         }
 

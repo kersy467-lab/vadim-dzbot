@@ -5,6 +5,8 @@ export function renderCommodityOrderbookView(options) {
     const bids = orderbookData?.bids || [];
     const asks = orderbookData?.asks || [];
     const tradeHistory = orderbookData?.history || [];
+    const advanceReferencePrice = Number(orderbookData?.advance_reference_price);
+    const hasAdvanceReference = Number.isFinite(advanceReferencePrice) && advanceReferencePrice > 0;
     const userOrders = orderbookData?.user_orders || [];
     const userInvQty = store.inventory[selectedItemId] || 0;
     const formatQuote = (value) => {
@@ -45,6 +47,10 @@ export function renderCommodityOrderbookView(options) {
           </div>
           <div class="rounded-lg bg-emerald-50/70 px-2.5 py-2 text-[10px] text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-200">
             ${hasNpcQuote ? `Скупка этого товара Госрезервом: ${Number.isFinite(itemInfo.playerSellRemainingCash) ? `${itemInfo.playerSellRemainingCash.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} cash (${Number(itemInfo.playerSellRemainingQuantity || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${itemInfo.unit})` : 'без ограничений'}.` : 'Котировка недоступна. Обновите раздел и повторите попытку.'}
+          </div>
+          <div class="rounded-lg bg-amber-50/70 px-2.5 py-2 text-[10px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <div class="font-bold">Аванс от казны: ${hasAdvanceReference ? `цена продажи до ${formatQuote(advanceReferencePrice)} cash / ${itemInfo.unit}` : 'пока недоступен'}</div>
+            <div class="mt-0.5">${hasAdvanceReference ? 'Поставьте цену за единицу не выше этого уровня. Аванс — до 30 000 cash, если в казне есть средства.' : 'Недостаточно реальных сделок между игроками для расчёта цены аванса.'}</div>
           </div>
           <div class="text-[10px] text-slate-400">
             На вашем складе: <span class="font-mono font-bold text-slate-700 dark:text-slate-200">${userInvQty} ${itemInfo.unit}</span>

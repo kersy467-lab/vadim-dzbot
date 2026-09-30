@@ -57,11 +57,10 @@ class NatbirzhaSettings(BaseSettings):
     RESPEC_COOLDOWN_DAYS: int = 7
     RESPEC_COST_PCT: float = 0.25
 
-    # NPC State Reserve (Госрезерв). The State buys no more than this amount
-    # per product per game day, keeping player-to-player trade economically relevant.
+    # NPC State Reserve (Госрезерв).
     NPC_BUY_FLOOR_MULT: float = 0.80        # NPC buys surplus at 80% base price
     NPC_SELL_CAP_MULT: float = 1.50         # NPC sells supplies at 150% base price
-    NPC_DAILY_BUYBACK_CASH_LIMIT: float = 1_000_000.0  # Per product, per game day; 0 disables the cap
+    NPC_DAILY_BUYBACK_CASH_LIMIT: float = 1_000_000.0  # Legacy setting; player sales to NPC are no longer capped
     # Premium raw materials keep a tiny explicit emergency stock so unlimited
     # NPC supply cannot bypass premium production and player-to-player trade.
     NPC_RARE_SELL_RESERVES: Dict[str, float] = {

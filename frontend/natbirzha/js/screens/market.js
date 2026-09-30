@@ -40,12 +40,14 @@ export function mergeNpcRatesIntoMarketItems(rates, seedItems = MARKET_ITEMS) {
       base: Number(rate.base_price),
       buy: Number(rate.npc_buy_price),
       sell: Number(rate.npc_sell_price),
-      playerSellRemainingCash: Number(rate.player_sell_remaining_cash),
-      playerSellRemainingQuantity: Number(rate.player_sell_remaining_quota),
+      playerSellRemainingCash: rate.player_sell_remaining_cash == null
+        ? null : Number(rate.player_sell_remaining_cash),
+      playerSellRemainingQuantity: rate.player_sell_remaining_quota == null
+        ? null : Number(rate.player_sell_remaining_quota),
     };
     if (item) {
       Object.assign(item, Object.fromEntries(
-        Object.entries(values).filter(([, value]) => Number.isFinite(value) || typeof value === 'string')
+        Object.entries(values).filter(([, value]) => value === null || Number.isFinite(value) || typeof value === 'string')
       ));
     } else {
       items.push({ id: rate.item_id, ...values });

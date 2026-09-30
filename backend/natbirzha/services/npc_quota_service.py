@@ -1,4 +1,4 @@
-"""Shared daily quota accounting for purchases and sales with the State reserve."""
+"""Daily NPC supply limits; player sales to the State reserve are unlimited."""
 
 from typing import Any, Dict
 
@@ -7,10 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from backend.natbirzha.config import get_game_today, nat_settings
-from backend.natbirzha.models.inventory import (
-    CANONICAL_ITEMS,
-    get_npc_buy_price,
-)
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS
 from backend.natbirzha.models.npc import NatNpcDailyVolume
 
 
@@ -29,20 +26,14 @@ class NPCQuotaMixin:
     ) -> Dict[str, Any]:
         action = action.upper() if action else None
         reserve_cap = None
-        cash_quota = None
         if action == "BUY" and item_id:
             reserve_cap = nat_settings.NPC_RARE_SELL_RESERVES.get(item_id)
-        elif action == "SELL" and item_id:
-            cash_limit = max(0.0, float(nat_settings.NPC_DAILY_BUYBACK_CASH_LIMIT))
-            if cash_limit > 0:
-                cash_quota = cash_limit
-                reserve_cap = cash_limit / max(0.01, get_npc_buy_price(item_id))
         quota = float(reserve_cap) if reserve_cap is not None else None
         return {
             "scaling_factor": 1.0,
             "daily_quota_per_item": quota,
             "daily_quota": quota,
-            "daily_quota_cash": cash_quota,
+            "daily_quota_cash": None,
             "strict_reserve": reserve_cap is not None,
             "producer_quota": False,
             "liquidity_unlimited": reserve_cap is None,

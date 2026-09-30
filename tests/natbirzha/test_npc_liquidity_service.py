@@ -30,16 +30,16 @@ async def run_checks():
     async with async_session_factory() as session:
         company = await CompanyService.create_company(session, 910001, "NPC Test One", "miner")
 
-        # NPC buyback liquidity is unlimited; sell quota error npc_daily_quota_exceeded is disabled.
+        # Ordinary purchases from NPC have no cap, while rare emergency reserves remain limited.
         quota = await NPCReserveService.get_daily_quota(session, "iron_ore", "BUY")
         assert quota["liquidity_unlimited"] is True
         assert quota["daily_quota_per_item"] is None
         assert quota["scaling_factor"] == 1.0
 
         sell_quota = await NPCReserveService.get_daily_quota(session, "energy", "SELL")
-        assert sell_quota["liquidity_unlimited"] is False
-        assert sell_quota["daily_quota_per_item"] == 1250.0
-        assert sell_quota["daily_quota_cash"] == 10_000.0
+        assert sell_quota["liquidity_unlimited"] is True
+        assert sell_quota["daily_quota_per_item"] is None
+        assert sell_quota["daily_quota_cash"] is None
 
         company.cash = 100000.0
         first = await NPCReserveService.execute_npc_trade(session, company, "iron_ore", "BUY", 500.0)
@@ -49,7 +49,7 @@ async def run_checks():
         usage = (await session.execute(select(NatNpcDailyVolume))).scalars().all()
         assert usage == []
 
-        # NPC buyback has a finite shared daily cash cap per product.
+        # Player sales to NPC exceed the configured legacy cap and create no daily usage rows.
         inv = (await session.execute(
             select(NatInventory).where(
                 NatInventory.company_id == company.id,
@@ -70,12 +70,12 @@ async def run_checks():
         await session.flush()
 
         unit_buy_price = NPCReserveService.get_npc_quote("energy")["npc_buy_price"]
-        sale = await NPCReserveService.execute_npc_trade(
-            session, company, "energy", "SELL", 1000.0
-        )
+        sale = await NPCReserveService.execute_npc_trade(session, company, "energy", "SELL", 2000.0)
         assert sale["success"] is True
-        assert sale["daily_quota"] == 1250.0
-        assert sale["total_payout"] == round(1000.0 * unit_buy_price, 2)
+        assert sale["daily_quota"] is None
+        assert sale["remaining_npc_quota"] is None
+        assert sale["remaining_npc_cash_quota"] is None
+        assert sale["total_payout"] == round(2000.0 * unit_buy_price, 2)
 
         other_company = await CompanyService.create_company(
             session, 910002, "NPC Test Two", "power_engineer"
@@ -93,11 +93,13 @@ async def run_checks():
         )
         assert subsequent_sale["success"] is True
         assert subsequent_sale["total_payout"] == round(250.0 * unit_buy_price, 2)
-        exhausted = await NPCReserveService.execute_npc_trade(
+        sale_after_legacy_cap = await NPCReserveService.execute_npc_trade(
             session, company, "energy", "SELL", 1.0
         )
-        assert exhausted["success"] is False
-        assert exhausted["reason"] == "npc_daily_quota_exceeded"
+        assert sale_after_legacy_cap["success"] is True
+        assert await session.scalar(
+            select(NatNpcDailyVolume).where(NatNpcDailyVolume.action == "SELL")
+        ) is None
 
         statement_count = 0
 
@@ -107,7 +109,7 @@ async def run_checks():
 
         event.listen(engine.sync_engine, "before_cursor_execute", count_market_rate_queries)
         try:
-            rate_payload = await get_npc_rates(session)
+            rate_payload = await get_npc_rates(session, item_id=None)
         finally:
             event.remove(engine.sync_engine, "before_cursor_execute", count_market_rate_queries)
         assert statement_count <= 2, (
@@ -133,10 +135,10 @@ async def run_checks():
         assert [row["item_id"] for row in targeted_payload["rates"]] == ["energy"]
         assert targeted_payload["rates"][0] == energy_rate
         assert energy_rate["daily_quota"] is None
-        assert energy_rate["player_sell_daily_quota"] == 1250.0
-        assert energy_rate["player_sell_remaining_quota"] == 0.0
-        assert energy_rate["player_sell_remaining_cash"] == 0.0
-        assert "Осталось выкупить сегодня" in energy_rate["player_sell_quota_label"]
+        assert energy_rate["player_sell_daily_quota"] is None
+        assert energy_rate["player_sell_remaining_quota"] is None
+        assert energy_rate["player_sell_remaining_cash"] is None
+        assert "без ограничений" in energy_rate["player_sell_quota_label"]
         try:
             await get_npc_rates(session, item_id="not-a-canonical-item")
         except HTTPException as exc:

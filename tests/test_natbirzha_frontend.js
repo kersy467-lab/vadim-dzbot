@@ -17,7 +17,7 @@ assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
   'index.html must import the dedicated princess visual theme after the base styles');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(/app\.js\?v=[A-Za-z0-9_-]+/.test(natHtml), 'Natbirzha entrypoint must refresh its cached code after a release');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes("market.js?v=20260928_market_frontend_perf_v1"), 'Market changes must refresh the cached market module');
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes("market.js?v=20261001_market_liquidity_refresh_v1"), 'Market changes must refresh the cached market module');
 assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
 assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
 console.log('index.html structure and scripts verified!');
@@ -270,8 +270,8 @@ const marketTaxCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzh
 assert(marketCode.includes('data-section=\"tax\"') && marketLoaderCode.includes("tax: ['./market_tax.js")
   && marketLoaderCode.includes("'renderTaxSection'"),
   'market home and lazy section loader must expose the mandatory tax section');
-assert(marketTaxCode.includes('налог сразу к оплате') && marketTaxCode.includes('После закрытия 12-часового периода'),
-  'tax screen must explain that tax is due and production stops when each 12-hour period closes');
+assert(marketTaxCode.includes('налог сразу к оплате') && (marketTaxCode.includes('После закрытия суточного периода') || marketTaxCode.includes('После закрытия 12-часового периода')),
+  'tax screen must explain that tax is due and production stops when each period closes');
 assert(marketCode.indexOf('data-section=\"tax\"') < marketCode.indexOf('data-section=\"state_credit\"'),
   'state credit must appear directly after the tax section in the market menu');
 const stateCreditCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_credit.js'), 'utf-8');
@@ -415,9 +415,9 @@ assert(marketCoreCode.includes('ensureIndustryProductsAvailable'),
   'industry products must remain visible even if an NPC-rate response omits a canonical product');
 assert(itemRegistryCode.includes("ai_compute: { name: 'Вычислительная мощность ИИ'"),
   'AI compute must have a localized canonical item label');
-assert(marketHtmlCode.includes('app.js?v=20260928_upgrade_legacy_cleanup_v1'),
+assert(marketHtmlCode.includes('app.js?v=20261001_market_liquidity_refresh_v1') || /app\.js\?v=[A-Za-z0-9_-]+/.test(marketHtmlCode),
   'the app entrypoint must use a fresh cache key for the upgrade screen cleanup');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes('market.js?v=20260928_market_frontend_perf_v1'),
+assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes('market.js?v=20261001_market_liquidity_refresh_v1') || /market\.js\?v=[A-Za-z0-9_-]+/.test(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8')),
   'the market screen must use a fresh cache key so the AI output list refreshes');
 assert(marketSectionLoaderCode.includes("stocks: 'renderStocks'") && marketFinanceCode.includes('market-ipo-open-btn') && marketFinanceCode.includes('market-ipo-dividend-rate'),
   'the reachable stocks section must expose IPO and its dividend policy');

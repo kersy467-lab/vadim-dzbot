@@ -395,7 +395,7 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
         stage=1, status="ACTIVE", last_settled_at=start,
     )
     supplier_stock = NatInventory(
-        company_id=supplier.id, item_id="energy", quantity=9, avg_cost_basis=1,
+        company_id=supplier.id, item_id="energy", quantity=4, avg_cost_basis=1,
     )
     buyer_inputs = [
         NatInventory(company_id=buyer.id, item_id=item, quantity=100, avg_cost_basis=1)
@@ -420,39 +420,39 @@ async def _delivery_respects_supplier_inventory_demand_quota_and_cash() -> None:
             session, buyer, buyer_business, spec,
             start=start, end=start + timedelta(minutes=15), now=now,
         )
-        assert too_little_stock == []  # supplier cannot fill a complete 10-unit batch
-        supplier_stock.quantity = 10
+        assert too_little_stock == []  # supplier cannot fill a complete 5-unit batch
+        supplier_stock.quantity = 5
         transfers = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
             start=start, end=start + timedelta(minutes=15), now=now,
         )
         assert len(transfers) == 1
-        assert transfers[0]["quantity"] == 10
+        assert transfers[0]["quantity"] == 5
         buyer_energy = await session.scalar(select(NatInventory).where(
             NatInventory.company_id == buyer.id, NatInventory.item_id == "energy"
         ))
-        assert buyer_energy is not None and buyer_energy.quantity == 10
+        assert buyer_energy is not None and buyer_energy.quantity == 5
         assert supplier_stock.quantity == 0
-        assert abs((before_buyer_cash - buyer.cash) - 10 * price) < 1e-5
-        assert abs((supplier.cash - before_supplier_cash) - 10 * price) < 1e-5
+        assert abs((before_buyer_cash - buyer.cash) - 5 * price) < 1e-5
+        assert abs((supplier.cash - before_supplier_cash) - 5 * price) < 1e-5
         period_start, _ = get_period_bounds(now)
         seller_profit = await session.scalar(select(NatCompanyProfitPeriod).where(
             NatCompanyProfitPeriod.company_id == supplier.id,
             NatCompanyProfitPeriod.period_start == period_start,
         ))
         assert seller_profit is not None
-        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 10.0)
+        assert seller_profit.operating_profit == pytest.approx(transfers[0]["cash_amount"] - 5.0)
 
         buyer_energy.quantity = 0
         buyer.cash = 0
-        supplier_stock.quantity = 10
+        supplier_stock.quantity = 5
         no_cash = await SupplyDealService.fulfill_resource_interval(
             session, buyer, buyer_business, spec,
             start=start + timedelta(minutes=15), end=start + timedelta(minutes=30), now=now,
         )
         assert no_cash == []
         assert buyer.cash == 0
-        assert supplier_stock.quantity == 10
+        assert supplier_stock.quantity == 5
         await session.commit()
     finally:
         await session.close()

@@ -625,6 +625,13 @@ async def test_database_and_crud():
         assert "**2.**" not in sched_cancel_text, "Cancelled lesson must be completely omitted from schedule!"
         print("[OK] Cancelled lesson completely omitted from schedule verified.")
 
+        # Test full week schedule formatting with substitutions and date overrides
+        from backend.bot.handlers.schedule import format_current_week_schedule
+        week_text = await format_current_week_schedule(session, today)
+        assert "Расписание 11 «Б» на неделю" in week_text
+        assert "Химия" in week_text, "Substituted subject must be included in current week schedule!"
+        print("[OK] Current week schedule with date-specific overrides and substitutions verified.")
+
         # Test admin self-demote and self-delete prevention
         from backend.bot.handlers.admin import cb_toggle_user_role, cb_admin_delete_user_ask
         from backend.db.models import User

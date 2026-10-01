@@ -75,6 +75,7 @@ from backend.db.crud.schedule import (
     save_bulk_permanent_schedule,
     get_substitutions_for_date,
     create_substitution,
+    is_extracurricular_lesson,
 )
 
 from backend.db.crud.homework import (
@@ -201,6 +202,7 @@ __all__ = [
     "save_bulk_permanent_schedule",
     "get_substitutions_for_date",
     "create_substitution",
+    "is_extracurricular_lesson",
     # homework
     "create_homework",
     "get_homework_for_date",

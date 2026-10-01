@@ -193,15 +193,19 @@ async def test_database_and_crud():
         # 1. Permanent Schedule
         await set_permanent_schedule_item(session, day_of_week=day_of_week, lesson_number=1, subject_id=subj1.id)
         perm_sched = await get_schedule_for_date(session, today)
-        assert len(perm_sched) == 1
-        assert perm_sched[0].subject_id == subj1.id
+        perm_l1 = next((s for s in perm_sched if s.lesson_number == 1), None)
+        assert perm_l1 is not None and perm_l1.subject_id == subj1.id
         print("[OK] Permanent schedule fallback verified.")
 
         # 2. Date-specific Schedule Override
         await set_date_schedule_item(session, target_date=today, lesson_number=1, subject_id=subj2.id)
         date_sched = await get_schedule_for_date(session, today)
-        assert len(date_sched) == 1
-        assert date_sched[0].subject_id == subj2.id
+        date_l1 = next((s for s in date_sched if s.lesson_number == 1), None)
+        assert date_l1 is not None and date_l1.subject_id == subj2.id
+        if day_of_week in (1, 5, 6):
+            # Extracurricular lesson for this day must be preserved
+            extra_num = 8 if day_of_week == 1 else (9 if day_of_week == 5 else 1)
+            assert any(s.lesson_number == extra_num for s in date_sched), "Extracurricular lesson must be preserved!"
         print("[OK] Date-specific schedule override verified.")
 
         # 3. Homework with multiple media attachments
@@ -247,16 +251,18 @@ async def test_database_and_crud():
         assert parsed[5] == (6, "Информатика")
 
         bulk_items = await save_bulk_date_schedule(session, today, parsed)
-        assert len(bulk_items) == 6
+        expected_bulk = 7 if day_of_week in (1, 5) else 6
+        assert len(bulk_items) == expected_bulk
         loaded = await get_schedule_for_date(session, today)
-        assert len(loaded) == 6
+        assert len(loaded) == expected_bulk
         assert loaded[0].subject.name == "Геометрия"
         print("[OK] Bulk schedule parser and bulk date schedule saving verified.")
 
         # 5. Test Resetting date schedule
         await clear_date_schedule(session, today)
         fallback = await get_schedule_for_date(session, today)
-        assert len(fallback) == 1
+        expected_fallback = 2 if day_of_week in (1, 5) else 1
+        assert len(fallback) == expected_fallback
         assert fallback[0].subject_id == subj1.id
         print("[OK] Resetting date schedule to permanent fallback verified.")
 

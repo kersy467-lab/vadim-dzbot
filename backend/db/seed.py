@@ -135,11 +135,12 @@ async def seed_initial_data(session: AsyncSession):
                     russian = s
                     break
         if russian:
-            await set_permanent_schedule_item(
+            await set_schedule_item(
                 session=session,
                 day_of_week=1,
                 lesson_number=8,
-                subject_id=russian.id
+                subject_id=russian.id,
+                specific_date=None
             )
 
     # Seed Friday 9th lesson: Математика (внеурочка 15:30 - 16:10)
@@ -155,12 +156,13 @@ async def seed_initial_data(session: AsyncSession):
     fri_lessons = await get_permanent_schedule_for_day(session, 5)
     fri_extra = next((l for l in fri_lessons if l.lesson_number == 9), None)
     if not fri_extra and math_subj:
-        await set_permanent_schedule_item(
+        await set_schedule_item(
             session=session,
             day_of_week=5,
             lesson_number=9,
             subject_id=math_subj.id,
             start_time="15:30",
-            end_time="16:10"
+            end_time="16:10",
+            specific_date=None
         )
 

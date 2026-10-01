@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,9 +48,12 @@ def _ranking_from_json(sectors: dict, unassigned: dict) -> list[dict]:
 
 @router.get("/liquidity")
 async def get_market_liquidity(
+    response: Response,
     _company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
     now = normalize_dt(get_game_now())
     assert now is not None
     window_end = now.replace(minute=(now.minute // 30) * 30, second=0, microsecond=0)

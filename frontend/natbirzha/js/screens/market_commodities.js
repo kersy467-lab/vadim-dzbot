@@ -42,8 +42,42 @@ export function rankLiquidityRows(rows) {
     );
 }
 
+function loadLiquidityData(container, options, force = false) {
+  const { state } = options;
+  if (!state || state.category !== 'liquidity' || state.liquidityLoading) return Promise.resolve();
+  if (!force && state.liquidityLoaded) return Promise.resolve();
+
+  const requestId = Number(state.liquidityRequestId || 0) + 1;
+  state.liquidityRequestId = requestId;
+  state.liquidityLoading = true;
+  state.liquidityError = null;
+  renderCommodityCatalog(container, options);
+
+  return Promise.resolve()
+    .then(() => options.loadLiquidity?.())
+    .then((data) => {
+      if (requestId !== state.liquidityRequestId) return;
+      state.liquidityData = data || { items: [] };
+      state.liquidityLoaded = true;
+      state.liquidityError = null;
+    })
+    .catch((error) => {
+      if (requestId !== state.liquidityRequestId) return;
+      state.liquidityLoaded = false;
+      state.liquidityError = error?.message || 'Не удалось загрузить рейтинг ликвидности.';
+    })
+    .finally(() => {
+      if (requestId !== state.liquidityRequestId) return;
+      state.liquidityLoading = false;
+      if (state.category === 'liquidity' && container.querySelector('.commodity-category-tabs')) {
+        renderCommodityCatalog(container, options);
+      }
+    });
+}
+
 export function renderCommodityCatalog(container, options) {
   const { items, inventory, inputIds, state, onBack, onSelect } = options;
+  state.reloadLiquidity = () => loadLiquidityData(container, options, true);
   const tabs = [
     { id: 'search', label: 'Поиск' },
     { id: 'industry', label: 'Моя продукция' },
@@ -123,8 +157,10 @@ export function renderCommodityCatalog(container, options) {
   container.querySelector('.market-back')?.addEventListener('click', onBack);
   container.querySelectorAll('.commodity-category-tab').forEach((button) => {
     button.addEventListener('click', () => {
+      const wasLiquidity = state.category === 'liquidity';
       state.category = button.dataset.category;
       state.query = '';
+      options.onCategoryChange?.(state.category);
       renderCommodityCatalog(container, options);
       if (state.category === 'needed' && !state.companyInputsLoaded && !state.companyInputsLoading) {
         state.companyInputsLoading = true;
@@ -142,23 +178,7 @@ export function renderCommodityCatalog(container, options) {
             if (state.category === 'needed') renderCommodityCatalog(container, options);
           });
       }
-      if (state.category === 'liquidity' && !state.liquidityLoaded && !state.liquidityLoading) {
-        state.liquidityLoading = true;
-        state.liquidityError = null;
-        renderCommodityCatalog(container, options);
-        Promise.resolve(options.loadLiquidity?.())
-          .then((data) => {
-            state.liquidityData = data || { items: [] };
-            state.liquidityLoaded = true;
-          })
-          .catch((error) => {
-            state.liquidityError = error?.message || 'Не удалось загрузить рейтинг ликвидности.';
-          })
-          .finally(() => {
-            state.liquidityLoading = false;
-            if (state.category === 'liquidity') renderCommodityCatalog(container, options);
-          });
-      }
+      if (state.category === 'liquidity') void loadLiquidityData(container, options, wasLiquidity);
     });
   });
   container.querySelector('#commodity-search')?.addEventListener('input', (event) => {
@@ -172,4 +192,11 @@ export function renderCommodityCatalog(container, options) {
   container.querySelectorAll('[data-commodity-item]').forEach((button) => {
     button.addEventListener('click', () => onSelect(button.dataset.commodityItem));
   });
+
+  if (state.category === 'liquidity') {
+    options.onCategoryChange?.('liquidity');
+    if (!state.liquidityLoaded && !state.liquidityLoading) {
+      void loadLiquidityData(container, options);
+    }
+  }
 }

@@ -1,9 +1,9 @@
 import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { disposeCurrentScreen } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
+import { disposeCurrentScreen, registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { getItemInfo, ITEMS } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
-import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20260928_market_frontend_perf_v1';
+import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20261001_market_liquidity_refresh_v1';
 import { createMarketSectionLoader } from './market_section_loader.js?v=20260929_stock_tax_safety_v1';
 import { renderCommodityOrderbookView } from './market_orderbook_view.js?v=20260930_advance_price_display_v1';
 
@@ -107,6 +107,52 @@ export async function renderMarket(container, showToast) {
   let companyInputPromise = null;
   let companyInputIds = [];
   const commodityCatalogState = { category: 'search', query: '', liquidityLoaded: false };
+  let liquidityRefreshTimer = null;
+  let liquidityRefreshAt = 0;
+  let liquidityVisibilityHandler = null;
+  let liquidityCleanupRegistered = false;
+
+  function clearLiquidityRefresh() {
+    if (liquidityRefreshTimer) clearTimeout(liquidityRefreshTimer);
+    liquidityRefreshTimer = null;
+    liquidityRefreshAt = 0;
+    if (liquidityVisibilityHandler) {
+      document.removeEventListener('visibilitychange', liquidityVisibilityHandler);
+      liquidityVisibilityHandler = null;
+    }
+  }
+
+  function ensureLiquidityCleanup() {
+    if (liquidityCleanupRegistered) return;
+    registerScreenCleanup(() => {
+      clearLiquidityRefresh();
+      liquidityCleanupRegistered = false;
+    });
+    liquidityCleanupRegistered = true;
+  }
+
+  function scheduleLiquidityRefresh() {
+    if (commodityCatalogState.category !== 'liquidity'
+      || !container.querySelector('.commodity-category-tabs')) {
+      clearLiquidityRefresh();
+      return;
+    }
+    if (liquidityRefreshTimer) return;
+
+    ensureLiquidityCleanup();
+    const halfHourMs = 30 * 60 * 1000;
+    liquidityRefreshAt = (Math.floor(Date.now() / halfHourMs) + 1) * halfHourMs + 3000;
+    const refresh = () => {
+      if (document.hidden || Date.now() < liquidityRefreshAt) return;
+      clearLiquidityRefresh();
+      if (commodityCatalogState.category !== 'liquidity') return;
+      void commodityCatalogState.reloadLiquidity?.();
+      scheduleLiquidityRefresh();
+    };
+    liquidityVisibilityHandler = refresh;
+    document.addEventListener('visibilitychange', liquidityVisibilityHandler);
+    liquidityRefreshTimer = setTimeout(refresh, Math.max(0, liquidityRefreshAt - Date.now()));
+  }
 
   async function ensureMarketData() {
     if (marketDataLoaded) return;
@@ -173,6 +219,10 @@ export async function renderMarket(container, showToast) {
       inputIds: companyInputIds,
       state: commodityCatalogState,
       loadLiquidity: () => NatAPI.getMarketLiquidity(),
+      onCategoryChange: (category) => {
+        if (category === 'liquidity') scheduleLiquidityRefresh();
+        else clearLiquidityRefresh();
+      },
       loadCompanyInputs: ensureCompanyInputs,
       onBack: renderMarketHome,
       onSelect: async (itemId) => {
@@ -194,6 +244,12 @@ export async function renderMarket(container, showToast) {
   }
 
   function renderMarketHome() {
+    clearLiquidityRefresh();
+    commodityCatalogState.liquidityRequestId = Number(commodityCatalogState.liquidityRequestId || 0) + 1;
+    commodityCatalogState.liquidityLoaded = false;
+    commodityCatalogState.liquidityLoading = false;
+    commodityCatalogState.liquidityData = null;
+    commodityCatalogState.liquidityError = null;
     sectionLoader.invalidate();
     orderbookRequestId += 1;
     container.innerHTML = `<div class="market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Выберите раздел рынка</p></div><div class="grid gap-3"><button class="market-section-btn glass-card rounded-2xl p-5 text-left border-2 border-blue-200 dark:border-blue-900" data-section="portfolio"><div class="text-2xl">💼</div><div class="font-black mt-2">Мой портфель</div><div class="text-xs text-slate-500">Акции, облигации, валюты, металлы и выплаты</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="stocks"><div class="text-2xl">📈</div><div class="font-black mt-2">Акции компаний</div><div class="text-xs text-slate-500">Игроки, вышедшие на IPO</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bankruptcy_market"><div class="text-2xl">🏭</div><div class="font-black mt-2">Рынок банкротов</div><div class="text-xs text-slate-500">Заводы конфискованных компаний, наценка государства 30%</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="bonds"><div class="text-2xl">🏛️</div><div class="font-black mt-2">Государственные облигации</div><div class="text-xs text-slate-500">Купоны, погашение и вторичный рынок</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="reference"><div class="text-2xl">💱</div><div class="font-black mt-2">Валюты и металлы</div><div class="text-xs text-slate-500">Курсы официальных инструментов</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="commodities"><div class="text-2xl">🪙</div><div class="font-black mt-2">Сырьё и материалы</div><div class="text-xs text-slate-500">Стакан, NPC и торговые ордера</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="tax"><div class="text-2xl">🧾</div><div class="font-black mt-2">Налог</div><div class="text-xs text-slate-500">13% от чистой прибыли раз в сутки в 11:00 MSK+2</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left" data-section="state_credit"><div class="text-2xl">🏦</div><div class="font-black mt-2">Кредит государства</div><div class="text-xs text-slate-500">Ставка повышена до 20% в день · выдача после одобрения</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left border border-cyan-300/60" data-section="city_orders"><div class="text-2xl">🏙️</div><div class="font-black mt-2">Заказы города</div><div class="text-xs text-slate-500">Сдавайте ресурсы в госзаказы и получайте оплату</div></button><button class="market-section-btn glass-card rounded-2xl p-5 text-left border border-indigo-300/60" data-section="deals"><div class="text-2xl">🤝</div><div class="font-black mt-2">Сделки</div><div class="text-xs text-slate-500">Договорные поставки между компаниями</div></button></div></div>`;

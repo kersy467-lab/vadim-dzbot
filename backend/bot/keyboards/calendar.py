@@ -21,7 +21,8 @@ def get_inline_calendar(
     Creates an interactive inline calendar keyboard with:
     - Special markers: 🌴 (Каникулы), 🔴 (Выходные), 💼 (Рабочая суббота 20.02.2027), •• (Сегодня).
     """
-    today = date.today()
+    from backend.config import get_today
+    today = get_today()
     if year is None or month is None:
         year = today.year
         month = today.month

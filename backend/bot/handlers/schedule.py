@@ -106,7 +106,7 @@ async def show_schedule_menu(message: Message, db_session: AsyncSession, current
     if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
         await message.answer("🔒 Доступ к расписанию 11 «Б» закрыт. Обратитесь к администратору для включения доступа.")
         return
-    today = date.today()
+    today = get_today()
     schedule_text = await format_day_schedule(db_session, today)
     await message.answer(
         schedule_text,

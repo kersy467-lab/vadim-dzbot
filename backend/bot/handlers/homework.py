@@ -18,6 +18,7 @@ from backend.db.crud import (
 from backend.bot.keyboards.inline import (
     get_homework_keyboard, get_subjects_keyboard, get_homework_item_keyboard
 )
+from backend.config import get_today
 from backend.bot.services.notifier import format_copyable_desc
 
 router = Router(name="homework_router")
@@ -234,7 +235,7 @@ async def show_homework_menu(message: Message, current_user: Optional[User] = No
 
 @router.callback_query(F.data == "hw_tomorrow")
 async def cb_hw_tomorrow(callback: CallbackQuery, db_session: AsyncSession, current_user: User, bot: Bot):
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = get_today() + timedelta(days=1)
     homeworks = await get_homework_for_date(db_session, tomorrow)
 
     if not homeworks:
@@ -261,7 +262,7 @@ from backend.bot.keyboards.calendar import get_inline_calendar
 
 @router.callback_query(F.data == "hw_pick_date")
 async def cb_hw_pick_date(callback: CallbackQuery):
-    today = date.today()
+    today = get_today()
     kb = get_inline_calendar("hw", year=today.year, month=today.month, back_callback="hw_menu")
     await callback.message.edit_text(
         "🗓 **Выберите дату на календаре для просмотра заданий:**",

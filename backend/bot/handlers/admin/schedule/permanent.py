@@ -231,7 +231,7 @@ async def cb_edit_sched_save(callback: CallbackQuery, state: FSMContext, db_sess
 async def cb_start_copy_from_date(callback: CallbackQuery, state: FSMContext, current_user: User):
     if not is_admin(current_user, callback.from_user.id):
         return
-    today = date.today()
+    today = get_today()
     kb = get_inline_calendar("adm_sccpy", year=today.year, month=today.month, back_callback="admin_edit_schedule")
     await callback.message.edit_text(
         "📅 **Копирование расписания с даты:**\n\n"

@@ -5,12 +5,17 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+import os
+import sys
+sys.path.insert(0, os.path.abspath("."))
 
 from backend.natbirzha.migrations import MIGRATIONS, run_natbirzha_migrations
-from backend.natbirzha.config import get_game_now
+import backend.natbirzha.config as nb_cfg
 
 
 async def run() -> None:
+    orig_game_now = nb_cfg.get_game_now
+    nb_cfg.get_game_now = lambda: datetime(2026, 9, 20, 12, 0, 0)
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
         await conn.execute(text("""
@@ -84,7 +89,7 @@ async def run() -> None:
             VALUES (1, 1, 1, 6, 6000, '2026-09-01 12:00:00')
         """))
 
-        migration_started_at = get_game_now()
+        migration_started_at = nb_cfg.get_game_now()
         await run_natbirzha_migrations(conn)
         hourly_next_coupon = (await conn.execute(text(
             "SELECT next_coupon_at FROM nat_state_bonds WHERE id = 1"
@@ -126,6 +131,7 @@ async def run() -> None:
         assert versions == sorted([(version, 1) for version, _ in MIGRATIONS])
 
     await engine.dispose()
+    nb_cfg.get_game_now = orig_game_now
     print("NATBIRZHA P2 migration checks: PASS")
 
 

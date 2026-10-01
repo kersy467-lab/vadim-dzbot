@@ -72,20 +72,29 @@ async def get_schedule(
             "is_substitution": False,
             "is_cancelled": False,
             "subject_name": "",
-            "comment": ""
+            "comment": "",
+            "is_extracurricular": False
         }
 
+        subj_name = ""
         if sub:
             if sub.is_cancelled:
                 continue
             lesson_item["is_substitution"] = True
             lesson_item["is_cancelled"] = False
             lesson_item["comment"] = sub.comment or ""
-            lesson_item["subject_name"] = sub.new_subject.name if sub.new_subject else (base.subject.name if base else "Урок")
-            lessons.append(lesson_item)
+            subj_name = sub.new_subject.name if sub.new_subject else (base.subject.name if base else "Урок")
         elif base:
-            lesson_item["subject_name"] = base.subject.name if base.subject else "Урок"
-            lessons.append(lesson_item)
+            subj_name = base.subject.name if base.subject else "Урок"
+
+        lesson_item["subject_name"] = subj_name
+        s_low = subj_name.lower().strip()
+        if (day_of_week == 6 and "физика" in s_low) or \
+           (day_of_week == 1 and num == 8 and "русский" in s_low) or \
+           (day_of_week == 5 and num == 9 and "математика" in s_low):
+            lesson_item["is_extracurricular"] = True
+
+        lessons.append(lesson_item)
 
     from backend.bot.services.academic_calendar import get_day_special_status
     day_status, status_text = get_day_special_status(query_date)

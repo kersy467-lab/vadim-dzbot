@@ -246,11 +246,16 @@ async def is_subject_scheduled_on_date(session: AsyncSession, subject_id: int, t
     if target_date <= date(2026, 9, 1):
         return False
 
-    # Субботняя физика — отдельное занятие, ДЗ по физике на субботу не ставится
-    if target_date.isoweekday() == 6:
-        subj = await session.get(Subject, subject_id)
-        if subj and subj.name.strip().lower() == "физика":
-            return False
+    # Внеурочные занятия — ДЗ на них не ставится
+    subj = await session.get(Subject, subject_id)
+    if not subj:
+        return False
+    s_name = subj.name.strip().lower()
+
+    if target_date.isoweekday() == 6 and s_name == "физика":
+        return False
+    if s_name == "математика":
+        return False
 
     from backend.db.crud.schedule import get_substitutions_for_date, get_schedule_for_date
 
@@ -262,6 +267,12 @@ async def is_subject_scheduled_on_date(session: AsyncSession, subject_id: int, t
 
     all_lesson_nums = set(sched_map.keys()) | set(sub_map.keys())
     for num in all_lesson_nums:
+        # Пропускаем внеурочные уроки (8-й урок русского в Пн, 9-й урок в Пт)
+        if target_date.isoweekday() == 1 and num == 8 and s_name == "русский язык":
+            continue
+        if target_date.isoweekday() == 5 and num == 9:
+            continue
+
         sub = sub_map.get(num)
         base = sched_map.get(num)
 

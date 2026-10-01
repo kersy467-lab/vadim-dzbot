@@ -262,6 +262,7 @@
       const commentText = l.comment ? `<p class="text-xs text-amber-600 dark:text-amber-400 mt-0.5 italic">${l.comment}</p>` : "";
 
       const matchedHws = homeworks.filter(hw => {
+        if (l.is_extracurricular) return false;
         if (isSubjectMatch(hw.subject_name, l.subject_name)) {
           matchedHwIds.add(hw.id);
           return true;
@@ -270,7 +271,9 @@
       });
 
       let hwBadge = "";
-      if (matchedHws.length > 0) {
+      if (l.is_extracurricular) {
+        hwBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 shrink-0">✨ Внеурочка</span>`;
+      } else if (matchedHws.length > 0) {
         const allCompleted = matchedHws.every(h => h.is_completed);
         if (allCompleted) {
           hwBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0">✓ Сделано</span>`;

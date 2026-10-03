@@ -248,36 +248,80 @@ async def cb_sched_day_selected(callback: CallbackQuery, db_session: AsyncSessio
     text = await format_day_schedule(db_session, target_date)
     await safe_edit_schedule_message(callback, text, reply_markup=get_schedule_keyboard(is_admin=is_adm))
 
+async def format_current_week_schedule(session: AsyncSession, from_date: date) -> str:
+    """Формирует расписание на текущую неделю (Пн-Сб) с учетом замен и изменений на конкретные даты."""
+    start_monday = from_date + timedelta(days=1) if from_date.isoweekday() == 7 else from_date - timedelta(days=from_date.isoweekday() - 1)
+    end_sat = start_monday + timedelta(days=5)
+
+    text_parts = [f"📅 **Расписание 11 «Б» на неделю ({start_monday.strftime('%d.%m')} – {end_sat.strftime('%d.%m')}):**\n"]
+    has_any = False
+
+    for i in range(6):
+        cur_d = start_monday + timedelta(days=i)
+        day_name = DAYS_RU.get(cur_d.isoweekday(), "")
+        d_str = cur_d.strftime("%d.%m")
+
+        status, status_text = get_day_special_status(cur_d)
+        if status == "vacation":
+            text_parts.append(f"📌 **{day_name} ({d_str}):** 🎉 _{status_text}_\n")
+            has_any = True
+            continue
+
+        schedules = await get_schedule_for_date(session, cur_d)
+        subs = {s.lesson_number: s for s in await get_substitutions_for_date(session, cur_d)}
+        if not schedules and not subs:
+            continue
+
+        bells = {b.lesson_number: b for b in await get_bell_schedule_for_date(session, cur_d)}
+        sched_map = {s.lesson_number: s for s in schedules}
+        max_l = max([s.lesson_number for s in schedules] + [s.lesson_number for s in subs.values()] or [0])
+
+        day_lines = [f"📌 **{day_name} ({d_str}):**"]
+        day_has_lessons = False
+        for num in range(1, max_l + 1):
+            sub = subs.get(num)
+            base = sched_map.get(num)
+            if sub and sub.is_cancelled:
+                continue
+            bell = bells.get(num)
+            if base and base.start_time and base.end_time:
+                t_str = f" `{base.start_time}-{base.end_time}`"
+            elif base and base.start_time:
+                t_str = f" `{base.start_time}`"
+            elif bell:
+                t_str = f" `{bell.start_time}`"
+            else:
+                t_str = ""
+
+            if sub:
+                new_name = sub.new_subject.name if sub.new_subject else (base.subject.name if base else "Урок")
+                cmt = f" — *{sub.comment}*" if sub.comment else ""
+                day_lines.append(f"  {num}.{t_str} {new_name}{cmt}")
+                day_has_lessons = True
+            elif base:
+                day_lines.append(f"  {num}.{t_str} {base.subject.name}")
+                day_has_lessons = True
+
+        if day_has_lessons:
+            has_any = True
+            text_parts.extend(day_lines)
+            text_parts.append("")
+
+    return "\n".join(text_parts) if has_any else "Расписание на эту неделю пока не заполнено."
+
+
 @router.callback_query(F.data == "sched_week")
 async def cb_sched_week(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):
     is_adm = is_admin_user(current_user, callback.from_user.id) if current_user else False
     if current_user is not None and not is_adm and not getattr(current_user, "flag_b", False):
         await callback.answer("🔒 Доступ к расписанию 11 «Б» закрыт.", show_alert=True)
         return
-    week_schedule = await get_full_week_schedule(db_session)
-    bells = {b.lesson_number: b for b in await get_bell_schedule(db_session)}
-
-    text_parts = ["📅 **Расписание 11 «Б» на всю неделю:**\n"]
-
-    for day_num in range(1, 7):
-        day_name = DAYS_RU.get(day_num, "")
-        items = week_schedule.get(day_num, [])
-        if not items:
-            continue
-        text_parts.append(f"📌 **{day_name}:**")
-        for it in items:
-            if it.start_time and it.end_time:
-                t_str = f" `{it.start_time}-{it.end_time}`"
-            elif it.start_time:
-                t_str = f" `{it.start_time}`"
-            else:
-                bell = bells.get(it.lesson_number)
-                t_str = f" `{bell.start_time}`" if bell else ""
-            text_parts.append(f"  {it.lesson_number}.{t_str} {it.subject.name}")
-        text_parts.append("")
-
-    full_text = "\n".join(text_parts) if len(text_parts) > 1 else "Расписание на неделю пока не заполнено."
-    await safe_edit_schedule_message(callback, full_text, reply_markup=get_schedule_keyboard(is_admin=is_adm), same_message_alert="Расписание на неделю уже открыто 📅")
+    full_text = await format_current_week_schedule(db_session, get_today())
+    await safe_edit_schedule_message(
+        callback, full_text,
+        reply_markup=get_schedule_keyboard(is_admin=is_adm),
+        same_message_alert="Расписание на неделю уже открыто 📅"
+    )
 
 @router.callback_query(F.data == "sched_menu")
 async def cb_sched_menu(callback: CallbackQuery, db_session: AsyncSession, current_user: Optional[User] = None):

@@ -23,6 +23,7 @@ from backend.db.crud import (
     create_or_update_group_chat, get_group_chat_by_id, update_group_chat_role,
     get_approved_group_chats, get_all_subjects, get_bell_schedule,
     set_schedule_item, get_schedule_for_day, get_schedule_for_date,
+    get_permanent_schedule_for_day,
     set_permanent_schedule_item, set_date_schedule_item, get_full_week_schedule,
     create_substitution, get_substitutions_for_date,
     create_homework, get_homework_for_date, get_homework_by_subject,
@@ -32,6 +33,7 @@ from backend.db.crud import (
     save_bulk_date_schedule, save_bulk_permanent_schedule, clear_date_schedule,
     get_bell_schedule_for_date, clear_date_bells, save_bulk_date_bells, clear_all_duty_members,
     find_upcoming_dates_for_subject, auto_shift_active_homeworks,
+    is_subject_scheduled_on_date,
     delete_homework, get_homework_by_id, get_recent_active_homeworks,
     delete_user, get_all_users, update_user_tester_status
 )
@@ -63,47 +65,66 @@ async def test_database_and_crud():
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    async with async_session_factory() as session:
-        await seed_initial_data(session)
-        subjects = await get_all_subjects(session)
-        bells = await get_bell_schedule(session)
-        duty_groups = await get_all_duty_groups(session)
+    import backend.config as cfg_module
+    orig_get_today = cfg_module.get_today
+    cfg_module.get_today = lambda: date(2026, 9, 15)
+    try:
+        async with async_session_factory() as session:
+            await seed_initial_data(session)
+            subjects = await get_all_subjects(session)
+            bells = await get_bell_schedule(session)
+            duty_groups = await get_all_duty_groups(session)
 
-        assert len(subjects) > 0, "Subjects should be seeded"
-        assert len(bells) == 8, "8 Bell items should be seeded"
-        assert len(duty_groups) == 6, "6 Duty groups (0 to 5) should be seeded in September"
-        print(f"[OK] Seeded {len(subjects)} subjects, {len(bells)} bells, {len(duty_groups)} duty groups.")
+            assert len(subjects) > 0, "Subjects should be seeded"
+            assert len(bells) == 8, "8 Bell items should be seeded"
+            assert len(duty_groups) == 6, "6 Duty groups (0 to 5) should be seeded in September"
+            print(f"[OK] Seeded {len(subjects)} subjects, {len(bells)} bells, {len(duty_groups)} duty groups.")
 
-        # Test duty roster retrieval in September (Group 0 active)
-        active_g, all_g = await get_current_duty_info(session)
-        assert active_g is not None
-        assert active_g.group_number == 0, "Group 0 must be active in September!"
-        assert len(all_g) == 6
+            # Verify extracurricular schedule items (Monday 8th Russian, Friday 9th Math)
+            mon_sched = await get_permanent_schedule_for_day(session, 1)
+            mon_8 = next((l for l in mon_sched if l.lesson_number == 8), None)
+            assert mon_8 is not None and mon_8.subject.name == "Русский язык"
 
-        # Test notification on duty change
-        from backend.bot.services.notifier import notify_duty_change_if_needed
-        class MockBotDuty:
-            def __init__(self):
-                self.sent_messages = []
-            async def send_message(self, chat_id, text, parse_mode=None):
-                self.sent_messages.append((chat_id, text))
-        mb_duty = MockBotDuty()
-        notified = await notify_duty_change_if_needed(mb_duty, session, force=True)
-        assert notified is True
-        print("[OK] Duty change notification sending verified.")
+            fri_sched = await get_permanent_schedule_for_day(session, 5)
+            fri_9 = next((l for l in fri_sched if l.lesson_number == 9), None)
+            assert fri_9 is not None and fri_9.subject.name == "Математика"
+            assert fri_9.start_time == "15:30" and fri_9.end_time == "16:10"
 
-        # Test manual duty setting override
-        await set_class_setting(session, "current_duty_group", "4")
-        active_g4, _ = await get_current_duty_info(session)
-        assert active_g4.group_number == 4
-        # Reset manual override
-        await set_class_setting(session, "current_duty_group", "")
-        print("[OK] Duty roster and manual override verified.")
+            # Verify homework is NOT allowed on extracurricular Math
+            all_subs_check = await get_all_subjects(session)
+            check_map = {s.name: s.id for s in all_subs_check}
+            math_id = check_map["Математика"]
+            assert await is_subject_scheduled_on_date(session, math_id, date(2026, 10, 2)) is False
+            assert await find_upcoming_dates_for_subject(session, math_id, from_date=date(2026, 10, 2)) == []
+            print("[OK] Extracurricular lessons (Monday 8th Russian, Friday 9th Math) strictly verified.")
 
-        # Test October rotation and Group 0 deletion
-        import backend.config as cfg_module
-        orig_get_today = cfg_module.get_today
-        try:
+            # Test duty roster retrieval in September (Group 0 active)
+            active_g, all_g = await get_current_duty_info(session)
+            assert active_g is not None
+            assert active_g.group_number == 0, "Group 0 must be active in September!"
+            assert len(all_g) == 6
+
+            # Test notification on duty change
+            from backend.bot.services.notifier import notify_duty_change_if_needed
+            class MockBotDuty:
+                def __init__(self):
+                    self.sent_messages = []
+                async def send_message(self, chat_id, text, parse_mode=None):
+                    self.sent_messages.append((chat_id, text))
+            mb_duty = MockBotDuty()
+            notified = await notify_duty_change_if_needed(mb_duty, session, force=True)
+            assert notified is True
+            print("[OK] Duty change notification sending verified.")
+
+            # Test manual duty setting override
+            await set_class_setting(session, "current_duty_group", "4")
+            active_g4, _ = await get_current_duty_info(session)
+            assert active_g4.group_number == 4
+            # Reset manual override
+            await set_class_setting(session, "current_duty_group", "")
+            print("[OK] Duty roster and manual override verified.")
+
+            # Test October rotation and Group 0 deletion
             # Simulate October 1st, 2026
             cfg_module.get_today = lambda: date(2026, 10, 1)
             oct_active_g, oct_all_g = await get_current_duty_info(session)
@@ -116,8 +137,9 @@ async def test_database_and_crud():
             oct_active_g2, _ = await get_current_duty_info(session)
             assert oct_active_g2.group_number == 2, "Week 2 in October must rotate to Group 2!"
             print("[OK] Group 0 deletion after September and October 1-5 rotation verified.")
-        finally:
-            cfg_module.get_today = orig_get_today
+    finally:
+        cfg_module.get_today = orig_get_today
+        async with async_session_factory() as session:
             await set_class_setting(session, "current_duty_group", "")
             await get_all_duty_groups(session)
 
@@ -171,15 +193,19 @@ async def test_database_and_crud():
         # 1. Permanent Schedule
         await set_permanent_schedule_item(session, day_of_week=day_of_week, lesson_number=1, subject_id=subj1.id)
         perm_sched = await get_schedule_for_date(session, today)
-        assert len(perm_sched) == 1
-        assert perm_sched[0].subject_id == subj1.id
+        perm_l1 = next((s for s in perm_sched if s.lesson_number == 1), None)
+        assert perm_l1 is not None and perm_l1.subject_id == subj1.id
         print("[OK] Permanent schedule fallback verified.")
 
         # 2. Date-specific Schedule Override
         await set_date_schedule_item(session, target_date=today, lesson_number=1, subject_id=subj2.id)
         date_sched = await get_schedule_for_date(session, today)
-        assert len(date_sched) == 1
-        assert date_sched[0].subject_id == subj2.id
+        date_l1 = next((s for s in date_sched if s.lesson_number == 1), None)
+        assert date_l1 is not None and date_l1.subject_id == subj2.id
+        if day_of_week in (1, 5, 6):
+            # Extracurricular lesson for this day must be preserved
+            extra_num = 8 if day_of_week == 1 else (9 if day_of_week == 5 else 1)
+            assert any(s.lesson_number == extra_num for s in date_sched), "Extracurricular lesson must be preserved!"
         print("[OK] Date-specific schedule override verified.")
 
         # 3. Homework with multiple media attachments
@@ -225,16 +251,18 @@ async def test_database_and_crud():
         assert parsed[5] == (6, "Информатика")
 
         bulk_items = await save_bulk_date_schedule(session, today, parsed)
-        assert len(bulk_items) == 6
+        expected_bulk = 7 if day_of_week in (1, 5) else 6
+        assert len(bulk_items) == expected_bulk
         loaded = await get_schedule_for_date(session, today)
-        assert len(loaded) == 6
+        assert len(loaded) == expected_bulk
         assert loaded[0].subject.name == "Геометрия"
         print("[OK] Bulk schedule parser and bulk date schedule saving verified.")
 
         # 5. Test Resetting date schedule
         await clear_date_schedule(session, today)
         fallback = await get_schedule_for_date(session, today)
-        assert len(fallback) == 1
+        expected_fallback = 2 if day_of_week in (1, 5) else 1
+        assert len(fallback) == expected_fallback
         assert fallback[0].subject_id == subj1.id
         print("[OK] Resetting date schedule to permanent fallback verified.")
 
@@ -287,75 +315,78 @@ async def test_database_and_crud():
         print("[OK] Duty roster clearing verified.")
 
         # 9. Test Permanent Schedule Update Freezing Past Dates
-        from sqlalchemy import delete, select
-        from backend.db.models import Schedule
-        past_monday = date(2026, 9, 7)
-        future_monday = date(2026, 9, 28)
-        await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
-        await session.commit()
-        await save_bulk_permanent_schedule(session, 1, [(1, "Алгебра"), (2, "Физика")])
+        orig_today_freeze = cfg_module.get_today
+        cfg_module.get_today = lambda: date(2026, 9, 21)
+        try:
+            from sqlalchemy import delete, select
+            from backend.db.models import Schedule
+            past_monday = date(2026, 9, 7)
+            future_monday = date(2026, 9, 28)
+            await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
+            await session.commit()
+            await save_bulk_permanent_schedule(session, 1, [(1, "Алгебра"), (2, "Физика")])
 
-        await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
-        await session.commit()
-        from backend.db.crud import freeze_past_schedules_for_weekday
-        await freeze_past_schedules_for_weekday(session, 1, up_to_date=date(2026, 9, 21))
-        await save_bulk_permanent_schedule(session, 1, [(1, "Химия"), (2, "Биология")])
+            await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
+            await session.commit()
+            from backend.db.crud import freeze_past_schedules_for_weekday
+            await freeze_past_schedules_for_weekday(session, 1, up_to_date=date(2026, 9, 21))
+            await save_bulk_permanent_schedule(session, 1, [(1, "Химия"), (2, "Биология")])
 
-        # Verify past Monday kept the old schedule!
-        past_sched = await get_schedule_for_date(session, past_monday)
-        assert len(past_sched) == 2
-        assert past_sched[0].subject.name == "Алгебра"
-        assert past_sched[1].subject.name == "Физика"
+            # Verify past Monday kept the old schedule!
+            past_sched = await get_schedule_for_date(session, past_monday)
+            assert len(past_sched) == 2
+            assert past_sched[0].subject.name == "Алгебра"
+            assert past_sched[1].subject.name == "Физика"
 
-        # Verify future Monday got the new schedule!
-        future_sched = await get_schedule_for_date(session, future_monday)
-        assert len(future_sched) == 2
-        assert future_sched[0].subject.name == "Химия"
-        assert future_sched[1].subject.name == "Биология"
-        print("[OK] Permanent schedule updates affect only future dates (past dates frozen) verified.")
+            # Verify future Monday got the new schedule!
+            future_sched = await get_schedule_for_date(session, future_monday)
+            assert len(future_sched) == 2
+            assert future_sched[0].subject.name == "Химия"
+            assert future_sched[1].subject.name == "Биология"
+            print("[OK] Permanent schedule updates affect only future dates (past dates frozen) verified.")
 
-        # 9b. Test 1 September and Earlier Dates Exclusion (No Lessons)
-        sept8_test = date(2026, 9, 8)
-        await save_bulk_permanent_schedule(session, 2, [(1, "Геометрия"), (2, "Информатика")])
-        await session.execute(delete(Schedule).where(Schedule.specific_date == sept8_test))
-        await session.commit()
-        await freeze_past_schedules_for_weekday(session, 2, up_to_date=date(2026, 9, 15))
+            # 9b. Test 1 September and Earlier Dates Exclusion (No Lessons)
+            sept8_test = date(2026, 9, 8)
+            await save_bulk_permanent_schedule(session, 2, [(1, "Геометрия"), (2, "Информатика")])
+            await session.execute(delete(Schedule).where(Schedule.specific_date == sept8_test))
+            await session.commit()
+            await freeze_past_schedules_for_weekday(session, 2, up_to_date=date(2026, 9, 15))
 
-        # Verify September 1st and August return NO schedule (empty list)
-        sched_sept1 = await get_schedule_for_date(session, date(2026, 9, 1))
-        assert sched_sept1 == [], "1 September must have NO lessons scheduled!"
-        sched_august = await get_schedule_for_date(session, date(2026, 8, 25))
-        assert sched_august == [], "August dates must have NO lessons scheduled!"
+            # Verify September 1st and August return NO schedule (empty list)
+            sched_sept1 = await get_schedule_for_date(session, date(2026, 9, 1))
+            assert sched_sept1 == [], "1 September must have NO lessons scheduled!"
+            sched_august = await get_schedule_for_date(session, date(2026, 8, 25))
+            assert sched_august == [], "August dates must have NO lessons scheduled!"
 
-        # Verify September 8th (next Tuesday) DOES have lessons
-        sched_sept8 = await get_schedule_for_date(session, date(2026, 9, 8))
-        assert len(sched_sept8) == 2
-        assert sched_sept8[0].subject.name == "Геометрия"
+            # Verify September 8th (next Tuesday) DOES have lessons
+            sched_sept8 = await get_schedule_for_date(session, date(2026, 9, 8))
+            assert len(sched_sept8) == 2
+            assert sched_sept8[0].subject.name == "Геометрия"
 
-        # Verify homework scheduling returns False on or before September 1st
-        from backend.db.crud.homework import is_subject_scheduled_on_date
-        all_subs_temp = await get_all_subjects(session)
-        temp_map = {s.name: s.id for s in all_subs_temp}
-        geom_id = temp_map["Геометрия"]
-        assert await is_subject_scheduled_on_date(session, geom_id, date(2026, 9, 1)) is False
-        assert await is_subject_scheduled_on_date(session, geom_id, date(2026, 8, 25)) is False
-        assert await is_subject_scheduled_on_date(session, geom_id, date(2026, 9, 8)) is True
+            # Verify homework scheduling returns False on or before September 1st
+            all_subs_temp = await get_all_subjects(session)
+            temp_map = {s.name: s.id for s in all_subs_temp}
+            geom_id = temp_map["Геометрия"]
+            assert await is_subject_scheduled_on_date(session, geom_id, date(2026, 9, 1)) is False
+            assert await is_subject_scheduled_on_date(session, geom_id, date(2026, 8, 25)) is False
+            assert await is_subject_scheduled_on_date(session, geom_id, date(2026, 9, 8)) is True
 
-        # Verify academic calendar statuses and badges
-        from backend.bot.services.academic_calendar import get_day_special_status, format_day_badge
-        st_sept1, txt_sept1 = get_day_special_status(date(2026, 9, 1))
-        assert st_sept1 == "vacation" and "1 Сентября" in txt_sept1
-        st_aug, txt_aug = get_day_special_status(date(2026, 8, 25))
-        assert st_aug == "vacation" and "Летние каникулы" in txt_aug
-        assert format_day_badge(date(2026, 9, 1), 1, False) == "🔔1"
+            # Verify academic calendar statuses and badges
+            from backend.bot.services.academic_calendar import get_day_special_status, format_day_badge
+            st_sept1, txt_sept1 = get_day_special_status(date(2026, 9, 1))
+            assert st_sept1 == "vacation" and "1 Сентября" in txt_sept1
+            st_aug, txt_aug = get_day_special_status(date(2026, 8, 25))
+            assert st_aug == "vacation" and "Летние каникулы" in txt_aug
+            assert format_day_badge(date(2026, 9, 1), 1, False) == "🔔1"
 
-        # Verify message text for 1 September and August
-        from backend.bot.handlers.schedule import format_day_schedule
-        msg_sept1 = await format_day_schedule(session, date(2026, 9, 1))
-        assert "1 Сентября" in msg_sept1 and "уроков не было" in msg_sept1
-        msg_aug = await format_day_schedule(session, date(2026, 8, 25))
-        assert "Летние каникулы" in msg_aug
-        print("[OK] September 1st and earlier dates schedule exclusion strictly verified.")
+            # Verify message text for 1 September and August
+            from backend.bot.handlers.schedule import format_day_schedule
+            msg_sept1 = await format_day_schedule(session, date(2026, 9, 1))
+            assert "1 Сентября" in msg_sept1 and "уроков не было" in msg_sept1
+            msg_aug = await format_day_schedule(session, date(2026, 8, 25))
+            assert "Летние каникулы" in msg_aug
+        finally:
+            cfg_module.get_today = orig_today_freeze
 
         # --- Test Smart Homework & Auto-Shift ---
         all_subs = await get_all_subjects(session)
@@ -599,6 +630,13 @@ async def test_database_and_crud():
         sched_cancel_text = await format_day_schedule(session, today)
         assert "**2.**" not in sched_cancel_text, "Cancelled lesson must be completely omitted from schedule!"
         print("[OK] Cancelled lesson completely omitted from schedule verified.")
+
+        # Test full week schedule formatting with substitutions and date overrides
+        from backend.bot.handlers.schedule import format_current_week_schedule
+        week_text = await format_current_week_schedule(session, today)
+        assert "Расписание 11 «Б» на неделю" in week_text
+        assert "Химия" in week_text, "Substituted subject must be included in current week schedule!"
+        print("[OK] Current week schedule with date-specific overrides and substitutions verified.")
 
         # Test admin self-demote and self-delete prevention
         from backend.bot.handlers.admin import cb_toggle_user_role, cb_admin_delete_user_ask

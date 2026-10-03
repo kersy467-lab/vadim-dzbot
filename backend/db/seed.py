@@ -20,6 +20,7 @@ DEFAULT_SUBJECTS = [
     "Информатика",
     "Физкультура",
     "ОБЖ",
+    "Математика",
 ]
 
 # Exact official bell timings from class photo
@@ -122,3 +123,46 @@ async def seed_initial_data(session: AsyncSession):
                 start_time="09:00",
                 end_time="11:00"
             )
+
+    # Seed Monday 8th lesson: Русский язык (внеурочка)
+    mon_lessons = await get_permanent_schedule_for_day(session, 1)
+    mon_extra = next((l for l in mon_lessons if l.lesson_number == 8), None)
+    if not mon_extra:
+        russian = next((s for s in existing_subjects if s.name.strip().lower() == "русский язык"), None)
+        if not russian:
+            for s in await get_all_subjects(session):
+                if s.name.strip().lower() == "русский язык":
+                    russian = s
+                    break
+        if russian:
+            await set_schedule_item(
+                session=session,
+                day_of_week=1,
+                lesson_number=8,
+                subject_id=russian.id,
+                specific_date=None
+            )
+
+    # Seed Friday 9th lesson: Математика (внеурочка 15:30 - 16:10)
+    math_subj = next((s for s in existing_subjects if s.name.strip().lower() == "математика"), None)
+    if not math_subj:
+        for s in await get_all_subjects(session):
+            if s.name.strip().lower() == "математика":
+                math_subj = s
+                break
+    if not math_subj:
+        math_subj = await create_subject(session, name="Математика")
+
+    fri_lessons = await get_permanent_schedule_for_day(session, 5)
+    fri_extra = next((l for l in fri_lessons if l.lesson_number == 9), None)
+    if not fri_extra and math_subj:
+        await set_schedule_item(
+            session=session,
+            day_of_week=5,
+            lesson_number=9,
+            subject_id=math_subj.id,
+            start_time="15:30",
+            end_time="16:10",
+            specific_date=None
+        )
+

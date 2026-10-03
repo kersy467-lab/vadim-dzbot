@@ -162,9 +162,18 @@ def build_subjects_keyboard_grid(subjects: List[Subject]) -> InlineKeyboardMarku
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def is_saturday_physics(subject_name: Optional[str], target_date: date) -> bool:
-    """Субботняя физика — отдельное занятие, на неё нельзя назначить ДЗ"""
-    return bool(subject_name and subject_name.strip().lower() == "физика" and target_date.isoweekday() == 6)
+def is_saturday_physics(subject_name: Optional[str], target_date: date, lesson_number: Optional[int] = None) -> bool:
+    """Внеурочные занятия: субботняя физика, математика, понедельник 8-й урок русского (ДЗ не назначается)"""
+    if not subject_name:
+        return False
+    s = subject_name.strip().lower()
+    if s == "физика" and target_date.isoweekday() == 6:
+        return True
+    if s == "математика":
+        return True
+    if s == "русский язык" and target_date.isoweekday() == 1 and lesson_number == 8:
+        return True
+    return False
 
 
 async def get_upcoming_or_fallback_dates(
@@ -178,13 +187,15 @@ async def get_upcoming_or_fallback_dates(
     Если предмет стоит в расписании уроков, возвращает дни уроков.
     Если расписание для предмета не заполнено (или уроков меньше limit),
     дополняет ближайшими учебными днями (Пн-Сб, пропуская Вс и субботу для физики).
+    Для чистой внеурочки (Математика) возвращает ([], False).
     """
+    subj = await get_subject_by_id(db_session, subject_id)
+    if subj and subj.name.strip().lower() == "математика":
+        return [], False
+
     scheduled = await find_upcoming_dates_for_subject(db_session, subject_id, from_date=from_date, limit=limit)
     is_scheduled = bool(scheduled)
     dates = list(scheduled)
-
-    subj = await get_subject_by_id(db_session, subject_id)
-    is_physics = bool(subj and subj.name.strip().lower() == "физика")
 
     cur = from_date
     while len(dates) < limit:
@@ -227,6 +238,14 @@ async def proceed_to_entering_content(
     """Общий переход к шагу ввода задания после выбора предмета (кнопкой или текстом)."""
     subj = await get_subject_by_id(db_session, subject_id)
     subj_name = subj.name if subj else "Предмет"
+
+    if subj and subj.name.strip().lower() == "математика":
+        text = f"⚠️ **{subj_name} — это внеурочное занятие.**\n\nДомашнее задание по этому предмету не задается."
+        if isinstance(target_msg, CallbackQuery):
+            await target_msg.answer(f"⚠️ {subj_name} — внеурочка, ДЗ не назначается!", show_alert=True)
+        else:
+            await safe_answer(target_msg, text)
+        return
 
     from backend.config import get_today
     today = get_today()

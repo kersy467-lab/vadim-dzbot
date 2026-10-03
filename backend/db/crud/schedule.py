@@ -23,15 +23,40 @@ async def get_schedule_for_day(session: AsyncSession, day_of_week: int) -> List[
     return await get_permanent_schedule_for_day(session, day_of_week)
 
 
+def is_extracurricular_lesson(day_of_week: int, lesson_number: int, subject_name: Optional[str] = None) -> bool:
+    """Внеурочные занятия: субботняя физика (1 ур), русский в Пн (8 ур), математика в Пт (9 ур)."""
+    if day_of_week == 6 and lesson_number == 1:
+        return True
+    if day_of_week == 1 and lesson_number == 8:
+        return True
+    if day_of_week == 5 and lesson_number == 9:
+        return True
+    if subject_name:
+        s = subject_name.strip().lower()
+        if s == "физика" and day_of_week == 6:
+            return True
+        if s == "математика":
+            return True
+        if s == "русский язык" and day_of_week == 1 and lesson_number == 8:
+            return True
+    return False
+
+
 async def get_schedule_for_date(session: AsyncSession, target_date: date) -> List[Schedule]:
     """
     Возвращает расписание на конкретную дату:
     1. Если дата 1 сентября 2026 или ранее — уроков не было, возвращает пустой список.
     2. Сначала ищет уроки, явно привязанные к этой дате (specific_date == target_date).
     3. Если на эту дату уроков не задано, возвращает постоянное расписание для дня недели (specific_date is None).
+    4. Если на дату заданы индивидуальные уроки, но в них не указаны постоянные внеурочные занятия
+       (например, 8-й урок русского в Пн, 9-й урок математики в Пт, субботняя физика),
+       они автоматически подтягиваются из постоянного расписания, если не были отменены заменой.
     """
     if target_date <= date(2026, 9, 1):
         return []
+
+    day_of_week = target_date.isoweekday()
+    perm_lessons = await get_permanent_schedule_for_day(session, day_of_week)
 
     res_date = await session.execute(
         select(Schedule)
@@ -40,11 +65,20 @@ async def get_schedule_for_date(session: AsyncSession, target_date: date) -> Lis
         .order_by(Schedule.lesson_number)
     )
     date_items = list(res_date.scalars().all())
-    if date_items:
-        return date_items
+    if not date_items:
+        return perm_lessons
 
-    day_of_week = target_date.isoweekday()
-    return await get_permanent_schedule_for_day(session, day_of_week)
+    date_lesson_nums = {item.lesson_number for item in date_items}
+    extra_items = []
+    for p in perm_lessons:
+        s_name = p.subject.name if p.subject else None
+        if p.lesson_number not in date_lesson_nums and is_extracurricular_lesson(day_of_week, p.lesson_number, s_name):
+            extra_items.append(p)
+
+    if extra_items:
+        return sorted(date_items + extra_items, key=lambda x: x.lesson_number)
+
+    return date_items
 
 
 async def get_full_week_schedule(session: AsyncSession) -> Dict[int, List[Schedule]]:
@@ -112,7 +146,10 @@ async def freeze_past_schedules_for_weekday(
     """
     from backend.config import get_today
     if up_to_date is None:
-        up_to_date = get_today()
+        today = get_today()
+        # Замораживаем только завершенные прошедшие недели (до понедельника текущей недели)!
+        # Текущая неделя НЕ должна замораживаться автоматически как прошлое.
+        up_to_date = today - timedelta(days=today.isoweekday() - 1)
 
     start_date = date(2026, 9, 2)
     if up_to_date <= start_date:
@@ -220,11 +257,26 @@ async def save_bulk_date_schedule(
 ) -> List[Schedule]:
     await clear_date_schedule(session, target_date)
     saved = []
+    day_of_week = target_date.isoweekday()
+    lesson_nums = {l_num for l_num, _ in lessons}
+
     for l_num, subj_name in lessons:
         subj = await get_or_create_subject(session, subj_name)
         item = await set_date_schedule_item(session, target_date, l_num, subj.id)
         saved.append(item)
-    return saved
+
+    # Автоматически сохраняем постоянную внеурочку, если она не была явно переопределена в списке
+    perm_lessons = await get_permanent_schedule_for_day(session, day_of_week)
+    for p in perm_lessons:
+        s_name = p.subject.name if p.subject else None
+        if p.lesson_number not in lesson_nums and is_extracurricular_lesson(day_of_week, p.lesson_number, s_name):
+            item = await set_date_schedule_item(
+                session, target_date, p.lesson_number, p.subject_id,
+                start_time=p.start_time, end_time=p.end_time
+            )
+            saved.append(item)
+
+    return sorted(saved, key=lambda x: x.lesson_number)
 
 
 async def save_bulk_permanent_schedule(

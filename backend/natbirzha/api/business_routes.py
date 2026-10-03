@@ -17,6 +17,7 @@ from backend.natbirzha.services.empire_summary_service import EmpireSummaryServi
 from backend.natbirzha.services.idempotency_service import IdempotencyService
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.business_upgrade_batch_service import BusinessUpgradeBatchService
+from backend.natbirzha.services.business_upgrade_summary_service import BusinessUpgradeSummaryService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.territory_service import TerritoryService
 
@@ -111,6 +112,27 @@ async def empire_summary(
     summary = await EmpireSummaryService.build(session, company.id)
     await session.commit()
     return {"settlement": settlement, **summary}
+
+
+@company_router.get("/upgrade-summary")
+async def business_upgrade_summary(
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    await IdleEconomyService.settle_company(session, company.id)
+    summary = await BusinessUpgradeSummaryService.build(session, company.id)
+    await session.commit()
+    return summary
+
+
+@company_router.get("/business-inputs")
+async def business_input_items(
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    _require_tycoon_v2()
+    return await BusinessUpgradeSummaryService.input_item_ids(session, company.id)
 
 
 @company_router.get("/business-capacity")

@@ -161,6 +161,8 @@ export const NatAPI = {
 
   // NATBIRZHA 2.0 idle/tycoon businesses
   getBusinessCatalog: () => cachedGet('/api/natbirzha/businesses/catalog', 5 * 60 * 1000),
+  getBusinessUpgradeSummary: () => request('/api/natbirzha/company/upgrade-summary'),
+  getBusinessInputItems: () => request('/api/natbirzha/company/business-inputs'),
   getEmpireSummary: () => request('/api/natbirzha/company/empire-summary'),
   getHybridCatalog: () => request('/api/natbirzha/businesses/hybrids'),
   openHybrid: (payload, idempotencyKey) => request('/api/natbirzha/businesses/hybrids/open', {

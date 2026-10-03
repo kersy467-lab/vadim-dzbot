@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models import User
 from backend.natbirzha.models.company import NatCompany, NatFactory
 from backend.natbirzha.models.joint_factories import NatJointFactory
 from backend.natbirzha.models.creator import NatStateBond, NatStateBondHolding
-from backend.natbirzha.models.inventory import NatInventory, get_item_base_price
+from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory, get_item_base_price
 from backend.natbirzha.models.military import NatArmy
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding
 
@@ -29,39 +28,87 @@ class LeaderboardService:
 
     @staticmethod
     async def _aggregate_values(session: AsyncSession) -> list[dict[str, Any]]:
-        """Build all sortable values in bounded aggregate queries, not N+1 requests."""
-        companies = (
-            await session.execute(
-                select(NatCompany, User)
-                .outerjoin(User, User.id == NatCompany.user_id)
-                .where(NatCompany.is_bankrupt.is_(False))
+        """Build leaderboard values in two bounded queries, without per-item reads."""
+        inventory_prices = {
+            item_id: get_item_base_price(item_id)
+            for item_id in CANONICAL_ITEMS
+        }
+        inventory_price = case(
+            inventory_prices,
+            value=NatInventory.item_id,
+            else_=0.0,
+        )
+        active_company_ids = select(NatCompany.id).where(NatCompany.is_bankrupt.is_(False))
+        factory_totals = (
+            select(NatFactory.company_id.label("company_id"), func.count(NatFactory.id).label("factory_count"))
+            .where(NatFactory.company_id.in_(active_company_ids))
+            .group_by(NatFactory.company_id)
+            .subquery()
+        )
+        army_totals = (
+            select(NatArmy.company_id.label("company_id"), NatArmy.army_strength.label("army_strength"))
+            .where(NatArmy.company_id.in_(active_company_ids))
+            .subquery()
+        )
+        inventory_totals = (
+            select(
+                NatInventory.company_id.label("company_id"),
+                func.sum(NatInventory.quantity * inventory_price).label("inventory_value"),
+                func.count(NatInventory.id).label("inventory_rows"),
             )
-        ).all()
+            .where(NatInventory.quantity > 0, NatInventory.company_id.in_(active_company_ids))
+            .group_by(NatInventory.company_id)
+            .subquery()
+        )
+        stock_totals = (
+            select(
+                NatStockHolding.holder_company_id.label("company_id"),
+                func.sum(NatStockHolding.shares_count * NatStock.current_price).label("stock_value"),
+            )
+            .join(NatStock, NatStock.id == NatStockHolding.stock_id)
+            .where(
+                NatStock.company_id != NatStockHolding.holder_company_id,
+                NatStockHolding.holder_company_id.in_(active_company_ids),
+            )
+            .group_by(NatStockHolding.holder_company_id)
+            .subquery()
+        )
+        bond_totals = (
+            select(
+                NatStateBondHolding.company_id.label("company_id"),
+                func.sum(NatStateBondHolding.quantity * NatStateBond.face_value).label("bond_value"),
+            )
+            .join(NatStateBond, NatStateBond.id == NatStateBondHolding.bond_id)
+            .where(NatStateBondHolding.company_id.in_(active_company_ids))
+            .group_by(NatStateBondHolding.company_id)
+            .subquery()
+        )
+        companies = (await session.execute(
+            select(
+                NatCompany,
+                User,
+                func.coalesce(factory_totals.c.factory_count, 0),
+                func.coalesce(army_totals.c.army_strength, 0),
+                func.coalesce(inventory_totals.c.inventory_value, 0.0),
+                func.coalesce(inventory_totals.c.inventory_rows, 0),
+                func.coalesce(stock_totals.c.stock_value, 0.0),
+                func.coalesce(bond_totals.c.bond_value, 0.0),
+            )
+            .outerjoin(User, User.id == NatCompany.user_id)
+            .outerjoin(factory_totals, factory_totals.c.company_id == NatCompany.id)
+            .outerjoin(army_totals, army_totals.c.company_id == NatCompany.id)
+            .outerjoin(inventory_totals, inventory_totals.c.company_id == NatCompany.id)
+            .outerjoin(stock_totals, stock_totals.c.company_id == NatCompany.id)
+            .outerjoin(bond_totals, bond_totals.c.company_id == NatCompany.id)
+            .where(NatCompany.is_bankrupt.is_(False))
+        )).all()
         if not companies:
             return []
-        company_ids = [company.id for company, _user in companies]
-
-        factory_rows = await session.execute(
-            select(NatFactory.company_id, func.count(NatFactory.id))
-            .where(NatFactory.company_id.in_(company_ids))
-            .group_by(NatFactory.company_id)
-        )
-        factory_count = dict(factory_rows.all())
-        army_rows = await session.execute(
-            select(NatArmy.company_id, NatArmy.army_strength)
-            .where(NatArmy.company_id.in_(company_ids))
-        )
-        army_strength = dict(army_rows.all())
-        inventory_rows = await session.execute(
-            select(NatInventory.company_id, NatInventory.item_id, NatInventory.quantity)
-            .where(NatInventory.company_id.in_(company_ids), NatInventory.quantity > 0)
-        )
-        inventory_value: dict[int, float] = defaultdict(float)
-        for company_id, item_id, quantity in inventory_rows.all():
-            try:
-                inventory_value[company_id] += float(quantity) * get_item_base_price(item_id)
-            except ValueError:
-                continue
+        company_ids = [row[0].id for row in companies]
+        inventory_value = {
+            row[0].id: float(row[4] or 0)
+            for row in companies if int(row[5] or 0) > 0
+        }
         joint_rows = (await session.execute(
             select(NatJointFactory).where(
                 NatJointFactory.company_a_id.in_(company_ids)
@@ -80,42 +127,19 @@ class LeaderboardService:
                         inventory_value[owner_id] += float(quantity) * get_item_base_price(item_id)
                     except ValueError:
                         continue
-        stock_rows = await session.execute(
-            select(
-                NatStockHolding.holder_company_id,
-                func.sum(NatStockHolding.shares_count * NatStock.current_price),
-            )
-            .join(NatStock, NatStock.id == NatStockHolding.stock_id)
-            .where(
-                NatStockHolding.holder_company_id.in_(company_ids),
-                NatStock.company_id != NatStockHolding.holder_company_id,
-            )
-            .group_by(NatStockHolding.holder_company_id)
-        )
-        stock_value = {company_id: float(value or 0) for company_id, value in stock_rows.all()}
-        bond_rows = await session.execute(
-            select(
-                NatStateBondHolding.company_id,
-                func.sum(NatStateBondHolding.quantity * NatStateBond.face_value),
-            )
-            .join(NatStateBond, NatStateBond.id == NatStateBondHolding.bond_id)
-            .where(NatStateBondHolding.company_id.in_(company_ids))
-            .group_by(NatStateBondHolding.company_id)
-        )
-        bond_value = {company_id: float(value or 0) for company_id, value in bond_rows.all()}
 
         rows: list[dict[str, Any]] = []
-        for company, user in companies:
+        for company, user, factories, army, _inventory_total, _inventory_rows, stocks, bonds in companies:
             cid = company.id
             nav = round(
                 float(company.cash)
                 + company.territory_tiles * 10_000.0
-                + factory_count.get(cid, 0) * 25_000.0
-                + inventory_value[cid],
+                + int(factories or 0) * 25_000.0
+                + inventory_value.get(cid, 0.0),
                 2,
             )
-            shares = round(stock_value.get(cid, 0.0), 2)
-            bonds = round(bond_value.get(cid, 0.0), 2)
+            shares = round(float(stocks or 0.0), 2)
+            bond_value = round(float(bonds or 0.0), 2)
             rows.append({
                 "company_id": cid,
                 "company_name": company.name,
@@ -123,13 +147,13 @@ class LeaderboardService:
                 "level": company.level,
                 "cash": round(float(company.cash), 2),
                 "territory": company.territory_tiles,
-                "factory_count": factory_count.get(cid, 0),
-                "army": int(army_strength.get(cid, 0) or 0),
+                "factory_count": int(factories or 0),
+                "army": int(army or 0),
                 "military_rating": company.military_rating,
                 "company_value": nav,
                 "stock_value": shares,
-                "bond_value": bonds,
-                "assets": round(nav + shares + bonds, 2),
+                "bond_value": bond_value,
+                "assets": round(nav + shares + bond_value, 2),
                 "pvc_balance": company.pvc_balance,
                 "last_activity_at": company.updated_at.isoformat(),
                 "telegram_name": user.display_name if user else None,

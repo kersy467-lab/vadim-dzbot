@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { NatAPI } from '../api.js?v=20261003_fast_tabs_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { disposeCurrentScreen, registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { getItemInfo, ITEMS } from '../items.js?v=20260928_ai_compute_fix_v1';
@@ -175,12 +175,14 @@ export async function renderMarket(container, showToast) {
   }
 
   async function ensureCompanyInputs() {
-    await ensureMarketData();
     if (!companyInputPromise) {
-      companyInputPromise = NatAPI.getEmpireSummary().catch(() => null).then((summary) => {
-        companyInputIds = getCompanyInputIds(
-          summary?.businesses, store.factories, recipesData.recipes
-        );
+      companyInputPromise = Promise.all([
+        ensureMarketData(),
+        NatAPI.getBusinessInputItems().catch(() => ({ items: [] })),
+      ]).then(([, data]) => {
+        const inputIds = new Set(getCompanyInputIds([], store.factories, recipesData.recipes));
+        for (const itemId of data?.items || []) inputIds.add(itemId);
+        companyInputIds = [...inputIds];
         return companyInputIds;
       });
     }

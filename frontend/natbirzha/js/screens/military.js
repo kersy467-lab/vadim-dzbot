@@ -54,33 +54,81 @@ export async function renderMilitary(container, showToast) {
   let premiumData = null;
   let hospitalStatus = null;
   const scouting = new Map();
+  const loadedWarData = new Set();
+  const pendingWarData = new Map();
+  let sectionLoading = false;
+  let sectionError = '';
 
-  async function loadWarData() {
-    const [armyRes, pveRes, tournamentRes, historyRes, tournamentHistoryRes, hospitalRes, companyRes] = await Promise.allSettled([
-      NatAPI.getMilitaryStatus(),
-      NatAPI.getPveTargets(),
-      NatAPI.getCurrentTournament(),
-      NatAPI.getBattleHistory(),
-      NatAPI.getTournamentHistory(),
-      NatAPI.getHospitalStatus(),
-      NatAPI.getMyCompany(),
-    ]);
-    if (armyRes.status === 'fulfilled') army = armyRes.value || {};
-    if (pveRes.status === 'fulfilled') pveTargets = pveRes.value?.targets || [];
-    if (tournamentRes.status === 'fulfilled') tournamentData = tournamentRes.value || tournamentData;
-    if (historyRes.status === 'fulfilled') history = historyRes.value?.battles || [];
-    if (tournamentHistoryRes.status === 'fulfilled') tournamentHistory = tournamentHistoryRes.value?.tournaments || [];
-    if (hospitalRes.status === 'fulfilled') hospitalStatus = hospitalRes.value || null;
-    if (companyRes.status === 'fulfilled' && companyRes.value) store.setCompany(companyRes.value);
+  function loadWarDataOnce(key, loader, force = false) {
+    if (!force && loadedWarData.has(key)) return Promise.resolve();
+    if (pendingWarData.has(key)) return pendingWarData.get(key);
+    const pending = Promise.resolve().then(loader).then(() => {
+      loadedWarData.add(key);
+    }).finally(() => pendingWarData.delete(key));
+    pendingWarData.set(key, pending);
+    return pending;
+  }
+
+  const loadArmyData = (force = false) => loadWarDataOnce('army', async () => {
+    army = await NatAPI.getMilitaryStatus() || {};
+  }, force);
+
+  const loadPveData = (force = false) => loadWarDataOnce('pve', async () => {
+    pveTargets = (await NatAPI.getPveTargets())?.targets || [];
+  }, force);
+
+  const loadTournamentData = (force = false) => loadWarDataOnce('tournament', async () => {
+    tournamentData = await NatAPI.getCurrentTournament() || tournamentData;
     const tournament = tournamentData?.tournament;
-    if (tournament?.id && tournament.status === 'ACTIVE') {
-      try {
-        tournamentTargets = (await NatAPI.getTournamentTargets(tournament.id))?.targets || [];
-      } catch (_) {
-        tournamentTargets = [];
+    tournamentTargets = tournament?.id && tournament.status === 'ACTIVE'
+      ? ((await NatAPI.getTournamentTargets(tournament.id))?.targets || [])
+      : [];
+  }, force);
+
+  const loadHistoryData = (force = false) => loadWarDataOnce('history', async () => {
+    const [battleData, tournamentDataResult] = await Promise.all([
+      NatAPI.getBattleHistory(), NatAPI.getTournamentHistory(),
+    ]);
+    history = battleData?.battles || [];
+    tournamentHistory = tournamentDataResult?.tournaments || [];
+  }, force);
+
+  const loadHospitalData = (force = false) => loadWarDataOnce('hospital', async () => {
+    hospitalStatus = await NatAPI.getHospitalStatus() || null;
+  }, force);
+
+  function sectionIsLoaded(section) {
+    if (section === 'alliance') return true;
+    if (section === 'premium') return loadedWarData.has('premium');
+    if (section === 'tournament') return loadedWarData.has('army') && loadedWarData.has('tournament');
+    if (section === 'hospital') return loadedWarData.has('army') && loadedWarData.has('hospital');
+    return loadedWarData.has(({ army: 'army', borders: 'pve', history: 'history' })[section]);
+  }
+
+  async function loadSectionData(section, force = false) {
+    if (section === 'army') return loadArmyData(force);
+    if (section === 'borders') return loadPveData(force);
+    if (section === 'tournament') return Promise.all([loadArmyData(force), loadTournamentData(force)]);
+    if (section === 'history') return loadHistoryData(force);
+    if (section === 'premium') return loadWarDataOnce('premium', () => loadPremiumData(), force);
+    if (section === 'hospital') return Promise.all([loadArmyData(force), loadHospitalData(force)]);
+  }
+
+  async function activateSection(section, force = false) {
+    activeSection = section;
+    sectionError = '';
+    sectionLoading = force || !sectionIsLoaded(section);
+    renderView();
+    if (!sectionLoading) return;
+    try {
+      await loadSectionData(section, force);
+    } catch (error) {
+      sectionError = error?.message || 'Не удалось загрузить раздел.';
+    } finally {
+      if (activeSection === section) {
+        sectionLoading = false;
+        renderView();
       }
-    } else {
-      tournamentTargets = [];
     }
   }
 
@@ -161,7 +209,7 @@ export async function renderMilitary(container, showToast) {
 
   function bordersSection() {
     if (!pveTargets.length) return '<div class="glass-card rounded-2xl p-5 text-xs text-slate-400 text-center">PvE-корпорации пока не загружены</div>';
-    return `<div class="space-y-3">${pveTargets.map(target => {
+    return `<div class="space-y-3"><p class="text-[10px] text-slate-400">Сила показывает оценку гарнизона противника, а не минимальную силу вашей армии. Допуск определяется уровнем компании и требованиями к составу армии ниже. Разведка оценивает риск и возможные потери.</p>${pveTargets.map(target => {
       const scout = scouting.get(target.code);
       const strength = scout?.strength_range || target.strength_range || {};
       const disabled = !target.available;
@@ -174,8 +222,8 @@ export async function renderMilitary(container, showToast) {
         .join(' · ') : '';
       const riskName = { low: 'низкий', medium: 'средний', high: 'высокий', extreme: 'крайний' }[scout?.risk] || '';
       return `<div class="glass-card rounded-2xl p-4 space-y-3">
-        <div class="flex justify-between gap-3"><div><div class="text-sm font-black">${esc(target.name)}</div><div class="text-[10px] text-slate-400">Тир ${target.tier} · фронтир ${Number(target.campaign_rank || 0) + 1} · ${esc(target.industry)}</div></div><span class="text-xs font-mono font-bold text-amber-500">${target.repeatable ? 'награды без земли' : `+${target.territory_reward} земли`}</span></div>
-        <div class="grid grid-cols-2 gap-2 text-[10px]"><div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Сила: <b>${number(strength.min)}–${number(strength.max)}</b></div><div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Компенсация: <b>до ${number(target.cash_reward)} cash</b></div></div>
+        <div class="flex justify-between gap-3"><div><div class="text-sm font-black">${esc(target.name)}</div><div class="text-[10px] text-slate-400">Тир ${target.tier} · фронтир ${Number(target.campaign_rank || 0) + 1} · ${esc(target.industry)}</div><div class="text-[10px] text-slate-400">Уровень компании: ${number(target.min_company_level)}+</div></div><span class="text-xs font-mono font-bold text-amber-500">${target.repeatable ? 'награды без земли' : `+${target.territory_reward} земли`}</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[10px]"><div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Гарнизон врага (оценка): <b>${number(strength.min)}–${number(strength.max)}</b></div><div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">Компенсация: <b>до ${number(target.cash_reward)} cash</b></div></div>
         ${requirementText ? `<div class="text-[10px] rounded-lg p-2 ${hasMissingRequirements ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300' : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300'}"><b>Требования к армии:</b> ${esc(requirementText)}</div>` : ''}
         ${scout ? `<div class="text-[10px] rounded-lg p-2 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300">Разведка: ${scout.accuracy === 'exact' ? 'точный состав получен' : 'оценка диапазона'} · риск: <b>${riskName}</b> · БПЛА: ${scout.scouting_drones}${lossForecast ? `<div class="mt-1 text-[9px]">Ожидаемые потери: ${lossForecast}</div>` : ''}</div>` : ''}
         ${target.conquered ? `<div class="text-[10px] text-emerald-600 dark:text-emerald-300">✓ Корпорация уже покорена. ${cooldownText}</div>` : ''}
@@ -224,7 +272,13 @@ export async function renderMilitary(container, showToast) {
 
   function renderView() {
     const section = { army: armySection, borders: bordersSection, tournament: () => renderTournamentSection({ tournamentData, tournamentTargets, army }), history: historySection, alliance: allianceSection, premium: premiumSection, hospital: () => renderHospitalSection({ status: hospitalStatus, upgradeQuotes: army.infrastructure?.upgrade_quotes, company: store.company, inventory: store.inventory }) }[activeSection] || armySection;
-    container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${SECTIONS.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${section()}</div>`;
+    const content = sectionLoading
+      ? '<div class="glass-card rounded-2xl p-5 text-xs text-slate-400 text-center">Загружаем раздел…</div>'
+      : sectionError
+        ? `<div class="glass-card rounded-2xl p-5 text-xs text-rose-400 text-center">${esc(sectionError)}<button id="retry-war-section" class="mt-3 block mx-auto rounded-xl bg-indigo-600 px-4 py-2 text-white">Повторить</button></div>`
+        : section();
+    container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${SECTIONS.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${content}</div>`;
+    container.querySelector('#retry-war-section')?.addEventListener('click', () => void activateSection(activeSection, true));
     if (activeSection === 'premium' && premiumData?.industry?.upgrade?.available) {
       const industry = premiumData.industry.upgrade;
       const premiumBody = container.querySelector('.space-y-4.max-w-md')?.lastElementChild;
@@ -254,10 +308,10 @@ export async function renderMilitary(container, showToast) {
       showToast,
       onRefresh: async (status) => {
         if (status) hospitalStatus = status;
-        const [military, company] = await Promise.all([NatAPI.getMilitaryStatus(), NatAPI.getMyCompany().catch(() => null)]);
-        army = military || army;
+        const refreshes = [loadArmyData(true), NatAPI.getMyCompany().catch(() => null)];
+        if (!status) refreshes.push(loadHospitalData(true).catch(() => null));
+        const [, company] = await Promise.all(refreshes);
         if (company) store.setCompany(company);
-        if (!status) hospitalStatus = await NatAPI.getHospitalStatus().catch(() => hospitalStatus);
         renderView();
       },
     });
@@ -268,9 +322,14 @@ export async function renderMilitary(container, showToast) {
     const total = (values) => Object.values(values || {}).reduce((sum, value) => sum + Number(value || 0), 0);
     const outcome = result.winner === 'attacker' ? 'Победа!' : 'Бой проигран.';
     showToast(`${outcome} Легко ранено: ${total(result.attacker_light_wounded)} · госпиталь/ремонт: ${total(result.hospitalized || result.attacker_hospitalized)} · безвозвратные потери: ${total(result.attacker_fatalities)}`, result.winner === 'attacker' ? 'success' : 'error');
-    const company = await NatAPI.getMyCompany().catch(() => null);
+    const refreshes = [loadArmyData(true), loadPveData(true)];
+    if (loadedWarData.has('history')) refreshes.push(loadHistoryData(true));
+    if (loadedWarData.has('tournament')) refreshes.push(loadTournamentData(true));
+    const [company] = await Promise.all([
+      NatAPI.getMyCompany().catch(() => null),
+      ...refreshes,
+    ]);
     if (company) store.setCompany(company);
-    await loadWarData();
     renderView();
   }
 
@@ -286,9 +345,7 @@ export async function renderMilitary(container, showToast) {
     }
 
     container.querySelectorAll('.war-section-btn').forEach(btn => btn.addEventListener('click', async () => {
-      activeSection = btn.dataset.section;
-      if (activeSection === 'premium' && !premiumData) await loadPremiumData();
-      renderView();
+      await activateSection(btn.dataset.section);
     }));
 
     container.querySelectorAll('.recruit-unit-btn').forEach(btn => btn.addEventListener('click', async () => {
@@ -336,7 +393,7 @@ export async function renderMilitary(container, showToast) {
       try {
         const result = await NatAPI.joinTournament(tournamentData.tournament.id);
         showToast(result.message || 'Вы зарегистрировались в турнире', 'success');
-        await loadWarData();
+        await loadSectionData('tournament', true);
         renderView();
       } catch (error) { showToast(error.message, 'error'); button.disabled = false; }
     });
@@ -380,6 +437,5 @@ export async function renderMilitary(container, showToast) {
     }));
   }
 
-  await loadWarData();
-  renderView();
+  void activateSection(activeSection);
 }

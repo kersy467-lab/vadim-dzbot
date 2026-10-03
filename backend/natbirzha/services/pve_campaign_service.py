@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from math import ceil
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import nat_settings
@@ -95,28 +95,15 @@ class PveCampaignMixin:
             row.is_active = True
         await session.flush()
 
-    @staticmethod
-    async def _victory_codes(session: AsyncSession, company_id: int) -> set[str]:
-        rows = (
-            await session.execute(
-                select(NatPveCorporation.code)
-                .join(NatPveVictory, NatPveVictory.pve_corporation_id == NatPveCorporation.id)
-                .where(
-                    NatPveVictory.company_id == company_id,
-                    NatPveVictory.reward_claimed.is_(True),
-                )
-            )
-        ).scalars().all()
-        return set(rows)
-
     @classmethod
     async def list_targets(cls, session: AsyncSession, company: NatCompany) -> list[dict[str, Any]]:
         await cls.ensure_catalog(session)
-        victories = await cls._victory_codes(session, company.id)
-        victory_rows = (
-            await session.execute(select(NatPveVictory).where(NatPveVictory.company_id == company.id))
-        ).scalars().all()
-        victory_by_target = {row.pve_corporation_id: row for row in victory_rows}
+        victory_records = (await session.execute(
+            select(NatPveVictory, NatPveCorporation.code)
+            .join(NatPveCorporation, NatPveCorporation.id == NatPveVictory.pve_corporation_id)
+            .where(NatPveVictory.company_id == company.id)
+        )).all()
+        victory_by_target = {victory.pve_corporation_id: victory for victory, _code in victory_records}
         now = datetime.utcnow()
         army = await ArmyService.snapshot(session, company.id)
         targets = (
@@ -126,9 +113,25 @@ class PveCampaignMixin:
                 .order_by(NatPveCorporation.tier, NatPveCorporation.id)
             )
         ).scalars().all()
+        target_by_id = {target.id: target for target in targets}
+        victories = {
+            code for victory, code in victory_records if victory.reward_claimed
+        }
+        campaign_rows = await session.execute(
+            select(NatBattle.pve_corporation_id, func.count(NatBattle.id))
+            .where(
+                NatBattle.attacker_company_id == company.id,
+                NatBattle.pve_corporation_id.in_(target_by_id.keys()),
+                NatBattle.mode == "PVE",
+                NatBattle.winner_side == "attacker",
+                NatBattle.status == "RESOLVED",
+            )
+            .group_by(NatBattle.pve_corporation_id)
+        )
+        campaign_wins = dict(campaign_rows.all())
         result: list[dict[str, Any]] = []
         for target in targets:
-            campaign_rank = await cls._campaign_wins(session, company.id, target.id)
+            campaign_rank = int(campaign_wins.get(target.id, 0))
             campaign_snapshot = cls._campaign_snapshot(target.unit_snapshot, campaign_rank)
             conquered = target.code in victories
             latest_victory = victory_by_target.get(target.id)

@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { NatAPI } from '../api.js?v=20261003_fast_tabs_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
@@ -21,7 +21,7 @@ export async function renderUpgrades(container, showToast) {
 async function refreshUpgradeScreen(container, showToast, generation) {
   const isCurrent = () => generation === upgradesRenderGeneration && container.isConnected;
   try {
-    const summary = await NatAPI.getEmpireSummary();
+    const summary = await NatAPI.getBusinessUpgradeSummary();
     if (!isCurrent()) return;
     const businesses = Array.isArray(summary?.businesses) ? summary.businesses : [];
     renderBusinessUpgrades(container, showToast, businesses);

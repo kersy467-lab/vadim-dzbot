@@ -9,9 +9,7 @@ from backend.config import get_today, settings
 from backend.db.models import User
 
 def is_admin_user(user: Optional[User], tg_id: int) -> bool:
-    if settings.ADMIN_ID and tg_id == settings.ADMIN_ID:
-        return True
-    return user is not None and user.role == "admin"
+    return bool((settings.ADMIN_ID and tg_id == settings.ADMIN_ID) or (user and user.role == "admin"))
 
 from backend.db.crud import (
     get_schedule_for_day, get_schedule_for_date, get_bell_schedule, get_bell_schedule_for_date,
@@ -25,13 +23,8 @@ from backend.bot.keyboards.inline import (
 router = Router(name="schedule_router")
 
 DAYS_RU = {
-    1: "Понедельник",
-    2: "Вторник",
-    3: "Среда",
-    4: "Четверг",
-    5: "Пятница",
-    6: "Суббота",
-    7: "Воскресенье"
+    1: "Понедельник", 2: "Вторник", 3: "Среда", 4: "Четверг",
+    5: "Пятница", 6: "Суббота", 7: "Воскресенье"
 }
 
 from backend.bot.services.academic_calendar import get_day_special_status
@@ -340,7 +333,6 @@ async def show_summer_countdown(message: Message):
     summer_start = date(2027, 5, 27)
     school_start = date(2026, 9, 1)
 
-
     if today >= summer_start:
         await message.answer("🎉 **Ура! Летние каникулы уже наступили!** 🏖🌴", parse_mode="Markdown")
         return
@@ -368,25 +360,37 @@ async def show_summer_countdown(message: Message):
 
 
 # ==================== DUTY ROSTER ====================
+def escape_md(text: str) -> str:
+    r"""Экранирует спецсимволы Markdown v1: \, _, *, `, ["""
+    if not text:
+        return ""
+    for ch in ("\\", "_", "*", "`", "["):
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
+
 @router.message(F.text == "🧹 График дежурств")
 async def show_duty_roster(message: Message, db_session: AsyncSession):
-
     active_group, all_groups = await get_current_duty_info(db_session)
-
     if not all_groups:
-        await message.answer("🧹 Список дежурных групп пока не настроен.", parse_mode="Markdown")
+        await message.answer("🧹 Список дежурных групп пока не настроен.")
         return
 
     text_lines = ["🧹 **График дежурств 11 «Б»:**\n"]
-
     if active_group:
-        text_lines.append(f"⭐ **Сейчас дежурит:** **{active_group.name}**")
-        text_lines.append(f"👥 **Состав:** {active_group.members}\n")
+        text_lines.append(f"⭐ **Сейчас дежурит:** **{escape_md(active_group.name)}**")
+        text_lines.append(f"👥 **Состав:** {escape_md(active_group.members)}\n")
 
     text_lines.append("📋 **Все дежурные группы класса:**")
     for g in all_groups:
         badge = " *(дежурит сейчас)* 👈" if active_group and g.group_number == active_group.group_number else ""
-        text_lines.append(f"• **{g.name}:** {g.members}{badge}")
+        text_lines.append(f"• **{escape_md(g.name)}:** {escape_md(g.members)}{badge}")
 
     text_lines.append("\n_Дежурство меняется автоматически каждую неделю_")
-    await message.answer("\n".join(text_lines), parse_mode="Markdown")
+    text = "\n".join(text_lines)
+    try:
+        await message.answer(text, parse_mode="Markdown")
+    except Exception:
+        plain_text = text.replace("**", "").replace("*", "").replace("`", "")
+        await message.answer(plain_text, parse_mode=None)
+

@@ -44,14 +44,27 @@ async def cb_admin_duty_broadcast_start(callback: CallbackQuery, state: FSMConte
         duty_group_name=active_group.name
     )
 
-    members_str = active_group.members if active_group.members and active_group.members != "Состав не назначен" else "Состав не назначен"
-    await callback.message.edit_text(
-        f"📢 **Объявление дежурным ({active_group.name}):**\n\n"
+    raw_members = active_group.members if active_group.members and active_group.members != "Состав не назначен" else "Состав не назначен"
+    members_str = escape_md(raw_members)
+    group_name = escape_md(active_group.name)
+    text = (
+        f"📢 **Объявление дежурным ({group_name}):**\n\n"
         f"👥 **Состав:** {members_str}\n\n"
-        "Отправьте текст сообщения для дежурных или прикрепите файл (фото, PDF, документ, видео, аудио) с описанием:",
-        reply_markup=get_cancel_keyboard(),
-        parse_mode="Markdown"
+        "Отправьте текст сообщения для дежурных или прикрепите файл (фото, PDF, документ, видео, аудио) с описанием:"
     )
+    try:
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_cancel_keyboard(),
+            parse_mode="Markdown"
+        )
+    except Exception:
+        plain = text.replace("**", "").replace("*", "").replace("`", "")
+        await callback.message.edit_text(
+            plain,
+            reply_markup=get_cancel_keyboard(),
+            parse_mode=None
+        )
     try:
         await callback.answer()
     except Exception:
@@ -173,8 +186,10 @@ async def cb_admin_duty_broadcast_send(callback: CallbackQuery, state: FSMContex
     active_group, _ = await get_current_duty_info(db_session)
     duty_users = await get_users_in_duty_group(db_session, active_group) if active_group else []
 
-    group_name = active_group.name if active_group else "Дежурная группа"
-    members_name = active_group.members if active_group and active_group.members else ""
+    raw_group_name = active_group.name if active_group else "Дежурная группа"
+    group_name = escape_md(raw_group_name)
+    raw_members_name = active_group.members if active_group and active_group.members else ""
+    members_name = escape_md(raw_members_name)
 
     pm_text = (
         "🧹 **ОБЪЯВЛЕНИЕ ДЕЖУРНЫМ • 11 «Б»**\n\n"
@@ -184,13 +199,13 @@ async def cb_admin_duty_broadcast_send(callback: CallbackQuery, state: FSMContex
     pm_plain = (
         "🧹 ОБЪЯВЛЕНИЕ ДЕЖУРНЫМ • 11 «Б»\n\n"
         f"{raw_text}\n\n"
-        f"📌 Дежурит: {group_name}"
+        f"📌 Дежурит: {raw_group_name}"
     )
 
     mentions = []
     for u in duty_users:
         if u.username:
-            mentions.append(f"@{u.username}")
+            mentions.append(f"@{escape_md(u.username)}")
         else:
             mentions.append(f"**{escape_md(u.display_name)}**")
     mention_prefix = ("🔔 " + ", ".join(mentions) + "\n\n") if mentions else ""
@@ -203,7 +218,14 @@ async def cb_admin_duty_broadcast_send(callback: CallbackQuery, state: FSMContex
     if members_name:
         group_text += f"\n👥 _Состав: {members_name}_"
 
-    group_plain = group_text.replace("**", "").replace("*", "").replace("`", "").replace("_", "")
+    group_plain = (
+        "🧹 ОБЪЯВЛЕНИЕ ДЕЖУРНЫМ • 11 «Б»\n\n"
+        f"{raw_text}\n\n"
+        f"📌 Дежурная группа: {raw_group_name}"
+    )
+    if raw_members_name:
+        group_plain += f"\n👥 Состав: {raw_members_name}"
+
 
     async def _send_media_or_msg(chat_id: int, thread_id: int, formatted_text: str, plain_content: str):
         kwargs = {"message_thread_id": thread_id} if thread_id else {}

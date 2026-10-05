@@ -22,6 +22,23 @@ logger = logging.getLogger(__name__)
 router = Router(name='admin_duty_roster_router')
 
 
+async def safe_edit_text(message, text: str, reply_markup=None):
+    """Редактирует сообщение с Markdown; при ошибках парсинга откатывается к чистому тексту."""
+    try:
+        return await message.edit_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    except Exception:
+        plain = text.replace("**", "").replace("*", "").replace("`", "")
+        return await message.edit_text(plain, reply_markup=reply_markup, parse_mode=None)
+
+
+async def safe_answer(message, text: str, reply_markup=None):
+    """Отправляет сообщение с Markdown; при ошибках парсинга откатывается к чистому тексту."""
+    try:
+        return await message.answer(text, reply_markup=reply_markup, parse_mode="Markdown")
+    except Exception:
+        plain = text.replace("**", "").replace("*", "").replace("`", "")
+        return await message.answer(plain, reply_markup=reply_markup, parse_mode=None)
+
 
 @router.callback_query(F.data == "admin_manage_duty")
 async def cb_admin_manage_duty(callback: CallbackQuery, db_session: AsyncSession, current_user: User):
@@ -31,12 +48,12 @@ async def cb_admin_manage_duty(callback: CallbackQuery, db_session: AsyncSession
     active_group, all_groups = await get_current_duty_info(db_session)
     lines = ["🧹 **Управление дежурствами 11 «Б»:**\n"]
     if active_group:
-        lines.append(f"⭐ **Текущая дежурная группа:** **{active_group.name}**\n")
+        lines.append(f"⭐ **Текущая дежурная группа:** **{escape_md(active_group.name)}**\n")
 
     lines.append("📋 **Список всех групп:**")
     for g in all_groups:
         badge = " *(дежурит)*" if active_group and g.group_number == active_group.group_number else ""
-        lines.append(f"• **{g.name}:** {g.members}{badge}")
+        lines.append(f"• **{escape_md(g.name)}:** {escape_md(g.members)}{badge}")
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -52,7 +69,7 @@ async def cb_admin_manage_duty(callback: CallbackQuery, db_session: AsyncSession
         ]
     )
 
-    await callback.message.edit_text("\n".join(lines), reply_markup=kb, parse_mode="Markdown")
+    await safe_edit_text(callback.message, "\n".join(lines), reply_markup=kb)
     try:
         await callback.answer()
     except Exception:
@@ -190,16 +207,16 @@ async def cb_admin_duty_edit_chosen(callback: CallbackQuery, state: FSMContext, 
     await state.update_data(edit_duty_group=g_num, selected_duty_ids=selected_ids)
     await state.set_state(ManageDutyStates.selecting_members_buttons)
 
-    curr_members = group.members if group and group.members else "не указаны"
+    curr_members = escape_md(group.members) if group and group.members else "не указаны"
+    g_title = escape_md(group.name) if group else f"Группа {g_num}"
     kb = build_duty_members_keyboard(students, selected_ids, g_num)
 
-    await callback.message.edit_text(
-        f"👥 **Выбор дежурных — {group.name if group else f'Группа {g_num}'}:**\n\n"
+    text = (
+        f"👥 **Выбор дежурных — {g_title}:**\n\n"
         f"Текущий состав:\n_{curr_members}_\n\n"
-        "Нажимайте на кнопки учеников, чтобы отметить их как дежурных в этой группе (✅ / ⬜), затем нажмите кнопку сохранения:",
-        reply_markup=kb,
-        parse_mode="Markdown"
+        "Нажимайте на кнопки учеников, чтобы отметить их как дежурных в этой группе (✅ / ⬜), затем нажмите кнопку сохранения:"
     )
+    await safe_edit_text(callback.message, text, reply_markup=kb)
     try:
         await callback.answer()
     except Exception:
@@ -257,10 +274,11 @@ async def cb_admin_duty_save_btn(callback: CallbackQuery, state: FSMContext, db_
     )
 
     await state.clear()
-    await callback.message.edit_text(
-        f"✅ **Состав Группы {g_num} успешно сохранен!**\n\n👥 {members_str}",
-        reply_markup=get_admin_panel_keyboard(),
-        parse_mode="Markdown"
+    safe_members = escape_md(members_str)
+    await safe_edit_text(
+        callback.message,
+        f"✅ **Состав Группы {g_num} успешно сохранен!**\n\n👥 {safe_members}",
+        reply_markup=get_admin_panel_keyboard()
     )
     try:
         await callback.answer("Сохранено!")
@@ -274,14 +292,15 @@ async def cb_admin_duty_ed_manual(callback: CallbackQuery, state: FSMContext, db
     g_num = data.get("edit_duty_group", 0)
     group = await get_duty_group_by_number(db_session, g_num)
 
-    curr_members = group.members if group and group.members else "не указаны"
+    curr_members = escape_md(group.members) if group and group.members else "не указаны"
+    g_title = escape_md(group.name) if group else f"Группа {g_num}"
     await state.set_state(ManageDutyStates.entering_members)
-    await callback.message.edit_text(
-        f"✏️ **Ввод состава вручную — {group.name if group else f'Группа {g_num}'}:**\n\n"
+    await safe_edit_text(
+        callback.message,
+        f"✏️ **Ввод состава вручную — {g_title}:**\n\n"
         f"Текущий состав:\n_{curr_members}_\n\n"
         "Отправьте в ответ сообщение с новым списком учеников (через запятую):",
-        reply_markup=get_cancel_keyboard(),
-        parse_mode="Markdown"
+        reply_markup=get_cancel_keyboard()
     )
     try:
         await callback.answer()
@@ -322,10 +341,12 @@ async def msg_admin_duty_save_members(message: Message, state: FSMContext, db_se
     )
 
     await state.clear()
-    await message.answer(
-        f"✅ **Состав Группы {g_num} успешно обновлен!**\n\n👥 {members}",
-        reply_markup=get_admin_panel_keyboard(),
-        parse_mode="Markdown"
+    safe_members = escape_md(members)
+    await safe_answer(
+        message,
+        f"✅ **Состав Группы {g_num} успешно обновлен!**\n\n👥 {safe_members}",
+        reply_markup=get_admin_panel_keyboard()
     )
+
 
 

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.models import BellSchedule
 from backend.db.crud import set_bell_schedule_item, save_bulk_date_bells
 from backend.bot.keyboards.admin_kb import get_admin_panel_keyboard, get_date_bells_notify_keyboard
+from backend.config import get_today
 from backend.bot.handlers.schedule import DAYS_RU
 from backend.bot.handlers.admin.states import EditDateBellStates, BellWizardStates
 
@@ -238,7 +239,7 @@ async def _show_confirm_screen(state: FSMContext, send_func, custom_breaks: List
     if target_mode == "perm":
         title = "🗓 **Стандартное расписание звонков (на весь год)**"
     else:
-        t_date_str = data.get("bell_target_date") or date.today().isoformat()
+        t_date_str = data.get("bell_target_date") or get_today().isoformat()
         t_date = date.fromisoformat(t_date_str)
         title = f"📅 **Расписание звонков на {DAYS_RU.get(t_date.isoweekday(), '')} ({t_date.strftime('%d.%m.%Y')})**"
 

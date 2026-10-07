@@ -322,11 +322,11 @@ async def test_database_and_crud():
             from backend.db.models import Schedule
             past_monday = date(2026, 9, 7)
             future_monday = date(2026, 9, 28)
-            await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
+            await session.execute(delete(Schedule).where(Schedule.specific_date.in_([past_monday, future_monday])))
             await session.commit()
             await save_bulk_permanent_schedule(session, 1, [(1, "Алгебра"), (2, "Физика")])
 
-            await session.execute(delete(Schedule).where(Schedule.specific_date == past_monday))
+            await session.execute(delete(Schedule).where(Schedule.specific_date.in_([past_monday, future_monday])))
             await session.commit()
             from backend.db.crud import freeze_past_schedules_for_weekday
             await freeze_past_schedules_for_weekday(session, 1, up_to_date=date(2026, 9, 21))

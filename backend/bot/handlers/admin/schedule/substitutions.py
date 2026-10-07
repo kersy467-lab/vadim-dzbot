@@ -37,7 +37,7 @@ async def cb_start_add_sub(callback: CallbackQuery, state: FSMContext, current_u
     if not is_admin(current_user, callback.from_user.id):
         return
 
-    today = date.today()
+    today = get_today()
     kb = get_inline_calendar("adm_sub", year=today.year, month=today.month, back_callback="admin_cancel")
 
     await state.set_state(AddSubstitutionStates.entering_date)

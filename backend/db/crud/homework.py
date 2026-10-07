@@ -17,10 +17,11 @@ async def create_homework(
     created_by: Optional[int] = None,
     assigned_date: Optional[date] = None
 ) -> Homework:
+    from backend.config import get_today
     hw = Homework(
         subject_id=subject_id,
         due_date=due_date,
-        assigned_date=assigned_date or date.today(),
+        assigned_date=assigned_date or get_today(),
         title=title,
         description=description,
         attachments=attachments or [],

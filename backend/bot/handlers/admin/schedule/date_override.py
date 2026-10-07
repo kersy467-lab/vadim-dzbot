@@ -37,7 +37,7 @@ async def cb_start_edit_date_schedule(callback: CallbackQuery, state: FSMContext
     if not is_admin(current_user, callback.from_user.id):
         return
 
-    today = date.today()
+    today = get_today()
     kb = get_inline_calendar("adm_dtsched", year=today.year, month=today.month, back_callback="admin_menu_back")
 
     await state.set_state(EditDateScheduleStates.choosing_date)

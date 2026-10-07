@@ -481,11 +481,19 @@ async def notify_duty_change_if_needed(bot: Bot, session: AsyncSession, force: b
 
     await set_class_setting(session, "last_notified_duty_group", str(active_group.group_number))
 
-    members_text = active_group.members if active_group.members and active_group.members != "Состав не назначен" else "Состав уточняется"
+    raw_members = active_group.members if active_group.members and active_group.members != "Состав не назначен" else "Состав уточняется"
+    members_text = escape_md(raw_members)
+    group_name = escape_md(active_group.name)
     msg = (
         "🧹 **Смена дежурных в 11 «Б»!**\n\n"
-        f"📌 **Дежурит:** {active_group.name}\n"
+        f"📌 **Дежурит:** {group_name}\n"
         f"👥 **Состав:** {members_text}\n\n"
+        "Пожалуйста, следите за чистотой и порядком в классе!"
+    )
+    plain_msg = (
+        "🧹 Смена дежурных в 11 «Б»!\n\n"
+        f"📌 Дежурит: {active_group.name}\n"
+        f"👥 Состав: {raw_members}\n\n"
         "Пожалуйста, следите за чистотой и порядком в классе!"
     )
 
@@ -500,23 +508,39 @@ async def notify_duty_change_if_needed(bot: Bot, session: AsyncSession, force: b
                 text=msg,
                 parse_mode="Markdown"
             )
-        except Exception as e:
-            logger.warning(f"Could not send duty notification to group {g.chat_id}: {e}")
+        except Exception:
+            try:
+                await bot.send_message(
+                    chat_id=g.chat_id,
+                    message_thread_id=g.topic_duty_id,
+                    text=plain_msg
+                )
+            except Exception as e:
+                logger.warning(f"Could not send duty notification to group {g.chat_id}: {e}")
 
     for s in students:
         if not s.tg_id or s.tg_id <= 0:
             continue
         try:
             await bot.send_message(chat_id=s.tg_id, text=msg, parse_mode="Markdown")
-        except Exception as e:
-            logger.warning(f"Could not send duty notification to student {s.tg_id}: {e}")
+        except Exception:
+            try:
+                await bot.send_message(chat_id=s.tg_id, text=plain_msg)
+            except Exception as e:
+                logger.warning(f"Could not send duty notification to student {s.tg_id}: {e}")
 
     # Персональное уведомление дежурным этой группы в ЛС
     duty_users = await get_users_in_duty_group(session, active_group)
     personal_duty_msg = (
         f"🧹 **Внимание! Ваша группа заступает на дежурство!**\n\n"
-        f"📌 На этой неделе дежурит **{active_group.name}**, и вы назначены дежурным.\n"
+        f"📌 На этой неделе дежурит **{group_name}**, и вы назначены дежурным.\n"
         f"👥 **Состав группы:** {members_text}\n\n"
+        "Пожалуйста, не забудьте проветрить класс, подготовить доску и следить за порядком!"
+    )
+    plain_personal_msg = (
+        "🧹 Внимание! Ваша группа заступает на дежурство!\n\n"
+        f"📌 На этой неделе дежурит {active_group.name}, и вы назначены дежурным.\n"
+        f"👥 Состав группы: {raw_members}\n\n"
         "Пожалуйста, не забудьте проветрить класс, подготовить доску и следить за порядком!"
     )
     for u in duty_users:
@@ -524,8 +548,11 @@ async def notify_duty_change_if_needed(bot: Bot, session: AsyncSession, force: b
             continue
         try:
             await bot.send_message(chat_id=u.tg_id, text=personal_duty_msg, parse_mode="Markdown")
-        except Exception as e:
-            logger.warning(f"Could not send personal duty notification to user {u.tg_id}: {e}")
+        except Exception:
+            try:
+                await bot.send_message(chat_id=u.tg_id, text=plain_personal_msg)
+            except Exception as e:
+                logger.warning(f"Could not send personal duty notification to user {u.tg_id}: {e}")
 
     return True
 
@@ -553,24 +580,36 @@ async def send_monday_duty_personal_reminder(bot: Bot):
             logger.info("No registered users found in active duty group.")
             return
 
-        members_text = active_group.members if active_group.members and active_group.members != "Состав не назначен" else "Состав уточняется"
+        raw_members = active_group.members if active_group.members and active_group.members != "Состав не назначен" else "Состав уточняется"
+        members_text = escape_md(raw_members)
+        group_name = escape_md(active_group.name)
         sent_count = 0
 
         for u in duty_users:
             if not u.tg_id or u.tg_id <= 0:
                 continue
-            name_greeting = u.display_name
+            name_greeting = escape_md(u.display_name)
             msg = (
                 f"🔔 **Доброе утро, {name_greeting}! Напоминание о дежурстве** 🧹\n\n"
-                f"На этой неделе дежурит **{active_group.name}**, и вы входите в её состав!\n\n"
+                f"На этой неделе дежурит **{group_name}**, и вы входите в её состав!\n\n"
                 f"👥 **Состав группы:** {members_text}\n\n"
+                "Пожалуйста, не забудьте прийти вовремя, проветрить класс, подготовить доску и следить за порядком."
+            )
+            plain_msg = (
+                f"🔔 Доброе утро, {u.display_name}! Напоминание о дежурстве 🧹\n\n"
+                f"На этой неделе дежурит {active_group.name}, и вы входите в её состав!\n\n"
+                f"👥 Состав группы: {raw_members}\n\n"
                 "Пожалуйста, не забудьте прийти вовремя, проветрить класс, подготовить доску и следить за порядком."
             )
             try:
                 await bot.send_message(chat_id=u.tg_id, text=msg, parse_mode="Markdown")
                 sent_count += 1
-            except Exception as e:
-                logger.warning(f"Could not send Monday duty reminder to {u.tg_id}: {e}")
+            except Exception:
+                try:
+                    await bot.send_message(chat_id=u.tg_id, text=plain_msg)
+                    sent_count += 1
+                except Exception as e:
+                    logger.warning(f"Could not send Monday duty reminder to {u.tg_id}: {e}")
 
         logger.info(f"Monday duty personal reminders sent to {sent_count} members.")
 

@@ -37,9 +37,9 @@ async def run_checks():
         assert quota["scaling_factor"] == 1.0
 
         sell_quota = await NPCReserveService.get_daily_quota(session, "energy", "SELL")
-        assert sell_quota["liquidity_unlimited"] is True
-        assert sell_quota["daily_quota_per_item"] is None
-        assert sell_quota["daily_quota_cash"] is None
+        assert sell_quota["liquidity_unlimited"] is False
+        assert sell_quota["daily_quota_per_item"] == 37500
+        assert sell_quota["daily_quota_cash"] == 300000
 
         company.cash = 100000.0
         first = await NPCReserveService.execute_npc_trade(session, company, "iron_ore", "BUY", 500.0)
@@ -49,7 +49,7 @@ async def run_checks():
         usage = (await session.execute(select(NatNpcDailyVolume))).scalars().all()
         assert usage == []
 
-        # Player sales to NPC exceed the configured legacy cap and create no daily usage rows.
+        # Energy uses its separate company cap, regardless of the legacy setting.
         inv = (await session.execute(
             select(NatInventory).where(
                 NatInventory.company_id == company.id,
@@ -72,9 +72,9 @@ async def run_checks():
         unit_buy_price = NPCReserveService.get_npc_quote("energy")["npc_buy_price"]
         sale = await NPCReserveService.execute_npc_trade(session, company, "energy", "SELL", 2000.0)
         assert sale["success"] is True
-        assert sale["daily_quota"] is None
-        assert sale["remaining_npc_quota"] is None
-        assert sale["remaining_npc_cash_quota"] is None
+        assert sale["daily_quota"] == 37500
+        assert sale["remaining_npc_quota"] == 35500
+        assert sale["remaining_npc_cash_quota"] == 284000
         assert sale["total_payout"] == round(2000.0 * unit_buy_price, 2)
 
         other_company = await CompanyService.create_company(
@@ -109,7 +109,7 @@ async def run_checks():
 
         event.listen(engine.sync_engine, "before_cursor_execute", count_market_rate_queries)
         try:
-            rate_payload = await get_npc_rates(session, item_id=None)
+            rate_payload = await get_npc_rates(company=company, session=session, item_id=None)
         finally:
             event.remove(engine.sync_engine, "before_cursor_execute", count_market_rate_queries)
         assert statement_count <= 2, (
@@ -125,7 +125,7 @@ async def run_checks():
 
         event.listen(engine.sync_engine, "before_cursor_execute", count_targeted_query)
         try:
-            targeted_payload = await get_npc_rates(session, item_id="energy")
+            targeted_payload = await get_npc_rates(company=company, session=session, item_id="energy")
         finally:
             event.remove(engine.sync_engine, "before_cursor_execute", count_targeted_query)
         assert targeted_statement_count <= 1, (
@@ -135,12 +135,12 @@ async def run_checks():
         assert [row["item_id"] for row in targeted_payload["rates"]] == ["energy"]
         assert targeted_payload["rates"][0] == energy_rate
         assert energy_rate["daily_quota"] is None
-        assert energy_rate["player_sell_daily_quota"] is None
-        assert energy_rate["player_sell_remaining_quota"] is None
-        assert energy_rate["player_sell_remaining_cash"] is None
-        assert "без ограничений" in energy_rate["player_sell_quota_label"]
+        assert energy_rate["player_sell_daily_quota"] == 37500
+        assert energy_rate["player_sell_remaining_quota"] == 35499
+        assert energy_rate["player_sell_remaining_cash"] == 283992
+        assert "283992" in energy_rate["player_sell_quota_label"]
         try:
-            await get_npc_rates(session, item_id="not-a-canonical-item")
+            await get_npc_rates(company=company, session=session, item_id="not-a-canonical-item")
         except HTTPException as exc:
             assert exc.status_code == 400
         else:

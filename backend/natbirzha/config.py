@@ -59,7 +59,14 @@ class NatbirzhaSettings(BaseSettings):
 
     # NPC State Reserve (Госрезерв).
     NPC_BUY_FLOOR_MULT: float = 0.80        # NPC buys surplus at 80% base price
-    NPC_SELL_CAP_MULT: float = 1.50         # NPC sells supplies at 150% base price
+    NPC_SELL_CAP_MULT: float = 1.50         # Default NPC sell margin
+    NPC_SELL_CAP_MULT_BY_ITEM: Dict[str, float] = {
+        "energy": 1.25,  # Energy is sold to players at 125% of its current base price.
+    }
+    NPC_COMPANY_DAILY_BUYBACK_CASH_LIMITS: Dict[str, float] = {
+        "energy": 300_000.0,
+        "water": 300_000.0,
+    }  # Per company, per game day; other player sales to the reserve stay unlimited.
     NPC_DAILY_BUYBACK_CASH_LIMIT: float = 1_000_000.0  # Legacy setting; player sales to NPC are no longer capped
     # Premium raw materials keep a tiny explicit emergency stock so unlimited
     # NPC supply cannot bypass premium production and player-to-player trade.

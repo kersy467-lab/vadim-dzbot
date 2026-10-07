@@ -51,6 +51,7 @@ def _mastery_snapshot(company: NatCompany) -> Dict[str, Any]:
     span = max(1, next_rank - current)
     return {
         "rank": rank,
+        "profit_bonus_pct": rank,
         "xp": xp,
         "current_rank_xp": current,
         "next_rank_xp": next_rank,
@@ -58,6 +59,11 @@ def _mastery_snapshot(company: NatCompany) -> Dict[str, Any]:
         "progress_pct": round(min(100.0, (xp - current) * 100 / span), 2),
         "is_unbounded": True,
     }
+
+
+def mastery_profit_bonus_rate(company: NatCompany) -> float:
+    """Each mastery rank adds one percent to positive factory profit only."""
+    return max(0, int(_mastery_snapshot(company)["rank"])) / 100.0
 
 
 def progress_snapshot(company: NatCompany) -> Dict[str, Any]:

@@ -1,9 +1,9 @@
 const screens = {
   onboarding: ['./screens/onboarding.js?v=20260928_mobile_perf_v1', 'renderOnboarding'],
-  overview: ['./screens/overview.js?v=20260928_mobile_perf_v1', 'renderOverview'],
+  overview: ['./screens/overview.js?v=20261006_mastery_profit_v1', 'renderOverview'],
   production: ['./screens/tycoon.js?v=20260929_future_business_prices_v1', 'renderTycoon'],
   upgrades: ['./screens/upgrades.js?v=20261003_fast_tabs_v1', 'renderUpgrades'],
-  market: ['./screens/market.js?v=20261003_fast_tabs_v1', 'renderMarket'],
+  market: ['./screens/market.js?v=20261006_energy_buyback_mastery_v1', 'renderMarket'],
   stocks: ['./screens/stocks.js?v=20260928_mobile_perf_v1', 'renderStocks'],
   military: ['./screens/military.js?v=20261003_fast_tabs_v1', 'renderMilitary'],
   creator: ['./screens/creator.js?v=20260928_mobile_perf_v1', 'renderCreator'],

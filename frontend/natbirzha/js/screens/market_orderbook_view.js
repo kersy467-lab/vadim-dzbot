@@ -31,14 +31,14 @@ export function renderCommodityOrderbookView(options) {
           </div>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-              <div class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Скупка NPC (Пол -20%)</div>
+              <div class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Скупка Госрезервом</div>
               <div class="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">${formatQuote(itemInfo.buy)} cash</div>
               <button class="npc-sell-btn mt-1 w-full py-1 rounded bg-emerald-600 text-white font-bold text-[11px] active:scale-95 transition-all disabled:opacity-50" ${hasNpcQuote ? '' : 'disabled'}>
                 Сдать NPC
               </button>
             </div>
             <div class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-              <div class="text-[10px] font-semibold text-rose-700 dark:text-rose-300">Продажа NPC (Потолок +50%)</div>
+              <div class="text-[10px] font-semibold text-rose-700 dark:text-rose-300">Продажа Госрезерва</div>
               <div class="font-mono font-black text-sm text-rose-600 dark:text-rose-400">${formatQuote(itemInfo.sell)} cash</div>
               <button class="npc-buy-btn mt-1 w-full py-1 rounded bg-rose-600 text-white font-bold text-[11px] active:scale-95 transition-all disabled:opacity-50" ${hasNpcQuote ? '' : 'disabled'}>
                 Купить у NPC

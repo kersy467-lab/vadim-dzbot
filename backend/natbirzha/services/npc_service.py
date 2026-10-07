@@ -162,6 +162,7 @@ class NPCReserveService(NPCQuotaMixin):
             action,
             quantity,
             cash_amount=total_payout if action == "SELL" else None,
+            company_id=company.id,
         )
         if not volume["success"]:
             rare_empty = action == "BUY" and volume["strict_reserve"]

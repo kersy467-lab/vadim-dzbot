@@ -786,6 +786,18 @@ async def _migrate_v22_stock_trade_price_guard(conn) -> None:
     ))
 
 
+async def _migrate_v23_npc_company_buyback_limits(conn) -> None:
+    """Create per-company daily payout counters for energy and water."""
+    import backend.natbirzha.models  # ensure NatCompany is registered in Base metadata
+    from backend.natbirzha.models.npc import NatNpcCompanyDailyVolume
+
+    await conn.run_sync(
+        lambda sync_conn: NatNpcCompanyDailyVolume.__table__.create(
+            sync_conn, checkfirst=True
+        )
+    )
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -824,6 +836,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v20_ai_industry_key", _migrate_v20_ai_industry_key),
     ("natbirzha_v21_state_market_advances", _migrate_v21_state_market_advances),
     ("natbirzha_v22_001_stock_trade_price_guard", _migrate_v22_stock_trade_price_guard),
+    ("natbirzha_v23_001_npc_company_buyback_limits", _migrate_v23_npc_company_buyback_limits),
 )
 
 

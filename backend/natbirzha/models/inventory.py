@@ -145,7 +145,10 @@ def get_npc_buy_price(item_id: str) -> float:
     return round(get_item_base_price(item_id) * nat_settings.NPC_BUY_FLOOR_MULT, 2)
 
 def get_npc_sell_price(item_id: str) -> float:
-    return round(get_item_base_price(item_id) * nat_settings.NPC_SELL_CAP_MULT, 2)
+    multiplier = nat_settings.NPC_SELL_CAP_MULT_BY_ITEM.get(
+        item_id, nat_settings.NPC_SELL_CAP_MULT
+    )
+    return round(get_item_base_price(item_id) * multiplier, 2)
 
 
 class NatInventory(Base):

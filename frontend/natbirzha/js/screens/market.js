@@ -5,7 +5,7 @@ import { getItemInfo, ITEMS } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20261001_market_liquidity_refresh_v1';
 import { createMarketSectionLoader } from './market_section_loader.js?v=20260929_stock_tax_safety_v1';
-import { renderCommodityOrderbookView } from './market_orderbook_view.js?v=20260930_advance_price_display_v1';
+import { renderCommodityOrderbookView } from './market_orderbook_view.js?v=20261006_energy_buyback_mastery_v1';
 
 const SEED_MARKET_ITEMS = [
   { id: 'steel', name: 'Сталь', unit: 'т' },

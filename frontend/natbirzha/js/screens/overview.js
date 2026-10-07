@@ -117,6 +117,7 @@ export function renderOverview(container, showToast) {
               </div>
               <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/60 dark:bg-black/20"><div class="h-full rounded-full bg-gradient-to-r from-rose-500 to-violet-500" style="width: ${Math.max(0, Math.min(100, Number(mastery.progress_pct || 0)))}%"></div></div>
               <div class="mt-1 text-[10px] opacity-80">До ранга ${Number(mastery.rank || 0) + 1}: ${Number(mastery.xp_to_next || 0).toLocaleString('ru-RU')} XP · шкала без лимита</div>
+              <div class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">+${Number(mastery.profit_bonus_pct ?? mastery.rank ?? 0)}% к прибыли заводов · без доп. расхода ресурсов</div>
             </div>
           ` : ''}
         </div>

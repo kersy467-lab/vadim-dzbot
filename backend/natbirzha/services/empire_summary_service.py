@@ -21,7 +21,10 @@ from backend.natbirzha.services.business_rates import cash_business_rates, resou
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
-from backend.natbirzha.services.progression_service import progress_snapshot
+from backend.natbirzha.services.progression_service import (
+    mastery_profit_bonus_rate,
+    progress_snapshot,
+)
 from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
 
@@ -61,6 +64,7 @@ class EmpireSummaryService:
         supply_policies: dict[str, dict[str, Any]] | None = None,
         assets: dict[str, Any] | None = None,
         industry_bonus_multiplier: float = 1.0,
+        mastery_bonus_rate: float = 0.0,
     ) -> dict[str, Any]:
         spec = get_business_spec(business.business_type)
         if spec is None:
@@ -114,15 +118,19 @@ class EmpireSummaryService:
             revenue = cls._resource_value(outputs, selling=True, reference_price=True)
             input_cost = cls._resource_value(inputs, selling=False, reference_price=True)
             maintenance = rates.maintenance_per_hour
-            estimated_profit_before_tax = revenue - input_cost - maintenance
+            operating_profit = revenue - input_cost - maintenance
+            mastery_bonus = max(0.0, operating_profit) * mastery_bonus_rate
+            estimated_profit_before_tax = operating_profit + mastery_bonus
             estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
             npc_revenue = cls._resource_value(outputs, selling=True)
             npc_input_cost = cls._resource_value(inputs, selling=False)
             npc_profit_before_tax = npc_revenue - npc_input_cost - maintenance
-            estimated_npc_profit = cls._after_tax_profit(npc_profit_before_tax)
+            estimated_npc_profit = cls._after_tax_profit(
+                npc_profit_before_tax + mastery_bonus
+            )
             estimated_profit_basis = "MARKET_REFERENCE_VALUE"
             sale_mode = "HOLD"
-            gross = 0.0
+            gross = mastery_bonus
             net = gross - maintenance
         else:
             sale_mode = None
@@ -137,12 +145,14 @@ class EmpireSummaryService:
             revenue = cash_rates.gross_per_hour
             input_cost = 0.0
             maintenance = cash_rates.maintenance_per_hour
-            estimated_profit_before_tax = cash_rates.net_per_hour
+            operating_profit = cash_rates.net_per_hour
+            mastery_bonus = max(0.0, operating_profit) * mastery_bonus_rate
+            estimated_profit_before_tax = operating_profit + mastery_bonus
             estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
             estimated_npc_profit = None
             estimated_profit_basis = "CASH"
-            gross = cash_rates.gross_per_hour
-            net = cash_rates.net_per_hour
+            gross = cash_rates.gross_per_hour + mastery_bonus
+            net = cash_rates.net_per_hour + mastery_bonus
 
         tick_minutes = max(1, int(nat_settings.TYCOON_V2_RESOURCE_TICK_MINUTES))
         tick_factor = tick_minutes / 60.0
@@ -181,6 +191,7 @@ class EmpireSummaryService:
             "gross_per_hour": round(gross, 2),
             "maintenance_per_hour": round(maintenance, 2),
             "net_per_hour": round(net, 2),
+            "mastery_profit_bonus_per_hour": round(mastery_bonus, 2),
             "estimated_revenue_per_hour": round(revenue, 2),
             "estimated_input_cost_per_hour": round(input_cost, 2),
             "estimated_profit_per_hour": round(estimated_profit, 2),
@@ -247,10 +258,12 @@ class EmpireSummaryService:
         active_auto_policies = sum(1 for policy in policy_rows if policy.mode != "MANUAL")
         auto_policy_limit = SupplyPolicyService.automation_policy_limit(company.level)
         assets_by_business = await BusinessAssetService.snapshot_for_businesses(session, visible_businesses)
+        mastery_bonus_rate = mastery_profit_bonus_rate(company)
         serialized = [
             cls._serialize_business(
                 business, inventory, policies_by_business.get(business.id), assets_by_business.get(business.id),
                 IndustryUpgradeService.bonus_multiplier(company, business.specialization),
+                mastery_bonus_rate,
             )
             for business in visible_businesses
         ]

@@ -144,6 +144,7 @@ async def cancel_order_body(
 
 @router.get("/npc/rates")
 async def get_npc_rates(
+    company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session),
     item_id: Optional[str] = Query(None, description="Optional canonical item ID for a targeted quote"),
 ):
@@ -152,7 +153,9 @@ async def get_npc_rates(
     quota = await NPCReserveService.get_daily_quota(session)
     item_ids = [item_id] if item_id is not None else list(CANONICAL_ITEMS)
     buy_statuses = await NPCReserveService.get_quota_statuses(session, item_ids, "BUY")
-    sell_statuses = await NPCReserveService.get_quota_statuses(session, item_ids, "SELL")
+    sell_statuses = await NPCReserveService.get_quota_statuses(
+        session, item_ids, "SELL", company_id=company.id
+    )
     rates = []
     for item_id in item_ids:
         buy_status = buy_statuses[item_id]

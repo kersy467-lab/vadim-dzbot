@@ -30,7 +30,7 @@ from backend.natbirzha.models.military import NatArmy, NatTournament, NatTournam
 from backend.natbirzha.models.alliances import NatAlliance, NatAllianceMember
 from backend.natbirzha.models.restructuring import NatRestructuring, NatDailyFinancials
 from backend.natbirzha.models.idempotency import NatIdempotencyRecord
-from backend.natbirzha.models.npc import NatNpcDailyVolume
+from backend.natbirzha.models.npc import NatNpcDailyVolume, NatNpcCompanyDailyVolume
 from backend.natbirzha.models.premium import NatMilitaryUpgrade, NatPremiumLedgerEntry, NatPremiumLicense
 from backend.natbirzha.models.season import NatSeasonResetOperation
 from backend.natbirzha.models.economy_metrics import NatEconomyEvent
@@ -130,6 +130,7 @@ __all__ = [
     "NatDailyFinancials",
     "NatIdempotencyRecord",
     "NatNpcDailyVolume",
+    "NatNpcCompanyDailyVolume",
     "NatPremiumLedgerEntry",
     "NatPremiumLicense",
     "NatMilitaryUpgrade",

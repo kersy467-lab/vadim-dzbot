@@ -1,5 +1,8 @@
 """Response shaping for joint-factory API screens."""
 
+from backend.natbirzha.services.progression_service import company_production_multiplier
+
+
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,8 +71,11 @@ def factory_row(
         item_id: float(stock_a.get(item_id, 0)) + float(stock_b.get(item_id, 0))
         for item_id in set(stock_a) | set(stock_b)
     }
+    bonuses = {cid: company_production_multiplier(owner) for cid, owner in companies.items()}
+    total_bonus = (bonuses.get(factory.company_a_id, 1) + bonuses.get(factory.company_b_id, 1)) / 2
+    owner_bonus = bonuses.get(viewer_company_id, 1)
     outputs = [
-        {**item_row(item_id, quantity), "quantity_per_hour": float(quantity)}
+        {**item_row(item_id, quantity * total_bonus), "quantity_per_hour": float(quantity) * total_bonus, "owner_quantity_per_hour": float(quantity) * owner_bonus / 2}
         for item_id, quantity in level.get("outputs_per_hour", {}).items()
     ]
     claimable = [item_row(item_id, quantity) for item_id, quantity in my_stock.items() if quantity > 1e-8]
@@ -98,7 +104,7 @@ def factory_row(
         "last_settled_at": factory.last_settled_at.isoformat() if factory.last_settled_at else None,
         "created_at": factory.created_at.isoformat() if factory.created_at else None,
         "slot": "Совместный завод · отдельная мощность",
-        "owner_share_reference_value": float(level.get("owner_share_reference_value", 0)),
+        "owner_share_reference_value": float(level.get("owner_share_reference_value", 0)) * owner_bonus,
         "maintenance_per_hour": 0,
         "inputs_per_hour": {},
     }

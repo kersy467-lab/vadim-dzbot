@@ -141,6 +141,8 @@ class BusinessService:
         if spec["specialization"] != company.specialization:
             if company.level < 30 or company.licensed_foreign_spec != spec["specialization"]:
                 raise ValueError("Предприятие недоступно для основной отрасли компании")
+        if int(getattr(company, "rebirth_count", 0) or 0) < int(spec.get("rebirth_required", 0)):
+            raise ValueError(f"Требуется перерождение {spec['rebirth_required']}")
         if int(company.level) < int(spec.get("company_level_required", 1)):
             raise ValueError(f"Требуется уровень компании {spec['company_level_required']}")
         if int(company.territory_tiles) < int(spec.get("territory_required", 0)):

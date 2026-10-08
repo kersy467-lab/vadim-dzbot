@@ -127,7 +127,7 @@ BREWERY_BUSINESSES = {
             prerequisite=("premium_cognac_house", 33),
         ),
         _brewery(
-            "cognac_export_complex", "Экспортный коньячный комплекс", "🥃", 11, 9_500_000, 65,
+            "cognac_export_complex", "Экспортный коньячный комплекс", "🥃", 11, 9_500_000, 60,
             {"wine": 24, "energy": 80, "water": 12},
             "aged_spirits", 6,
             ("Экспортный погреб", "Международная сертификация", "Линия коллекционных серий",

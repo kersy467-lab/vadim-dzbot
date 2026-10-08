@@ -11,7 +11,7 @@ from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 from backend.natbirzha.services.recipes import get_recipe, get_recipe_for_factory
 from backend.natbirzha.services.upgrade_service import UpgradeService
 from backend.natbirzha.services.premium_service import PremiumLicenseRequired, PremiumService
-from backend.natbirzha.services.progression_service import apply_xp, economy_xp_from_value
+from backend.natbirzha.services.progression_service import apply_xp, economy_xp_from_value, company_production_multiplier
 from backend.natbirzha.services.production_automation import ProductionAutomationMixin
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
@@ -64,7 +64,8 @@ class ProductionTickEngine(ProductionAutomationMixin):
             if company is not None
             else 1.0
         )
-        return max(1, factory.level) * workers_bonus * technology_bonus * industry_bonus
+        progression_bonus = company_production_multiplier(company) if company is not None else 1.0
+        return max(1, factory.level) * workers_bonus * technology_bonus * industry_bonus * progression_bonus
 
     @staticmethod
     def upgrade_cost(factory: NatFactory, kind: str) -> float:

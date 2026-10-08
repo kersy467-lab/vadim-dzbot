@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.config import nat_settings
 from backend.natbirzha.services.progression_service import progress_snapshot
 
 
@@ -98,8 +99,8 @@ class MasteryService:
         )
         if locked is None:
             raise ValueError("Компания не найдена")
-        if int(locked.level or 1) < 60:
-            raise ValueError("Мастерство открывается после достижения 60 уровня")
+        if int(locked.level or 1) < int(nat_settings.COMPANY_MAX_LEVEL):
+            raise ValueError(f"Мастерство открывается после достижения {nat_settings.COMPANY_MAX_LEVEL} уровня")
         snapshot = cls.snapshot(locked)
         current = cls.level(locked, branch)
         cost = cls.node_cost(current)

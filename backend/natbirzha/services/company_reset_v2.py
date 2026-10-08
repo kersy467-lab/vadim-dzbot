@@ -70,7 +70,7 @@ from backend.natbirzha.models import (
 )
 
 
-async def delete_company_complete_state(session: AsyncSession, cid: int) -> None:
+async def delete_company_complete_state(session: AsyncSession, cid: int, *, for_rebirth: bool = False) -> None:
     """Delete all company dependants in topological order without relying on DB cascades."""
     reset_factory_ids = select(NatFactory.id).where(NatFactory.company_id == cid)
     reset_business_ids = select(NatBusiness.id).where(NatBusiness.company_id == cid)
@@ -81,9 +81,10 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
     ))
 
     # 1. City orders & bankruptcy marketplace
-    await session.execute(update(NatCityOrderDelivery).where(
-        NatCityOrderDelivery.company_id == cid
-    ).values(company_id=None))
+    if not for_rebirth:
+        await session.execute(update(NatCityOrderDelivery).where(
+            NatCityOrderDelivery.company_id == cid
+        ).values(company_id=None))
 
     await session.execute(update(NatBankruptcyMarketLot).where(
         NatBankruptcyMarketLot.status == "ACTIVE",
@@ -109,33 +110,37 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
     ).values(company_id=None))
 
     # 3. Combat, ratings, PvP cooldowns & military units
-    battle_ids = select(NatBattle.id).where(or_(
-        NatBattle.attacker_company_id == cid,
-        NatBattle.defender_company_id == cid,
-    ))
-    await session.execute(delete(NatPvpCooldown).where(or_(
-        NatPvpCooldown.attacker_company_id == cid,
-        NatPvpCooldown.defender_company_id == cid,
-        NatPvpCooldown.battle_id.in_(battle_ids),
-    )))
-    await session.execute(delete(NatMilitaryRatingEvent).where(or_(
-        NatMilitaryRatingEvent.company_id == cid,
-        NatMilitaryRatingEvent.battle_id.in_(battle_ids),
-    )))
-    await session.execute(delete(NatPveVictory).where(or_(
-        NatPveVictory.company_id == cid,
-        NatPveVictory.battle_id.in_(battle_ids),
-    )))
-    await session.execute(delete(NatBattleSnapshot).where(or_(
-        NatBattleSnapshot.company_id == cid,
-        NatBattleSnapshot.battle_id.in_(battle_ids),
-    )))
-    await session.execute(delete(NatBattle).where(NatBattle.id.in_(battle_ids)))
+    if for_rebirth:
+        await session.execute(delete(NatPveVictory).where(NatPveVictory.company_id == cid))
+    else:
+        battle_ids = select(NatBattle.id).where(or_(
+            NatBattle.attacker_company_id == cid,
+            NatBattle.defender_company_id == cid,
+        ))
+        await session.execute(delete(NatPvpCooldown).where(or_(
+            NatPvpCooldown.attacker_company_id == cid,
+            NatPvpCooldown.defender_company_id == cid,
+            NatPvpCooldown.battle_id.in_(battle_ids),
+        )))
+        await session.execute(delete(NatMilitaryRatingEvent).where(or_(
+            NatMilitaryRatingEvent.company_id == cid,
+            NatMilitaryRatingEvent.battle_id.in_(battle_ids),
+        )))
+        await session.execute(delete(NatPveVictory).where(or_(
+            NatPveVictory.company_id == cid,
+            NatPveVictory.battle_id.in_(battle_ids),
+        )))
+        await session.execute(delete(NatBattleSnapshot).where(or_(
+            NatBattleSnapshot.company_id == cid,
+            NatBattleSnapshot.battle_id.in_(battle_ids),
+        )))
+        await session.execute(delete(NatBattle).where(NatBattle.id.in_(battle_ids)))
     await session.execute(delete(NatArmyUnit).where(NatArmyUnit.company_id == cid))
     await session.execute(delete(NatHospitalWard).where(NatHospitalWard.company_id == cid))
     await session.execute(delete(NatArmyTraining).where(NatArmyTraining.company_id == cid))
     await session.execute(delete(NatMilitaryInfrastructure).where(NatMilitaryInfrastructure.company_id == cid))
-    await session.execute(delete(NatMilitaryUpgrade).where(NatMilitaryUpgrade.company_id == cid))
+    if not for_rebirth:
+        await session.execute(delete(NatMilitaryUpgrade).where(NatMilitaryUpgrade.company_id == cid))
     await session.execute(delete(NatTournamentParticipant).where(NatTournamentParticipant.company_id == cid))
     await session.execute(delete(NatArmy).where(NatArmy.company_id == cid))
 
@@ -151,11 +156,12 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
     await session.execute(delete(NatStateBondHolding).where(NatStateBondHolding.company_id == cid))
     await session.execute(delete(NatInstrumentTrade).where(NatInstrumentTrade.company_id == cid))
     await session.execute(delete(NatInstrumentPosition).where(NatInstrumentPosition.company_id == cid))
-    await session.execute(delete(NatPremiumLicense).where(NatPremiumLicense.company_id == cid))
-    await session.execute(delete(NatPremiumLedgerEntry).where(NatPremiumLedgerEntry.company_id == cid))
-    await session.execute(delete(NatMarketTrade).where(or_(
-        NatMarketTrade.buyer_company_id == cid, NatMarketTrade.seller_company_id == cid
-    )))
+    if not for_rebirth:
+        await session.execute(delete(NatPremiumLicense).where(NatPremiumLicense.company_id == cid))
+        await session.execute(delete(NatPremiumLedgerEntry).where(NatPremiumLedgerEntry.company_id == cid))
+        await session.execute(delete(NatMarketTrade).where(or_(
+            NatMarketTrade.buyer_company_id == cid, NatMarketTrade.seller_company_id == cid
+        )))
     await session.execute(delete(NatLoan).where(NatLoan.company_id == cid))
     await session.execute(delete(NatStateCreditLoan).where(NatStateCreditLoan.company_id == cid))
 
@@ -164,24 +170,27 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
         NatSupplyDeal.buyer_company_id == cid,
         NatSupplyDeal.supplier_company_id == cid,
     ))
-    await session.execute(delete(NatSupplyDealSettlement).where(
-        NatSupplyDealSettlement.deal_id.in_(deal_ids)
-    ))
+    if not for_rebirth:
+        await session.execute(delete(NatSupplyDealSettlement).where(
+            NatSupplyDealSettlement.deal_id.in_(deal_ids)
+        ))
     await session.execute(update(NatSupplyDealSettlement).where(
         NatSupplyDealSettlement.business_id.in_(reset_business_ids)
     ).values(business_id=None))
-    await session.execute(delete(NatSupplyDeal).where(NatSupplyDeal.id.in_(deal_ids)))
+    if not for_rebirth:
+        await session.execute(delete(NatSupplyDeal).where(NatSupplyDeal.id.in_(deal_ids)))
 
-    # 7. Joint factories
-    await session.execute(delete(NatJointFactorySettlement).where(
-        NatJointFactorySettlement.factory_id.in_(reset_joint_factory_ids)
-    ))
-    await session.execute(delete(NatJointFactoryProposal).where(or_(
-        NatJointFactoryProposal.proposer_company_id == cid,
-        NatJointFactoryProposal.partner_company_id == cid,
-        NatJointFactoryProposal.factory_id.in_(reset_joint_factory_ids),
-    )))
-    await session.execute(delete(NatJointFactory).where(NatJointFactory.id.in_(reset_joint_factory_ids)))
+    if not for_rebirth:
+        # 7. Joint factories
+        await session.execute(delete(NatJointFactorySettlement).where(
+            NatJointFactorySettlement.factory_id.in_(reset_joint_factory_ids)
+        ))
+        await session.execute(delete(NatJointFactoryProposal).where(or_(
+            NatJointFactoryProposal.proposer_company_id == cid,
+            NatJointFactoryProposal.partner_company_id == cid,
+            NatJointFactoryProposal.factory_id.in_(reset_joint_factory_ids),
+        )))
+        await session.execute(delete(NatJointFactory).where(NatJointFactory.id.in_(reset_joint_factory_ids)))
 
     # 8. Contracts, market warnings, market restrictions and alliances
     await session.execute(update(NatContract).where(
@@ -190,15 +199,17 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
     await session.execute(update(NatContract).where(
         NatContract.target_company_id == cid
     ).values(target_company_id=None))
-    await session.execute(delete(NatMarketRestriction).where(NatMarketRestriction.company_id == cid))
-    await session.execute(delete(NatMarketWarning).where(NatMarketWarning.company_id == cid))
+    if not for_rebirth:
+        await session.execute(delete(NatMarketRestriction).where(NatMarketRestriction.company_id == cid))
+        await session.execute(delete(NatMarketWarning).where(NatMarketWarning.company_id == cid))
 
-    alliance_ids = select(NatAlliance.id).where(NatAlliance.leader_company_id == cid)
-    await session.execute(delete(NatAllianceMember).where(or_(
-        NatAllianceMember.company_id == cid,
-        NatAllianceMember.alliance_id.in_(alliance_ids),
-    )))
-    await session.execute(delete(NatAlliance).where(NatAlliance.id.in_(alliance_ids)))
+    if not for_rebirth:
+        alliance_ids = select(NatAlliance.id).where(NatAlliance.leader_company_id == cid)
+        await session.execute(delete(NatAllianceMember).where(or_(
+            NatAllianceMember.company_id == cid,
+            NatAllianceMember.alliance_id.in_(alliance_ids),
+        )))
+        await session.execute(delete(NatAlliance).where(NatAlliance.id.in_(alliance_ids)))
 
     # 9. Hybrid mergers, business assets and tycoon businesses
     await session.execute(delete(NatHybridMerger).where(or_(
@@ -255,7 +266,8 @@ async def delete_company_complete_state(session: AsyncSession, cid: int) -> None
     await session.execute(delete(NatMarketOrder).where(NatMarketOrder.company_id == cid))
     await session.execute(delete(NatDailyFinancials).where(NatDailyFinancials.company_id == cid))
     await session.execute(delete(NatRestructuring).where(NatRestructuring.company_id == cid))
-    await session.execute(delete(NatCompany).where(NatCompany.id == cid))
+    if not for_rebirth:
+        await session.execute(delete(NatCompany).where(NatCompany.id == cid))
 
 
 async def delete_v2_company_state(session: AsyncSession, company_id: int) -> None:

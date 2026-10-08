@@ -69,6 +69,7 @@ def _catalog_item(spec: dict) -> dict:
         "outputs_per_hour": spec["outputs_per_hour"],
         "milestones": spec["milestones"],
         "company_level_required": spec.get("company_level_required", 1),
+        "rebirth_required": int(spec.get("rebirth_required", 0)),
         "prerequisites": spec.get("prerequisites", {}),
         "territory_required": spec.get("territory_required", 0),
         "open_resources": spec.get("open_resources", {}),

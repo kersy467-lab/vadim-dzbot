@@ -18,6 +18,7 @@ from .metallurgy import METALLURGY_BUSINESSES
 from .mining import MINING_BUSINESSES
 from .oilgas import OIL_GAS_BUSINESSES
 from .schema import REQUIRED_BUSINESS_SPEC_KEYS
+from .rebirth import build_rebirth_catalog
 from .services import SERVICE_BUSINESSES as LEGACY_SERVICE_BUSINESSES
 from .starter import STARTER_BUSINESSES as LEGACY_STARTER_BUSINESSES
 from backend.natbirzha.technical_water import (
@@ -122,6 +123,21 @@ HYBRID_BUSINESSES = {
     business_type: CAREER_BUSINESSES[business_type]
     for business_type in HYBRID_BUSINESSES
 }
+
+REBIRTH_BUSINESSES = build_rebirth_catalog({
+    **MINING_BUSINESSES, **AGRICULTURE_BUSINESSES, **ENERGY_BUSINESSES,
+    **WATER_BUSINESSES, **OIL_GAS_BUSINESSES, **METALLURGY_BUSINESSES,
+    **CHEMISTRY_BUSINESSES, **CONSTRUCTION_BUSINESSES, **AI_DATA_BUSINESSES,
+    **TECHNOLOGY_BUSINESSES, **LOGISTICS_BUSINESSES, **BREWERY_BUSINESSES,
+})
+REBIRTH_BUSINESSES = scale_catalog_water_inputs(REBIRTH_BUSINESSES, input_field="inputs_per_hour", resource_production_only=True)
+REBIRTH_BUSINESSES = scale_catalog_energy_inputs(REBIRTH_BUSINESSES, input_field="inputs_per_hour", resource_production_only=True)
+REBIRTH_BUSINESSES = add_ai_compute_demand(REBIRTH_BUSINESSES)
+REBIRTH_BUSINESSES = balance_career_catalog(REBIRTH_BUSINESSES)
+REBIRTH_BUSINESSES = add_employee_beverages_to_catalog(REBIRTH_BUSINESSES)
+REBIRTH_BUSINESSES = cap_career_catalog_expenses(REBIRTH_BUSINESSES)
+REBIRTH_BUSINESSES = apply_industry_resource_usage_adjustments(REBIRTH_BUSINESSES, input_field="inputs_per_hour", resource_production_only=True)
+CAREER_BUSINESSES = {**CAREER_BUSINESSES, **REBIRTH_BUSINESSES}
 
 BUSINESS_CATALOG: Mapping[str, dict[str, Any]] = {
     **LEGACY_BUSINESSES,

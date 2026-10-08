@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { NatAPI } from '../api.js?v=20261008_company_renewal_v1';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
@@ -187,6 +187,9 @@ function businessCard(business, summary, assetCatalog) {
 
 function requirementState(item, summary, owned, catalogMap) {
   const missing = [];
+  if (Number(summary.rebirth_count || 0) < Number(item.rebirth_required || 0)) {
+    missing.push(`перерождение ${item.rebirth_required}`);
+  }
   if (Number(summary.level || 1) < Number(item.company_level_required || 1)) {
     missing.push(`уровень компании ${item.company_level_required}`);
   }
@@ -235,7 +238,7 @@ function render(root, state, showToast) {
   const catalogBusinesses = summary.catalog_businesses || businesses;
   const specialization = summary.specialization || store.company?.specialization;
   const ownCatalog = state.catalog
-    .filter((item) => item.specialization === specialization)
+    .filter((item) => item.specialization === specialization && Number(item.rebirth_required || 0) <= Number(summary.rebirth_count || 0) + 1)
     .sort((a, b) => Number(a.industry_order) - Number(b.industry_order));
   const owned = new Map();
   catalogBusinesses.forEach((item) => {
@@ -335,6 +338,7 @@ async function reload(root, showToast) {
     max_level: summary.progression?.max_level,
     era: summary.progression?.era,
     mastery: summary.progression?.mastery,
+    rebirth_count: summary.rebirth_count,
     inventory_available: summary.inventory_available,
   });
   render(root, { summary, catalog: catalog.items || [], assetCatalog, settlement: summary.settlement }, showToast);

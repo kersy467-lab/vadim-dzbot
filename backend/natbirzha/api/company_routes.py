@@ -184,6 +184,8 @@ async def get_company_status(
         "max_level": progression["max_level"],
         "era": progression["era"],
         "mastery": mastery,
+        "rebirth_count": int(company.rebirth_count or 0),
+        "rebirth_production_bonus_pct": int(company.rebirth_count or 0) * 25,
         "cash": company.cash,
         "nat_balance": company.nat_balance,
         "territory_tiles": company.territory_tiles,

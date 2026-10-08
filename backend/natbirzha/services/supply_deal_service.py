@@ -71,6 +71,11 @@ class SupplyDealService:
     @classmethod
     async def produced_resources(cls, session: AsyncSession, company_id: int) -> list[dict[str, Any]]:
         """Read real outputs of this company's live V2 businesses and legacy factories."""
+        company = await session.get(NatCompany, company_id)
+        if company is None:
+            raise ValueError("Компания не найдена")
+        from backend.natbirzha.services.progression_service import company_production_multiplier
+        from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
         output_rates: dict[str, float] = {}
         producer_names: dict[str, set[str]] = {}
         businesses = (await session.execute(
@@ -86,7 +91,8 @@ class SupplyDealService:
             for item_id, base_rate in spec.get("outputs_per_hour", {}).items():
                 if item_id not in CANONICAL_ITEMS:
                     continue
-                rate = max(0.0, float(base_rate)) * max(1, int(business.stage or 1))
+                rates = resource_business_rates(business, spec, upgrading=business.status == "UPGRADING", output_bonus_multiplier=IndustryUpgradeService.bonus_multiplier(company, business.specialization) * company_production_multiplier(company))
+                rate = max(0.0, float(base_rate)) * rates.output_multiplier
                 output_rates[item_id] = output_rates.get(item_id, 0.0) + rate
                 producer_names.setdefault(item_id, set()).add(
                     business.custom_name or spec.get("name", business.business_type)
@@ -102,7 +108,7 @@ class SupplyDealService:
             recipe = ProductionTickEngine.recipe_for(factory, factory.current_recipe)
             if not recipe:
                 continue
-            multiplier = ProductionTickEngine.output_multiplier(factory)
+            multiplier = ProductionTickEngine.output_multiplier(factory, company)
             for item_id, base_rate in recipe.get("outputs", {}).items():
                 if item_id not in CANONICAL_ITEMS:
                     continue

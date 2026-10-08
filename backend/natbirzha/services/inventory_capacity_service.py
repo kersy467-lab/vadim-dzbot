@@ -11,6 +11,7 @@ from backend.natbirzha.catalogs.businesses import get_business_spec
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.services.progression_service import company_production_multiplier
 from backend.natbirzha.services.business_rates import resource_business_rates
 from backend.natbirzha.services.idle_economy_service import IdleEconomyService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
@@ -68,14 +69,14 @@ class InventoryCapacityService:
                 business,
                 spec,
                 upgrading=status == "UPGRADING",
-                output_bonus_multiplier=bonus,
+                output_bonus_multiplier=bonus * company_production_multiplier(company),
             )
             next_stage_rates = None
             if status == "UPGRADING" and int(business.stage or 1) < int(spec["max_stage"]):
                 next_stage = copy(business)
                 next_stage.stage = int(business.stage or 1) + 1
                 next_stage_rates = resource_business_rates(
-                    next_stage, spec, upgrading=False, output_bonus_multiplier=bonus
+                    next_stage, spec, upgrading=False, output_bonus_multiplier=bonus * company_production_multiplier(company)
                 )
             for item_id, base_rate in spec.get("outputs_per_hour", {}).items():
                 hourly_output = float(base_rate) * rates.output_multiplier

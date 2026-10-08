@@ -1,5 +1,8 @@
 """Lazy, offline-safe production settlement for active joint factories."""
 
+from backend.natbirzha.services.progression_service import company_production_multiplier
+
+
 from datetime import datetime, timedelta
 
 from sqlalchemy import or_, select
@@ -280,6 +283,8 @@ class JointFactorySettlementService:
             for item_id, rate in level["outputs_per_hour"].items()
             if float(rate) > 0
         }
+        bonus_a = company_production_multiplier(company_a)
+        bonus_b = company_production_multiplier(company_b)
         maximum_stock = max(0.0, float(nat_settings.INVENTORY_MAX_QUANTITY_PER_ITEM))
         allowed_hours = max(0.0, (planned_end - started).total_seconds() / 3600)
         for item_id, rate in rate_by_item.items():
@@ -288,16 +293,17 @@ class JointFactorySettlementService:
                 continue
             allowed_hours = min(
                 allowed_hours,
-                max(0.0, maximum_stock - float(stock_a.get(item_id, 0.0))) / owner_rate,
-                max(0.0, maximum_stock - float(stock_b.get(item_id, 0.0))) / owner_rate,
+                max(0.0, maximum_stock - float(stock_a.get(item_id, 0.0))) / (owner_rate * bonus_a),
+                max(0.0, maximum_stock - float(stock_b.get(item_id, 0.0))) / (owner_rate * bonus_b),
             )
 
         produced: dict[str, float] = {}
         for item_id, rate in rate_by_item.items():
-            quantity = round(rate * allowed_hours, 8)
-            produced[item_id] = quantity
-            _add_quantity(stock_a, item_id, quantity / 2)
-            _add_quantity(stock_b, item_id, quantity / 2)
+            quantity_a = round(rate * allowed_hours * bonus_a / 2, 8)
+            quantity_b = round(rate * allowed_hours * bonus_b / 2, 8)
+            produced[item_id] = round(quantity_a + quantity_b, 8)
+            _add_quantity(stock_a, item_id, quantity_a)
+            _add_quantity(stock_b, item_id, quantity_b)
 
         end = started + timedelta(hours=allowed_hours)
         if allowed_hours > 1e-9:

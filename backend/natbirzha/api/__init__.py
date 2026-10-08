@@ -38,6 +38,8 @@ from backend.natbirzha.api.liquidity_routes import router as liquidity_router
 from backend.natbirzha.api.hybrid_routes import router as hybrid_router
 from backend.natbirzha.api.joint_factory_routes import router as joint_factory_router
 from backend.natbirzha.api.maintenance_routes import router as maintenance_router
+from backend.natbirzha.api.company_aid_routes import router as company_aid_router
+from backend.natbirzha.api.rebirth_routes import router as rebirth_router
 from backend.natbirzha.api.admin_access import require_game_access
 from backend.natbirzha.services.auth_service import get_strict_natbirzha_user
 from backend.natbirzha.config import nat_settings
@@ -91,6 +93,8 @@ def build_natbirzha_router(admin_only: bool | None = None) -> APIRouter:
         joint_factory_router,
         tycoon_company_router,
         sabotage_router,
+        company_aid_router,
+        rebirth_router,
     ):
         game_router.include_router(child_router)
     router.include_router(game_router)

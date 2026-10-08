@@ -1,4 +1,4 @@
-"""Regression coverage for profit-only mastery and company utility buyback caps."""
+"""Regression coverage for company utility buyback caps."""
 
 import asyncio
 from datetime import timedelta
@@ -21,77 +21,6 @@ from backend.natbirzha.services.npc_service import NPCReserveService
 from backend.natbirzha.services.progression_service import mastery_xp_required_for_rank
 import backend.natbirzha.services.npc_quota_service as quota_module
 
-
-def test_mastery_pays_positive_margin_without_changing_goods_or_cost_basis():
-    async def check():
-        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-        sessions = async_sessionmaker(engine, expire_on_commit=False)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        now = get_game_now().replace(hour=14, minute=0, second=0, microsecond=0)
-        spec = get_business_spec("coal_open_pit")
-        async with sessions() as session:
-            companies, businesses = [], []
-            for index, rank in enumerate((0, 5)):
-                company = NatCompany(
-                    user_id=981001 + index, name=f"Mastery {rank}",
-                    specialization="miner", cash=100000, level=60,
-                    mastery_rank=rank, mastery_xp=mastery_xp_required_for_rank(rank),
-                )
-                session.add(company)
-                await session.flush()
-                business = NatBusiness(
-                    company_id=company.id, business_type=spec["id"],
-                    specialization="miner", stage=1, status="ACTIVE",
-                    base_income_per_hour=spec["base_income_per_hour"],
-                    base_maintenance_per_hour=spec["base_maintenance_per_hour"],
-                    last_settled_at=now - timedelta(hours=1),
-                    health=100, efficiency=1, metadata_json={"sale_mode": "HOLD"},
-                )
-                session.add(business)
-                session.add_all([
-                    NatInventory(
-                        company_id=company.id, item_id=item, quantity=10000,
-                        avg_cost_basis=CANONICAL_ITEMS[item]["base_price"],
-                    ) for item in spec["inputs_per_hour"]
-                ])
-                companies.append(company)
-                businesses.append(business)
-            await session.flush()
-            results = [await IdleEconomyService.settle_company(
-                session, company.id, now=now, _process_deals=False
-            ) for company in companies]
-            baseline = await session.scalar(select(NatBusinessIncomeDaily).where(
-                NatBusinessIncomeDaily.business_id == businesses[0].id
-            ))
-            bonus = max(0, baseline.net_profit) * 0.05
-            assert bonus > 0
-            assert isclose(results[1]["mastery_profit_bonus_cash"], round(bonus, 2), abs_tol=0.01)
-            assert isclose(companies[1].cash - companies[0].cash, round(bonus, 2), abs_tol=0.01)
-            inventories = []
-            for company in companies:
-                rows = (await session.scalars(select(NatInventory).where(
-                    NatInventory.company_id == company.id
-                ))).all()
-                inventories.append({r.item_id: (r.quantity, r.avg_cost_basis) for r in rows})
-            assert inventories[0] == inventories[1]
-            periods = (await session.scalars(select(NatCompanyProfitPeriod).where(
-                NatCompanyProfitPeriod.company_id == companies[1].id
-            ))).all()
-            assert isclose(sum(p.net_profit for p in periods), bonus, abs_tol=0.001)
-            assert all(p.maintenance_expense == 0 and p.cost_of_goods_sold == 0 for p in periods)
-            repeated = await IdleEconomyService.settle_company(
-                session, companies[1].id, now=now, _process_deals=False
-            )
-            assert repeated["mastery_profit_bonus_cash"] == 0
-            zero = EmpireSummaryService._serialize_business(businesses[0], {}, mastery_bonus_rate=0)
-            five = EmpireSummaryService._serialize_business(businesses[1], {}, mastery_bonus_rate=0.05)
-            assert zero["inputs_per_hour"] == five["inputs_per_hour"]
-            assert zero["outputs_per_hour"] == five["outputs_per_hour"]
-            expected = zero["estimated_profit_before_tax_per_hour"] * 1.05
-            assert isclose(five["estimated_profit_before_tax_per_hour"], expected, abs_tol=0.02)
-        await engine.dispose()
-    asyncio.run(check())
 
 
 def test_utility_buyback_caps_are_separate_per_company_item_and_day(monkeypatch):

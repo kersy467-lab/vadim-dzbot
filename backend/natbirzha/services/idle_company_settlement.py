@@ -21,7 +21,7 @@ from backend.natbirzha.models.tax import NatCompanyProfitPeriod
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
 from backend.natbirzha.services.business_income_ledger_service import BusinessIncomeLedgerService
 from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
-from backend.natbirzha.services.progression_service import apply_xp, mastery_profit_bonus_rate
+from backend.natbirzha.services.progression_service import apply_xp, company_production_multiplier
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
 from backend.natbirzha.services.tax_service import TaxService
@@ -92,7 +92,7 @@ async def settle_company(
     if company is None:
         raise ValueError("Компания не найдена")
 
-    mastery_profit_rate = mastery_profit_bonus_rate(company)
+    production_multiplier = company_production_multiplier(company)
     mastery_profit_bonus_cash = 0.0
     completed_projects = await BusinessAssetService.settle_due_projects(session, company, now=current)
     businesses = list((await session.execute(
@@ -335,7 +335,7 @@ async def settle_company(
         business_gross = business_maintenance = business_resource_cost = 0.0
         industry_bonus = IndustryUpgradeService.bonus_multiplier(company, business.specialization)
         sabotage_income_mult = SabotageService.get_income_multiplier(business.specialization or company.specialization)
-        industry_bonus = round(industry_bonus * sabotage_income_mult, 4)
+        industry_bonus = round(industry_bonus * sabotage_income_mult * production_multiplier, 6)
         if spec["mechanic"] not in {"cash_income", "resource_production"}:
             continue
         if planned_end > work_started_at:
@@ -382,19 +382,12 @@ async def settle_company(
                 segment_gross = float(result["gross"])
                 segment_maintenance = float(result["maintenance"])
                 segment_resource_cost = float(result.get("resource_cost", 0.0))
-                operating_profit = segment_gross - segment_maintenance - segment_resource_cost
-                mastery_bonus = (
-                    round(max(0.0, operating_profit) * mastery_profit_rate, 6)
-                    if segment_worked > 1e-9 else 0.0
-                )
-                cash_income_with_mastery = biz_gross_cash + mastery_bonus
-                mastery_profit_bonus_cash += mastery_bonus
-                business_gross += segment_gross + mastery_bonus
+                business_gross += segment_gross
                 business_maintenance += segment_maintenance
                 business_resource_cost += segment_resource_cost
                 business_hours += float(result.get("hours", 0.0))
-                gross += segment_gross + mastery_bonus
-                gross_cash += cash_income_with_mastery
+                gross += segment_gross
+                gross_cash += biz_gross_cash
                 gross_value += segment_gross
                 maintenance += segment_maintenance
                 # Each sub-interval is intentionally shorter than the engine's
@@ -405,7 +398,7 @@ async def settle_company(
                 await BusinessAssetService.apply_vehicle_wear(session, business, segment_worked)
                 await BusinessIncomeLedgerService.record_interval(
                     session, business.id, segment_start, segment_worked,
-                    gross=segment_gross + mastery_bonus,
+                    gross=segment_gross,
                     maintenance=segment_maintenance,
                     resource_cost=segment_resource_cost,
                     daily_row_cache=daily_ledger_cache,
@@ -415,13 +408,13 @@ async def settle_company(
                 # Cash businesses realize their income as it is earned. Legacy
                 # NPC-sale resource businesses do too; HOLD production remains
                 # inventory and capitalizes these costs until an actual sale.
-                if spec["mechanic"] == "cash_income" or biz_gross_cash > 0 or mastery_bonus > 0:
+                if spec["mechanic"] == "cash_income" or biz_gross_cash > 0:
                     await CompanyProfitLedgerService.record_interval(
                         session,
                         company.id,
                         segment_start,
                         segment_worked,
-                        revenue=cash_income_with_mastery,
+                        revenue=biz_gross_cash,
                         cost_of_goods_sold=(
                             segment_resource_cost
                             if spec["mechanic"] == "cash_income" or biz_gross_cash > 0
@@ -436,7 +429,7 @@ async def settle_company(
                         flush=False,
                     )
                 for hour_start, cash_income in BusinessIncomeLedgerService.split_interval_by_hour(
-                    segment_start, segment_worked, cash_income_with_mastery,
+                    segment_start, segment_worked, biz_gross_cash,
                     eligible_after=dividend_eligible_after,
                 ).items():
                     hourly_cash_income[hour_start] += cash_income
@@ -447,7 +440,6 @@ async def settle_company(
                         "end": segment_end_worked,
                         "net_profit": (
                             biz_gross_cash - segment_maintenance - segment_resource_cost
-                            + mastery_bonus
                         ),
                     })
                 if result.get("upgrade_completed"):

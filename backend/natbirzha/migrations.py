@@ -798,6 +798,17 @@ async def _migrate_v23_npc_company_buyback_limits(conn) -> None:
     )
 
 
+async def _migrate_v24_company_renewal(conn) -> None:
+    await _add_columns(conn, "nat_companies", {
+        "rebirth_count": "INTEGER NOT NULL DEFAULT 0",
+        "last_rebirth_at": "TIMESTAMP",
+    })
+    from backend.natbirzha.models.rebirth import NatCompanyRebirth
+    from backend.natbirzha.models.company_aid import NatCompanyAidRequest, NatCompanyAidTransfer
+    for model in (NatCompanyRebirth, NatCompanyAidRequest, NatCompanyAidTransfer):
+        await conn.run_sync(lambda sync_conn, model=model: model.__table__.create(sync_conn, checkfirst=True))
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -837,6 +848,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v21_state_market_advances", _migrate_v21_state_market_advances),
     ("natbirzha_v22_001_stock_trade_price_guard", _migrate_v22_stock_trade_price_guard),
     ("natbirzha_v23_001_npc_company_buyback_limits", _migrate_v23_npc_company_buyback_limits),
+    ("natbirzha_v24_001_company_renewal", _migrate_v24_company_renewal),
 )
 
 

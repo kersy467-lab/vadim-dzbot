@@ -22,7 +22,7 @@ from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
 from backend.natbirzha.services.progression_service import (
-    mastery_profit_bonus_rate,
+    company_production_multiplier,
     progress_snapshot,
 )
 from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
@@ -64,7 +64,7 @@ class EmpireSummaryService:
         supply_policies: dict[str, dict[str, Any]] | None = None,
         assets: dict[str, Any] | None = None,
         industry_bonus_multiplier: float = 1.0,
-        mastery_bonus_rate: float = 0.0,
+        production_bonus_multiplier: float = 1.0,
     ) -> dict[str, Any]:
         spec = get_business_spec(business.business_type)
         if spec is None:
@@ -92,7 +92,7 @@ class EmpireSummaryService:
         if is_resource:
             rates = resource_business_rates(
                 business, spec, upgrading=business.status == "UPGRADING",
-                output_bonus_multiplier=industry_bonus_multiplier,
+                output_bonus_multiplier=industry_bonus_multiplier * production_bonus_multiplier,
             )
             inputs = {
                 item_id: round(float(value) * rates.input_multiplier, 4)
@@ -119,7 +119,7 @@ class EmpireSummaryService:
             input_cost = cls._resource_value(inputs, selling=False, reference_price=True)
             maintenance = rates.maintenance_per_hour
             operating_profit = revenue - input_cost - maintenance
-            mastery_bonus = max(0.0, operating_profit) * mastery_bonus_rate
+            mastery_bonus = 0.0
             estimated_profit_before_tax = operating_profit + mastery_bonus
             estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
             npc_revenue = cls._resource_value(outputs, selling=True)
@@ -136,7 +136,7 @@ class EmpireSummaryService:
             sale_mode = None
             cash_rates = cash_business_rates(
                 business, spec, upgrading=business.status == "UPGRADING",
-                output_bonus_multiplier=industry_bonus_multiplier,
+                output_bonus_multiplier=industry_bonus_multiplier * production_bonus_multiplier,
             )
             inputs = spec["inputs_per_hour"]
             outputs = spec["outputs_per_hour"]
@@ -146,7 +146,7 @@ class EmpireSummaryService:
             input_cost = 0.0
             maintenance = cash_rates.maintenance_per_hour
             operating_profit = cash_rates.net_per_hour
-            mastery_bonus = max(0.0, operating_profit) * mastery_bonus_rate
+            mastery_bonus = 0.0
             estimated_profit_before_tax = operating_profit + mastery_bonus
             estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
             estimated_npc_profit = None
@@ -258,12 +258,12 @@ class EmpireSummaryService:
         active_auto_policies = sum(1 for policy in policy_rows if policy.mode != "MANUAL")
         auto_policy_limit = SupplyPolicyService.automation_policy_limit(company.level)
         assets_by_business = await BusinessAssetService.snapshot_for_businesses(session, visible_businesses)
-        mastery_bonus_rate = mastery_profit_bonus_rate(company)
+        production_multiplier = company_production_multiplier(company)
         serialized = [
             cls._serialize_business(
                 business, inventory, policies_by_business.get(business.id), assets_by_business.get(business.id),
                 IndustryUpgradeService.bonus_multiplier(company, business.specialization),
-                mastery_bonus_rate,
+                production_multiplier,
             )
             for business in visible_businesses
         ]
@@ -286,6 +286,8 @@ class EmpireSummaryService:
         )
         return {
             "company_id": company.id,
+            "rebirth_count": int(company.rebirth_count or 0),
+            "production_multiplier": company_production_multiplier(company),
             "specialization": company.specialization,
             "level": company.level,
             "progression": {

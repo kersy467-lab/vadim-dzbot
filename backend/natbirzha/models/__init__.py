@@ -187,3 +187,8 @@ __all__ = [
     "NatJointFactoryProposal",
     "NatJointFactorySettlement",
 ]
+
+from backend.natbirzha.models.rebirth import NatCompanyRebirth
+from backend.natbirzha.models.company_aid import NatCompanyAidRequest, NatCompanyAidTransfer
+
+__all__.extend(["NatCompanyRebirth", "NatCompanyAidRequest", "NatCompanyAidTransfer"])

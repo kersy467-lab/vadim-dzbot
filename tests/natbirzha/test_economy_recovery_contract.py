@@ -26,7 +26,7 @@ from backend.natbirzha.services.stock_service import StockService
 def test_ai_data_centers_replace_forestry_and_supply_industry_demand() -> None:
     ai_businesses = sorted(
         (spec for spec in CAREER_BUSINESSES.values()
-         if spec["specialization"] == "ai_data" and not spec.get("hybrid_only")),
+         if spec["specialization"] == "ai_data" and not spec.get("hybrid_only") and not spec.get("rebirth_required")),
         key=lambda spec: spec["industry_order"],
     )
     assert "ai_data" in INDUSTRIES

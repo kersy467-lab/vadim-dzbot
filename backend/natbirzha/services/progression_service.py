@@ -51,7 +51,8 @@ def _mastery_snapshot(company: NatCompany) -> Dict[str, Any]:
     span = max(1, next_rank - current)
     return {
         "rank": rank,
-        "profit_bonus_pct": rank,
+        "production_bonus_pct": rank,
+        "profit_bonus_pct": 0,
         "xp": xp,
         "current_rank_xp": current,
         "next_rank_xp": next_rank,
@@ -61,9 +62,11 @@ def _mastery_snapshot(company: NatCompany) -> Dict[str, Any]:
     }
 
 
-def mastery_profit_bonus_rate(company: NatCompany) -> float:
-    """Each mastery rank adds one percent to positive factory profit only."""
-    return max(0, int(_mastery_snapshot(company)["rank"])) / 100.0
+def company_production_multiplier(company: NatCompany) -> float:
+    """Permanent yield bonuses increase output without scaling material consumption."""
+    mastery = max(0, int(_mastery_snapshot(company)["rank"]))
+    rebirths = min(10, max(0, int(getattr(company, "rebirth_count", 0) or 0)))
+    return (1.0 + mastery / 100.0) * (1.0 + rebirths * 0.25)
 
 
 def progress_snapshot(company: NatCompany) -> Dict[str, Any]:
@@ -143,6 +146,7 @@ def economy_xp_from_value(value: float) -> int:
 
 __all__ = [
     "apply_xp",
+    "company_production_multiplier",
     "economy_xp_from_value",
     "mastery_xp_required_for_rank",
     "progress_snapshot",

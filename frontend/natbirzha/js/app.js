@@ -1,7 +1,7 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261003_fast_tabs_v1';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261008_company_renewal_v1';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen, preloadScreen } from './screen_loader.js?v=20261003_fast_tabs_v1';
+import { loadScreen, preloadScreen } from './screen_loader.js?v=20261008_company_renewal_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 // Start fetching the only possible initial screens while auth and company data load.

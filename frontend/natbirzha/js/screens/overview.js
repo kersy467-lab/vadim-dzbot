@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { NatAPI } from '../api.js?v=20261008_company_renewal_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
@@ -109,6 +109,7 @@ export function renderOverview(container, showToast) {
             <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500" style="width: ${xpPercent}%"></div>
           </div>
           <div class="mt-1 text-[10px] text-slate-400">${isMaxLevel ? 'Основная шкала 1–60 завершена — дальше открывается мастерство.' : `До следующего уровня: ${Number(company.xp_to_next || 0)} XP. Производите товары, торгуйте и побеждайте в PvE.`}</div>
+          ${Number(company.rebirth_count || 0) > 0 ? `<div class="mt-2 text-xs text-violet-400">🌅 Перерождение ${Number(company.rebirth_count)} · +${Number(company.rebirth_production_bonus_pct || 0)}% к выпуску товаров</div>` : ''}
           ${isMaxLevel && mastery ? `
             <div class="mastery-progress mt-3 rounded-xl p-2.5">
               <div class="flex items-center justify-between text-[11px] font-bold">
@@ -117,7 +118,7 @@ export function renderOverview(container, showToast) {
               </div>
               <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/60 dark:bg-black/20"><div class="h-full rounded-full bg-gradient-to-r from-rose-500 to-violet-500" style="width: ${Math.max(0, Math.min(100, Number(mastery.progress_pct || 0)))}%"></div></div>
               <div class="mt-1 text-[10px] opacity-80">До ранга ${Number(mastery.rank || 0) + 1}: ${Number(mastery.xp_to_next || 0).toLocaleString('ru-RU')} XP · шкала без лимита</div>
-              <div class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">+${Number(mastery.profit_bonus_pct ?? mastery.rank ?? 0)}% к прибыли заводов · без доп. расхода ресурсов</div>
+              <div class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">+${Number(mastery.production_bonus_pct ?? mastery.rank ?? 0)}% к выпуску товаров · без доп. расхода ресурсов</div>
             </div>
           ` : ''}
         </div>
@@ -234,14 +235,10 @@ export function renderOverview(container, showToast) {
       </div>
 
       <!-- Actions: Respec & Refresh -->
-      <div class="pt-2 flex items-center justify-center gap-2">
+      <div class="pt-2 flex flex-wrap items-center justify-center gap-2">
         <button id="help-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors">❓ Как играть</button>
-        <button
-          id="respec-btn"
-          class="px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors"
-        >
-          🔄 Сменить отрасль
-        </button>
+        <button id="company-aid-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-emerald-600">🤝 Помощь компаниям</button>
+        <button id="company-rebirth-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-violet-400">🌅 Перерождение · ${Number(company.rebirth_count || 0)}</button>
         ${Number(company.level || 0) >= 14 ? `<button id="loans-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">💳 Долги</button>` : ''}
         <button
           id="refresh-btn"
@@ -335,45 +332,22 @@ export function renderOverview(container, showToast) {
     });
   }
 
-  // Attach respec handler
-  const respecBtn = container.querySelector('#respec-btn');
-  if (respecBtn) {
-    respecBtn.addEventListener('click', async () => {
-      try {
-        const industryData = await NatAPI.getIndustryOverview();
-        const industries = industryData?.items || [];
-        const available = industries.filter(item => item.available !== false && item.id !== company.specialization);
-        const unavailable = industries.filter(item => item.available === false);
-        const choices = available.map(item => item.id);
-        const lockedHint = unavailable.length
-          ? `\nНедоступно: ${unavailable.map(item => `${item.id} — ${item.selection_reason}`).join('\n')}`
-          : '';
-        const specPrompt = prompt(
-          `Доступные отрасли:\n${choices.join(', ')}${lockedHint}`,
-          company.specialization
-        );
-        if (!specPrompt || specPrompt.trim().toLowerCase() === company.specialization) return;
-        const targetSpec = specPrompt.trim().toLowerCase();
-        if (!choices.includes(targetSpec)) {
-          const blocked = unavailable.find(item => item.id === targetSpec);
-          showToast(blocked?.selection_reason || 'Выберите доступную отрасль из списка.', 'error');
-          return;
-        }
-        respecBtn.disabled = true;
-        respecBtn.innerText = 'Смена...';
-        await NatAPI.respecCompany(targetSpec);
-        showToast('Отрасль компании успешно изменена!', 'success');
-        const refreshed = await NatAPI.getMyCompany();
-        store.setCompany(refreshed);
-        renderOverview(container, showToast);
-      } catch (err) {
-        showToast(err.message, 'error');
-      } finally {
-        respecBtn.disabled = false;
-        respecBtn.innerText = '🔄 Сменить отрасль';
-      }
-    });
-  }
+  container.querySelector('#company-rebirth-btn')?.addEventListener('click', async () => {
+    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261008_company_renewal_v1');
+    await renderCompanyRebirthPanel(container, showToast, () => renderOverview(container, showToast));
+  });
+  container.querySelector('#company-aid-btn')?.addEventListener('click', async () => {
+    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261008_company_renewal_v1');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'max-w-md mx-auto p-4 pb-24';
+    const back = document.createElement('button');
+    back.textContent = '← Обзор';
+    back.addEventListener('click', () => renderOverview(container, showToast));
+    const panel = document.createElement('div');
+    wrapper.append(back, panel);
+    container.replaceChildren(wrapper);
+    await renderCompanyAidPanel(panel, showToast, async () => store.setCompany(await NatAPI.getMyCompany()));
+  });
 
   const expandBtn = container.querySelector('#expand-capacity-btn');
   if (expandBtn) {

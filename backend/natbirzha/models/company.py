@@ -17,6 +17,8 @@ class NatCompany(Base):
     
     level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     xp: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rebirth_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    last_rebirth_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     mastery_xp: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     mastery_rank: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     mastery_points_spent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

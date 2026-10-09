@@ -27,6 +27,8 @@ from backend.natbirzha.services.progression_service import (
 )
 from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
+from backend.natbirzha.services.state_economy_service import StateEconomyService
+from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
 class EmpireSummaryService:
@@ -51,9 +53,9 @@ class EmpireSummaryService:
         return total
 
     @staticmethod
-    def _after_tax_profit(profit: float) -> float:
+    def _after_tax_profit(profit: float, tax_rate: float | None = None) -> float:
         taxable_profit = max(0.0, float(profit))
-        tax_rate = max(0.0, float(nat_settings.TAX_RATE))
+        tax_rate = max(0.0, float(nat_settings.TAX_RATE if tax_rate is None else tax_rate))
         return float(profit) - taxable_profit * tax_rate
 
     @classmethod
@@ -65,6 +67,7 @@ class EmpireSummaryService:
         assets: dict[str, Any] | None = None,
         industry_bonus_multiplier: float = 1.0,
         production_bonus_multiplier: float = 1.0,
+        tax_rate: float | None = None,
     ) -> dict[str, Any]:
         spec = get_business_spec(business.business_type)
         if spec is None:
@@ -121,12 +124,12 @@ class EmpireSummaryService:
             operating_profit = revenue - input_cost - maintenance
             mastery_bonus = 0.0
             estimated_profit_before_tax = operating_profit + mastery_bonus
-            estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
+            estimated_profit = cls._after_tax_profit(estimated_profit_before_tax, tax_rate)
             npc_revenue = cls._resource_value(outputs, selling=True)
             npc_input_cost = cls._resource_value(inputs, selling=False)
             npc_profit_before_tax = npc_revenue - npc_input_cost - maintenance
             estimated_npc_profit = cls._after_tax_profit(
-                npc_profit_before_tax + mastery_bonus
+                npc_profit_before_tax + mastery_bonus, tax_rate
             )
             estimated_profit_basis = "MARKET_REFERENCE_VALUE"
             sale_mode = "HOLD"
@@ -148,7 +151,7 @@ class EmpireSummaryService:
             operating_profit = cash_rates.net_per_hour
             mastery_bonus = 0.0
             estimated_profit_before_tax = operating_profit + mastery_bonus
-            estimated_profit = cls._after_tax_profit(estimated_profit_before_tax)
+            estimated_profit = cls._after_tax_profit(estimated_profit_before_tax, tax_rate)
             estimated_npc_profit = None
             estimated_profit_basis = "CASH"
             gross = cash_rates.gross_per_hour + mastery_bonus
@@ -222,6 +225,14 @@ class EmpireSummaryService:
         company = await session.scalar(select(NatCompany).where(NatCompany.id == company_id))
         if company is None:
             raise ValueError("Компания не найдена")
+        treasury = await StateTreasuryService.get_or_create(session, commit=False)
+        from backend.natbirzha.services.sabotage_service import SabotageService
+
+        tax_rate = StateEconomyService.tax_rate(
+            treasury.cash,
+            normal_rate=float(nat_settings.TAX_RATE),
+            sabotage_delta=SabotageService.get_tax_rate_delta(),
+        )
         businesses = list((await session.execute(
             select(NatBusiness)
             .where(NatBusiness.company_id == company.id)
@@ -264,6 +275,7 @@ class EmpireSummaryService:
                 business, inventory, policies_by_business.get(business.id), assets_by_business.get(business.id),
                 IndustryUpgradeService.bonus_multiplier(company, business.specialization),
                 production_multiplier,
+                tax_rate,
             )
             for business in visible_businesses
         ]
@@ -301,7 +313,7 @@ class EmpireSummaryService:
             "net_cash_per_hour": round(gross - expenses, 2),
             "estimated_profit_per_hour": round(estimated_profit, 2),
             "estimated_npc_profit_per_hour": round(estimated_npc_profit, 2),
-            "estimated_tax_rate_pct": round(max(0.0, float(nat_settings.TAX_RATE)) * 100, 2),
+            "estimated_tax_rate_pct": round(tax_rate * 100, 2),
             "estimated_profit_basis": "MARKET_REFERENCE_VALUE_AND_CASH",
             "slots": BusinessCapacityService.slot_limits(company, used=used_slots, now=now),
             "slot_expansion": BusinessCapacityService.quote(company, now=now),

@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import datetime
 from typing import Optional
 from sqlalchemy import Integer, BigInteger, String, Float, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,7 +9,9 @@ class NatStateTreasury(Base):
     __tablename__ = "nat_state_treasury"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cash: Mapped[float] = mapped_column(Float, default=10000000.0, nullable=False)
+    cash: Mapped[float] = mapped_column(Float, default=10_000_000_000_000.0, nullable=False)
+    foreign_exports_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_foreign_export_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 

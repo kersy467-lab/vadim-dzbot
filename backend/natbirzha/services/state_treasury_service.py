@@ -10,7 +10,7 @@ class StateTreasuryService:
     """Single authoritative state treasury row, isolated from player companies."""
 
     TREASURY_ID = 1
-    INITIAL_CASH = 10_000_000.0
+    INITIAL_CASH = 10_000_000_000_000.0
 
     @classmethod
     async def get_or_create(

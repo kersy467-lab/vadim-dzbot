@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.models import Base
@@ -41,4 +41,17 @@ class NatNpcCompanyDailyVolume(Base):
     used_cash: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
 
-__all__ = ["NatNpcDailyVolume", "NatNpcCompanyDailyVolume"]
+class NatStateReserveStock(Base):
+    """Resources bought by the State from companies and available for export."""
+
+    __tablename__ = "nat_state_reserve_stock"
+
+    item_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    quantity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    average_cost_basis: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+
+__all__ = ["NatNpcDailyVolume", "NatNpcCompanyDailyVolume", "NatStateReserveStock"]

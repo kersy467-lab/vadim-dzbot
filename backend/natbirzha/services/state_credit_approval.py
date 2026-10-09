@@ -105,7 +105,7 @@ class StateCreditApprovalMixin:
             await EconomyMetricsService.record(
                 session,
                 company_id=company.id,
-                flow="SOURCE",
+                flow="TRANSFER",
                 category="state_credit_principal",
                 cash_amount=cash_received,
                 context={"repayable": True, "term_days": int(loan.term_days)},

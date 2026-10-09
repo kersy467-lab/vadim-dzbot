@@ -68,15 +68,6 @@ class NatbirzhaSettings(BaseSettings):
         "water": 300_000.0,
     }  # Per company, per game day; other player sales to the reserve stay unlimited.
     NPC_DAILY_BUYBACK_CASH_LIMIT: float = 1_000_000.0  # Legacy setting; player sales to NPC are no longer capped
-    # Premium raw materials keep a tiny explicit emergency stock so unlimited
-    # NPC supply cannot bypass premium production and player-to-player trade.
-    NPC_RARE_SELL_RESERVES: Dict[str, float] = {
-        "lithium_raw": 2.0,
-        "cobalt_raw": 1.0,
-        "rare_earths": 2.0,
-        "gallium_raw": 1.0,
-    }
-
     # Alliance rules
     ALLIANCE_MAX_MEMBERS: int = 3           # Strictly maximum 3 members
 

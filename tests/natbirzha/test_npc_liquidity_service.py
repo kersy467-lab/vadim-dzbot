@@ -13,9 +13,10 @@ from backend.db.models import Base
 from backend.db.session import async_session_factory, engine
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.inventory import NatInventory
-from backend.natbirzha.models.npc import NatNpcDailyVolume
+from backend.natbirzha.models.npc import NatNpcDailyVolume, NatStateReserveStock
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.npc_service import NPCReserveService
+from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 from backend.natbirzha.api.market_routes import get_npc_rates
 import backend.natbirzha.services.npc_service as npc_service_module
 import backend.natbirzha.services.npc_quota_service as npc_quota_module
@@ -42,10 +43,18 @@ async def run_checks():
         assert sell_quota["daily_quota_cash"] == 300000
 
         company.cash = 100000.0
+        treasury = await StateTreasuryService.get_or_create(session, commit=False)
+        treasury_before = float(treasury.cash)
+        session.add(NatStateReserveStock(
+            item_id="iron_ore", quantity=100.0, average_cost_basis=1.0
+        ))
+        await session.flush()
         first = await NPCReserveService.execute_npc_trade(session, company, "iron_ore", "BUY", 500.0)
         second = await NPCReserveService.execute_npc_trade(session, company, "iron_ore", "BUY", 500.0)
         assert first["success"] is True and second["success"] is True
         assert first["daily_quota"] is None and second["remaining_npc_quota"] is None
+        assert treasury.cash == round(treasury_before + first["total_cost"] + second["total_cost"], 2)
+        assert (await session.get(NatStateReserveStock, "iron_ore")).quantity == 0.0
         usage = (await session.execute(select(NatNpcDailyVolume))).scalars().all()
         assert usage == []
 
@@ -76,6 +85,9 @@ async def run_checks():
         assert sale["remaining_npc_quota"] == 35500
         assert sale["remaining_npc_cash_quota"] == 284000
         assert sale["total_payout"] == round(2000.0 * unit_buy_price, 2)
+        assert sale["treasury_cash"] == round(treasury_before + first["total_cost"] + second["total_cost"] - sale["total_payout"], 2)
+        state_energy = await session.get(NatStateReserveStock, "energy")
+        assert state_energy is not None and state_energy.quantity == 2000.0
 
         other_company = await CompanyService.create_company(
             session, 910002, "NPC Test Two", "power_engineer"
@@ -128,8 +140,8 @@ async def run_checks():
             targeted_payload = await get_npc_rates(company=company, session=session, item_id="energy")
         finally:
             event.remove(engine.sync_engine, "before_cursor_execute", count_targeted_query)
-        assert targeted_statement_count <= 1, (
-            "a targeted ordinary-item quote should use at most one quota query; "
+        assert targeted_statement_count <= 2, (
+            "a targeted ordinary-item quote should use at most one Treasury and one quota query; "
             f"got {targeted_statement_count} SQL statements"
         )
         assert [row["item_id"] for row in targeted_payload["rates"]] == ["energy"]
@@ -153,11 +165,10 @@ async def run_checks():
         assert fractional_sale["success"] is False
         assert fractional_sale["reason"] == "invalid_quantity_precision"
 
-        # Rare premium raw materials keep a separate small emergency stock.
-        # This is not the old general liquidity limit and has its own error.
+        # Buying any canonical resource from NPCs is unlimited by daily quota.
         rare_quota = await NPCReserveService.get_daily_quota(session, "lithium_raw", "BUY")
-        assert rare_quota["liquidity_unlimited"] is False
-        assert rare_quota["daily_quota_per_item"] == nat_settings.NPC_RARE_SELL_RESERVES["lithium_raw"]
+        assert rare_quota["liquidity_unlimited"] is True
+        assert rare_quota["daily_quota_per_item"] is None
         company.cash = 100000.0
 
         # NPC BUY must use the same two-decimal quantity precision as inventory
@@ -181,12 +192,19 @@ async def run_checks():
         ) is None
 
         rare_ok = await NPCReserveService.execute_npc_trade(
-            session, company, "lithium_raw", "BUY", rare_quota["daily_quota_per_item"]
+            session, company, "lithium_raw", "BUY", 3.0
         )
-        assert rare_ok["success"] is True and rare_ok["remaining_npc_quota"] == 0.0
-        rare_blocked = await NPCReserveService.execute_npc_trade(session, company, "lithium_raw", "BUY", 0.01)
-        assert rare_blocked["success"] is False
-        assert rare_blocked["reason"] == "npc_rare_reserve_empty"
+        assert rare_ok["success"] is True and rare_ok["remaining_npc_quota"] is None
+        rare_second = await NPCReserveService.execute_npc_trade(
+            session, company, "lithium_raw", "BUY", 0.01
+        )
+        assert rare_second["success"] is True
+        assert await session.scalar(
+            select(NatNpcDailyVolume).where(
+                NatNpcDailyVolume.item_id == "lithium_raw",
+                NatNpcDailyVolume.action == "BUY",
+            )
+        ) is None
 
         # Inventory overflow is still rejected independently from NPC liquidity.
         iron = (await session.execute(

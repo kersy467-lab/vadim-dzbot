@@ -151,17 +151,27 @@ async def get_npc_rates(
     if item_id is not None and item_id not in CANONICAL_ITEMS:
         raise HTTPException(status_code=400, detail=f"Unknown item: {item_id}")
     quota = await NPCReserveService.get_daily_quota(session)
+    from backend.natbirzha.services.state_economy_service import StateEconomyService
+    from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+
+    treasury = await StateTreasuryService.get_or_create(session, commit=False)
+    default_mode = StateEconomyService.is_default_mode(treasury.cash)
     item_ids = [item_id] if item_id is not None else list(CANONICAL_ITEMS)
+    quotes = {
+        item_id: NPCReserveService.get_npc_quote(item_id, default_mode=default_mode)
+        for item_id in item_ids
+    }
     buy_statuses = await NPCReserveService.get_quota_statuses(session, item_ids, "BUY")
     sell_statuses = await NPCReserveService.get_quota_statuses(
-        session, item_ids, "SELL", company_id=company.id
+        session, item_ids, "SELL", company_id=company.id,
+        buyback_prices={key: quote["npc_buy_price"] for key, quote in quotes.items()},
     )
     rates = []
     for item_id in item_ids:
         buy_status = buy_statuses[item_id]
         sell_status = sell_statuses[item_id]
         rates.append({
-            **NPCReserveService.get_npc_quote(item_id),
+            **quotes[item_id],
             "scaling_factor": 1.0,
             "liquidity_unlimited": bool(
                 buy_status["liquidity_unlimited"] and sell_status["liquidity_unlimited"]

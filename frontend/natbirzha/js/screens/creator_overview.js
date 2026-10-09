@@ -1,18 +1,36 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 
 export async function loadCreatorOverview(el, showToast) {
-  const [data, metrics, maintData] = await Promise.all([
+  const [data, metrics, maintData, stateEconomy] = await Promise.all([
     NatAPI.getCreatorOverview(),
     NatAPI.getCreatorEconomyMetrics(7),
     NatAPI.getMaintenanceStatus().catch(() => ({ maintenance_mode: false })),
+    NatAPI.getCreatorStateEconomy(),
   ]);
   const isMaint = Boolean(maintData?.maintenance_mode);
 
   el.innerHTML = `
     <div class="glass-card rounded-2xl p-4 border border-amber-500/30 bg-amber-950/20 space-y-2">
       <div class="text-xs text-amber-400 font-bold uppercase tracking-wider">Государственная Казна</div>
-      <div class="text-2xl font-black text-white font-mono">${Math.round(data.treasury_cash).toLocaleString('ru-RU')} ₽</div>
+      <div class="text-2xl font-black text-white font-mono">${Math.round(stateEconomy.treasury_cash).toLocaleString('ru-RU')} cash</div>
       <div class="text-[10px] text-slate-400">Изолированный баланс государства (не смешивается с игроками)</div>
+    </div>
+    <div class="glass-card rounded-2xl p-4 border space-y-3" style="background-color:${stateEconomy.default_mode ? '#FFF1F1' : '#EEF7F1'};border-color:${stateEconomy.default_mode ? '#E7A7AD' : '#A9CEB7'}">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-xs font-black uppercase tracking-wide" style="color:${stateEconomy.default_mode ? '#8E303B' : '#18583C'}">${stateEconomy.default_mode ? 'Дефолт казны' : 'Казна работает штатно'}</div>
+          <div class="mt-1 text-[10px]" style="color:#344A3F">Налог ${Number(stateEconomy.tax_rate_pct).toLocaleString('ru-RU')}% · порог дефолта ${Number(stateEconomy.default_threshold_cash).toLocaleString('ru-RU')} cash</div>
+          <div class="mt-1 text-[10px]" style="color:#465B50">При дефолте выкуп у игроков дешевле на 10%, продажа NPC дороже на 10%.</div>
+        </div>
+      </div>
+      <div class="flex items-center justify-between gap-3 border-t pt-3" style="border-color:#C9DDD0">
+        <div>
+          <div class="text-xs font-bold" style="color:#263B30">Экспорт госрезерва</div>
+          <div class="text-[10px]" style="color:#4E6256">${stateEconomy.export_fraction_pct}% запасов каждые ${stateEconomy.export_interval_minutes} мин · выручка поступает в казну</div>
+        </div>
+        <button id="creator-toggle-state-exports" class="shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${stateEconomy.foreign_exports_enabled ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-200 border border-slate-600'}">${stateEconomy.foreign_exports_enabled ? 'ЭКСПОРТ ВКЛ.' : 'ВКЛЮЧИТЬ'}</button>
+      </div>
+      ${stateEconomy.stock.length ? `<div class="space-y-1 border-t pt-2" style="border-color:#C9DDD0"><div class="text-[10px] font-bold" style="color:#344A3F">Запасы для экспорта</div>${stateEconomy.stock.map((row) => `<div class="flex justify-between gap-2 text-[10px]" style="color:#344A3F"><span>${row.name}: ${Number(row.quantity).toLocaleString('ru-RU')} (${Number(row.export_quantity_per_cycle).toLocaleString('ru-RU')} за цикл)</span><span class="shrink-0 font-mono font-bold" style="color:#176E4B">+${Number(row.export_estimate).toLocaleString('ru-RU')}</span></div>`).join('')}</div>` : '<div class="border-t pt-2 text-[10px]" style="border-color:#C9DDD0;color:#4E6256">Запасов для экспорта пока нет. Товары появятся, когда компании продадут их Госрезерву.</div>'}
     </div>
     <div class="glass-card rounded-2xl p-4 border ${isMaint ? 'border-amber-500/60 bg-amber-950/30' : 'border-slate-800'} space-y-2">
       <div class="flex items-center justify-between">
@@ -54,6 +72,16 @@ export async function loadCreatorOverview(el, showToast) {
     try {
       const res = await NatAPI.toggleMaintenance();
       showToast(res.maintenance_mode ? 'Технический перерыв включен' : 'Технический перерыв выключен', 'info');
+      await loadCreatorOverview(el, showToast);
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
+
+  el.querySelector('#creator-toggle-state-exports')?.addEventListener('click', async () => {
+    try {
+      await NatAPI.setCreatorForeignExports(!stateEconomy.foreign_exports_enabled);
+      showToast(stateEconomy.foreign_exports_enabled ? 'Экспорт запасов остановлен' : 'Экспорт запасов включён', 'success');
       await loadCreatorOverview(el, showToast);
     } catch (error) {
       showToast(error.message, 'error');

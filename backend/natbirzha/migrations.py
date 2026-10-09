@@ -818,6 +818,30 @@ async def _migrate_v25_rebirth_stock_notice(conn) -> None:
     })
 
 
+async def _migrate_v26_state_treasury_economy(conn) -> None:
+    """Fund the existing Treasury once and prepare State stock exports."""
+    await _add_columns(conn, "nat_state_treasury", {
+        "foreign_exports_enabled": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "last_foreign_export_at": "TIMESTAMP",
+    })
+    if await _table_exists(conn, "nat_state_treasury"):
+        await conn.execute(text("""
+            UPDATE nat_state_treasury
+            SET cash=:reserve, updated_at=CURRENT_TIMESTAMP
+            WHERE id=1 AND cash < :reserve
+        """), {"reserve": 10_000_000_000_000.0})
+
+    import backend.natbirzha.models  # noqa: F401
+    from backend.db.models import Base
+
+    def create_stock_table(sync_connection) -> None:
+        Base.metadata.tables["nat_state_reserve_stock"].create(
+            sync_connection, checkfirst=True
+        )
+
+    await conn.run_sync(create_stock_table)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -859,6 +883,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v23_001_npc_company_buyback_limits", _migrate_v23_npc_company_buyback_limits),
     ("natbirzha_v24_001_company_renewal", _migrate_v24_company_renewal),
     ("natbirzha_v25_001_rebirth_stock_notice", _migrate_v25_rebirth_stock_notice),
+    ("natbirzha_v26_001_state_treasury_economy", _migrate_v26_state_treasury_economy),
 )
 
 

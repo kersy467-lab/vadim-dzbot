@@ -368,6 +368,8 @@ export const NatAPI = {
 
   // Creator / State Administration
   getCreatorOverview: () => request('/api/natbirzha/creator/overview'),
+  getCreatorStateEconomy: () => request('/api/natbirzha/creator/economy/state'),
+  setCreatorForeignExports: (enabled) => request('/api/natbirzha/creator/economy/foreign-exports', { method: 'POST', body: JSON.stringify({ enabled: Boolean(enabled) }) }),
   grantCreatorSelf: (cash = 0, pvc = 0) => request('/api/natbirzha/creator/me/grant', { method: 'POST', body: JSON.stringify({ cash: Number(cash), pvc: parseInt(pvc, 10) || 0 }) }),
   getCreatorEconomyMetrics: (days = 7) => request(`/api/natbirzha/creator/economy/metrics?days=${parseInt(days, 10)}`),
   getCreatorMarket: () => request('/api/natbirzha/creator/market'),

@@ -20,13 +20,15 @@ from backend.natbirzha.services.economy_metrics_service import EconomyMetricsSer
 from backend.natbirzha.services.dividend_service import DividendService
 from backend.natbirzha.services.company_profit_ledger_service import CompanyProfitLedgerService
 from backend.natbirzha.services.inventory_capacity_service import InventoryCapacityService
+from backend.natbirzha.services.state_economy_service import StateEconomyService
+from backend.natbirzha.services.state_treasury_service import StateTreasuryService
 
 
 class NPCReserveService(NPCQuotaMixin):
     """State reserve with finite per-item daily player buyback liquidity."""
 
     @staticmethod
-    def get_npc_quote(item_id: str) -> Dict[str, Any]:
+    def get_npc_quote(item_id: str, *, default_mode: bool = False) -> Dict[str, Any]:
         if item_id not in CANONICAL_ITEMS:
             raise ValueError(f"Unknown item: {item_id}")
         # Lazy import to avoid circular dependency
@@ -39,7 +41,7 @@ class NPCReserveService(NPCQuotaMixin):
         # Informational only — actual prices already include crisis via get_item_base_price
         crisis_mult = SabotageService.get_resource_multiplier_sync(item_id)
 
-        return {
+        quote = {
             "item_id": item_id,
             "name": CANONICAL_ITEMS[item_id]["name"],
             "unit": CANONICAL_ITEMS[item_id]["unit"],
@@ -49,6 +51,7 @@ class NPCReserveService(NPCQuotaMixin):
             "spread_pct": round(((sell_cap - buy_floor) / base) * 100, 1) if base else 0.0,
             "crisis_multiplier": crisis_mult,
         }
+        return StateEconomyService.apply_default_quote(quote, default_mode=default_mode)
 
 
 
@@ -96,7 +99,11 @@ class NPCReserveService(NPCQuotaMixin):
             }
         quantity = rounded_quantity
 
-        quote = cls.get_npc_quote(item_id)
+        treasury = await StateTreasuryService.get_or_create(
+            session, commit=False, for_update=True
+        )
+        default_mode = StateEconomyService.is_default_mode(treasury.cash)
+        quote = cls.get_npc_quote(item_id, default_mode=default_mode)
         from backend.natbirzha.services.creator_service import CreatorService
         effective_price = quote["npc_sell_price"] if action == "BUY" else quote["npc_buy_price"]
         allowed, restriction_error = await CreatorService.check_market_restriction(
@@ -155,6 +162,14 @@ class NPCReserveService(NPCQuotaMixin):
                 }
             unit_price = quote["npc_buy_price"]
             total_payout = round(unit_price * quantity, 2)
+            if float(treasury.cash or 0.0) + 1e-9 < total_payout:
+                return {
+                    "success": False,
+                    "reason": "treasury_insufficient_cash",
+                    "message": "В Госрезерве временно недостаточно средств для выкупа товара.",
+                    "needed": total_payout,
+                    "treasury_cash": round(float(treasury.cash or 0.0), 2),
+                }
 
         volume = await cls._reserve_volume(
             session,
@@ -163,16 +178,13 @@ class NPCReserveService(NPCQuotaMixin):
             quantity,
             cash_amount=total_payout if action == "SELL" else None,
             company_id=company.id,
+            unit_price=unit_price if action == "SELL" else None,
         )
         if not volume["success"]:
-            rare_empty = action == "BUY" and volume["strict_reserve"]
             return {
                 "success": False,
-                "reason": "npc_rare_reserve_empty" if rare_empty else "npc_daily_quota_exceeded",
-                "message": (
-                    "Редкий запас Госрезерва на сегодня закончился"
-                    if rare_empty else "Дневной лимит выкупа этого товара Госрезервом исчерпан"
-                ),
+                "reason": "npc_daily_quota_exceeded",
+                "message": "Дневной лимит выкупа этого товара Госрезервом исчерпан",
                 "daily_quota": volume["quota"],
                 "daily_quota_cash": volume["quota_cash"],
                 "remaining_quota": volume["remaining"],
@@ -185,6 +197,11 @@ class NPCReserveService(NPCQuotaMixin):
         fin = await cls._daily_financials(session, company.id)
         if action == "BUY":
             company.cash = round(company.cash - total_cost, 2)
+            treasury.cash = round(float(treasury.cash or 0.0) + total_cost, 2)
+            treasury.updated_at = get_game_now()
+            await StateEconomyService.consume_state_stock(
+                session, item_id=item_id, quantity=quantity
+            )
             fin.opex = round(fin.opex + total_cost, 2)
             fin.closed_profit = round(fin.gross_revenue - fin.opex, 2)
             if not inv:
@@ -200,8 +217,9 @@ class NPCReserveService(NPCQuotaMixin):
             inv.quantity = round(inv.quantity + quantity, 2)
             inv.avg_cost_basis = round((previous_value + total_cost) / inv.quantity, 2) if inv.quantity else 0.0
             await EconomyMetricsService.record(
-                session, company_id=company.id, flow="SINK", category="npc_buy",
+                session, company_id=company.id, flow="TRANSFER", category="npc_buy",
                 cash_amount=total_cost, item_id=item_id, quantity=quantity,
+                context={"treasury_cash": round(float(treasury.cash), 2)},
             )
             await session.flush()
             return {
@@ -212,6 +230,7 @@ class NPCReserveService(NPCQuotaMixin):
                 "quantity": quantity,
                 "total_cost": total_cost,
                 "remaining_cash": company.cash,
+                "treasury_cash": round(float(treasury.cash), 2),
                 "daily_quota": volume["quota"],
                 "remaining_npc_quota": volume["remaining"],
                 "remaining_npc_cash_quota": volume["remaining_cash"],
@@ -227,6 +246,14 @@ class NPCReserveService(NPCQuotaMixin):
             session, company, total_payout
         )
         company.cash = round(company.cash + total_payout - dividend_withheld, 2)
+        treasury.cash = round(float(treasury.cash or 0.0) - total_payout, 2)
+        treasury.updated_at = get_game_now()
+        await StateEconomyService.add_state_stock(
+            session,
+            item_id=item_id,
+            quantity=quantity,
+            unit_cost=unit_price,
+        )
         await CompanyProfitLedgerService.record(
             session,
             company.id,
@@ -239,8 +266,9 @@ class NPCReserveService(NPCQuotaMixin):
         xp_gain = economy_xp_from_value(total_payout)
         apply_xp(company, xp_gain)
         await EconomyMetricsService.record(
-            session, company_id=company.id, flow="SOURCE", category="npc_sell",
+            session, company_id=company.id, flow="TRANSFER", category="npc_sell",
             cash_amount=total_payout, item_id=item_id, quantity=quantity,
+            context={"treasury_cash": round(float(treasury.cash), 2)},
         )
         await session.flush()
         return {
@@ -251,6 +279,7 @@ class NPCReserveService(NPCQuotaMixin):
             "quantity": quantity,
             "total_payout": total_payout,
             "new_cash_balance": company.cash,
+            "treasury_cash": round(float(treasury.cash), 2),
             "xp_gained": xp_gain,
             "daily_quota": volume["quota"],
             "remaining_npc_quota": volume["remaining"],

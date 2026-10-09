@@ -259,7 +259,7 @@ class StateCreditService(StateCreditApprovalMixin):
         await EconomyMetricsService.record(
             session,
             company_id=locked_company.id,
-            flow="SINK",
+            flow="TRANSFER",
             category="state_credit_repayment",
             cash_amount=payment,
             context={"loan_id": loan.id},

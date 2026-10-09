@@ -25,6 +25,7 @@ class NPCQuotaMixin:
         action: str | None = None,
         *,
         company_id: int | None = None,
+        npc_buy_price: float | None = None,
     ) -> Dict[str, Any]:
         action = action.upper() if action else None
         company_cash_cap = None
@@ -34,7 +35,9 @@ class NPCQuotaMixin:
         # NPC purchases from companies (action == SELL), never to player buys.
         reserve_cap = None
         if company_cash_cap is not None:
-            quota = float(company_cash_cap) / max(0.01, get_npc_buy_price(item_id))
+            quota = float(company_cash_cap) / max(
+                0.01, float(npc_buy_price or get_npc_buy_price(item_id))
+            )
         else:
             quota = float(reserve_cap) if reserve_cap is not None else None
         return {
@@ -76,11 +79,13 @@ class NPCQuotaMixin:
         action: str,
         *,
         company_id: int | None = None,
+        buyback_prices: dict[str, float] | None = None,
     ) -> Dict[str, Dict[str, Any]]:
         action = action.upper()
         quota_info_by_item = {
             item_id: await cls.get_daily_quota(
-                session, item_id, action, company_id=company_id
+                session, item_id, action, company_id=company_id,
+                npc_buy_price=(buyback_prices or {}).get(item_id),
             )
             for item_id in item_ids
         }
@@ -131,7 +136,9 @@ class NPCQuotaMixin:
             if action == "SELL":
                 cash_limit = float(quota_info["daily_quota_cash"] or 0.0)
                 usage = company_usage_by_item.get(item_id)
-                unit_price = max(0.01, get_npc_buy_price(item_id))
+                unit_price = max(
+                    0.01, float((buyback_prices or {}).get(item_id) or get_npc_buy_price(item_id))
+                )
                 remaining_cash = max(
                     0.0,
                     round(cash_limit - (float(usage.used_cash) if usage else 0.0), 2),
@@ -163,10 +170,12 @@ class NPCQuotaMixin:
         cash_amount: float | None = None,
         *,
         company_id: int | None = None,
+        unit_price: float | None = None,
     ) -> Dict[str, Any]:
         today = get_game_today()
         quota_info = await cls.get_daily_quota(
-            session, item_id, action, company_id=company_id
+            session, item_id, action, company_id=company_id,
+            npc_buy_price=unit_price if action == "SELL" else None,
         )
         quota = quota_info["daily_quota_per_item"]
         if quota is None:
@@ -216,7 +225,7 @@ class NPCQuotaMixin:
                         .with_for_update()
                     )
                     usage = result.scalar_one()
-            unit_price = max(0.01, get_npc_buy_price(item_id))
+            unit_price = max(0.01, float(unit_price or get_npc_buy_price(item_id)))
             cash_limit = float(quota_info["daily_quota_cash"] or 0.0)
             payout_cash = max(0.0, round(float(cash_amount or 0.0), 2))
             remaining_cash = max(0.0, round(cash_limit - float(usage.used_cash), 2))

@@ -52,6 +52,7 @@ logger = logging.getLogger("botdz")
 
 bot, dp = create_bot_and_dispatcher()
 polling_task: asyncio.Task | None = None
+state_export_task: asyncio.Task | None = None
 
 from backend.bot.services.commands import setup_bot_commands
 
@@ -60,6 +61,12 @@ async def lifespan(app: FastAPI):
     # --- Startup ---
     logger.info("Initializing database...")
     await init_db()
+    global state_export_task
+    from backend.natbirzha.services.state_economy_service import StateEconomyService
+    state_export_task = asyncio.create_task(
+        StateEconomyService.run_export_worker(async_session_factory, logger=logger),
+        name="natbirzha-state-foreign-export",
+    )
 
     async with async_session_factory() as session:
         await seed_initial_data(session)
@@ -208,6 +215,13 @@ async def lifespan(app: FastAPI):
 
     # --- Shutdown ---
     logger.info("Shutting down...")
+    if state_export_task:
+        state_export_task.cancel()
+        try:
+            await state_export_task
+        except asyncio.CancelledError:
+            pass
+        state_export_task = None
     try:
         from backend.tunnel import stop_tunnel
         await stop_tunnel()

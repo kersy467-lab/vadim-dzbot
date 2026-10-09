@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from backend.natbirzha.api import creator_routes
+from backend.natbirzha.api import creator_economy_routes
 from backend.natbirzha.services.creator_service import CreatorService
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 
@@ -61,6 +62,35 @@ def test_creator_economy_metrics_route_uses_existing_service(monkeypatch):
     result = asyncio.run(creator_routes.get_economy_metrics(days=7, _admin=object(), session=object()))
 
     assert result == summary
+
+
+def test_creator_state_economy_route_returns_snapshot(monkeypatch):
+    snapshot = {"treasury_cash": 10_000_000_000_000, "default_mode": False, "stock": []}
+
+    async def get_snapshot(_session):
+        return snapshot
+
+    monkeypatch.setattr(creator_economy_routes.StateEconomyService, "creator_snapshot", get_snapshot)
+    result = asyncio.run(creator_economy_routes.get_state_economy(_admin=object(), session=object()))
+    assert result == snapshot
+
+
+def test_creator_state_foreign_export_toggle_audits_actor(monkeypatch):
+    expected = {"foreign_exports_enabled": True}
+    captured = {}
+
+    async def set_exports(_session, *, enabled, actor_id):
+        captured.update(enabled=enabled, actor_id=actor_id)
+        return expected
+
+    monkeypatch.setattr(creator_economy_routes.StateEconomyService, "set_foreign_exports_enabled", set_exports)
+    actor = SimpleNamespace(tg_id=991_234)
+    request = creator_economy_routes.ForeignExportsRequest(enabled=True)
+    result = asyncio.run(creator_economy_routes.set_state_foreign_exports(
+        request, admin=actor, session=DummySession()
+    ))
+    assert result == expected
+    assert captured == {"enabled": True, "actor_id": 991_234}
 
 
 def test_creator_market_route_uses_existing_snapshot(monkeypatch):

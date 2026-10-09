@@ -10,6 +10,7 @@ from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.tax import NatCompanyProfitPeriod, NatTaxPeriod
 from backend.natbirzha.services.economy_metrics_service import EconomyMetricsService
 from backend.natbirzha.services.state_treasury_service import StateTreasuryService
+from backend.natbirzha.services.state_economy_service import StateEconomyService
 from backend.natbirzha.tax_rules import (
     calculate_hourly_penalty,
     get_period_bounds,
@@ -36,6 +37,17 @@ class TaxService:
     @classmethod
     def _is_overdue(cls, row: NatTaxPeriod, now: datetime) -> bool:
         return row.outstanding > 0 and now >= period_grace_until(row.period_end)
+
+    @classmethod
+    async def _effective_tax_rate(cls, session: AsyncSession) -> float:
+        treasury = await StateTreasuryService.get_or_create(session, commit=False)
+        from backend.natbirzha.services.sabotage_service import SabotageService
+
+        return StateEconomyService.tax_rate(
+            treasury.cash,
+            normal_rate=float(nat_settings.TAX_RATE),
+            sabotage_delta=SabotageService.get_tax_rate_delta(),
+        )
 
     @classmethod
     async def _profit_by_period(
@@ -81,7 +93,7 @@ class TaxService:
             .with_for_update()
         )).scalars().all())
         by_start = {row.period_start: row for row in rows}
-        rate = max(0.0, float(nat_settings.TAX_RATE))
+        rate = await cls._effective_tax_rate(session)
 
         for (p_start, p_end), profit in profits.items():
             taxable = max(0.0, profit)
@@ -142,7 +154,7 @@ class TaxService:
         penalty_due = max(0.0, total_due - principal_due)
         next_block_dt = period_grace_until(oldest.period_end) if oldest else None
         current_profit = await cls._current_period_profit(session, company_id, current_dt)
-        effective_rate = float(nat_settings.TAX_RATE)
+        effective_rate = await cls._effective_tax_rate(session)
         hours_until_block = max(0, int((next_block_dt - current_dt).total_seconds() // 3600)) if next_block_dt else None
 
         return {
@@ -231,7 +243,7 @@ class TaxService:
         company.cash = round(float(company.cash) - payment, 2)
         treasury.cash = round(float(treasury.cash) + payment, 2)
         await EconomyMetricsService.record(
-            session, company_id=company.id, flow="SINK", category="period_profit_tax", cash_amount=payment
+            session, company_id=company.id, flow="TRANSFER", category="period_profit_tax", cash_amount=payment
         )
         await session.flush()
         summary = await cls.summary(session, company_id)

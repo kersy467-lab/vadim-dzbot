@@ -17,11 +17,15 @@ def _o(bid, name, icon, order, cost, level, inputs, outputs, events, *, prerequi
 OIL_GAS_BUSINESSES = {
     spec["id"]: spec for spec in [
         _o("small_oil_well_v2", "Малая нефтяная скважина", "🛢️", 1, 12_000, 1,
-           {"energy": 5, "water": 2, "fuel_diesel": 1}, {"oil_crude": 60},
+           {"energy": 5, "water": 2}, {"oil_crude": 60},
            ("Новая насос-качалка", "Резервуарный парк", "Подготовка нефти", "Автоматизация добычи", "Промышленный нефтепромысел"), starter=True),
         _o("gas_well_v2", "Газовая скважина", "🔥", 2, 30_000, 4,
            {"energy": 6, "water": 2}, {"gas_natural": 48},
            ("Компрессор", "Очистка газа", "Газосборный коллектор", "Автокомпрессорная", "Крупный газовый промысел"), prerequisite={"small_oil_well_v2": 8}),
+        _o("small_refinery_v2", "Небольшой НПЗ", "🏭", 2, 30_000, 4,
+           {"oil_crude": 30, "energy": 8, "water": 2}, {"fuel_diesel": 40},
+           ("Установка первичной переработки", "Резервуары сырья", "Очистка топлива", "Автоматизация линии", "Малый нефтеперерабатывающий узел"),
+           prerequisite={"small_oil_well_v2": 8}),
         _o("oil_field_v2", "Нефтяное месторождение", "⛽", 3, 72_000, 8,
            {"energy": 10, "water": 4, "fuel_diesel": 2}, {"oil_crude": 115},
            ("Куст скважин", "Система сбора нефти", "Дожимная станция", "Цифровое месторождение", "Крупный нефтепромысел"), prerequisite={"small_oil_well_v2": 15}),

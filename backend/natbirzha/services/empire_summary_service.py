@@ -18,6 +18,7 @@ from backend.natbirzha.models.inventory import (
     get_npc_sell_price,
 )
 from backend.natbirzha.services.business_rates import cash_business_rates, resource_business_rates
+from backend.natbirzha.services.business_inventory_runway import build_business_inventory_runway
 from backend.natbirzha.services.business_service import BusinessService
 from backend.natbirzha.services.supply_policy_service import SupplyPolicyService
 from backend.natbirzha.services.business_asset_service import BusinessAssetService
@@ -242,6 +243,7 @@ class EmpireSummaryService:
             select(NatInventory).where(NatInventory.company_id == company.id)
         )).scalars().all()
         inventory = {row.item_id: float(row.available_quantity) for row in inventory_rows}
+        inventory_runway = build_business_inventory_runway(businesses, inventory)
         catalog_businesses = [
             business for business in businesses
             if not (get_business_spec(business.business_type) or {}).get("legacy_hidden", False)
@@ -337,6 +339,7 @@ class EmpireSummaryService:
                 {"business_type": business.business_type, "stage": int(business.stage)}
                 for business in catalog_businesses
             ],
+            "inventory_runway": inventory_runway,
             "inventory_available": {
                 item_id: round(quantity, 6) for item_id, quantity in inventory.items()
             },

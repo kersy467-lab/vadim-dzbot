@@ -33,6 +33,18 @@ function moneyPrecise(value) {
     : '0';
 }
 
+export function renderInventoryRunwayStat(runway) {
+  const status = String(runway?.status || 'NO_CONSUMERS').toUpperCase();
+  const count = Math.max(0, Number(runway?.active_consuming_business_count || 0));
+  const form = count % 100 >= 11 && count % 100 <= 14 ? 2 : count % 10 === 1 ? 0 : count % 10 >= 2 && count % 10 <= 4 ? 1 : 2;
+  const countLabel = `${count} ${['ресурсное предприятие V2', 'ресурсных предприятия V2', 'ресурсных предприятий V2'][form]}`;
+  const limiting = (runway?.limiting_resources || []).map((item) => item.name || getItemInfo(item.item_id).name).join(', ');
+  const details = status === 'NO_CONSUMERS' ? countLabel : `${countLabel}${limiting ? ` · ограничивают: ${limiting}` : ''}`;
+  const scope = 'Ресурсные предприятия V2: работают + ждут поставку · цикловые рецепты фабрик не учитываются';
+  const hours = Number(runway?.hours);
+  const value = status === 'NO_CONSUMERS' ? '—' : status === 'OUT_OF_STOCK' ? '0 ч' : Number.isFinite(hours) && hours >= 0 ? `${hours.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ч` : '—';
+  return `<div class="tycoon-stat" data-inventory-runway="${status.toLowerCase()}"><span>Запас ресурсов V2</span><b>${value}</b><span class="text-[10px]" title="${esc(details)}">${scope}<br>${esc(details)}</span></div>`;
+}
 function resourceQuantity(value) {
   const quantity = Number(value);
   if (!Number.isFinite(quantity) || quantity <= 0) return '';
@@ -293,6 +305,7 @@ function render(root, state, showToast) {
       render(root, state, showToast);
     });
     statGrid.append(toggle);
+    statGrid.insertAdjacentHTML("beforeend", renderInventoryRunwayStat(summary.inventory_runway));
   }
   bind(root, showToast);
 }

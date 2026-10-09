@@ -294,6 +294,140 @@ header {
 .broker-price { color: var(--lux-ink); }
 .broker-order-form select, .broker-order-form input { font-size: .8rem; }
 
+/* Creator state tools use the same ivory surfaces as the rest of this theme. */
+#screen-container .creator-screen {
+  color: var(--lux-ink) !important;
+  --creator-muted: #53615a;
+  --creator-border: #9aaa9b;
+}
+
+#screen-container .creator-screen [class*="text-slate-100"],
+#screen-container .creator-screen [class*="text-slate-200"],
+#screen-container .creator-screen [class*="text-slate-950"],
+#screen-container .creator-screen [class*="text-white"] {
+  color: var(--lux-ink) !important;
+}
+
+#screen-container .creator-screen [class*="text-slate-300"],
+#screen-container .creator-screen [class*="text-slate-400"],
+#screen-container .creator-screen [class*="text-slate-500"],
+#screen-container .creator-screen [class*="text-slate-600"],
+#screen-container .creator-screen [class*="text-slate-700"],
+#screen-container .creator-screen [class*="text-gray-"] {
+  color: var(--creator-muted) !important;
+}
+
+#screen-container .creator-screen [class*="text-amber-"] {
+  color: #795d2c !important;
+}
+
+#screen-container .creator-screen [class*="text-emerald-"],
+#screen-container .creator-screen [class*="text-green-"] {
+  color: var(--lux-emerald-deep) !important;
+}
+
+#screen-container .creator-screen [class*="text-rose-"],
+#screen-container .creator-screen [class*="text-red-"] {
+  color: #9c3535 !important;
+}
+
+#screen-container .creator-screen [class*="text-orange-"] {
+  color: #854c18 !important;
+}
+
+#screen-container .creator-screen [class*="text-sky-"] {
+  color: #28647b !important;
+}
+
+#screen-container .creator-screen [class*="text-blue-"] {
+  color: #28647b !important;
+}
+
+#screen-container .creator-screen [class*="text-violet-"],
+#screen-container .creator-screen [class*="text-purple-"] {
+  color: #57438b !important;
+}
+
+#screen-container .creator-screen [class*="bg-rose-"],
+#screen-container .creator-screen [class*="bg-red-"] {
+  background-color: #f8e9e6 !important;
+  border-color: #d6aaa5 !important;
+}
+
+#screen-container .creator-screen [class*="bg-orange-"],
+#screen-container .creator-screen [class*="bg-amber-"] {
+  background-color: #f6eddc !important;
+  border-color: #d5bc8c !important;
+}
+
+#screen-container .creator-screen [class*="bg-emerald-"],
+#screen-container .creator-screen [class*="bg-green-"] {
+  background-color: #e6f0e5 !important;
+  border-color: #aac2aa !important;
+}
+
+#screen-container .creator-screen [class*="border-"] {
+  border-color: var(--creator-border) !important;
+}
+
+#screen-container .creator-screen .glass-card {
+  border: 1px solid var(--creator-border) !important;
+}
+
+#screen-container .creator-screen button {
+  min-height: 2.25rem;
+  color: var(--lux-ink) !important;
+  background: var(--lux-sage) !important;
+  border: 1px solid var(--creator-border) !important;
+}
+
+#screen-container .creator-screen button[class*="bg-amber-"],
+#screen-container .creator-screen button[class*="bg-orange-"] {
+  color: #493611 !important;
+  background: #e9c26d !important;
+  border-color: #927333 !important;
+}
+
+#screen-container .creator-screen button[class*="bg-blue-"],
+#screen-container .creator-screen button[class*="bg-emerald-"],
+#screen-container .creator-screen button[class*="bg-green-"],
+#screen-container .creator-screen button[class*="bg-indigo-"],
+#screen-container .creator-screen button[class*="bg-violet-"] {
+  color: #fffefa !important;
+  background: var(--lux-emerald) !important;
+  border-color: var(--lux-emerald-deep) !important;
+}
+
+#screen-container .creator-screen button[class*="bg-rose-"],
+#screen-container .creator-screen button[class*="bg-red-"] {
+  color: #fffefa !important;
+  background: #9c3535 !important;
+  border-color: #752727 !important;
+}
+
+#screen-container .creator-screen button[class*="bg-blue-"] *,
+#screen-container .creator-screen button[class*="bg-emerald-"] *,
+#screen-container .creator-screen button[class*="bg-green-"] *,
+#screen-container .creator-screen button[class*="bg-indigo-"] *,
+#screen-container .creator-screen button[class*="bg-violet-"] *,
+#screen-container .creator-screen button[class*="bg-rose-"] *,
+#screen-container .creator-screen button[class*="bg-red-"] * {
+  color: #fffefa !important;
+}
+
+#screen-container .creator-screen .creator-tab-btn[aria-pressed="true"] {
+  color: #fffefa !important;
+  background: var(--lux-emerald) !important;
+  border-color: var(--lux-emerald-deep) !important;
+  box-shadow: inset 0 0 0 1px var(--lux-emerald-deep), 0 2px 5px rgba(18, 75, 60, .16) !important;
+}
+
+#screen-container .creator-screen .creator-tab-btn[aria-pressed="false"] {
+  color: var(--lux-ink) !important;
+  background: var(--lux-sage) !important;
+  border-color: var(--creator-border) !important;
+}
+
 @media (max-width: 360px) {
   #bottom-nav { padding-inline: .2rem; }
   #bottom-nav > div { gap: .05rem; }

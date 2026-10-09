@@ -106,6 +106,34 @@ def evaluate():
         "unprofitable_upgrades": sum(r["stage"] > 1 and r["upgrade_payback_hours"] is None for r in rows),
         "roi_basis": ROI_BASIS,
         "stages": {}}
+    early_oil_businesses = [
+        spec for spec in CAREER_BUSINESSES.values()
+        if spec["specialization"] == "oilman"
+        and spec["mechanic"] == "resource_production"
+        and not spec.get("hybrid_only")
+        and not spec.get("rebirth_required")
+        and int(spec["company_level_required"]) < 16
+    ]
+    small_refinery = CAREER_BUSINESSES["small_refinery_v2"]
+    small_refinery_stage_one = next(
+        row for row in rows
+        if row["business"] == "small_refinery_v2" and row["stage"] == 1
+    )
+    summary["early_oil_diesel_progression"] = {
+        "starter_diesel_input_per_hour": float(
+            CAREER_BUSINESSES["small_oil_well_v2"]["inputs_per_hour"].get("fuel_diesel", 0)
+        ),
+        "ordinary_crude_buyers_before_level_16": sorted(
+            spec["id"] for spec in early_oil_businesses
+            if float(spec["inputs_per_hour"].get("oil_crude", 0)) > 0
+        ),
+        "ordinary_diesel_producers_before_level_16": sorted(
+            spec["id"] for spec in early_oil_businesses
+            if float(spec["outputs_per_hour"].get("fuel_diesel", 0)) > 0
+        ),
+        "small_refinery_open_payback_hours": small_refinery_stage_one["payback_hours"],
+        "small_refinery_target_open_roi_hours": float(small_refinery["target_open_roi_hours"]),
+    }
     for stage, flow in flows.items():
         group = defaultdict(list)
         for row in rows:

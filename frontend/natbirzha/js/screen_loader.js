@@ -1,12 +1,12 @@
 const screens = {
   onboarding: ['./screens/onboarding.js?v=20261009_luxury_ui_v2', 'renderOnboarding'],
   overview: ['./screens/overview.js?v=20261009_item_art_v2', 'renderOverview'],
-  production: ['./screens/tycoon.js?v=20261009_item_art_v2', 'renderTycoon'],
+  production: ['./screens/tycoon.js?v=20261009_inventory_runway_v1', 'renderTycoon'],
   upgrades: ['./screens/upgrades.js?v=20261009_luxury_ui_v2', 'renderUpgrades'],
   market: ['./screens/market.js?v=20261009_item_art_v2', 'renderMarket'],
   stocks: ['./screens/stocks.js?v=20261009_luxury_ui_v2', 'renderStocks'],
   military: ['./screens/military.js?v=20261009_item_art_v2', 'renderMilitary'],
-  creator: ['./screens/creator.js?v=20261009_item_art_v2', 'renderCreator'],
+  creator: ['./screens/creator.js?v=20261009_creator_contrast_v1', 'renderCreator'],
   leaderboard: ['./screens/leaderboard.js?v=20261008_company_renewal_v1', 'renderLeaderboard'],
   help: ['./screens/help.js?v=20261009_luxury_ui_v2', 'renderHelp'],
 };

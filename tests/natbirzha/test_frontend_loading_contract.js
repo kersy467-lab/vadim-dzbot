@@ -52,18 +52,19 @@ assert(
   'the API wrapper should support an encoded item_id for targeted NPC quotes while preserving the all-rates call',
 );
 assert(
-  api.includes('NatAPI') && app.includes("./api.js?v=20260928_market_frontend_perf_v1")
-    && screenLoader.includes("./screens/market.js?v=20260928_market_frontend_perf_v1")
-    && screenLoader.includes("./screens/upgrades.js?v=20260928_upgrade_legacy_cleanup_v1")
-    && screenLoader.includes("./screens/tycoon.js?v=20260928_market_frontend_perf_v1")
-    && app.includes("./screen_loader.js?v=20260928_upgrade_legacy_cleanup_v1")
-    && indexHtml.includes('/js/app.js?v=20260928_upgrade_legacy_cleanup_v1'),
+  api.includes('NatAPI') && app.includes("./api.js?v=20261009_bankruptcy_recovery_v1")
+    && screenLoader.includes("./screens/market.js?v=20261009_item_art_v2")
+    && screenLoader.includes("./screens/upgrades.js?v=20261009_luxury_ui_v2")
+    && screenLoader.includes("./screens/tycoon.js?v=20261009_inventory_runway_v1")
+    && app.includes("./screen_loader.js?v=20261009_creator_contrast_v1")
+    && app.includes("./icons.mjs?v=20261009_semantic_icons_v3")
+    && indexHtml.includes('/js/app.js?v=20261009_boot_perf_v1'),
   'changed frontend entry, loader, and upgrade assets should use fresh cache-bust versions',
 );
 const apiImportVersions = new Set(javascriptFiles(path.join(__dirname, '../../frontend/natbirzha/js'))
   .flatMap((file) => [...fs.readFileSync(file, 'utf8').matchAll(/(?:^|\/)api\.js\?v=([^&'"\s]+)/g)].map((match) => match[1])));
 assert(
-  apiImportVersions.size === 1 && apiImportVersions.has('20260928_market_frontend_perf_v1'),
+  apiImportVersions.size === 1 && apiImportVersions.has('20261009_bankruptcy_recovery_v1'),
   'all frontend imports of api.js should share one fresh module URL for navigation cancellation state',
 );
 
@@ -86,10 +87,10 @@ assert(
 
 const renderUpgradesStart = upgrades.indexOf('export async function renderUpgrades');
 const loadingScreenIndex = upgrades.indexOf('renderUpgradeLoading(container)', renderUpgradesStart);
-const empireSummaryIndex = upgrades.indexOf('await NatAPI.getEmpireSummary()', renderUpgradesStart);
+const upgradeSummaryIndex = upgrades.indexOf('await NatAPI.getBusinessUpgradeSummary()', renderUpgradesStart);
 assert(
-  loadingScreenIndex !== -1 && empireSummaryIndex !== -1 && loadingScreenIndex < empireSummaryIndex,
-  'the upgrades screen should show a loading state before waiting for the V2 empire summary',
+  loadingScreenIndex !== -1 && upgradeSummaryIndex !== -1 && loadingScreenIndex < upgradeSummaryIndex,
+  'the upgrades screen should show a loading state before requesting its upgrade summary',
 );
 assert(
   !upgrades.includes('renderFactoryUpgrades')

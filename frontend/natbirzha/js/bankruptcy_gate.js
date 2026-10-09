@@ -3,6 +3,7 @@ const dismissedCompanies = new Set();
 
 let activeOverlay = null;
 let monitorTimer = null;
+let bankruptcyCheckInFlight = false;
 
 function dismissedKey(companyId) {
   return `natbirzha:bankruptcy-dismissed:${companyId}`;
@@ -119,13 +120,17 @@ function createOverlay({ companyId, companyName, status, api, store, showToast, 
 }
 
 async function checkBankruptcy({ api, store, showToast, onRestart }) {
+  if (bankruptcyCheckInFlight) return;
   if (!store.hasCompany()) return;
   const company = store.company;
   const companyId = company?.id || company?.company_id;
   if (!companyId) return;
 
+  bankruptcyCheckInFlight = true;
   try {
     const status = await api.getBankruptcyStatus();
+    const currentCompanyId = store.company?.id || store.company?.company_id;
+    if (String(currentCompanyId) !== String(companyId)) return;
     if (!status?.is_bankrupt) {
       clearDismissed(companyId);
       if (activeOverlay?.dataset.companyId === String(companyId)) closeOverlay();
@@ -143,13 +148,15 @@ async function checkBankruptcy({ api, store, showToast, onRestart }) {
     });
   } catch (_) {
     // A status check must never block the game if the bankruptcy service is unavailable.
+  } finally {
+    bankruptcyCheckInFlight = false;
   }
 }
 
 export async function startBankruptcyMonitor(options) {
   if (monitorTimer) window.clearInterval(monitorTimer);
-  await checkBankruptcy(options);
   monitorTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') void checkBankruptcy(options);
   }, CHECK_INTERVAL_MS);
+  await checkBankruptcy(options);
 }

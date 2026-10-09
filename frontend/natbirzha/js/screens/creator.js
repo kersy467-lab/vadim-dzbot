@@ -14,7 +14,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
 
 export async function renderCreator(container, showToast) {
   container.innerHTML = `
-    <div class="space-y-4 max-w-md mx-auto p-4 pb-24 text-slate-100">
+    <div class="creator-screen space-y-4 max-w-md mx-auto p-4 pb-24 text-slate-100">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-xl font-black text-amber-400 flex items-center gap-2">
@@ -34,16 +34,16 @@ export async function renderCreator(container, showToast) {
 
       <!-- Navigation Tabs -->
       <div class="grid grid-cols-3 gap-1.5 text-[10px] font-bold">
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="overview">🏛️ Казна</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'market' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="market">⚖️ Модерация</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'bonds' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="bonds">📜 Облигации</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'shares' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="shares">📈 Акции государства</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'credits' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="credits">🏦 Кредиты</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'tournaments' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="tournaments">⚔️ Турниры</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'sabotages' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="sabotages">🎭 Саботажи</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'players' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="players">👥 Игроки</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'premium' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="premium">💎 PVC</button>
-        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'audit' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="audit">📋 Аудит</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="overview" aria-pressed="${activeTab === 'overview'}">🏛️ Казна</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'market' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="market" aria-pressed="${activeTab === 'market'}">⚖️ Модерация</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'bonds' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="bonds" aria-pressed="${activeTab === 'bonds'}">📜 Облигации</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'shares' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="shares" aria-pressed="${activeTab === 'shares'}">📈 Акции государства</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'credits' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="credits" aria-pressed="${activeTab === 'credits'}">🏦 Кредиты</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'tournaments' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="tournaments" aria-pressed="${activeTab === 'tournaments'}">⚔️ Турниры</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'sabotages' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="sabotages" aria-pressed="${activeTab === 'sabotages'}">🎭 Саботажи</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'players' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="players" aria-pressed="${activeTab === 'players'}">👥 Игроки</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'premium' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="premium" aria-pressed="${activeTab === 'premium'}">💎 PVC</button>
+        <button class="creator-tab-btn w-full min-h-10 px-1.5 py-2 rounded-lg text-center leading-tight flex items-center justify-center transition-all ${activeTab === 'audit' ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800/80 text-slate-300'}" data-tab="audit" aria-pressed="${activeTab === 'audit'}">📋 Аудит</button>
       </div>
 
       <div id="creator-tab-content" class="space-y-3">

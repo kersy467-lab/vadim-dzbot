@@ -1,7 +1,7 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261009_bankruptcy_recovery_v1';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261010_theme_auto_upgrade_next_game_v1';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen, preloadScreen } from './screen_loader.js?v=20261009_creator_contrast_v1';
+import { loadScreen, preloadScreen } from './screen_loader.js?v=20261010_next_game_admin_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { installIconHydration, uiIcon } from './icons.mjs?v=20261009_semantic_icons_v3';
 import { startBankruptcyMonitor } from './bankruptcy_gate.js?v=20261009_boot_perf_v1';
@@ -120,6 +120,7 @@ export function checkAndRevealCreatorAccess() {
   if (creatorBtn && isCreator) {
     creatorBtn.classList.remove('hidden');
   }
+  document.getElementById('next-game-nav-btn')?.classList.toggle('hidden', !(user?.is_creator === true || user?.role === 'admin'));
   return isCreator;
 }
 
@@ -136,7 +137,7 @@ async function renderScreenOnce() {
   updateMaintenanceBanner(store.maintenanceMode, isCreator);
 
   // If no company exists yet, always route to Onboarding (unless creator panel is requested)
-  if (!store.hasCompany() && renderTab !== 'creator') {
+  if (!store.hasCompany() && renderTab !== 'creator' && renderTab !== 'next-game') {
     document.getElementById('bottom-nav')?.classList.add('hidden');
     document.getElementById('header-stats')?.classList.add('hidden');
     const renderOnboarding = await loadScreen('onboarding');
@@ -258,7 +259,8 @@ function setupNavigation() {
     const tab = btn.getAttribute('data-tab');
     preloadScreenOnIntent(btn, tab);
     btn.addEventListener('click', () => {
-      if (tab && tab !== store.currentTab) navigateTo(tab);
+      const backToMain = tab === 'next-game' && tab === store.currentTab;
+      if (tab && (tab !== store.currentTab || backToMain)) navigateTo(backToMain ? 'overview' : tab);
     });
   });
   const creatorButton = document.getElementById('creator-nav-btn');

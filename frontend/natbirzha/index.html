@@ -27,7 +27,9 @@
   <link rel="stylesheet" href="/static/natbirzha/css/natbirzha.css?v=20260925_energy_mechanic_v5_energy_mechanic_v5" />
   <link rel="stylesheet" href="/static/natbirzha/css/tycoon.css?v=20261009_banner_contrast_v1" />
   <link rel="stylesheet" href="/static/natbirzha/css/market-broker.css?v=20260925_energy_mechanic_v5_energy_mechanic_v5" />
-  <link rel="stylesheet" href="/static/natbirzha/css/luxury-theme.css?v=20261009_creator_contrast_v2" />
+  <link rel="stylesheet" href="/static/natbirzha/css/luxury-theme.css?v=20261010_theme_split_v1" />
+  <link rel="stylesheet" href="/static/natbirzha/css/creator-theme.css?v=20261010_theme_split_v1" />
+  <link rel="stylesheet" href="/static/natbirzha/css/theme-variants.css?v=20261010_theme_picker_v1" />
 
   <script>
     document.documentElement.classList.remove('dark');
@@ -71,6 +73,16 @@
           </div>
           <div class="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">Баланс</div>
         </div>
+      </div>
+    </div>
+    <div class="theme-toolbar px-4" aria-label="Настройки оформления и тестовой игры">
+      <button id="next-game-nav-btn" type="button" data-tab="next-game" aria-label="Открыть тестовую игру Натбиржа 2.0" class="nav-tab hidden next-game-launcher">НАТБИРЖА 2.0</button>
+      <div class="theme-choice"><label for="theme-select">Тема</label>
+        <select id="theme-select" aria-label="Цветовая тема">
+          <option value="ivory">Айвори и шалфей</option>
+          <option value="midnight">Ночная биржа</option>
+          <option value="pearl">Жемчуг и сталь</option>
+        </select>
       </div>
     </div>
   </header>
@@ -118,7 +130,8 @@
   <!-- Floating Toast Notifications -->
   <div id="toast-container" class="fixed bottom-16 left-4 right-4 z-50 flex flex-col gap-2 items-center"></div>
 
-  <script type="module" src="/static/natbirzha/js/app.js?v=20261009_boot_perf_v1"></script>
+  <script type="module" src="/static/natbirzha/js/theme_preferences.mjs?v=20261010_theme_picker_v1"></script>
+  <script type="module" src="/static/natbirzha/js/app.js?v=20261010_next_game_admin_v1"></script>
 
 </body>
 </html>

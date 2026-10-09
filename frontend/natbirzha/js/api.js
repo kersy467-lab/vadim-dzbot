@@ -181,6 +181,17 @@ export const NatAPI = {
 
   getIndustryOverview: () => cachedGet('/api/natbirzha/company/industries', 30 * 1000),
 
+  getNextGameMap: () => request('/api/natbirzha/next-game/map'),
+  createNextGameCompany: (name) => request('/api/natbirzha/next-game/company', {
+    method: 'POST', body: JSON.stringify({ name: String(name || '').trim() }),
+  }),
+  selectNextGameSector: (sector_id) => request('/api/natbirzha/next-game/sector', {
+    method: 'PUT', body: JSON.stringify({ sector_id }),
+  }),
+  selectNextGameBranch: (branch_id) => request('/api/natbirzha/next-game/branch', {
+    method: 'PUT', body: JSON.stringify({ branch_id }),
+  }),
+
   // NATBIRZHA 2.0 idle/tycoon businesses
   getBusinessCatalog: (specialization = null) => {
     const query = specialization ? `?specialization=${encodeURIComponent(specialization)}` : '';
@@ -189,6 +200,7 @@ export const NatAPI = {
   getBusinessUpgradeSummary: () => request('/api/natbirzha/company/upgrade-summary'),
   getBusinessInputItems: () => request('/api/natbirzha/company/business-inputs'),
   getEmpireSummary: () => request('/api/natbirzha/company/empire-summary'),
+  setAutoUpgradeToNine: (enabled) => request('/api/natbirzha/company/auto-upgrade', { method: 'PUT', body: JSON.stringify({ enabled: Boolean(enabled) }) }),
   getHybridCatalog: () => request('/api/natbirzha/businesses/hybrids'),
   openHybrid: (payload, idempotencyKey) => request('/api/natbirzha/businesses/hybrids/open', {
     method: 'POST',

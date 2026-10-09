@@ -24,6 +24,8 @@ from backend.natbirzha.api.portfolio_routes import router as portfolio_router
 from backend.natbirzha.api.finance_routes import router as finance_router
 from backend.natbirzha.api.business_routes import router as business_router, company_router as tycoon_company_router
 from backend.natbirzha.api.business_asset_routes import router as business_asset_router
+from backend.natbirzha.api.auto_upgrade_routes import router as auto_upgrade_router
+from backend.natbirzha.api.next_game_routes import router as next_game_router
 from backend.natbirzha.api.tax_routes import router as tax_router
 from backend.natbirzha.api.state_share_routes import creator_router as state_share_creator_router
 from backend.natbirzha.api.state_share_routes import player_router as state_share_player_router
@@ -79,6 +81,7 @@ def build_natbirzha_router(admin_only: bool | None = None) -> APIRouter:
         finance_router,
         business_router,
         business_asset_router,
+        auto_upgrade_router,
         tax_router,
         state_share_creator_router,
         state_share_player_router,
@@ -98,6 +101,8 @@ def build_natbirzha_router(admin_only: bool | None = None) -> APIRouter:
     ):
         game_router.include_router(child_router)
     router.include_router(game_router)
+    # This independent test game keeps its own administrator-only authorization.
+    router.include_router(next_game_router)
     # Keep status and admin controls reachable during a tech break. The write
     # endpoints perform their own administrator checks.
     router.include_router(maintenance_router)

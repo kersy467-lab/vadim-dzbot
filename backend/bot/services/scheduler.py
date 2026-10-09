@@ -127,9 +127,13 @@ def setup_scheduler(bot: Bot):
                 from backend.natbirzha.services.production_service import ProductionTickEngine
                 async with async_session_factory() as session:
                     res = await ProductionTickEngine.process_global_scheduled_tick(session)
+                    from backend.natbirzha.services.business_auto_upgrade_service import BusinessAutoUpgradeService
+                    auto_result = await BusinessAutoUpgradeService.process_enabled_companies(session)
                     ticks = res.get("ticks_processed", 0) if isinstance(res, dict) else int(res or 0)
                     if ticks > 0:
                         logger.info(f"Natbirzha tick processed {ticks} factories.")
+                    if auto_result.get("upgrades_started", 0) > 0:
+                        logger.info("Natbirzha auto-upgrade started %s business upgrades.", auto_result["upgrades_started"])
             except Exception as ex:
                 logger.error(f"Error in natbirzha hourly tick: {ex}")
 

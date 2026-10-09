@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
+import { NatAPI } from '../api.js?v=20261010_theme_auto_upgrade_next_game_v1';
 import { formatNumber } from '../format.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({

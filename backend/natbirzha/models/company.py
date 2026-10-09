@@ -35,6 +35,7 @@ class NatCompany(Base):
     territory_tiles: Mapped[int] = mapped_column(Integer, default=4, nullable=False)
     max_territory: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
     business_slot_capacity: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    auto_upgrade_to_nine_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     business_slot_upgrade_ready_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     industry_upgrade_levels_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     

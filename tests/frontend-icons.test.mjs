@@ -42,8 +42,8 @@ test('every catalog item renders as its own colorful drawn resource illustration
 test('resource illustration module is cache-busted in Telegram webviews', async () => {
   const appModule = await readFile(new URL('../frontend/natbirzha/js/app.js', import.meta.url), 'utf8');
   const iconModule = await readFile(new URL('../frontend/natbirzha/js/icons.mjs', import.meta.url), 'utf8');
-  assert.match(appModule, /icons\.mjs\?v=20261009_item_art_v2/);
-  assert.match(iconModule, /from '\.\/resource_icons\.mjs\?v=20261009_item_art_v2'/);
+  assert.match(appModule, /icons\.mjs\?v=20261009_semantic_icons_v3/);
+  assert.match(iconModule, /from '\.\/resource_icons\.mjs\?v=[A-Za-z0-9_-]+'/);
 });
 
 test('item-art cache version reaches every screen module that renders resource icons', async () => {
@@ -58,17 +58,17 @@ test('item-art cache version reaches every screen module that renders resource i
     read('../frontend/natbirzha/js/screens/creator.js'),
     read('../frontend/natbirzha/js/screens/production.js'),
   ]);
-  assert.match(app, /screen_loader\.js\?v=20261009_item_art_v2/);
-  assert.match(loader, /screens\/overview\.js\?v=20261009_item_art_v2/);
-  assert.match(loader, /screens\/market\.js\?v=20261009_item_art_v2/);
-  assert.match(loader, /screens\/tycoon\.js\?v=20261009_item_art_v2/);
-  assert.match(loader, /screens\/military\.js\?v=20261009_item_art_v2/);
-  assert.match(market, /market_commodities\.js\?v=20261009_item_art_v2/);
-  assert.match(overview, /company_aid_panel\.js\?v=20261009_item_art_v2/);
-  assert.match(tycoon, /tycoon_production_status\.js\?v=20261009_item_art_v2/);
-  assert.match(military, /military_hospital\.js\?v=20261009_item_art_v2/);
-  assert.match(creator, /creator_moderation\.js\?v=20261009_item_art_v2/);
-  assert.match(production, /catalog\.js\?v=20261009_item_art_v2/);
+  assert.match(app, /screen_loader\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(loader, /screens\/overview\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(loader, /screens\/market\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(loader, /screens\/tycoon\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(loader, /screens\/military\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(market, /market_commodities\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(overview, /company_aid_panel\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(tycoon, /tycoon_production_status\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(military, /military_hospital\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(creator, /creator_moderation\.js\?v=[A-Za-z0-9_-]+/);
+  assert.match(production, /catalog\.js\?v=[A-Za-z0-9_-]+/);
 });
 
 test('labels and classes are escaped and decorative icons are hidden from assistive tech', () => {

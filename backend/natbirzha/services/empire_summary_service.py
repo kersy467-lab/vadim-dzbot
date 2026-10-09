@@ -310,6 +310,7 @@ class EmpireSummaryService:
             },
             "territory_tiles": company.territory_tiles,
             "cash": round(float(company.cash), 2),
+            "auto_upgrade_to_nine_enabled": bool(company.auto_upgrade_to_nine_enabled),
             "income_per_hour": round(gross, 2),
             "expenses_per_hour": round(expenses, 2),
             "net_cash_per_hour": round(gross - expenses, 2),

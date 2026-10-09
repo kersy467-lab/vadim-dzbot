@@ -1,9 +1,10 @@
-import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
+import { NatAPI } from '../api.js?v=20261010_theme_auto_upgrade_next_game_v1';
 import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { getSpecializationIcon, getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { renderProductionReadiness } from './tycoon_production_status.js?v=20261009_item_art_v2';
+import { mountAutoUpgradeToggle } from '../auto_upgrade_toggle.mjs?v=20261010_auto_upgrade_v1';
 
 let refreshTimer = null;
 let releaseRefreshCleanup = null;
@@ -306,6 +307,7 @@ function render(root, state, showToast) {
     });
     statGrid.append(toggle);
     statGrid.insertAdjacentHTML("beforeend", renderInventoryRunwayStat(summary.inventory_runway));
+    mountAutoUpgradeToggle(statGrid, summary, showToast);
   }
   bind(root, showToast);
 }

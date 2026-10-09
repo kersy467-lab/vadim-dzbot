@@ -64,13 +64,13 @@ export function renderOverview(container, showToast) {
       <!-- Creator / State Administration Banner -->
       <div id="creator-banner-card" class="rounded-2xl p-3.5 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-900 text-white shadow-lg border border-amber-400/40 flex items-center justify-between cursor-pointer active:scale-98 transition-all">
         <div class="flex items-center gap-2.5">
-          <span>${window.NatIcons.icon('state', 26)}</span>
+          <span class="creator-banner-icon">${window.NatIcons.icon('state', 26)}</span>
           <div>
-            <div class="text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
+            <div class="creator-banner-title text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
               <span>Панель Государства</span>
               <span class="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[9px] font-black">ADMIN</span>
             </div>
-            <div class="text-[10px] text-amber-200 font-medium">Казна, модерация, сброс всех аккаунтов</div>
+            <div class="creator-banner-subtitle text-[10px] text-amber-200 font-medium">Казна, модерация, сброс всех аккаунтов</div>
           </div>
         </div>
         <button class="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-xs shadow-md shrink-0">

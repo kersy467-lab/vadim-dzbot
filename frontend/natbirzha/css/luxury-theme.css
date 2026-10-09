@@ -202,6 +202,19 @@ header {
   color: var(--lux-emerald) !important;
 }
 
+/* Keep text readable on the dark emerald banner gradients. */
+#screen-container .tycoon-hero .tycoon-hero-kicker,
+#screen-container #creator-banner-card .creator-banner-subtitle {
+  color: #e5f0e8 !important;
+}
+
+#screen-container .tycoon-hero .tycoon-hero-title,
+#screen-container .tycoon-hero .tycoon-hero-icon,
+#screen-container #creator-banner-card .creator-banner-icon,
+#screen-container #creator-banner-card .creator-banner-title {
+  color: #fffefa !important;
+}
+
 #screen-container [class*="border-slate-"], #screen-container [class*="border-indigo-"],
 #screen-container [class*="border-blue-"], #screen-container [class*="border-violet-"],
 #screen-container [class*="border-purple-"], #screen-container [class*="border-pink-"] {

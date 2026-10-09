@@ -70,5 +70,5 @@
 
 - [x] Review the combined diff for catalog unlock consistency, accurate shared-stock math, semantic icon mapping, cache busting, and State panel contrast.
 - [x] Run focused Python and Node tests, syntax checks, loading contracts, icon/contrast contracts, and the broader economy checks. Targeted tests pass; broader checks have the unrelated legacy failures noted under Task 1.
-- [ ] Commit the implementation with a descriptive message.
-- [ ] Push `main` and `dev` to `origin`, `vadim`, and `mybot` using the repository's required safe-directory and noninteractive Git settings.
+- [x] Commit the implementation with a descriptive message: `7b04d2b` (`fix: balance early oil and improve factory overview`).
+- [x] Push `main` and `dev` to `origin`, `vadim`, and `mybot` using the repository's required safe-directory and noninteractive Git settings.

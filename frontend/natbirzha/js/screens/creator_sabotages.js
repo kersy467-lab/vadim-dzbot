@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
+import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 
 export async function loadCreatorSabotages(el, showToast) {
   const [activeRes, catalogRes] = await Promise.all([

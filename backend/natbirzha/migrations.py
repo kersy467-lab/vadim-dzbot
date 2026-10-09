@@ -842,6 +842,60 @@ async def _migrate_v26_state_treasury_economy(conn) -> None:
     await conn.run_sync(create_stock_table)
 
 
+async def _migrate_v27_release_bonus_pivocoins(conn) -> None:
+    """Grant current companies one auditable 2,000 PVC NATBIRZHA 1.5 bonus."""
+    if not await _table_exists(conn, "nat_companies") or not await _table_exists(conn, "nat_premium_ledger"):
+        return
+
+    from backend.natbirzha.config import get_game_now
+    from backend.natbirzha.models.premium import NatPremiumLedgerEntry
+
+    ledger = NatPremiumLedgerEntry.__table__
+    rows = (await conn.execute(text(
+        "SELECT id, pvc_balance FROM nat_companies ORDER BY id"
+    ))).fetchall()
+    now = get_game_now()
+    for company_id, balance_value in rows:
+        company_id = int(company_id)
+        operation_key = f"natbirzha_1_5_pvc_bonus_{company_id}"
+        already_granted = await conn.execute(
+            text("SELECT 1 FROM nat_premium_ledger WHERE operation_key=:key"),
+            {"key": operation_key},
+        )
+        if already_granted.first() is not None:
+            continue
+
+        balance_before = int(balance_value or 0)
+        balance_after = balance_before + 2_000
+        updated = await conn.execute(text("""
+            UPDATE nat_companies
+            SET pvc_balance=:balance_after
+            WHERE id=:company_id AND pvc_balance=:balance_before
+        """), {
+            "balance_after": balance_after,
+            "company_id": company_id,
+            "balance_before": balance_before,
+        })
+        if updated.rowcount != 1:
+            # Another app instance may have applied this same grant first.
+            continue
+
+        await conn.execute(ledger.insert().values(
+            company_id=company_id,
+            amount=2_000,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            operation_type="release_bonus",
+            operation_key=operation_key,
+            actor_user_id=None,
+            metadata_json={
+                "release": "НАТБИРЖА 1.5",
+                "reason": "Бонус игрокам к обновлению",
+            },
+            created_at=now,
+        ))
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -884,6 +938,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v24_001_company_renewal", _migrate_v24_company_renewal),
     ("natbirzha_v25_001_rebirth_stock_notice", _migrate_v25_rebirth_stock_notice),
     ("natbirzha_v26_001_state_treasury_economy", _migrate_v26_state_treasury_economy),
+    ("natbirzha_v27_001_release_bonus_pivocoins", _migrate_v27_release_bonus_pivocoins),
 )
 
 

@@ -53,6 +53,7 @@ logger = logging.getLogger("botdz")
 bot, dp = create_bot_and_dispatcher()
 polling_task: asyncio.Task | None = None
 state_export_task: asyncio.Task | None = None
+release_announcement_task: asyncio.Task | None = None
 
 from backend.bot.services.commands import setup_bot_commands
 
@@ -61,12 +62,28 @@ async def lifespan(app: FastAPI):
     # --- Startup ---
     logger.info("Initializing database...")
     await init_db()
-    global state_export_task
+    global state_export_task, release_announcement_task
     from backend.natbirzha.services.state_economy_service import StateEconomyService
     state_export_task = asyncio.create_task(
         StateEconomyService.run_export_worker(async_session_factory, logger=logger),
         name="natbirzha-state-foreign-export",
     )
+    if os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_URL"):
+        from backend.natbirzha.services.release_announcement import send_natbirzha_v1_5_announcement
+
+        async def _deliver_release_announcement():
+            try:
+                report = await send_natbirzha_v1_5_announcement(
+                    bot, async_session_factory, logger=logger,
+                )
+                logger.info("NATBIRZHA 1.5 release delivery result: %s", report)
+            except Exception:
+                logger.exception("NATBIRZHA 1.5 release announcement failed")
+
+        release_announcement_task = asyncio.create_task(
+            _deliver_release_announcement(),
+            name="natbirzha-1-5-release-announcement",
+        )
 
     async with async_session_factory() as session:
         await seed_initial_data(session)
@@ -222,6 +239,13 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
         state_export_task = None
+    if release_announcement_task:
+        release_announcement_task.cancel()
+        try:
+            await release_announcement_task
+        except asyncio.CancelledError:
+            pass
+        release_announcement_task = None
     try:
         from backend.tunnel import stop_tunnel
         await stop_tunnel()

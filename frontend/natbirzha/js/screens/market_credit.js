@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
+import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 
 const RATE_PCT = 20;
@@ -6,8 +6,8 @@ const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFra
 const dateLabel = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';
 
 function loanCard(loan) {
-  const labels = { PENDING: 'ОЖИДАЕТ РЕШЕНИЯ', ACTIVE: 'АКТИВЕН', DEFAULTED: 'ПРОСРОЧЕН', PAID: 'ПОГАШЕН', REJECTED: 'ОТКЛОНЁН' };
-  const tones = { PENDING: 'text-amber-600', ACTIVE: 'text-emerald-600', DEFAULTED: 'text-rose-600', PAID: 'text-slate-500', REJECTED: 'text-slate-500' };
+  const labels = { PENDING: 'ОЖИДАЕТ РЕШЕНИЯ', ACTIVE: 'АКТИВЕН', DEFAULTED: 'ПРОСРОЧЕН', PAID: 'ПОГАШЕН', REJECTED: 'ОТКЛОНЁН', FORGIVEN: 'СПИСАН ПРИ БАНКРОТСТВЕ', CANCELLED: 'ОТМЕНЁН ПРИ БАНКРОТСТВЕ' };
+  const tones = { PENDING: 'text-amber-600', ACTIVE: 'text-emerald-600', DEFAULTED: 'text-rose-600', PAID: 'text-slate-500', REJECTED: 'text-slate-500', FORGIVEN: 'text-emerald-700', CANCELLED: 'text-slate-500' };
   const canRepay = ['ACTIVE', 'DEFAULTED'].includes(loan.status);
   return `<article class="glass-card rounded-2xl p-4 space-y-2 text-xs">
     <div class="flex items-center justify-between gap-2"><b>Государственный кредит #${loan.id}</b><b class="${tones[loan.status] || 'text-slate-500'}">${labels[loan.status] || loan.status}</b></div>

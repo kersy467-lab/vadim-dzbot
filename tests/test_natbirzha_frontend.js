@@ -3,6 +3,7 @@ const path = require('path');
 const assert = require('assert');
 require('./natbirzha/test_tycoon_frontend_contract.js');
 require('./natbirzha/test_creator_bond_bankruptcy_frontend.js');
+require('./natbirzha/test_bankruptcy_overlay_frontend.js');
 
 console.log('=== [Natbirzha Test 1/5] Testing index.html markup & theme sync ===');
 const natHtml = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');
@@ -100,6 +101,8 @@ assert(store.inventoryReserved.steel === 148.934, 'reserved material must remain
 
 store.setTab('production');
 assert(store.currentTab === 'production', 'setTab must update currentTab');
+store.setCompany({ id: 102, name: 'Новая компания', cash: 150000 });
+assert(store.factories.length === 0, 'a restarted company must not inherit factories from the bankrupt company');
 console.log('state.js reactivity and safe updates verified!');
 
 console.log('=== [Natbirzha Test 3/5] Testing api.js request handling & error resilience ===');

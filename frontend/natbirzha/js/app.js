@@ -1,9 +1,10 @@
-import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261009_perf_tuning_v1';
+import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261009_bankruptcy_recovery_v1';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
 import { loadScreen, preloadScreen } from './screen_loader.js?v=20261009_rebirth_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { installIconHydration, uiIcon } from './icons.mjs?v=20261009_luxury_ui_v2';
+import { startBankruptcyMonitor } from './bankruptcy_gate.js?v=20261009_bankruptcy_recovery_v1';
 
 installIconHydration();
 
@@ -354,6 +355,16 @@ export async function initApp() {
     }
     return;
   }
+
+  await startBankruptcyMonitor({
+    api: NatAPI,
+    store,
+    showToast,
+    onRestart: async () => {
+      beginNavigationScope();
+      await renderCurrentScreen();
+    },
+  });
 
   beginNavigationScope();
   await renderCurrentScreen();

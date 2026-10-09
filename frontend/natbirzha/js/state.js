@@ -50,6 +50,11 @@ class NatStateStore {
       this.factories = [];
       this.nav = 0;
     } else {
+      const previousId = this.company?.id || this.company?.company_id;
+      const nextId = companyData.id || companyData.company_id;
+      if (previousId && nextId && String(previousId) !== String(nextId)) {
+        this.factories = [];
+      }
       this.company = companyData;
       // Normalize company_id to id for consistency
       if (companyData.company_id && !companyData.id) {

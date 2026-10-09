@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
+import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
 
 const CATEGORIES = [

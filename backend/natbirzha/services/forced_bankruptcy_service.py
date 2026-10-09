@@ -23,6 +23,7 @@ from backend.natbirzha.models.restructuring import NatDailyFinancials
 from backend.natbirzha.models.state_shares import NatStateShare, NatStateShareHolding
 from backend.natbirzha.models.stocks import NatStockOrder
 from backend.natbirzha.services.bankruptcy_market_service import BankruptcyMarketService
+from backend.natbirzha.services.bankruptcy_recovery_service import BankruptcyRecoveryService
 from backend.natbirzha.services.market_service import MarketService
 from backend.natbirzha.services.market_advance_service import MarketAdvanceService
 from backend.natbirzha.services.state_share_service import StateShareService
@@ -320,6 +321,7 @@ class ForcedBankruptcyService:
         from backend.natbirzha.services.supply_deal_service import SupplyDealService
         await SupplyDealService.bankruptcy_terminate(session, company.id, now=current)
         company.is_bankrupt = True
+        debt_writeoff = await BankruptcyRecoveryService.forgive_open_loans(session, company.id)
         company.updated_at = current
 
         result = {
@@ -331,6 +333,9 @@ class ForcedBankruptcyService:
             "state_shares_returned": state_shares_returned,
             "inventory_sales": inventory_sales,
             "bonds_returned": bonds_returned,
+            "loans_forgiven": debt_writeoff["loans_forgiven"],
+            "debt_written_off": debt_writeoff["debt_written_off"],
+            "pending_credits_cancelled": debt_writeoff["pending_cancelled"],
             "lots_created": len(lots),
             "market": "банкротства",
         }
@@ -343,7 +348,8 @@ class ForcedBankruptcyService:
                 f"Компания {company.name} обанкрочена: в рынок банкротов выставлено {len(lots)} активов; "
                 f"казна получила {cash_transferred:.2f} cash и {sum(inventory_sales.values()):.2f} cash за сырьё; "
                 f"акции банкрота выставлены на продажу; "
-                f"в рынок возвращено {bonds_returned} облигаций."
+                f"в рынок возвращено {bonds_returned} облигаций; "
+                f"кредиты списаны на {debt_writeoff['debt_written_off']:.2f} cash."
             ),
             created_at=current,
         ))
@@ -362,7 +368,8 @@ class ForcedBankruptcyService:
                 details=(
                     f"В рынок банкротов выставлено {len(lots)} активов. "
                     f"В казну переведено {cash_transferred:.2f} ₽ наличных. "
-                    f"Возвращено {bonds_returned} облигаций и {state_shares_returned} госакций."
+                    f"Возвращено {bonds_returned} облигаций и {state_shares_returned} госакций. "
+                    f"Кредиты списаны на {debt_writeoff['debt_written_off']:.2f} cash."
                 ),
             )
         )

@@ -1,7 +1,7 @@
 """Creator bankruptcy transfers real assets into the state and auction markets."""
 
 import asyncio
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -17,6 +17,7 @@ from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.models.bankruptcy_market import NatBankruptcyMarketLot
 from backend.natbirzha.models.company import NatCompany, NatFactory
+from backend.natbirzha.models.contracts import NatLoan
 from backend.natbirzha.models.creator import (
     NatBondListing, NatCreatorAuditLog, NatStateBond, NatStateBondHolding, NatStateTreasury,
 )
@@ -24,6 +25,7 @@ from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.models.market import NatMarketOrder, NatMarketTrade
 from backend.natbirzha.models.npc import NatNpcDailyVolume
 from backend.natbirzha.models.stocks import NatStock, NatStockHolding
+from backend.natbirzha.models.state_credit import NatStateCreditLoan
 from backend.natbirzha.services.forced_bankruptcy_service import ForcedBankruptcyService
 from backend.natbirzha.services.bankruptcy_market_service import BankruptcyMarketService
 from backend.natbirzha.services.production_service import ProductionTickEngine
@@ -57,6 +59,15 @@ def test_admin_bankruptcy_liquidates_and_lists_seized_assets_once() -> None:
             treasury = NatStateTreasury(id=1, cash=5_000_000)
             session.add_all([bankrupt, buyer, issuer, treasury])
             await session.flush()
+            legacy_loan = NatLoan(
+                company_id=bankrupt.id, principal=1_000, remaining_debt=1_300,
+                due_date=date(2026, 10, 10), status="ACTIVE",
+            )
+            state_loan = NatStateCreditLoan(
+                company_id=bankrupt.id, principal=2_000, total_due=2_400, remaining_debt=2_400,
+                term_days=2, due_at=get_game_now() + timedelta(days=1), status="ACTIVE",
+            )
+            session.add_all([legacy_loan, state_loan])
 
             factories = [NatFactory(
                 company_id=bankrupt.id, building_type="grain_farm", specialization="agrarian", level=1,
@@ -117,6 +128,8 @@ def test_admin_bankruptcy_liquidates_and_lists_seized_assets_once() -> None:
             await session.refresh(bond_holding)
             await session.refresh(bond)
             await session.refresh(bond_listing)
+            await session.refresh(legacy_loan)
+            await session.refresh(state_loan)
 
             lots = (await session.execute(select(NatBankruptcyMarketLot))).scalars().all()
             active_lots = [lot for lot in lots if lot.status == "ACTIVE"]
@@ -124,6 +137,9 @@ def test_admin_bankruptcy_liquidates_and_lists_seized_assets_once() -> None:
             business_lot = next(lot for lot in active_lots if lot.asset_kind == "BUSINESS")
             assert bankrupt.is_bankrupt is True
             assert bankrupt.cash == 0
+            assert legacy_loan.status == state_loan.status == "FORGIVEN"
+            assert legacy_loan.remaining_debt == state_loan.remaining_debt == 0
+            assert response["debt_written_off"] == 3_700
             assert treasury.cash == before_treasury + 10_000 + 100
             assert len(active_lots) == 3, [(lot.asset_kind, lot.status, lot.quantity) for lot in lots]
             assert all(

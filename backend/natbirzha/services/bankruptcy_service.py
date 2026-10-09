@@ -12,6 +12,7 @@ from backend.natbirzha.models.inventory import NatInventory
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.event_broadcaster import EventBroadcaster
 from backend.natbirzha.services.market_advance_service import MarketAdvanceService
+from backend.natbirzha.services.bankruptcy_recovery_service import BankruptcyRecoveryService
 
 class BankruptcyService:
     @staticmethod
@@ -44,6 +45,7 @@ class BankruptcyService:
         from backend.natbirzha.services.supply_deal_service import SupplyDealService
         await SupplyDealService.bankruptcy_terminate(session, company.id, now=now)
         company.is_bankrupt = True
+        debt_writeoff = await BankruptcyRecoveryService.forgive_open_loans(session, company.id)
 
         # Credit liquidation emergency pool to company cash for recovery (guaranteed 5,000 cash recovery floor)
         emergency_grant = max(5000.0, liquidation_pool)
@@ -118,7 +120,8 @@ class BankruptcyService:
                 details=(
                     f"Аудированный NAV: {nav:,.2f} ₽. "
                     f"Ликвидационный фонд: {liquidation_pool:,.2f} ₽. "
-                    f"Антикризисный сбор 30% прибыли на 2 дня."
+                    f"Антикризисный сбор 30% прибыли на 2 дня. "
+                    f"Кредиты списаны: {debt_writeoff['debt_written_off']:,.2f} cash."
                 ),
             )
         )

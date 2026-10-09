@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
+import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { formatNumber } from '../format.js';
 import { store } from '../state.js?v=20260926_local_update_v1';

@@ -322,6 +322,7 @@ export const NatAPI = {
   // Bankruptcy
   getBankruptcyStatus: () => request('/api/natbirzha/bankruptcy/status'),
   submitRestructuring: () => request('/api/natbirzha/bankruptcy/file', { method: 'POST' }),
+  restartBankruptCompany: () => request('/api/natbirzha/bankruptcy/restart', { method: 'POST' }),
   resetCompany: () => request('/api/natbirzha/company/reset', { method: 'POST' }),
 
   // State bonds (player-facing purchase; treasury receives only transferred player cash)

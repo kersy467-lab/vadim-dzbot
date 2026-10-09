@@ -7,5 +7,11 @@ if (!source.includes('portfolio.payout_history')) throw new Error('Portfolio sho
 if (!source.includes('row.title') || !source.includes('row.paid_at') || !source.includes('row.payout_cash')) {
   throw new Error('Payout history should show source, paid time and amount.');
 }
+if (!source.includes('row.coupons_earned') || !source.includes('Купоны получены')) {
+  throw new Error('Bond holdings should show coupon income received for each bond.');
+}
+if (!source.includes('Получено купонами:')) {
+  throw new Error('The state-bond screen should show income next to the owned bonds.');
+}
 
 console.log('Portfolio payout history UI contract passed.');

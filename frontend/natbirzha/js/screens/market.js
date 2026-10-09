@@ -4,7 +4,7 @@ import { disposeCurrentScreen, registerScreenCleanup } from '../screen_lifecycle
 import { getItemInfo, ITEMS } from '../items.js?v=20261009_luxury_ui_v2';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20261009_luxury_ui_v2';
-import { createMarketSectionLoader } from './market_section_loader.js?v=20260929_stock_tax_safety_v1';
+import { createMarketSectionLoader } from './market_section_loader.js?v=20261009_bond_income_v1';
 import { renderCommodityOrderbookView } from './market_orderbook_view.js?v=20261006_energy_buyback_mastery_v1';
 
 const SEED_MARKET_ITEMS = [

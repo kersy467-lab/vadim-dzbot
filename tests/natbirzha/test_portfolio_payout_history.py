@@ -9,7 +9,7 @@ from backend.db.models import Base
 import backend.natbirzha.models  # noqa: F401
 from backend.natbirzha.api.portfolio_routes import build_payout_history, get_unified_portfolio
 from backend.natbirzha.models.company import NatCompany
-from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond
+from backend.natbirzha.models.creator import NatBondSettlement, NatStateBond, NatStateBondHolding
 from backend.natbirzha.models.state_shares import (
     NatStateShare,
     NatStateShareDailySettlement,
@@ -20,6 +20,7 @@ from backend.natbirzha.models.stocks import (
     NatHourlyDividendPayment,
     NatStock,
 )
+from backend.natbirzha.services.state_bond_service import StateBondService
 
 
 def test_payout_history_aggregates_by_paid_hour_and_keeps_sold_bond_coupons() -> None:
@@ -68,6 +69,13 @@ def test_payout_history_aggregates_by_paid_hour_and_keeps_sold_bond_coupons() ->
                 )
                 for bond_id, key, amount, paid_at in coupon_rows
             ])
+            session.add(NatStateBondHolding(
+                bond_id=another_bond.id,
+                company_id=holder.id,
+                quantity=10,
+                reserved_quantity=0,
+                invested_cash=1_000,
+            ))
             session.add(NatBondSettlement(
                 operation_key="unpaid-coupon", bond_id=sold_bond.id, company_id=holder.id,
                 settlement_type="COUPON", period_number=2, entitled_quantity=10,
@@ -111,6 +119,8 @@ def test_payout_history_aggregates_by_paid_hour_and_keeps_sold_bond_coupons() ->
             assert sum(row["payout_cash"] for row in rows if row["kind"] == "company_dividend") == 7
             assert sum(row["payout_cash"] for row in rows if row["kind"] == "state_share_dividend") == 5
             assert rows == sorted(rows, key=lambda row: row["paid_at"], reverse=True)
+            bond_holdings = await StateBondService.holdings(session, holder.id)
+            assert bond_holdings[0]["coupons_earned"] == 2.5
 
             portfolio = await get_unified_portfolio(holder, session)
             assert portfolio["payout_history"] == rows

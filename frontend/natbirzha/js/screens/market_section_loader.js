@@ -13,7 +13,7 @@ export function createMarketSectionLoader(container, showToast, onBack, loadComm
 
   async function getFinance() {
     if (!financePromise) {
-      financePromise = import('./market_finance.js?v=20260928_mobile_perf_v1')
+      financePromise = import('./market_finance.js?v=20261009_bond_income_v1')
         .then(({ createMarketFinance }) => (finance = createMarketFinance(container, showToast, onBack)));
       financePromise = financePromise.catch((error) => {
         financePromise = null;

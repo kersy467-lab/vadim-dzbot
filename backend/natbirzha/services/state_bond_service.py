@@ -4,12 +4,13 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.natbirzha.config import get_game_now
 from backend.natbirzha.models.company import NatCompany
 from backend.natbirzha.models.creator import (
+    NatBondSettlement,
     NatBondListing,
     NatCreatorAuditLog,
     NatStateBond,
@@ -202,6 +203,27 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             .where(NatStateBondHolding.company_id == company_id)
             .order_by(NatStateBondHolding.id.desc())
         )
+        holding_rows = result.all()
+        bond_ids = [bond.id for _, bond in holding_rows]
+        coupons_earned_by_bond: dict[int, float] = {}
+        if bond_ids:
+            coupon_rows = await session.execute(
+                select(
+                    NatBondSettlement.bond_id,
+                    func.coalesce(func.sum(NatBondSettlement.amount_rub), 0.0),
+                )
+                .where(
+                    NatBondSettlement.company_id == company_id,
+                    NatBondSettlement.bond_id.in_(bond_ids),
+                    NatBondSettlement.settlement_type == "COUPON",
+                    NatBondSettlement.status == "PAID",
+                )
+                .group_by(NatBondSettlement.bond_id)
+            )
+            coupons_earned_by_bond = {
+                int(bond_id): round(float(amount or 0.0), 2)
+                for bond_id, amount in coupon_rows.all()
+            }
         return [{
             "bond_id": bond.id,
             "title": bond.title,
@@ -212,10 +234,11 @@ class StateBondService(StateBondSettlementMixin, StateBondSecondaryMarketMixin, 
             "face_value": bond.face_value,
             "coupon_rate": bond.coupon_rate,
             "coupon_interval_days": bond.coupon_interval_days,
+            "coupons_earned": coupons_earned_by_bond.get(bond.id, 0.0),
             "maturity_days": bond.maturity_days,
             "maturity_at": bond.maturity_at.isoformat() if bond.maturity_at else None,
             "status": bond.status,
-        } for holding, bond in result.all()]
+        } for holding, bond in holding_rows]
 
     @staticmethod
     async def list_bonds(session: AsyncSession) -> list[dict[str, Any]]:

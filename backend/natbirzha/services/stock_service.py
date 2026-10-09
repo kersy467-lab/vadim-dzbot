@@ -14,6 +14,10 @@ from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.capital_plan_service import ipo_recommendation_level
 from backend.natbirzha.services.stock_orderbook_service import StockOrderbookService
 from backend.natbirzha.services.event_broadcaster import EventBroadcaster
+from backend.natbirzha.services.stock_rebirth_valuation import restore_legacy_rebirth_anchor
+from backend.natbirzha.services.rebirth_valuation import (
+    anchored_rebirth_valuation,
+)
 
 class ValuationStrategy(ABC):
     @abstractmethod
@@ -129,6 +133,12 @@ class StockService:
                 stock.valuation_updated_at is None
                 or stock.valuation_updated_at <= refresh_before
             )
+            if (
+                stock.rebirth_valuation_anchor is None
+                and int(company.rebirth_count or 0) > 0
+                and abs(float(stock.rebirth_valuation_scale or 1.0) - 1.0) > 1e-9
+            ):
+                is_due = True
             prior_fair = max(
                 0.01,
                 float(stock.last_valuation or 0.0) / max(1, int(stock.total_shares or 1)),
@@ -142,9 +152,22 @@ class StockService:
                 continue
 
             if is_due:
-                valuation = await StockService.calculate_company_valuation(session, company)
-                rebirth_scale = getattr(stock, "rebirth_valuation_scale", None)
-                valuation *= max(0.0, float(1.0 if rebirth_scale is None else rebirth_scale))
+                raw_valuation = await StockService.calculate_company_valuation(session, company)
+                await restore_legacy_rebirth_anchor(session, stock, company)
+                if (
+                    stock.rebirth_valuation_anchor is not None
+                    and stock.rebirth_base_valuation is not None
+                ):
+                    valuation = anchored_rebirth_valuation(
+                        raw_valuation=raw_valuation,
+                        anchor=stock.rebirth_valuation_anchor,
+                        baseline=stock.rebirth_base_valuation,
+                    )
+                else:
+                    rebirth_scale = getattr(stock, "rebirth_valuation_scale", None)
+                    valuation = raw_valuation * max(
+                        0.0, float(1.0 if rebirth_scale is None else rebirth_scale)
+                    )
             else:
                 valuation = float(stock.last_valuation or 0.0)
             fair_price = valuation / max(1, int(stock.total_shares or 1))

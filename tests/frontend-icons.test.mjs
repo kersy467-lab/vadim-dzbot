@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { ICON_NAMES, renderIcon, splitLegacyIcons } from '../frontend/natbirzha/js/icons.mjs';
+import { ITEMS, getItemInfo } from '../frontend/natbirzha/js/items.js';
 
 const requiredIcons = [
   'overview', 'factory', 'upgrade', 'market', 'military', 'leaderboard', 'state',
@@ -25,6 +26,17 @@ test('unknown names fall back to a safe decorative resource icon', () => {
   assert.doesNotMatch(markup, /not-a-real-icon/);
   assert.equal(renderIcon('toString'), renderIcon('resource'));
   assert.equal(renderIcon('⚡'), renderIcon('energy'));
+});
+
+test('every catalog item renders as its own colorful drawn resource illustration', () => {
+  for (const [itemId] of Object.entries(ITEMS)) {
+    const item = getItemInfo(itemId);
+    const markup = renderIcon(item.icon, { size: 22, label: item.name });
+    assert.match(markup, new RegExp(`data-item="${itemId}"`), `missing item art: ${itemId}`);
+    assert.match(markup, /<linearGradient\b/);
+    assert.match(markup, /fill="#[0-9a-f]{6}"/i);
+    assert.doesNotMatch(markup, /stroke="currentColor"/);
+  }
 });
 
 test('labels and classes are escaped and decorative icons are hidden from assistive tech', () => {

@@ -1,3 +1,5 @@
+import { renderResourceIcon } from './resource_icons.mjs';
+
 const ICON_PATHS = Object.freeze({
   overview: '<path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5z"/><path d="M9 21v-7h6v7"/>',
   factory: '<path d="M3 21V9l6 3V8l6 4V5h3l3 3v13z"/><path d="M7 17h2m3 0h2m3 0h2"/>',
@@ -120,6 +122,9 @@ function clampSize(value) {
 }
 
 export function renderIcon(name, { size = 20, className = '', label = '' } = {}) {
+  if (typeof name === 'string' && name.startsWith('item:')) {
+    return renderResourceIcon(name.slice(5), { size, className, label });
+  }
   const key = Object.hasOwn(ICON_PATHS, name) ? name : ICON_ALIASES[name];
   const path = ICON_PATHS[Object.hasOwn(ICON_PATHS, key) ? key : 'resource'];
   const safeClass = escapeAttribute(className);

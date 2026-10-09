@@ -1,5 +1,5 @@
 import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
-import { ITEMS, getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { ITEMS, getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { formatNumber } from '../format.js';
 
 const CASH_LIMIT = 100_000;

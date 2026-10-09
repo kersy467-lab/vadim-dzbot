@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 
 const RUNNING_STATUSES = new Set(['ACTIVE', 'UPGRADING']);
 const SUPPLY_STATUSES = new Set(['ACTIVE', 'UPGRADING', 'PAUSED_SUPPLY']);

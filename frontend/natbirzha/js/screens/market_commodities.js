@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 
 export function getCompanyInputIds(businesses, factories, recipes) {
   const inputs = new Set();

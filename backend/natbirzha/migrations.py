@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable
 
 from sqlalchemy import text
+from backend.natbirzha.rebirth_stock_migration import migrate_rebirth_stock_anchor
 
 
 Migration = Callable[[object], Awaitable[None]]
@@ -949,6 +950,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v26_001_state_treasury_economy", _migrate_v26_state_treasury_economy),
     ("natbirzha_v27_001_release_bonus_pivocoins", _migrate_v27_release_bonus_pivocoins),
     ("natbirzha_v28_001_admin_rebirth_schedule", _migrate_v28_admin_rebirth_schedule),
+    ("natbirzha_v29_001_rebirth_valuation_anchor", migrate_rebirth_stock_anchor),
 )
 
 

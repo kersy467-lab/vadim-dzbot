@@ -8,6 +8,7 @@ from backend.db.models import User
 from backend.db.session import get_db_session
 from backend.natbirzha.api.creator_auth import get_current_creator
 from backend.natbirzha.services.admin_rebirth_schedule_service import AdminRebirthScheduleService
+from backend.natbirzha.services.admin_rebirth_reset_service import AdminRebirthResetService
 
 router = APIRouter(tags=["Natbirzha Creator Rebirth"])
 
@@ -46,6 +47,28 @@ async def schedule_admin_rebirth(
     except RuntimeError as exc:
         await session.rollback()
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("/rebirth/reset-progress")
+async def reset_admin_rebirth_progress(
+    req: ScheduleAdminRebirthRequest,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    admin: User = Depends(get_current_creator),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    if not idempotency_key or not idempotency_key.strip():
+        raise HTTPException(status_code=400, detail="Нужен ключ идемпотентности")
+    operation_key = f"{admin.tg_id}:{idempotency_key.strip()[:60]}"
+    try:
+        return await AdminRebirthResetService.reset_to_first_rebirth(
+            session,
+            req.telegram_ids,
+            actor_tg_id=int(admin.tg_id),
+            operation_key=operation_key,
+        )
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 __all__ = ["router", "ScheduleAdminRebirthRequest", "schedule_admin_rebirth"]

@@ -1,7 +1,7 @@
 import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { disposeCurrentScreen, registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { getItemInfo, ITEMS } from '../items.js?v=20261009_luxury_ui_v2';
+import { getItemInfo, ITEMS } from '../items.js?v=20261009_item_art_v1';
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
 import { getCompanyInputIds, renderCommodityCatalog } from './market_commodities.js?v=20261009_luxury_ui_v2';
 import { createMarketSectionLoader } from './market_section_loader.js?v=20261009_bond_income_v1';

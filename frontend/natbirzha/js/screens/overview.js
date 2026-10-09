@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { getSpecializationIcon, getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 

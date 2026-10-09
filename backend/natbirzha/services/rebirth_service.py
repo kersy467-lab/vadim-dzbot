@@ -223,6 +223,7 @@ class RebirthService:
         from backend.natbirzha.models import NatStockOrder
         from backend.natbirzha.services.stock_orderbook_service import StockOrderbookService
         from backend.natbirzha.services.stock_service import StockService
+        from backend.natbirzha.services.rebirth_valuation import rebase_valuation_anchor
 
         stock = await session.scalar(select(NatStock).where(
             NatStock.company_id == company.id
@@ -233,8 +234,12 @@ class RebirthService:
         new_price = max(0.01, round(max(0.01, old_price) * 0.01, 4))
         total_shares = max(1, int(stock.total_shares or 1))
         raw_valuation = await StockService.calculate_company_valuation(session, company)
-        rebased_valuation = new_price * total_shares
-        stock.rebirth_valuation_scale = rebased_valuation / max(1.0, raw_valuation)
+        rebased_valuation, base_valuation = rebase_valuation_anchor(
+            new_price, total_shares, raw_valuation
+        )
+        stock.rebirth_valuation_anchor = rebased_valuation
+        stock.rebirth_base_valuation = base_valuation
+        stock.rebirth_valuation_scale = 1.0
         stock.current_price = new_price
         stock.last_valuation = rebased_valuation
         stock.valuation_updated_at = now

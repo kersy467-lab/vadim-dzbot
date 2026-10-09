@@ -11,27 +11,28 @@ assert(natHtml.includes('id="header-stats"'), 'index.html must have header-stats
 assert(natHtml.includes('id="header-cash"'), 'index.html must have header-cash');
 assert(natHtml.includes('id="header-ticker"'), 'index.html must have header-ticker');
 assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must import natbirzha.css');
-assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
-  'index.html must import the dedicated princess visual theme after the base styles');
+assert(natHtml.includes('/static/natbirzha/css/luxury-theme.css'),
+  'index.html must import the warm ivory and sage visual theme after the base styles');
+assert(!natHtml.includes('princess-theme.css'), 'index.html must no longer load the old pink theme');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(natHtml.includes('id="access-wait-screen"'), 'admin-only release gate must include the full-screen waiting view');
-assert(natHtml.includes('Патч варится, бро.'), 'full-screen waiting view must show the selected release quote');
+assert(natHtml.includes('Патч готовится.'), 'full-screen waiting view must keep its release status');
 assert(/app\.js\?v=\d{8}_[a-z0-9_]+/.test(natHtml), 'Natbirzha entrypoint must use a versioned app URL');
-assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
-assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
+assert(natHtml.includes("document.documentElement.style.colorScheme = 'light'"),
+  'the approved light theme must stay active in dark Telegram clients');
 const appScript = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/app.js'), 'utf-8');
 assert(!appScript.includes('await waitForTelegramWebApp(1500)'),
   'app startup must not impose a 1.5-second Telegram identity wait');
 console.log('index.html structure and scripts verified!');
 
-const princessTheme = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/css/princess-theme.css'), 'utf-8');
-['--princess-pink', '.princess-sky', '.nav-tab.active', '@media (prefers-reduced-motion: reduce)'].forEach(token => {
-  assert(princessTheme.includes(token), `princess theme must define ${token}`);
+const luxuryTheme = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/css/luxury-theme.css'), 'utf-8');
+['--lux-canvas', '--lux-sage', '--lux-emerald', '.nav-tab.active', '@media (prefers-reduced-motion: reduce)'].forEach(token => {
+  assert(luxuryTheme.includes(token), `luxury theme must define ${token}`);
 });
-  assert(princessTheme.split('\n').length <= 400,
-    'princess theme must stay within the repository source-file limit');
-  assert(princessTheme.includes('.dark .bg-slate-50') && princessTheme.includes('.dark .bg-white'),
-    'dark princess theme must override light card utilities instead of rendering grey/white cards');
+assert(luxuryTheme.split('\n').length <= 400,
+  'luxury theme must stay within the repository source-file limit');
+assert(luxuryTheme.includes('.market-contrast-surface'),
+  'luxury theme must keep market text readable on its shared surface');
 
   const upgradesScreen = fs.readFileSync(path.join(__dirname, '../../frontend/natbirzha/js/screens/upgrades.js'), 'utf-8');
   assert(!upgradesScreen.includes('renderFactoryUpgrades') && !upgradesScreen.includes('getProductionStatus()'),

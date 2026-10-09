@@ -1,6 +1,7 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getBuildingIcon } from '../localization.js?v=20261009_luxury_ui_v2';
 
 let activeFilter = 'all';
 
@@ -18,18 +19,18 @@ export async function openCatalogModal(showToast, onBuilt) {
       <div class="p-4 border-b border-slate-700/60 flex items-center justify-between bg-slate-900/60">
         <div>
           <h3 id="catalog-count" class="text-base font-black text-white flex items-center gap-2">
-            <span>🏭</span> Каталог предприятий
+            <span>${window.NatIcons.icon('factory', 18)}</span> Каталог предприятий
           </h3>
           <p class="text-[11px] text-slate-400">Выберите производство для вашей экономической цепочки</p>
         </div>
-        <button id="close-catalog" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-sm">✕</button>
+        <button id="close-catalog" type="button" aria-label="Закрыть каталог" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-sm">${window.NatIcons.icon('close', 18)}</button>
       </div>
 
       <!-- Filters -->
       <div class="p-2 border-b border-slate-800 bg-slate-950/40 flex flex-wrap gap-1.5 text-[11px] font-bold">
         <button data-cat="all" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}">Все</button>
-        <button data-cat="own" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'own' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-amber-400'}">⭐ Моя отрасль</button>
-        <button data-cat="recommended" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'recommended' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-emerald-400'}">💰 Выгоднее</button>
+        <button data-cat="own" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'own' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-amber-400'}">${window.NatIcons.icon('factory', 14)} Моя отрасль</button>
+        <button data-cat="recommended" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'recommended' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-emerald-400'}">${window.NatIcons.icon('money', 14)} Выгоднее</button>
         <button data-cat="available" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'available' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-emerald-400'}">Доступные</button>
         <button data-cat="unavailable" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'unavailable' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-rose-400'}">Недоступные</button>
         <button data-cat="extraction" class="cat-btn min-h-9 px-2.5 py-1.5 rounded-lg whitespace-nowrap ${activeFilter === 'extraction' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}">Добыча</button>
@@ -64,7 +65,7 @@ export async function openCatalogModal(showToast, onBuilt) {
       cachedCatalog = res?.catalog || [];
       const count = Number.isFinite(Number(res?.total)) ? Number(res.total) : cachedCatalog.length;
       const countEl = modal.querySelector('#catalog-count');
-      if (countEl) countEl.innerHTML = `<span>🏭</span> Каталог предприятий (${count})`;
+      if (countEl) countEl.innerHTML = `<span>${window.NatIcons.icon('factory', 18)}</span> Каталог предприятий (${count})`;
       renderCatalogCards(listEl, cachedCatalog, showToast, onBuilt, modal);
     } catch (err) {
       listEl.innerHTML = `<div class="p-4 text-center text-xs text-rose-400">Не удалось загрузить каталог: ${err.message}</div>`;
@@ -113,19 +114,19 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
 
     const inList = Object.entries(b.inputs || {}).map(([k, v]) => {
       const info = getItemInfo(k);
-      return `${v} ${info.unit} ${info.name}`;
+      return `${window.NatIcons.icon(info.icon, 13)} ${v} ${info.unit} ${info.name}`;
     }).join(', ') || 'Без затрат';
 
     const outList = Object.entries(b.outputs || {}).map(([k, v]) => {
       const info = getItemInfo(k);
-      return `+${v} ${info.unit} ${info.name}`;
+      return `${window.NatIcons.icon(info.icon, 13)} +${v} ${info.unit} ${info.name}`;
     }).join(', ') || '—';
 
     let btnHtml = '';
     if (!unlocked) {
-      btnHtml = `<button disabled class="w-full py-2 rounded-xl bg-slate-800/80 text-slate-500 text-xs font-bold cursor-not-allowed">🔒 Требуется ур. ${b.level_required}</button>`;
+      btnHtml = `<button disabled class="w-full py-2 rounded-xl bg-slate-800/80 text-slate-500 text-xs font-bold cursor-not-allowed">${window.NatIcons.icon('lock', 14)} Требуется ур. ${b.level_required}</button>`;
     } else if (!hasLicense) {
-      btnHtml = `<button disabled class="w-full py-2 rounded-xl bg-slate-800/80 text-amber-300 text-xs font-bold cursor-not-allowed">🔐 Нужна лицензия</button>`;
+      btnHtml = `<button disabled class="w-full py-2 rounded-xl bg-slate-800/80 text-amber-300 text-xs font-bold cursor-not-allowed">${window.NatIcons.icon('lock', 14)} Нужна лицензия</button>`;
     } else if (!hasSlot) {
       btnHtml = `<button disabled class="w-full py-2 rounded-xl bg-slate-800/80 text-amber-300 text-xs font-bold cursor-not-allowed">Нет свободного строительного слота</button>`;
     } else if (!canAfford) {
@@ -135,8 +136,8 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
     }
 
     const efficiencyLabel = isOwn
-      ? '🌟 Ваша отрасль (100%)'
-      : (b.is_licensed_foreign ? '🔐 Лицензия (12%)' : '⚠️ Чужая отрасль (10%)');
+      ? `${window.NatIcons.icon('check', 14)} Ваша отрасль (100%)`
+      : (b.is_licensed_foreign ? `${window.NatIcons.icon('lock', 14)} Лицензия (12%)` : `${window.NatIcons.icon('warning', 14)} Чужая отрасль (10%)`);
     const estimateLabel = Number.isFinite(Number(profitability.net_per_cycle))
       ? `Оценка NPC: ${Number(profitability.net_per_cycle) >= 0 ? '+' : ''}${Math.round(profitability.net_per_cycle).toLocaleString('ru-RU')} ₽/цикл · ${Number(profitability.net_per_hour) >= 0 ? '+' : ''}${Math.round(profitability.net_per_hour).toLocaleString('ru-RU')} ₽/ч`
       : 'Оценка рентабельности недоступна';
@@ -144,7 +145,7 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
       ? 'Окупаемость не рассчитана'
       : `Оценка окупаемости: ${Number(profitability.payback_hours).toLocaleString('ru-RU')} ч`;
     const recommendation = b.recommended_for_specialization
-      ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">💰 Приоритет №${b.recommendation_rank} в отрасли</span>`
+      ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">${window.NatIcons.icon('money', 14)} Приоритет №${b.recommendation_rank} в отрасли</span>`
       : '';
 
     return `
@@ -152,7 +153,7 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="text-xs font-black text-white flex items-center gap-1.5">
-              <span>${b.name}</span>
+              ${window.NatIcons.icon(getBuildingIcon(b.id), 20)} <span>${b.name}</span>
             </div>
         <div class="text-[10px] text-slate-400 mt-0.5">${b.description || ''}</div>
       </div>
@@ -163,7 +164,7 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
         </div>
 
         <div class="text-[11px] font-bold text-amber-300 px-1">
-          🏗 Цена строительства: ${Math.round(Number(b.build_cost || 0)).toLocaleString('ru-RU')} ₽
+          ${window.NatIcons.icon('construction', 15)} Цена строительства: ${Math.round(Number(b.build_cost || 0)).toLocaleString('ru-RU')} ₽
         </div>
 
         <div class="rounded-lg bg-slate-950/40 p-2 text-[10px] ${Number(profitability.net_per_cycle) > 0 ? 'text-emerald-300' : 'text-amber-300'}">
@@ -174,18 +175,18 @@ function renderCatalogCards(listEl, catalog, showToast, onBuilt, modal) {
 
         <div class="text-[11px] space-y-0.5 bg-slate-950/40 p-2 rounded-lg font-mono">
           <div class="text-slate-400 flex items-center justify-between">
-            <span>📥 Вход:</span> <span class="text-slate-300 font-sans text-right">${inList}</span>
+            <span>Вход:</span> <span class="text-slate-300 font-sans text-right">${inList}</span>
           </div>
           <div class="text-emerald-400 flex items-center justify-between font-bold">
-            <span>📤 Выход:</span> <span class="text-emerald-300 font-sans text-right">${outList}</span>
+            <span>Выход:</span> <span class="text-emerald-300 font-sans text-right">${outList}</span>
           </div>
         </div>
 
         <div class="flex items-center justify-between text-[10px] text-slate-400 px-1">
-          <span>⏱️ ${b.cycle_duration} сек</span>
-          <span>👷 ${b.workers_required} раб.</span>
-          <span>⚡ ${b.energy_required} кВт</span>
-          <span>🔒 Ур. ${b.level_required}</span>
+          <span>${window.NatIcons.icon('clock', 13)} ${b.cycle_duration} сек</span>
+          <span>${window.NatIcons.icon('people', 13)} ${b.workers_required} раб.</span>
+          <span>${window.NatIcons.icon('energy', 13)} ${b.energy_required} кВт</span>
+          <span>${window.NatIcons.icon('lock', 13)} Ур. ${b.level_required}</span>
         </div>
 
         <div>

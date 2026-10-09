@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { loadCreatorOverview } from './creator_overview.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
-import { loadCreatorModeration } from './creator_moderation.js?v=20260928_ai_compute_fix_v1';
+import { loadCreatorModeration } from './creator_moderation.js?v=20261009_luxury_ui_v2';
 import { loadCreatorShares } from './creator_shares.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { loadCreatorPlayersTab } from './creator_players.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
 import { loadCreatorCreditTab } from './creator_credit.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
@@ -155,13 +155,13 @@ async function loadBondsTab(el, showToast) {
         ${data.bonds.map(b => `
           <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 text-[11px] font-mono">
             <div class="flex justify-between font-bold text-white">
-              <span>${b.title}</span>
+              <span>${escapeHtml(b.title)}</span>
               <span class="text-amber-400">${b.coupon_rate}% · ${Number(b.coupon_rate / 2).toLocaleString('ru-RU')}% в день</span>
             </div>
             <div class="text-[10px] text-slate-400 mt-1">
               Остаток: ${b.remaining_volume} / ${b.total_volume} шт. по ${b.face_value} ₽ · Срок: ${b.maturity_days} дн.
             </div>
-            <div class="text-[9px] text-slate-500 italic mt-0.5">${b.purpose}</div>
+            <div class="text-[9px] text-slate-500 italic mt-0.5">${escapeHtml(b.purpose)}</div>
             <div class="mt-2 flex justify-end">
               ${b.status === 'BANKRUPT'
                 ? '<span class="rounded-lg bg-rose-950/50 px-2.5 py-1 text-[10px] font-bold text-rose-300">Банкротство объявлено</span>'

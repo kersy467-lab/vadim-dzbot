@@ -12,7 +12,7 @@ export async function renderCompanyRebirthPanel(container, showToast, onBack) {
   const wrapper = node('div', '', 'max-w-md mx-auto p-4 pb-24 space-y-3');
   const back = node('button', '← Обзор', 'text-sm text-rose-400');
   back.addEventListener('click', onBack);
-  wrapper.append(back, node('h2', '🌅 Перерождение', 'text-xl font-black'));
+  wrapper.append(back, node('h2', 'Перерождение', 'text-xl font-black'));
   const body = node('div', 'Загружаем условия…', 'glass-card rounded-2xl p-4 space-y-3');
   wrapper.append(body);
   container.replaceChildren(wrapper);

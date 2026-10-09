@@ -4,6 +4,16 @@ import { renderBankruptcyMarket } from './bankruptcy_market.js?v=20260926_local_
 
 const IPO_MIN_LEVEL_FALLBACK = 7;
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
+}
+
+function companyTicker(name) {
+  return String(name || '').split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 5) || '???';
+}
+
 export async function renderStocks(container, showToast) {
   let stocksList = [];
   let stateBonds = [];
@@ -110,22 +120,22 @@ export async function renderStocks(container, showToast) {
         </div>
         ${bondHoldings.length ? `<div class="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 p-2.5 text-[10px]">
           <div class="font-bold text-amber-700 dark:text-amber-300 mb-1">Ваш портфель ОФЗ</div>
-          ${bondHoldings.map(h => `<div class="flex justify-between gap-2"><span>${h.title} × ${h.quantity}</span><span class="font-mono">${Number(h.invested_cash).toLocaleString('ru-RU')} cash</span></div>`).join('')}
+          ${bondHoldings.map(h => `<div class="flex justify-between gap-2"><span>${escapeHtml(h.title)} × ${Number(h.quantity || 0)}</span><span class="font-mono">${Number(h.invested_cash).toLocaleString('ru-RU')} cash</span></div>`).join('')}
         </div>` : ''}
         <div class="space-y-2">
           ${stateBonds.filter(b => b.is_active).length === 0 ? `<div class="text-center py-4 text-xs text-slate-400">Активных выпусков пока нет.</div>` : stateBonds.filter(b => b.is_active).map(b => `
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <div class="font-bold text-xs text-slate-900 dark:text-white">${b.title}</div>
+                  <div class="font-bold text-xs text-slate-900 dark:text-white">${escapeHtml(b.title)}</div>
                   <div class="text-[10px] text-slate-400">${b.coupon_rate}% · ${Number(b.coupon_rate / 2).toLocaleString('ru-RU')}% в день, выплата раз в минуту · ${b.maturity_days} дн. · остаток ${b.remaining_volume}/${b.total_volume}</div>
                 </div>
                 <div class="text-right shrink-0">
                   <div class="font-mono font-black text-xs">${Number(b.face_value).toLocaleString('ru-RU')} cash</div>
-                  <button class="buy-bond-btn mt-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px]" data-bond-id="${b.id}" data-title="${b.title}" data-face="${b.face_value}" data-remaining="${b.remaining_volume}">Купить</button>
+                  <button class="buy-bond-btn mt-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px]" data-bond-id="${escapeHtml(b.id)}" data-title="${escapeHtml(b.title)}" data-face="${Number(b.face_value)}" data-remaining="${Number(b.remaining_volume)}">Купить</button>
                 </div>
               </div>
-              <div class="text-[9px] text-slate-500 mt-1 italic">${b.purpose}</div>
+              <div class="text-[9px] text-slate-500 mt-1 italic">${escapeHtml(b.purpose)}</div>
             </div>`).join('')}
         </div>
       </div>
@@ -146,8 +156,8 @@ export async function renderStocks(container, showToast) {
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <div>
                 <div class="flex items-center gap-1.5">
-                  <span class="font-mono font-black text-xs text-blue-600 dark:text-blue-400">[${s.company_name ? s.company_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,5) : '???'}]</span>
-                  <span class="font-bold text-xs text-slate-900 dark:text-white">${s.company_name}</span>
+                  <span class="font-mono font-black text-xs text-blue-600 dark:text-blue-400" data-preserve-emoji>[${escapeHtml(companyTicker(s.company_name))}]</span>
+                  <span class="font-bold text-xs text-slate-900 dark:text-white" data-preserve-emoji>${escapeHtml(s.company_name)}</span>
                 </div>
                 <div class="text-[10px] text-slate-400 mt-0.5">Free-float: ${s.float_shares?.toLocaleString()} шт.</div>
               </div>
@@ -155,9 +165,9 @@ export async function renderStocks(container, showToast) {
                 <div class="font-mono font-black text-xs text-slate-900 dark:text-white">${s.current_price?.toFixed(2)} cash</div>
                 <button
                   class="buy-shares-btn mt-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] active:scale-95 transition-all"
-                  data-stock-id="${s.stock_id}"
-                  data-ticker="${s.company_name ? s.company_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,5) : '???'}"
-                  data-price="${s.current_price}"
+                  data-stock-id="${escapeHtml(s.stock_id)}"
+                  data-ticker="${escapeHtml(companyTicker(s.company_name))}"
+                  data-price="${Number(s.current_price)}"
                 >
                   Купить
                 </button>

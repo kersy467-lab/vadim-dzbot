@@ -1,8 +1,11 @@
 import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261009_perf_tuning_v1';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen, preloadScreen } from './screen_loader.js?v=20261008_company_renewal_v1';
+import { loadScreen, preloadScreen } from './screen_loader.js?v=20261009_luxury_ui_v2';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
+import { installIconHydration, uiIcon } from './icons.mjs?v=20261009_luxury_ui_v2';
+
+installIconHydration();
 
 // Start fetching the only possible initial screens while auth and company data load.
 void Promise.all([preloadScreen('overview'), preloadScreen('onboarding')]);
@@ -62,7 +65,9 @@ export function showToast(message, type = 'info') {
 
   const toast = document.createElement('div');
   toast.className = `toast-msg px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 ${bgColors[type] || bgColors.info}`;
-  toast.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '⚠' : 'ℹ'}</span><span>${msgText}</span>`;
+  const iconName = type === 'success' ? 'check' : type === 'error' ? 'warning' : 'info';
+  toast.innerHTML = `<span class="toast-icon">${uiIcon(iconName, 16)}</span><span class="toast-message"></span>`;
+  toast.querySelector('.toast-message').textContent = msgText;
   container.appendChild(toast);
 
   setTimeout(() => {

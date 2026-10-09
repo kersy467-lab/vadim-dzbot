@@ -1,8 +1,14 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
-import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getSpecializationIcon, getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { updateBusinessCapacityCard } from './overview_capacity.js?v=20260926_local_update_v1&release=20260927_hospital_v2';
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
+}
 
 export function renderOverview(container, showToast) {
   const company = store.company;
@@ -14,7 +20,7 @@ export function renderOverview(container, showToast) {
         renderOverview(container, showToast);
       }
     }).catch((err) => {
-      container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500">Не удалось загрузить данные компании: ${err.message || 'Ошибка сети'}</div>`;
+      container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500">Не удалось загрузить данные компании: ${escapeHtml(err.message || 'Ошибка сети')}</div>`;
     });
     return;
   }
@@ -58,7 +64,7 @@ export function renderOverview(container, showToast) {
       <!-- Creator / State Administration Banner -->
       <div id="creator-banner-card" class="rounded-2xl p-3.5 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-900 text-white shadow-lg border border-amber-400/40 flex items-center justify-between cursor-pointer active:scale-98 transition-all">
         <div class="flex items-center gap-2.5">
-          <span class="text-2xl">👑</span>
+          <span>${window.NatIcons.icon('state', 26)}</span>
           <div>
             <div class="text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
               <span>Панель Государства</span>
@@ -76,17 +82,17 @@ export function renderOverview(container, showToast) {
         <div class="flex items-start justify-between">
           <div>
             <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-mono font-bold text-xs tracking-wider">
-                [${company.ticker}]
+              <span class="px-2 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-mono font-bold text-xs tracking-wider" data-preserve-emoji>
+                [${escapeHtml(company.ticker)}]
               </span>
               <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                ${getSpecializationName(company.specialization)}
+                ${window.NatIcons.icon(getSpecializationIcon(company.specialization), 16)} ${getSpecializationName(company.specialization)}
               </span>
             </div>
-            <h2 class="text-lg font-black text-slate-900 dark:text-white mt-1">
-              ${company.name}
+            <h2 class="text-lg font-black text-slate-900 dark:text-white mt-1" data-preserve-emoji>
+              ${escapeHtml(company.name)}
             </h2>
-            <button id="rename-company-btn" class="mt-1 text-[10px] font-bold text-blue-600 dark:text-blue-300">✏️ Сменить название · 10 000 cash</button>
+            <button id="rename-company-btn" type="button" class="mt-1 min-h-10 text-[10px] font-bold text-blue-600 dark:text-blue-300">${window.NatIcons.icon('document', 14)} Сменить название · 10 000 cash</button>
           </div>
           <div class="text-right">
             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -94,7 +100,7 @@ export function renderOverview(container, showToast) {
                 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
             }">
-              ${company.is_public ? '🏛️ ПАО (IPO)' : '🔒 Частная'}
+              ${company.is_public ? `${window.NatIcons.icon('state', 14)} ПАО (IPO)` : `${window.NatIcons.icon('lock', 14)} Частная`}
             </span>
           </div>
         </div>
@@ -109,11 +115,11 @@ export function renderOverview(container, showToast) {
             <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500" style="width: ${xpPercent}%"></div>
           </div>
           <div class="mt-1 text-[10px] text-slate-400">${isMaxLevel ? 'Основная шкала 1–60 завершена — дальше открывается мастерство.' : `До следующего уровня: ${Number(company.xp_to_next || 0)} XP. Производите товары, торгуйте и побеждайте в PvE.`}</div>
-          ${Number(company.rebirth_count || 0) > 0 ? `<div class="mt-2 text-xs text-violet-400">🌅 Перерождение ${Number(company.rebirth_count)} · +${Number(company.rebirth_production_bonus_pct || 0)}% к выпуску товаров</div>` : ''}
+          ${Number(company.rebirth_count || 0) > 0 ? `<div class="mt-2 text-xs text-violet-400">${window.NatIcons.icon('rebirth', 15)} Перерождение ${Number(company.rebirth_count)} · +${Number(company.rebirth_production_bonus_pct || 0)}% к выпуску товаров</div>` : ''}
           ${isMaxLevel && mastery ? `
             <div class="mastery-progress mt-3 rounded-xl p-2.5">
               <div class="flex items-center justify-between text-[11px] font-bold">
-                <span>✨ Мастерство корпорации · ранг ${Number(mastery.rank || 0)}</span>
+                <span>${window.NatIcons.icon('trophy', 14)} Мастерство корпорации · ранг ${Number(mastery.rank || 0)}</span>
                 <span class="font-mono">${Number(mastery.xp || 0).toLocaleString('ru-RU')} XP</span>
               </div>
               <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/60 dark:bg-black/20"><div class="h-full rounded-full bg-gradient-to-r from-rose-500 to-violet-500" style="width: ${Math.max(0, Math.min(100, Number(mastery.progress_pct || 0)))}%"></div></div>
@@ -146,16 +152,16 @@ export function renderOverview(container, showToast) {
       ${capitalPlan?.recommended ? `
         <div class="capital-plan-card rounded-2xl p-4 shadow-sm border">
           <div class="flex items-start gap-3">
-            <span class="text-2xl">🏛️</span>
+            <span>${window.NatIcons.icon('state', 26)}</span>
             <div class="min-w-0 flex-1">
-              <div class="text-sm font-black text-slate-900 dark:text-white">${capitalPlan.title}</div>
-              <p class="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-200">${capitalPlan.message}</p>
+              <div class="text-sm font-black text-slate-900 dark:text-white">${escapeHtml(capitalPlan.title)}</div>
+              <p class="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-200">${escapeHtml(capitalPlan.message)}</p>
               <div class="mt-2 text-[10px] font-semibold text-rose-700 dark:text-rose-200">Не хватает: ${Number(capitalPlan.cash_shortfall || 0).toLocaleString('ru-RU')} cash · дивиденды от ${Number(capitalPlan.min_dividend_pct || 5)}%</div>
               <div class="mt-3 grid grid-cols-2 gap-2">
-                <button id="capital-plan-ipo-btn" class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white">${capitalPlan.action?.label || 'Сравнить IPO'}</button>
-                ${Number(company.level || 0) >= Number(capitalPlan.debt_option?.available_from_level || 18) ? `<button id="capital-plan-loan-btn" class="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-slate-950">💳 Кредит</button>` : `<button disabled class="rounded-xl bg-slate-200 dark:bg-slate-800 px-3 py-2 text-[10px] font-bold opacity-60">Кредит с ур. ${Number(capitalPlan.debt_option?.available_from_level || 18)}</button>`}
+                <button id="capital-plan-ipo-btn" class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white">${escapeHtml(capitalPlan.action?.label || 'Сравнить IPO')}</button>
+                ${Number(company.level || 0) >= Number(capitalPlan.debt_option?.available_from_level || 18) ? `<button id="capital-plan-loan-btn" class="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-slate-950">${window.NatIcons.icon('money', 14)} Кредит</button>` : `<button disabled class="rounded-xl bg-slate-200 dark:bg-slate-800 px-3 py-2 text-[10px] font-bold opacity-60">Кредит с ур. ${Number(capitalPlan.debt_option?.available_from_level || 18)}</button>`}
               </div>
-              <div class="mt-1.5 text-[10px] text-slate-500 dark:text-slate-300">${capitalPlan.alternative || ''}</div>
+              <div class="mt-1.5 text-[10px] text-slate-500 dark:text-slate-300">${escapeHtml(capitalPlan.alternative || '')}</div>
             </div>
           </div>
         </div>
@@ -165,7 +171,7 @@ export function renderOverview(container, showToast) {
       <div class="glass-card rounded-2xl p-4 shadow-sm">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-lg">⚡</span>
+            <span>${window.NatIcons.icon('energy', 20)}</span>
             <div>
               <div class="text-xs font-bold text-slate-800 dark:text-white">Муниципальная энергосеть</div>
               <div class="text-[11px] text-slate-400">Стартовая utility-квота хранится на складе; фоновые бесплатные циклы отключены</div>
@@ -181,7 +187,7 @@ export function renderOverview(container, showToast) {
       <div class="glass-card rounded-2xl p-4 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-base">📦</span>
+            <span>${window.NatIcons.icon('resource', 18)}</span>
             <h3 class="text-sm font-bold text-slate-900 dark:text-white">Складские запасы</h3>
           </div>
           <span class="text-xs text-slate-400 font-mono">${items.length} поз.</span>
@@ -199,7 +205,7 @@ export function renderOverview(container, showToast) {
               return `
               <div class="resource-pill p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
                 <div class="flex items-center gap-2 min-w-0 pr-1">
-                  <span class="text-base shrink-0">${info.icon}</span>
+                  <span class="shrink-0">${window.NatIcons.icon(info.icon, 18)}</span>
                   <div class="min-w-0">
                     <div class="text-xs font-bold text-slate-800 dark:text-white leading-tight truncate">${info.name}</div>
                     <div class="text-[10px] text-slate-400 font-mono">${info.unit}</div>
@@ -222,7 +228,7 @@ export function renderOverview(container, showToast) {
       <div class="glass-card rounded-2xl p-4 shadow-sm" id="business-capacity-card">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2 min-w-0">
-            <span class="text-base">🏭</span>
+            <span>${window.NatIcons.icon('factory', 18)}</span>
             <div class="min-w-0">
               <div class="text-xs font-bold text-slate-800 dark:text-white">Мощности предприятий</div>
               <div class="text-[11px] text-slate-400" id="business-capacity-summary">Загружаем данные о слотах…</div>
@@ -236,15 +242,15 @@ export function renderOverview(container, showToast) {
 
       <!-- Actions: Respec & Refresh -->
       <div class="pt-2 flex flex-wrap items-center justify-center gap-2">
-        <button id="help-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors">❓ Как играть</button>
-        <button id="company-aid-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-emerald-600">🤝 Помощь компаниям</button>
-        <button id="company-rebirth-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-violet-400">🌅 Перерождение · ${Number(company.rebirth_count || 0)}</button>
-        ${Number(company.level || 0) >= 14 ? `<button id="loans-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">💳 Долги</button>` : ''}
+        <button id="help-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors">${window.NatIcons.icon('help', 14)} Как играть</button>
+        <button id="company-aid-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-emerald-600">${window.NatIcons.icon('handshake', 14)} Помощь компаниям</button>
+        <button id="company-rebirth-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-violet-400">${window.NatIcons.icon('rebirth', 14)} Перерождение · ${Number(company.rebirth_count || 0)}</button>
+        ${Number(company.level || 0) >= 14 ? `<button id="loans-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">${window.NatIcons.icon('money', 14)} Долги</button>` : ''}
         <button
           id="refresh-btn"
           class="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
         >
-          ⚡ Обновить NAV
+          ${window.NatIcons.icon('refresh', 14)} Обновить NAV
         </button>
       </div>
     </div>
@@ -327,17 +333,17 @@ export function renderOverview(container, showToast) {
       } catch (err) {
         showToast(err.message, 'error');
       } finally {
-        refreshBtn.innerText = '⚡ Обновить NAV';
+        refreshBtn.innerHTML = `${window.NatIcons.icon('refresh', 14)} Обновить NAV`;
       }
     });
   }
 
   container.querySelector('#company-rebirth-btn')?.addEventListener('click', async () => {
-    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261008_company_renewal_v1');
+    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261009_luxury_ui_v2');
     await renderCompanyRebirthPanel(container, showToast, () => renderOverview(container, showToast));
   });
   container.querySelector('#company-aid-btn')?.addEventListener('click', async () => {
-    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261008_company_renewal_v1');
+    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261009_luxury_ui_v2');
     const wrapper = document.createElement('div');
     wrapper.className = 'max-w-md mx-auto p-4 pb-24';
     const back = document.createElement('button');

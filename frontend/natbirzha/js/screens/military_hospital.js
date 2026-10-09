@@ -1,11 +1,11 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 const FACILITIES = {
-  hospital: { title: 'Военный госпиталь', icon: '🏥', barClass: 'bg-emerald-500' },
-  repair_depot: { title: 'Ремонтное депо', icon: '🛠️', barClass: 'bg-blue-500' },
+  hospital: { title: 'Военный госпиталь', icon: 'hospital', barClass: 'bg-emerald-500' },
+  repair_depot: { title: 'Ремонтное депо', icon: 'repair', barClass: 'bg-blue-500' },
 };
 
 const UNIT_NAMES = {
@@ -82,7 +82,7 @@ function quoteItems(items) {
     : Object.entries(items || {});
   return rows.filter(([itemId, quantity]) => itemId && Number(quantity) > 0).map(([itemId, quantity]) => {
     const item = getItemInfo(itemId);
-    return `<span class="inline-flex items-center gap-1 rounded-lg bg-slate-900/5 dark:bg-white/5 px-2 py-1">${esc(item.icon)} ${esc(item.name)} × ${number(quantity)}</span>`;
+    return `<span class="inline-flex items-center gap-1 rounded-lg bg-slate-900/5 dark:bg-white/5 px-2 py-1">${window.NatIcons.icon(item.icon, 15)} ${esc(item.name)} × ${number(quantity)}</span>`;
   }).join('');
 }
 
@@ -170,7 +170,7 @@ function facilityMarkup(facilityId, facility = {}, quote, context = {}) {
   const wards = (Array.isArray(facility.wards) ? facility.wards : []).map((w) => wardMarkup(w, context)).join('');
   const capacityLabel = facilityId === 'hospital' ? 'Занято коек' : 'Занято ремонтных мест';
   return `<section class="glass-card rounded-2xl p-4 space-y-3" aria-label="${esc(meta.title)}">
-    <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-black">${meta.icon} ${esc(meta.title)}</h3><div class="text-[10px] text-slate-500 mt-1">Уровень ${number(level)} / ${number(maxLevel)}</div></div><div class="text-right"><div class="text-xs font-mono font-bold">${number(occupied)} / ${number(capacity)}</div><div class="text-[9px] text-slate-400">${number(available)} свободно</div></div></div>
+    <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-black flex items-center gap-2">${window.NatIcons.icon(meta.icon, 20)} ${esc(meta.title)}</h3><div class="text-[10px] text-slate-500 mt-1">Уровень ${number(level)} / ${number(maxLevel)}</div></div><div class="text-right"><div class="text-xs font-mono font-bold">${number(occupied)} / ${number(capacity)}</div><div class="text-[9px] text-slate-400">${number(available)} свободно</div></div></div>
     <div class="space-y-1"><div class="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" role="progressbar" aria-label="${esc(capacityLabel)}" aria-valuemin="0" aria-valuemax="${capacity}" aria-valuenow="${occupied}"><div class="h-full ${meta.barClass} transition-all" style="width:${progress}%"></div></div><div class="text-[9px] text-slate-400">${esc(capacityLabel)} · ${number(occupied)} из ${number(capacity)}</div></div>
     ${upgradeMarkup(facilityId, { ...facility, max_level: maxLevel }, quote)}
     <div class="space-y-2 border-t border-slate-300/20 pt-3"><h4 class="text-[10px] font-bold uppercase text-slate-400">${facilityId === 'hospital' ? 'Раненые подразделения' : 'Повреждённая техника'}</h4>${wards || '<div class="text-[10px] text-slate-500">Нет подразделений для лечения или ремонта.</div>'}</div>

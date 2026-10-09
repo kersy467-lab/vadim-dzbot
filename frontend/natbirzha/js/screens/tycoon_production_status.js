@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
 
 const RUNNING_STATUSES = new Set(['ACTIVE', 'UPGRADING']);
 const SUPPLY_STATUSES = new Set(['ACTIVE', 'UPGRADING', 'PAUSED_SUPPLY']);
@@ -82,7 +82,7 @@ export function renderProductionReadiness(summary = {}) {
     ? `<div class="mt-2 space-y-1.5"><div class="text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">Не хватает на ближайший цикл · ${Number(summary.resource_tick_minutes) || 15} мин</div>${gaps.map((row) => {
       const affected = row.businesses.slice(0, 3).map(escapeHtml).join(', ');
       const extra = row.businesses.length > 3 ? ` и ещё ${row.businesses.length - 3}` : '';
-      return `<div class="rounded-lg bg-white/70 dark:bg-slate-900/40 px-2.5 py-2 text-xs"><b>${row.item.icon} ${escapeHtml(row.item.name)}</b>: не хватает <b>${quantity(row.missing)} ${escapeHtml(row.item.unit)}</b><div class="text-[10px] text-slate-500 dark:text-slate-400">Нужно ${quantity(row.amount)}, доступно ${quantity(row.available)}${affected ? ` · заводы: ${affected}${extra}` : ''}</div></div>`;
+      return `<div class="rounded-lg bg-white/70 dark:bg-slate-900/40 px-2.5 py-2 text-xs"><b>${window.NatIcons.icon(row.item.icon, 16)} ${escapeHtml(row.item.name)}</b>: не хватает <b>${quantity(row.missing)} ${escapeHtml(row.item.unit)}</b><div class="text-[10px] text-slate-500 dark:text-slate-400">Нужно ${quantity(row.amount)}, доступно ${quantity(row.available)}${affected ? ` · заводы: ${affected}${extra}` : ''}</div></div>`;
     }).join('')}</div>`
     : supplyPaused.length
       ? '<div class="mt-2 text-[11px] text-slate-600 dark:text-slate-300">Сырья на ближайший цикл хватает. Если заводы не возобновились, проверьте остальные условия в их карточках.</div>'

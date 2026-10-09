@@ -1,5 +1,5 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
-import { ITEMS, getItemInfo } from '../items.js?v=20261008_company_aid_v1';
+import { ITEMS, getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
 import { formatNumber } from '../format.js';
 
 const CASH_LIMIT = 100_000;
@@ -28,7 +28,7 @@ function number(value, digits = 2) {
 
 function itemLabel(itemId) {
   const item = getItemInfo(itemId);
-  return `${item.icon} ${item.name}`;
+  return item.name;
 }
 
 function remainingRequest(request) {
@@ -58,7 +58,7 @@ export async function renderCompanyAidPanel(container, showToast, onRefresh) {
 
   const header = el('header', 'space-y-1');
   header.append(
-    el('h2', 'text-xl font-black', '🤝 Помощь компаниям'),
+    el('h2', 'text-xl font-black', 'Помощь компаниям'),
     el('p', 'text-xs text-slate-500', 'Поддержите небольшую компанию деньгами или товарами со своего склада.'),
   );
   root.append(header);

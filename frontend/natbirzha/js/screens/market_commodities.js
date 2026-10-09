@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
 
 export function getCompanyInputIds(businesses, factories, recipes) {
   const inputs = new Set();
@@ -108,7 +108,7 @@ export function renderCommodityCatalog(container, options) {
           const unit = row.unit || marketItem?.unit || meta.unit || 'шт.';
           return `<div class="market-liquidity-row flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2">
             <span class="w-6 shrink-0 text-center text-[10px] font-black text-slate-400">${index + 1}</span>
-            <span class="shrink-0 text-lg" aria-hidden="true">${escapeMarketText(meta.icon || '📦')}</span>
+            <span class="shrink-0" aria-hidden="true">${window.NatIcons.icon(meta.icon, 18)}</span>
             <span class="min-w-0 flex-1"><span class="block truncate text-xs font-bold text-slate-900 dark:text-white">${escapeMarketText(itemName)}</span>
               <span class="block truncate text-[9px] text-slate-500">${formatPrice(row.quantity)} ${escapeMarketText(unit)} · ${Number(row.sale_count || 0).toLocaleString('ru-RU')} сделок</span></span>
             <span class="shrink-0 text-right"><span class="block text-xs font-black text-emerald-600 dark:text-emerald-400">${formatPrice(row.buyer_cash_paid)}</span><span class="text-[9px] text-slate-500">cash оборот</span></span>
@@ -129,7 +129,7 @@ export function renderCommodityCatalog(container, options) {
         : 'Открыть стакан';
     const stock = Number(inventory?.[item.id] || 0);
     return `<button type="button" class="market-commodity-row flex w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-left" data-commodity-item="${escapeMarketText(item.id)}">
-      <span class="shrink-0 text-lg" aria-hidden="true">${escapeMarketText(meta.icon || '📦')}</span>
+      <span class="shrink-0" aria-hidden="true">${window.NatIcons.icon(meta.icon, 18)}</span>
       <span class="min-w-0 flex-1"><span class="block truncate text-xs font-bold text-slate-900 dark:text-white">${escapeMarketText(item.name)}</span><span class="block truncate text-[9px] text-slate-500">${categoryLabel} · склад ${formatPrice(stock)} ${escapeMarketText(unit)}</span></span>
       <span class="shrink-0 text-base text-pink-500" aria-hidden="true">›</span>
     </button>`;

@@ -1,9 +1,9 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
-import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getSpecializationIcon, getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { renderProductionReadiness } from './tycoon_production_status.js?v=20260928_factory_readiness_v1';
+import { renderProductionReadiness } from './tycoon_production_status.js?v=20261009_luxury_ui_v2';
 
 let refreshTimer = null;
 let releaseRefreshCleanup = null;
@@ -77,7 +77,7 @@ function resourceChips(entries, direction = '', period = 'ч') {
     const sign = direction === 'out' ? '＋' : direction === 'in' ? '−' : '';
     const formattedAmount = resourceQuantity(amount);
     if (!formattedAmount) return '';
-    return `<span class="tycoon-resource-chip">${item.icon} ${sign}${formattedAmount}/${period} ${esc(item.name)}</span>`;
+    return `<span class="tycoon-resource-chip">${window.NatIcons.icon(item.icon, 14)} ${sign}${formattedAmount}/${period} ${esc(item.name)}</span>`;
   }).join('');
 }
 
@@ -86,7 +86,7 @@ function resourceRequirements(entries) {
   if (!values.length) return '';
   return values.map(([id, amount]) => {
     const item = getItemInfo(id);
-    return `${item.icon} ${money(amount)} ${esc(item.name)}`;
+    return `${window.NatIcons.icon(item.icon, 14)} ${money(amount)} ${esc(item.name)}`;
   }).join(' · ');
 }
 
@@ -101,7 +101,7 @@ function supplyControls(business, summary) {
     const item = getItemInfo(itemId);
     const policy = business.supply_policies?.[itemId] || { mode: 'MANUAL' };
     const stockHours = Number(business.stock_hours_by_item?.[itemId] || 0);
-    return `<div class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 p-2"><div class="flex items-center justify-between gap-2"><span>${item.icon} ${esc(item.name)}</span><b>${stockHours.toFixed(1)} ч</b></div><div class="grid grid-cols-3 gap-1 mt-1.5"><button type="button" class="tycoon-mini ${policy.mode === 'MANUAL' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="MANUAL">Вручную</button><button type="button" class="tycoon-mini ${policy.mode === 'AUTO_MARKET' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="AUTO_MARKET">Биржа</button><button type="button" class="tycoon-mini ${policy.mode === 'AUTO_MARKET_NPC' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="AUTO_MARKET_NPC">Биржа + гос.</button></div></div>`;
+    return `<div class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 p-2"><div class="flex items-center justify-between gap-2"><span>${window.NatIcons.icon(item.icon, 14)} ${esc(item.name)}</span><b>${stockHours.toFixed(1)} ч</b></div><div class="grid grid-cols-3 gap-1 mt-1.5"><button type="button" class="tycoon-mini ${policy.mode === 'MANUAL' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="MANUAL">Вручную</button><button type="button" class="tycoon-mini ${policy.mode === 'AUTO_MARKET' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="AUTO_MARKET">Биржа</button><button type="button" class="tycoon-mini ${policy.mode === 'AUTO_MARKET_NPC' ? 'tycoon-mini-active' : ''}" data-action="supply-mode" data-id="${business.id}" data-item="${esc(itemId)}" data-mode="AUTO_MARKET_NPC">Биржа + гос.</button></div></div>`;
   }).join('');
   return `<details class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 p-2.5"><summary class="cursor-pointer text-xs font-black">⚙️ Автоснабжение · ${automation.used || 0}/${automation.max || 0}</summary>${rows}<div class="mt-2 text-[10px] text-slate-400">Авто закупает, когда остаётся меньше 2 часов, и пополняет примерно до 8 часов. Сначала ищет предложения игроков. Покупка с рынка требует 1 ед. логистической мощности за каждый успешный заказ. Без мощности режим «Биржа + гос.» может купить остаток из Госрезерва.</div></details>`;
 }
@@ -116,12 +116,12 @@ function assetPanel(business, catalog) {
   const employeeOptions = (catalog?.employees || []).filter(item => (item.specializations || []).includes(specialization) && Number(business.stage) >= Number(item.min_business_stage || 1));
   const projectOptions = (catalog?.projects || []).filter(item => (item.specializations || []).includes(specialization) && Number(business.stage) >= Number(item.min_stage || 1));
   if (!vehicles.length && !employees.length && !projects.length && !vehicleOptions.length && !employeeOptions.length && !projectOptions.length) return '';
-  const vehicleRows = vehicles.map(row => `<div class="flex items-center justify-between gap-2 text-[10px] py-1"><span>${esc(row.icon)} ${esc(row.name)} · ${Number(row.condition).toFixed(0)}%</span><button class="tycoon-mini" data-action="repair-vehicle" data-vehicle-id="${row.id}">Ремонт</button></div>`).join('');
-  const employeeRows = employees.map(row => `<div class="flex items-center justify-between gap-2 text-[10px] py-1"><span>${esc(row.icon)} ${esc(row.name)} · ${money(row.salary_per_hour)} cash/ч</span><button class="tycoon-mini" data-action="fire-employee" data-employee-id="${row.id}">Уволить</button></div>`).join('');
+  const vehicleRows = vehicles.map(row => `<div class="flex items-center justify-between gap-2 text-[10px] py-1"><span>${window.NatIcons.icon(row.icon || 'logistics', 14)} ${esc(row.name)} · ${Number(row.condition).toFixed(0)}%</span><button class="tycoon-mini" data-action="repair-vehicle" data-vehicle-id="${row.id}">Ремонт</button></div>`).join('');
+  const employeeRows = employees.map(row => `<div class="flex items-center justify-between gap-2 text-[10px] py-1"><span>${window.NatIcons.icon(row.icon || 'people', 14)} ${esc(row.name)} · ${money(row.salary_per_hour)} cash/ч</span><button class="tycoon-mini" data-action="fire-employee" data-employee-id="${row.id}">Уволить</button></div>`).join('');
   const projectRows = projects.slice(0, 4).map(row => `<div class="flex justify-between gap-2 text-[10px] py-1"><span>${esc(row.name)}</span><b>${row.status === 'ACTIVE' ? duration(remainingUntil(row.ready_at)) : 'готово'}</b></div>`).join('');
   return `<details class="mt-3 rounded-xl border border-indigo-300/40 dark:border-indigo-700/50 p-2.5"><summary class="cursor-pointer text-xs font-black">🏢 Управление активами</summary>
     ${vehicleRows ? `<div class="mt-2"><div class="text-[9px] uppercase text-slate-400">Автопарк ${assets.vehicle_slots?.used || 0}/${assets.vehicle_slots?.max || 0}</div>${vehicleRows}</div>` : ''}
-    ${vehicleOptions.length ? `<div class="flex flex-wrap gap-1 mt-2">${vehicleOptions.slice(-3).map(item => `<button class="tycoon-mini" data-action="buy-vehicle" data-id="${business.id}" data-vehicle-type="${esc(item.id)}">${esc(item.icon)} ${esc(item.name)} · ${money(item.cost)}</button>`).join('')}</div>` : ''}
+    ${vehicleOptions.length ? `<div class="flex flex-wrap gap-1 mt-2">${vehicleOptions.slice(-3).map(item => `<button class="tycoon-mini" data-action="buy-vehicle" data-id="${business.id}" data-vehicle-type="${esc(item.id)}">${window.NatIcons.icon(item.icon || 'logistics', 14)} ${esc(item.name)} · ${money(item.cost)}</button>`).join('')}</div>` : ''}
     ${employeeRows ? `<div class="mt-2"><div class="text-[9px] uppercase text-slate-400">Команда ${assets.employee_slots?.used || 0}/${assets.employee_slots?.max || 0}</div>${employeeRows}</div>` : ''}
     ${employeeOptions.length ? `<div class="flex flex-wrap gap-1 mt-2">${employeeOptions.slice(-3).map(item => `<button class="tycoon-mini" data-action="hire-employee" data-id="${business.id}" data-role="${esc(item.id)}">+ ${esc(item.name)} · ${money(item.hire_cost)}</button>`).join('')}</div>` : ''}
     ${(projectRows || projectOptions.length) ? `<div class="mt-2"><div class="text-[9px] uppercase text-slate-400">Проекты ${assets.project_slots?.used || 0}/${assets.project_slots?.max || 0}</div>${projectRows}<div class="flex flex-wrap gap-1 mt-1">${projectOptions.map(item => `<button class="tycoon-mini" data-action="start-project" data-id="${business.id}" data-project-type="${esc(item.id)}">▶ ${esc(item.name)}</button>`).join('')}</div></div>` : ''}
@@ -165,7 +165,7 @@ function businessCard(business, summary, assetCatalog) {
     : `<button type="button" class="tycoon-action tycoon-danger" data-action="sell" data-id="${business.id}" data-refund="${Number(business.sale_refund || 0)}" data-invested="${Number(business.capital_invested || 0)}">Продать · +${money(business.sale_refund)} cash</button>`;
   return `<article class="tycoon-business-card">
     <div class="flex items-start justify-between gap-3">
-      <div class="flex items-start gap-2 min-w-0"><span class="tycoon-business-icon">${esc(business.icon || '🏢')}</span><div class="min-w-0"><h3 class="tycoon-business-title">${esc(business.catalog_name || business.name || 'Предприятие')}</h3><div class="text-xs text-slate-400">Уровень ${business.stage}/${business.max_stage}</div></div></div>
+      <div class="flex items-start gap-2 min-w-0"><span class="tycoon-business-icon">${window.NatIcons.icon(business.icon || getSpecializationIcon(business.specialization), 28)}</span><div class="min-w-0"><h3 class="tycoon-business-title">${esc(business.catalog_name || business.name || 'Предприятие')}</h3><div class="text-xs text-slate-400">Уровень ${business.stage}/${business.max_stage}</div></div></div>
       <span class="tycoon-status ${statusClass}">${label}</span>
     </div>
     <p class="mt-2 text-xs text-slate-500 dark:text-slate-300">${esc(business.description || '')}</p>
@@ -217,7 +217,7 @@ function catalogCard(item, requirement, ownedCount) {
   const uniqueOwned = Boolean(item.unique) && ownedCount > 0;
   const disabled = !requirement.available || uniqueOwned;
   return `<article class="tycoon-catalog-card ${disabled ? 'opacity-80' : ''}">
-    <div class="flex items-start justify-between gap-2"><div class="flex items-start gap-2"><span class="text-2xl">${esc(item.icon || '🏢')}</span><div><h3 class="font-black text-slate-900 dark:text-white">${esc(item.name)}</h3><p class="text-xs text-slate-500 dark:text-slate-300">50 уровней · этап ${item.industry_order}${ownedCount ? ` · у вас: ${ownedCount}` : ''}</p></div></div><span class="text-lg">${uniqueOwned ? '✅' : requirement.available ? '🔓' : '🔒'}</span></div>
+    <div class="flex items-start justify-between gap-2"><div class="flex items-start gap-2"><span>${window.NatIcons.icon(item.icon || 'factory', 24)}</span><div><h3 class="font-black text-slate-900 dark:text-white">${esc(item.name)}</h3><p class="text-xs text-slate-500 dark:text-slate-300">50 уровней · этап ${item.industry_order}${ownedCount ? ` · у вас: ${ownedCount}` : ''}</p></div></div><span>${window.NatIcons.icon(uniqueOwned ? 'check' : requirement.available ? 'upgrade' : 'lock', 18)}</span></div>
     <p class="mt-2 text-xs text-slate-500 dark:text-slate-300">${esc(item.description || '')}</p>
     <div class="mt-2 text-xs"><span class="text-slate-400">Производит</span><div class="mt-1">${output}</div></div>
     ${firstMilestone ? `<div class="mt-2 text-xs text-amber-700 dark:text-amber-300">Первый рубеж: <b>${esc(firstMilestone.label)}</b></div>` : ''}

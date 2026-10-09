@@ -31,7 +31,16 @@ const upgrades = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/upgrades.js'),
   'utf-8',
 );
-assert(upgrades.includes('NatAPI.getEmpireSummary()') && upgrades.includes('NatAPI.upgradeBusiness(business.id)'), 'upgrade tab must read and upgrade Tycoon V2 businesses');
+const api = fs.readFileSync(
+  path.join(__dirname, '../../frontend/natbirzha/js/api.js'),
+  'utf-8',
+);
+assert(
+  upgrades.includes('NatAPI.getBusinessUpgradeSummary()')
+    && api.includes("getBusinessUpgradeSummary: () => request('/api/natbirzha/company/upgrade-summary')")
+    && upgrades.includes('NatAPI.upgradeBusiness(business.id)'),
+  'upgrade tab must use the lightweight Tycoon V2 summary and preserve upgrade actions',
+);
 assert(upgrades.includes('NatAPI.upgradeAllBusinesses()') && upgrades.includes('Прокачать всё'), 'upgrade tab must offer one atomic action for all available businesses');
 const overview = fs.readFileSync(
   path.join(__dirname, '../../frontend/natbirzha/js/screens/overview.js'),

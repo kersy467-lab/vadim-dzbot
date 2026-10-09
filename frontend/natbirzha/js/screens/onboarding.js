@@ -2,18 +2,18 @@ import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 
 const INDUSTRIES = [
-  { id: 'miner', name: 'Горнодобывающая', icon: '⛏️', desc: 'Уголь, руда, золото, литий и стратегическое сырьё.', starter: 'Угольный разрез' },
-  { id: 'agrarian', name: 'Аграрная', icon: '🌾', desc: 'Продовольствие и сельхозсырьё для всей экономики.', starter: 'Зерновое хозяйство' },
-  { id: 'power_engineer', name: 'Энергетика', icon: '⚡', desc: 'Электроэнергия для предприятий, инфраструктуры и high-tech.', starter: 'Дизельная электростанция' },
-  { id: 'water', name: 'Водоснабжение', icon: '💧', desc: 'Техническая, очищенная и сверхчистая вода.', starter: 'Артезианская скважина' },
-  { id: 'oilman', name: 'Нефтегазовая', icon: '🛢️', desc: 'Нефть, газ и топливо для промышленности и транспорта.', starter: 'Малая нефтяная скважина' },
-  { id: 'metallurgist', name: 'Металлургия', icon: '🔩', desc: 'Сталь, медь, алюминий и специальные сплавы.', starter: 'Чугунолитейный цех' },
-  { id: 'chemist', name: 'Химическая', icon: '🧪', desc: 'Удобрения, реагенты, полимеры и технологическая химия.', starter: 'Завод минеральных удобрений' },
-  { id: 'construction', name: 'Строительство', icon: '🏗️', desc: 'Стройматериалы и мощность для корпоративных проектов.', starter: 'Лесозаготовительный участок' },
-  { id: 'ai_data', name: 'ИИ и дата-центры', icon: '🧠', desc: 'Машинное обучение и вычислительная мощность для отраслей.', starter: 'Пограничный узел обработки ИИ' },
-  { id: 'technoprom', name: 'Технологическая', icon: '💻', desc: 'Электроника, автоматика, роботы и микроэлектроника.', starter: 'Электронная мастерская' },
-  { id: 'logistics', name: 'Логистика', icon: '🚚', desc: 'Перевозки, склады, терминалы и транспортная мощность.', starter: 'Курьерская служба' },
-  { id: 'brewery', name: 'Пивоварение', icon: '🍺', desc: 'Пиво, вино и выдержанные напитки из сельхозсырья.', starter: 'Малая пивоварня' },
+  { id: 'miner', name: 'Горнодобывающая', icon: 'mining', desc: 'Уголь, руда, золото, литий и стратегическое сырьё.', starter: 'Угольный разрез' },
+  { id: 'agrarian', name: 'Аграрная', icon: 'agriculture', desc: 'Продовольствие и сельхозсырьё для всей экономики.', starter: 'Зерновое хозяйство' },
+  { id: 'power_engineer', name: 'Энергетика', icon: 'energy', desc: 'Электроэнергия для предприятий, инфраструктуры и high-tech.', starter: 'Дизельная электростанция' },
+  { id: 'water', name: 'Водоснабжение', icon: 'water', desc: 'Техническая, очищенная и сверхчистая вода.', starter: 'Артезианская скважина' },
+  { id: 'oilman', name: 'Нефтегазовая', icon: 'oil', desc: 'Нефть, газ и топливо для промышленности и транспорта.', starter: 'Малая нефтяная скважина' },
+  { id: 'metallurgist', name: 'Металлургия', icon: 'metallurgy', desc: 'Сталь, медь, алюминий и специальные сплавы.', starter: 'Чугунолитейный цех' },
+  { id: 'chemist', name: 'Химическая', icon: 'chemistry', desc: 'Удобрения, реагенты, полимеры и технологическая химия.', starter: 'Завод минеральных удобрений' },
+  { id: 'construction', name: 'Строительство', icon: 'construction', desc: 'Стройматериалы и мощность для корпоративных проектов.', starter: 'Лесозаготовительный участок' },
+  { id: 'ai_data', name: 'ИИ и дата-центры', icon: 'ai', desc: 'Машинное обучение и вычислительная мощность для отраслей.', starter: 'Пограничный узел обработки ИИ' },
+  { id: 'technoprom', name: 'Технологическая', icon: 'technology', desc: 'Электроника, автоматика, роботы и микроэлектроника.', starter: 'Электронная мастерская' },
+  { id: 'logistics', name: 'Логистика', icon: 'logistics', desc: 'Перевозки, склады, терминалы и транспортная мощность.', starter: 'Курьерская служба' },
+  { id: 'brewery', name: 'Пивоварение', icon: 'brewing', desc: 'Пиво, вино и выдержанные напитки из сельхозсырья.', starter: 'Малая пивоварня' },
 ];
 
 function creatorAccess() {
@@ -45,22 +45,25 @@ function industryCard(industry, selected, live) {
     : true;
   const label = available
     ? (live?.status_label || 'Считаем рынок…')
-    : '🔒 Пока недоступна';
-  const difficulty = '★'.repeat(Number(live?.difficulty || 3)) + '☆'.repeat(5 - Number(live?.difficulty || 3));
+    : 'Пока недоступна';
+  const difficultyLevel = Math.max(1, Math.min(5, Number(live?.difficulty || 3)));
+  const difficulty = Array.from({ length: 5 }, (_, index) => (
+    `<span class="${index < difficultyLevel ? 'text-amber-600' : 'text-slate-300'}">${window.NatIcons.icon('star', 11)}</span>`
+  )).join('');
   const name = industry.name || industry.id;
   const description = industry.summary || industry.desc || '';
   const starter = industry.starter_business || industry.starter || '';
   const hint = available
     ? (live?.status_hint || 'Загрузка текущего распределения игроков…')
     : (live?.selection_reason || 'Пока недоступна.');
-  return `<button type="button" data-spec="${industry.id}" ${available ? '' : 'disabled aria-disabled="true"'} class="spec-btn p-3 rounded-2xl border text-left transition-all ${
-    selected ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-500' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+  return `<button type="button" data-spec="${industry.id}" aria-pressed="${selected ? 'true' : 'false'}" ${available ? '' : 'disabled aria-disabled="true"'} class="spec-btn p-3 rounded-2xl border text-left transition-all ${
+    selected ? 'spec-btn-selected' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
   } ${available ? '' : 'opacity-65 cursor-not-allowed'}">
-    <div class="flex items-start justify-between gap-2"><span class="text-2xl">${industry.icon}</span><span class="industry-pressure px-2 py-0.5 rounded-full border text-[9px] font-black ${pressureStyle(color)}">${label}</span></div>
+    <div class="flex items-start justify-between gap-2"><span>${window.NatIcons.icon(industry.icon || 'factory', 28)}</span><span class="industry-pressure px-2 py-0.5 rounded-full border text-[9px] font-black ${pressureStyle(color)}">${label}</span></div>
     <div class="mt-1 font-black text-xs text-slate-900 dark:text-white">${name}</div>
     <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400 min-h-8">${description}</div>
     <div class="mt-2 text-[10px] font-bold text-slate-700 dark:text-slate-200">${starter}</div>
-    <div class="mt-2 flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400"><span>Компаний: <b class="company-count">${count}</b></span><span title="Сложность старта">${difficulty}</span></div>
+    <div class="mt-2 flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400"><span>Компаний: <b class="company-count">${count}</b></span><span class="flex items-center" role="img" title="Сложность старта, ${difficultyLevel} из 5" aria-label="Сложность старта: ${difficultyLevel} из 5">${difficulty}</span></div>
     <div class="status-hint mt-1 text-[9px] text-slate-400">${hint}</div>
   </button>`;
 }
@@ -99,8 +102,8 @@ export function renderOnboarding(container, showToast) {
     <form id="create-company-form" class="space-y-4">
       <label class="block"><span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Название компании</span><input id="company-name" required maxlength="64" placeholder="Например: Северный Ресурс" class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700" /></label>
       <label class="block"><span class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Биржевой тикер (3–5 символов)</span><input id="company-ticker" required minlength="3" maxlength="5" placeholder="NORD" class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 uppercase font-mono tracking-widest" /></label>
-      <div><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold uppercase tracking-wider text-slate-500">Промышленная отрасль</span><span id="industry-total" class="text-[10px] text-slate-400">Рынок: загрузка…</span></div><div class="mb-2 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/30 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300">🟢 отрасль недопредставлена · 🟡 сбалансирована · 🔴 высокая конкуренция. Цвет — рекомендация, а не запрет.</div><div id="spec-picker" class="grid grid-cols-2 gap-2"></div></div>
-      <button id="submit-create-btn" type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-sm shadow-lg">🚀 Создать компанию</button>
+      <div><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold uppercase tracking-wider text-slate-500">Промышленная отрасль</span><span id="industry-total" class="text-[10px] text-slate-400">Рынок: загрузка…</span></div><div class="mb-2 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/30 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300">Отрасль недопредставлена · сбалансирована · высокая конкуренция. Цвет — рекомендация, а не запрет.</div><div id="spec-picker" class="grid grid-cols-2 gap-2"></div></div>
+      <button id="submit-create-btn" type="submit" class="w-full min-h-12 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-sm shadow-lg">${window.NatIcons.icon('plus', 16)} Создать компанию</button>
     </form>
   </div>`;
   renderPicker();
@@ -143,7 +146,7 @@ export function renderOnboarding(container, showToast) {
       showToast(error?.message || 'Ошибка создания компании', 'error');
     } finally {
       submit.disabled = false;
-      submit.textContent = '🚀 Создать компанию';
+      submit.textContent = 'Создать компанию';
     }
   });
   container.querySelector('#onboarding-creator-banner')?.addEventListener('click', () => window.NatApp?.navigateTo('creator'));

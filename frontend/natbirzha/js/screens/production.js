@@ -1,9 +1,9 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
-import { getBuildingName } from '../localization.js?v=20260926_local_update_v1';
+import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
+import { getBuildingIcon, getBuildingName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { buildFactoryPages } from '../factory_map.js?v=20260926_local_update_v1';
-import { openCatalogModal } from './catalog.js?v=20260928_ai_compute_fix_v1';
+import { openCatalogModal } from './catalog.js?v=20261009_luxury_ui_v2';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 let cachedRecipes = null;
@@ -95,7 +95,7 @@ function recipeLines(recipe, direction) {
   if (!values.length) return '<span class="text-slate-400">Нет</span>';
   return values.map(([id, amount]) => {
     const item = getItemInfo(id);
-    return `<span class="factory-detail-resource">${item.icon || '📦'} ${amount} ${item.unit} · ${escapeHtml(item.name)}</span>`;
+    return `<span class="factory-detail-resource">${window.NatIcons.icon(item.icon, 16)} ${amount} ${item.unit} · ${escapeHtml(item.name)}</span>`;
   }).join('');
 }
 
@@ -106,7 +106,7 @@ function detailedFactoryCard(factory, recipes, state) {
   const efficiency = Math.round(Number(factory.efficiency || 1) * 100);
   const duration = Number(recipe?.duration || recipe?.base_duration || factory.cycle_duration || 60);
   return `<article class="factory-detail-card snap-start">
-    <div class="flex items-start justify-between gap-2"><div><div class="text-base font-black">${escapeHtml(factory.name || factoryType(factory))}</div><div class="text-xs text-slate-500">Уровень завода: ${factory.level || 1} · эффективность ${efficiency}%</div></div><span class="text-2xl">${factory.icon || '🏭'}</span></div>
+    <div class="flex items-start justify-between gap-2"><div><div class="text-base font-black">${escapeHtml(factory.name || factoryType(factory))}</div><div class="text-xs text-slate-500">Уровень завода: ${factory.level || 1} · эффективность ${efficiency}%</div></div><span>${window.NatIcons.icon(factory.icon || getBuildingIcon(factoryType(factory)), 24)}</span></div>
     <div class="factory-detail-section"><div class="factory-detail-label">Входные ресурсы</div><div class="factory-detail-resources">${recipeLines(recipe, 'inputs')}</div></div>
     <div class="factory-detail-section"><div class="factory-detail-label">Производит</div><div class="factory-detail-resources">${recipeLines(recipe, 'outputs')}</div></div>
     <div class="grid grid-cols-2 gap-2 text-xs"><div><span class="text-slate-500">Цикл</span><b class="block">${duration} сек.</b></div><div><span class="text-slate-500">Рабочие</span><b class="block">${factory.workers || 0} чел.</b></div><div><span class="text-slate-500">Рецепт</span><b class="block truncate">${escapeHtml(selected.recipe?.name || selected.id || '—')}</b></div><div><span class="text-slate-500">Статус</span><b class="block">${factory.automation_enabled ? '🤖 автомат' : '🖐️ вручную'}</b></div></div>
@@ -174,8 +174,8 @@ function factorySlot(factory, state) {
   const duration = Math.max(1, Number(selected.recipe?.duration || selected.recipe?.base_duration || factory.cycle_duration || 60));
   const progress = running && !ready ? Math.max(4, Math.min(96, Math.round((1 - remaining / duration) * 100))) : (ready ? 100 : 0);
   const statusClass = ready ? 'factory-slot-ready' : (running ? 'factory-slot-running' : '');
-  const icon = factory.icon || (factory.specialization === 'agrarian' ? '🌾' : '🏭');
   const bType = factoryType(factory);
+  const icon = factory.icon || getBuildingIcon(bType);
   const title = escapeHtml((factory.name && factory.name !== bType) ? factory.name : getBuildingName(bType));
   const status = ready ? '✅ Готово к сбору' : (running ? `⏳ ${remaining} сек.` : '⭕ Нажмите, чтобы запустить');
   const autoState = automationStatus(factory);
@@ -191,7 +191,7 @@ function factorySlot(factory, state) {
       : `<button type="button" class="factory-start-btn w-full py-1.5 rounded-lg bg-blue-600 text-white" data-id="${factory.id}">▶️ Запустить</button>`);
 
   return `<article class="factory-slot ${statusClass} factory-start-card" data-factory-id="${factory.id}" tabindex="0" role="button" aria-label="${title}">
-    <div class="flex items-start justify-between gap-1"><span class="factory-slot-icon">${icon}</span><span class="factory-slot-meta">ур. ${factory.level || 1}</span></div>
+    <div class="flex items-start justify-between gap-1"><span class="factory-slot-icon">${window.NatIcons.icon(icon, 28)}</span><span class="factory-slot-meta">ур. ${factory.level || 1}</span></div>
     <div class="factory-slot-title" title="${title}">${title}</div>
     <div class="factory-slot-meta" data-cycle-status>${escapeHtml(status)}</div>
     <div class="factory-slot-progress"><span data-cycle-progress style="width:${progress}%"></span></div>

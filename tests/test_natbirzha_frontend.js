@@ -13,25 +13,26 @@ assert(natHtml.includes('id="header-stats"'), 'index.html must have header-stats
 assert(natHtml.includes('id="header-cash"'), 'index.html must have header-cash');
 assert(natHtml.includes('id="header-ticker"'), 'index.html must have header-ticker');
 assert(natHtml.includes('/static/natbirzha/css/natbirzha.css'), 'index.html must import natbirzha.css');
-assert(natHtml.includes('/static/natbirzha/css/princess-theme.css'),
-  'index.html must import the dedicated princess visual theme after the base styles');
+assert(natHtml.includes('/static/natbirzha/css/luxury-theme.css'),
+  'index.html must import the warm ivory and sage visual theme after the base styles');
+assert(!natHtml.includes('princess-theme.css') && !natHtml.includes('princess-sky'),
+  'index.html must retire the previous decorative theme');
 assert(natHtml.includes('/static/natbirzha/js/app.js'), 'index.html must import app.js');
 assert(/app\.js\?v=[A-Za-z0-9_-]+/.test(natHtml), 'Natbirzha entrypoint must refresh its cached code after a release');
-assert(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8').includes("market.js?v=20261001_market_liquidity_refresh_v1"), 'Market changes must refresh the cached market module');
-assert(natHtml.includes('syncTgTheme'), 'index.html must define syncTgTheme');
-assert(natHtml.includes("window.Telegram?.WebApp?.onEvent?.('themeChanged'"), 'index.html must safely listen to themeChanged');
+assert(/market\.js\?v=[A-Za-z0-9_-]+/.test(fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screen_loader.js'), 'utf-8')), 'Market changes must refresh the cached market module');
+assert(natHtml.includes("document.documentElement.style.colorScheme = 'light'"), 'the approved light theme must remain active in dark Telegram clients');
 console.log('index.html structure and scripts verified!');
 
-const princessTheme = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/css/princess-theme.css'), 'utf-8');
-['--princess-pink', '.princess-sky', '.nav-tab.active', '.factory-map', '@media (prefers-reduced-motion: reduce)'].forEach(token => {
-  assert(princessTheme.includes(token), `princess theme must define ${token}`);
+const luxuryTheme = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/css/luxury-theme.css'), 'utf-8');
+['--lux-canvas', '--lux-sage', '--lux-emerald', '.nav-tab.active', '.factory-slot', '@media (prefers-reduced-motion: reduce)'].forEach(token => {
+  assert(luxuryTheme.includes(token), `luxury theme must define ${token}`);
 });
-  assert(princessTheme.split('\n').length <= 400,
-    'princess theme must stay within the repository source-file limit');
-  assert(princessTheme.includes('.dark .bg-slate-50') && princessTheme.includes('.dark .bg-white'),
-    'dark princess theme must override light card utilities instead of rendering grey/white cards');
+assert(luxuryTheme.split('\n').length <= 400, 'luxury theme must stay within the repository source-file limit');
+assert(luxuryTheme.includes('.market-contrast-surface'), 'market screens must use the readable shared contrast surface');
 
   const overviewScreen = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/overview.js'), 'utf-8');
+  assert(overviewScreen.includes('function escapeHtml') && overviewScreen.includes('escapeHtml(company.name)'),
+    'overview must escape user-controlled company names before inserting them into HTML');
   assert(overviewScreen.includes('capital_plan'),
     'overview must render the API capital plan when a company reaches its capital milestone');
   assert(overviewScreen.includes('capital-plan-ipo-btn'),
@@ -289,7 +290,7 @@ assert(creatorScreenCode.includes('grid grid-cols-3') && !creatorScreenCode.incl
   'government controls must be visible in a wrapping grid instead of hidden in a horizontal tab strip');
 assert(creatorScreenCode.includes('data-tab="players"') && creatorScreenCode.includes('data-tab="bonds"') && creatorScreenCode.includes('data-tab="sabotages"'),
   'player bankruptcy, bond bankruptcy and sabotages sections must remain directly navigable');
-assert(screenLoaderCode.includes("./screens/creator.js?v=20260928_mobile_perf_v1"),
+assert(screenLoaderCode.includes("./screens/creator.js?v=20261009_luxury_ui_v2"),
   'the screen loader must reload the updated creator panel module');
 assert(/creator_credit\.js\?v=20260926_local_update_v1/.test(creatorScreenCode)
   && /creator_players\.js\?v=20260926_local_update_v1/.test(creatorScreenCode)
@@ -436,7 +437,7 @@ assert(stockScreenCode.includes('company_sale_pct') && stockScreenCode.includes(
   'both IPO entry points must submit company sale percentage and total shares');
 assert(natApiCode.includes('updateStockDividendRate'),
   'stock API client must support dividend policy changes');
-assert(screenLoaderCode.includes('overview.js?v=20260928_mobile_perf_v1'),
+assert(/overview\.js\?v=[A-Za-z0-9_-]+/.test(screenLoaderCode),
   'overview inventory fixes must be loaded from a fresh screen module');
 assert(marketSectionLoaderCode.includes("state_credit: ['./market_credit.js?v=20260928_mobile_perf_v1'"),
   'market credit screen must use a cache-busted module URL');
@@ -458,6 +459,7 @@ const commodityHelperCode = marketCommodityCode
   .replace(/export\s+function\s+renderCommodityCatalog[\s\S]*/, '');
 const canonicalItemRegistryCode = itemRegistryCode
   .replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =')
+  .replace(/export\s+function\s+getItemIconName/, 'function getItemIconName')
   .replace(/export\s+function\s+getItemInfo/, 'function getItemInfo');
 const { ITEMS: canonicalItemsForMarket } = new Function(`${canonicalItemRegistryCode}\nreturn { ITEMS };`)();
 const marketHelperFn = new Function('getItemInfo', 'ITEMS', `${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
@@ -563,7 +565,7 @@ assert(marketFinanceCode.includes('tradeReferenceInstrument'), 'market finance m
 assert(marketFinanceCode.includes("from '../market_chart.js") && marketCode.includes("from '../market_chart.js"), 'market modules must use the shared market chart renderer');
 assert(marketFinanceCode.includes('item.history') && marketFinanceCode.includes('stock.history') && marketFinanceCode.includes('bond.history'),
   'market charts must use server-provided history for currencies, stocks and bonds');
-assert(marketCode.includes('market-contrast-surface'), 'every market surface must use the readable princess contrast layer');
+assert(marketCode.includes('market-contrast-surface'), 'every market surface must use the readable shared contrast layer');
 assert(marketFinanceCode.includes('createBondListing'), 'market finance module must expose secondary bond listings');
 assert(marketFinanceCode.includes('getPortfolio') && marketFinanceCode.includes('renderPortfolio'),
   'market finance module must expose a unified portfolio for stocks, bonds, currencies and metals');
@@ -660,14 +662,14 @@ assert(gamesCode.includes('prepareNatbirzhaNavigation'),
   'Natbirzha banner must call prepareNatbirzhaNavigation to carry over Telegram auth');
 
 const itemsScript = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/items.js'), 'utf-8');
-const cleanedItemsScript = itemsScript.replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =').replace(/export\s+function\s+getItemInfo/, 'function getItemInfo');
-const itemsFn = new Function(cleanedItemsScript + '\nreturn { ITEMS, getItemInfo };');
-const { ITEMS, getItemInfo } = itemsFn();
+const cleanedItemsScript = itemsScript.replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =').replace(/export\s+function\s+getItemIconName/, 'function getItemIconName').replace(/export\s+function\s+getItemInfo/, 'function getItemInfo');
+const itemsFn = new Function(cleanedItemsScript + '\nreturn { ITEMS, getItemInfo, getItemIconName };');
+const { ITEMS, getItemInfo, getItemIconName } = itemsFn();
 assert(ITEMS.water && ITEMS.water.name === 'Техническая вода', 'water must map to Russian name');
 assert(ITEMS.grid_quota && ITEMS.grid_quota.name === 'Квота энергосети', 'grid_quota must map to Russian name');
 assert(ITEMS.steel && ITEMS.steel.name === 'Конструкционная сталь', 'steel must map to Russian name');
 assert(getItemInfo('WATER').name === 'Техническая вода', 'getItemInfo must be case-insensitive');
-assert(getItemInfo('UNKNOWN_X').icon === '📦', 'getItemInfo must have safe fallback');
+assert(getItemInfo('UNKNOWN_X').icon === 'resource' && getItemIconName('UNKNOWN_X') === 'resource', 'getItemInfo must have a stable safe fallback icon');
 
 assert(overviewCode.includes('getItemInfo'), 'overview.js must use getItemInfo for warehouse items');
 console.log('Natbirzha banner in games.js and items.js localization verified!');

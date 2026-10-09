@@ -1,5 +1,5 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
-import { ITEMS, getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
+import { ITEMS, getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
 
 export async function loadCreatorModeration(el, showToast) {
   const [data, resetPreview] = await Promise.all([
@@ -21,7 +21,7 @@ export async function loadCreatorModeration(el, showToast) {
 
   const itemOptions = Object.entries(ITEMS)
     .sort((a, b) => a[1].name.localeCompare(b[1].name, 'ru'))
-    .map(([id, itm]) => `<option value="${id}">${itm.icon || '📦'} ${itm.name} (${itm.unit})</option>`)
+    .map(([id, itm]) => `<option value="${id}">${itm.name} (${itm.unit})</option>`)
     .join('');
 
   el.innerHTML = `

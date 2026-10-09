@@ -1,8 +1,8 @@
 import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
-import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
+import { getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { renderHybridManager } from './hybrids.js?v=20260928_hybrid_level_cap_v1&release=20260928_hybrid_level_cap_v1';
+import { renderHybridManager } from './hybrids.js?v=20261009_luxury_ui_v2';
 
 let upgradesRenderGeneration = 0;
 let unregisterUpgradesCleanup = null;
@@ -56,7 +56,7 @@ function renderBusinessUpgrades(container, showToast, businesses) {
   );
   const wrapper = document.createElement('div');
   wrapper.className = 'space-y-4 max-w-md mx-auto p-4 pb-24';
-  wrapper.innerHTML = `<div class="space-y-3"><header><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></header><button id="hybrid-manager-open" type="button" class="w-full rounded-2xl border border-indigo-300/60 bg-indigo-50/60 dark:bg-indigo-950/20 p-3 text-left"><span class="block text-xs font-black">🔗 Объединение предприятий</span><span class="mt-1 block text-[10px] text-slate-500">Каждый гибрид улучшается до 4-го уровня · лимита на сервер нет</span></button></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
+  wrapper.innerHTML = `<div class="space-y-3"><header><h2 class="text-xl font-black">Прокачка предприятий</h2><p class="text-xs text-slate-500">Улучшения карьерных предприятий компании</p></header><button id="hybrid-manager-open" type="button" class="w-full rounded-2xl border border-indigo-300/60 bg-indigo-50/60 dark:bg-indigo-950/20 p-3 text-left"><span class="block text-xs font-black">${window.NatIcons.icon('handshake', 16)} Объединение предприятий</span><span class="mt-1 block text-[10px] text-slate-500">Каждый гибрид улучшается до 4-го уровня · лимита на сервер нет</span></button></div>${availableBusinesses.length ? `<div class="glass-card rounded-2xl p-3 space-y-2"><button id="upgrade-all-businesses" type="button" class="w-full rounded-xl bg-indigo-600 text-white py-2.5 text-xs font-bold">Прокачать всё</button><p class="text-[10px] text-slate-500">Если общей суммы не хватит, ни одно улучшение не запустится.</p></div>` : ''}`;
   wrapper.querySelector('#hybrid-manager-open')?.addEventListener('click', () => {
     renderHybridManager(container, showToast, () => renderUpgrades(container, showToast));
   });

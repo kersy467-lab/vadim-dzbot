@@ -1,6 +1,6 @@
 /**
  * Natbirzha UI Localization Dictionary
- * Human-readable Russian titles and icons for specializations and production facilities.
+ * Human-readable Russian titles and icon identities for specializations and facilities.
  */
 
 export const SPECIALIZATIONS = {
@@ -129,6 +129,37 @@ export const BUILDINGS = {
   defense_plant: '⚙️ Завод машиностроения',
 };
 
+const SPECIALIZATION_ICONS = Object.freeze({
+  agrarian: 'agriculture', miner: 'mining', metallurgist: 'metallurgy', oilman: 'oil',
+  power_engineer: 'energy', ai_data: 'ai', forester: 'ai', chemist: 'chemistry',
+  technoprom: 'technology', water: 'water', construction: 'construction',
+  logistics: 'logistics', brewery: 'brewing',
+});
+
+const LEGACY_BUILDING_ICON = /^\p{Extended_Pictographic}[\uFE0E\uFE0F\u200D\p{Extended_Pictographic}]*\s*/u;
+
+export function getSpecializationIcon(spec) {
+  const key = String(spec || '').toLowerCase().trim();
+  return SPECIALIZATION_ICONS[key] || 'factory';
+}
+
+export function getBuildingIcon(buildingType) {
+  const key = String(buildingType || '').toLowerCase().trim();
+  if (/ai_|machine_vision|model|autonomous|supercomputer|sovereign_ai|training_center/.test(key)) return 'ai';
+  if (/solar|hydro|thermal|coal_power|wind|nuclear|fusion|gas_turbine|geothermal|tidal|reactor/.test(key)) return 'energy';
+  if (/water|reservoir|aqueduct|well/.test(key)) return 'water';
+  if (/farm|agro|livestock|grain|food|dairy|flour|greenhouse|feed/.test(key)) return 'agriculture';
+  if (/mine|quarry|ore|drill|uranium|lithium/.test(key)) return 'mining';
+  if (/oil|gas|fuel|refinery|lng/.test(key)) return 'oil';
+  if (/smelt|steel|metal|alloy|aluminum|copper|rolling/.test(key)) return 'metallurgy';
+  if (/chemical|chem_|fertilizer|plastic|polymer|battery|pharma|reagent|catalyst/.test(key)) return 'chemistry';
+  if (/brew|beer|wine|spirits/.test(key)) return 'brewing';
+  if (/logistic|warehouse|terminal|transport|courier/.test(key)) return 'logistics';
+  if (/electronic|machinery|component|chip|auto_|robot|server|aerospace|precision|quantum|machine_factory|defense/.test(key)) return 'technology';
+  if (/wood|paper|cellulose|furniture|prefab|construction|brick|cement|concrete|composite/.test(key)) return 'construction';
+  return 'factory';
+}
+
 /**
  * Returns human-readable Russian specialization name.
  * @param {string} spec
@@ -148,5 +179,5 @@ export function getSpecializationName(spec) {
 export function getBuildingName(bType) {
   if (!bType) return '';
   const key = String(bType).toLowerCase().trim();
-  return BUILDINGS[key] || '🏢 Неизвестное предприятие';
+  return String(BUILDINGS[key] || 'Неизвестное предприятие').replace(LEGACY_BUILDING_ICON, '');
 }

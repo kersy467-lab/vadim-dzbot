@@ -1,6 +1,6 @@
 /**
  * Natbirzha - Canonical Items Registry and Localization Dictionary
- * Maps item IDs to Russian names, emojis, and measurement units.
+ * Maps item IDs to Russian names, legacy glyphs, and measurement units.
  */
 
 export const ITEMS = {
@@ -137,18 +137,42 @@ const ITEM_ALIASES = {
   brandy: 'aged_spirits',
 };
 
+const ITEM_ICON_GROUPS = Object.freeze({
+  energy: 'grid_quota energy',
+  water: 'water clean_water ultrapure_water',
+  ai: 'ai_compute cloud_compute ai_accelerator',
+  mining: 'well_lease coal iron_ore bauxite minerals oil_crude gas_natural rare_earths lithium_raw cobalt_raw gallium_raw uranium_raw copper_ore silver_ore gold_ore nickel_concentrate diamonds lithium_pure uranium_enriched nickel_metal',
+  agriculture: 'forest_fund grain bio_raw wood_raw sugar_raw hops grapes food feed flour meat milk fresh_food dairy_goods agrotech_seed orbital_rations',
+  oil: 'fuel_diesel gasoline jet_fuel lng lubricants cryogenic_fuel industrial_gases',
+  metallurgy: 'steel aluminum copper rolled_metal metal_structures construction_capacity superalloy advanced_alloy titanium_alloy electrical_equipment',
+  construction: 'brick cement concrete lumber engineered_wood prefab_modules industrial_modules advanced_composite',
+  chemistry: 'basic_chem fertilizer cellulose cardboard electrolyte bioreagent pharmaceuticals plastics catalyst batteries synthetic_fuel',
+  brewing: 'beer wine aged_spirits',
+  logistics: 'logistics_capacity industrial_drones',
+  technology: 'components machinery auto_components sensors automation_systems electronics servers robots aerospace_system precision_parts telecom_equipment quantum_modules military_gear',
+});
+
+const ITEM_ICON_NAMES = Object.freeze(Object.fromEntries(
+  Object.entries(ITEM_ICON_GROUPS).flatMap(([icon, ids]) => ids.split(' ').map((id) => [id, icon])),
+));
+
+export function getItemIconName(itemId) {
+  if (!itemId) return 'resource';
+  const key = String(itemId).toLowerCase().trim();
+  return ITEM_ICON_NAMES[ITEM_ALIASES[key] || key] || 'resource';
+}
+
 /**
  * Returns localized metadata for a given item ID with safe fallbacks.
  * @param {string} itemId
  * @returns {{ name: string, icon: string, unit: string }}
  */
 export function getItemInfo(itemId) {
-  if (!itemId) return { name: 'Неизвестно', icon: '📦', unit: 'шт.' };
+  if (!itemId) return { name: 'Неизвестно', icon: 'resource', unit: 'шт.' };
   let key = String(itemId).toLowerCase().trim();
   if (ITEM_ALIASES[key]) key = ITEM_ALIASES[key];
-  return ITEMS[key] || {
-    name: 'Неизвестный ресурс',
-    icon: '📦',
-    unit: 'шт.'
-  };
+  const item = ITEMS[key];
+  return item
+    ? { ...item, icon: ITEM_ICON_NAMES[key] || 'resource' }
+    : { name: 'Неизвестный ресурс', icon: 'resource', unit: 'шт.' };
 }

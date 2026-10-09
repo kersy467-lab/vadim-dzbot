@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>НАТБИРЖА • 11 «Б»</title>
 
   <!-- Telegram WebApp SDK -->
@@ -25,32 +25,22 @@
 
   <!-- Custom Styles -->
   <link rel="stylesheet" href="/static/natbirzha/css/natbirzha.css?v=20260925_energy_mechanic_v5_energy_mechanic_v5" />
-  <link rel="stylesheet" href="/static/natbirzha/css/princess-theme.css?v=20260925_energy_mechanic_v5_energy_mechanic_v5" />
-  <link rel="stylesheet" href="/static/natbirzha/css/tycoon.css?v=20260925_energy_mechanic_v5_energy_mechanic_v5" />
+  <link rel="stylesheet" href="/static/natbirzha/css/tycoon.css?v=20261009_luxury_ui_v2" />
   <link rel="stylesheet" href="/static/natbirzha/css/market-broker.css?v=20260925_energy_mechanic_v5_energy_mechanic_v5" />
+  <link rel="stylesheet" href="/static/natbirzha/css/luxury-theme.css?v=20261009_luxury_ui_v2" />
 
   <script>
-    function syncTgTheme() {
-      const isDark = window.Telegram?.WebApp?.colorScheme === 'dark' ||
-                     (!window.Telegram?.WebApp?.colorScheme && window.matchMedia?.('(prefers-color-scheme: dark)')?.matches);
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
-    syncTgTheme();
-    window.Telegram?.WebApp?.onEvent?.('themeChanged', syncTgTheme);
-    window.matchMedia?.('(prefers-color-scheme: dark)')?.addEventListener?.('change', syncTgTheme);
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
   </script>
 </head>
-<body class="princess-sky min-h-screen text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-950 antialiased selection:bg-blue-500 selection:text-white flex flex-col justify-between">
+<body class="min-h-screen text-slate-800 bg-slate-50 antialiased flex flex-col justify-between">
 
-  <section id="access-wait-screen" class="fixed inset-0 z-[100] grid min-h-screen min-h-[100dvh] place-items-center overflow-auto bg-gradient-to-br from-indigo-950 via-fuchsia-950 to-slate-950 px-6 py-10 text-center text-white" role="status" aria-live="polite" style="display:grid">
-    <div class="mx-auto max-w-lg">
-      <div class="mb-5 text-6xl" aria-hidden="true">🫡</div>
+  <section id="access-wait-screen" class="luxury-access fixed inset-0 z-[100] grid min-h-screen min-h-[100dvh] place-items-center overflow-auto px-6 py-10 text-center" role="status" aria-live="polite" style="display:grid">
+    <div class="luxury-access-card mx-auto max-w-lg">
+      <div class="luxury-access-icon mb-5" data-icon="shield" aria-hidden="true"></div>
       <h1 class="mb-4 text-2xl font-black tracking-tight">ДОСТУП ПОКА ТОЛЬКО АДМИНАМ</h1>
-      <p class="text-lg font-bold leading-relaxed">Патч варится, бро. Пока качай терпение — скоро залетаем 🚀</p>
+      <p class="text-lg font-bold leading-relaxed">Патч готовится. Скоро откроемся.</p>
     </div>
   </section>
 
@@ -58,7 +48,7 @@
   <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-2.5">
     <div class="flex items-center justify-between max-w-md mx-auto">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 flex items-center justify-center text-white font-black text-xs shadow-md shadow-indigo-500/20">
+        <div class="brand-mark w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs">
           НБ
         </div>
         <div>
@@ -66,14 +56,14 @@
             НАТБИРЖА
             <span class="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400 text-[10px] font-mono font-bold">11 «Б»</span>
           </div>
-          <div id="header-ticker" class="text-[10px] font-mono text-slate-400 leading-none">Корпорация</div>
+          <div id="header-ticker" class="text-[10px] font-mono text-slate-400 leading-none" data-preserve-emoji>Корпорация</div>
         </div>
       </div>
 
       <!-- Quick Balance Ticker in Header & Creator Button -->
       <div class="flex items-center gap-3">
-        <button id="creator-nav-btn" class="hidden px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-600 dark:text-amber-400 text-[11px] font-bold flex items-center gap-1 hover:bg-amber-500/30 active:scale-95 transition-all">
-          👑 Государство
+        <button id="creator-nav-btn" class="hidden min-h-10 px-2.5 py-1 rounded-xl border text-[11px] font-bold flex items-center gap-1 hover:bg-amber-500/30 active:scale-95 transition-all">
+          <span data-icon="state" aria-hidden="true"></span> Государство
         </button>
         <div id="header-stats" class="hidden text-right">
           <div id="header-cash" class="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
@@ -96,30 +86,30 @@
   <!-- Fixed Bottom Navigation Bar -->
   <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-1 hidden">
     <div class="max-w-md mx-auto flex items-center justify-around overflow-x-auto text-center no-scrollbar">
-      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5 active" data-tab="overview">
-        <span class="text-lg">🏛️</span>
+      <button class="nav-tab relative py-2 px-1 text-slate-500 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5 active" data-tab="overview" aria-label="Обзор">
+        <span class="nav-icon" data-icon="overview" aria-hidden="true"></span>
         <span class="text-[10px] font-medium">Обзор</span>
       </button>
 
-      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="production">
-        <span class="text-lg">⚙️</span>
+      <button class="nav-tab relative py-2 px-1 text-slate-500 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="production" aria-label="Заводы">
+        <span class="nav-icon" data-icon="factory" aria-hidden="true"></span>
         <span class="text-[10px] font-medium">Заводы</span>
       </button>
 
-      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="upgrades"><span class="text-lg">🔧</span><span class="text-[10px] font-medium">Прокачка</span></button>
+      <button class="nav-tab relative py-2 px-1 text-slate-500 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="upgrades" aria-label="Прокачка"><span class="nav-icon" data-icon="upgrade" aria-hidden="true"></span><span class="text-[10px] font-medium">Прокачка</span></button>
 
-      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="market">
-        <span class="text-lg">📊</span>
+      <button class="nav-tab relative py-2 px-1 text-slate-500 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="market" aria-label="Биржа">
+        <span class="nav-icon" data-icon="market" aria-hidden="true"></span>
         <span class="text-[10px] font-medium">Биржа</span>
       </button>
 
-      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="military">
-        <span class="text-lg">⚔️</span>
+      <button class="nav-tab relative py-2 px-1 text-slate-500 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="military" aria-label="Война">
+        <span class="nav-icon" data-icon="military" aria-hidden="true"></span>
         <span class="text-[10px] font-medium">Война</span>
       </button>
 
-      <button class="nav-tab relative py-2 px-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="leaderboard">
-        <span class="text-lg">🏆</span>
+      <button class="nav-tab relative py-2 px-1 text-slate-500 hover:text-blue-600 transition-colors flex flex-col items-center gap-0.5" data-tab="leaderboard" aria-label="Топ">
+        <span class="nav-icon" data-icon="leaderboard" aria-hidden="true"></span>
         <span class="text-[10px] font-medium">Топ</span>
       </button>
     </div>
@@ -128,7 +118,7 @@
   <!-- Floating Toast Notifications -->
   <div id="toast-container" class="fixed bottom-16 left-4 right-4 z-50 flex flex-col gap-2 items-center"></div>
 
-  <script type="module" src="/static/natbirzha/js/app.js?v=20261008_company_renewal_v1"></script>
+  <script type="module" src="/static/natbirzha/js/app.js?v=20261009_luxury_ui_v2"></script>
 
 </body>
 </html>

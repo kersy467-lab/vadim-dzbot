@@ -3,7 +3,7 @@ import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
 import { loadScreen, preloadScreen } from './screen_loader.js?v=20261009_rebirth_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { installIconHydration, uiIcon } from './icons.mjs?v=20261009_item_art_v1';
+import { installIconHydration, uiIcon } from './icons.mjs?v=20261009_item_art_v2';
 import { startBankruptcyMonitor } from './bankruptcy_gate.js?v=20261009_bankruptcy_recovery_v1';
 
 installIconHydration();

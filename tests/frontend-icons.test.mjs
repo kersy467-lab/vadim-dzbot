@@ -39,6 +39,13 @@ test('every catalog item renders as its own colorful drawn resource illustration
   }
 });
 
+test('resource illustration module is cache-busted in Telegram webviews', async () => {
+  const appModule = await readFile(new URL('../frontend/natbirzha/js/app.js', import.meta.url), 'utf8');
+  const iconModule = await readFile(new URL('../frontend/natbirzha/js/icons.mjs', import.meta.url), 'utf8');
+  assert.match(appModule, /icons\.mjs\?v=20261009_item_art_v2/);
+  assert.match(iconModule, /from '\.\/resource_icons\.mjs\?v=20261009_item_art_v2'/);
+});
+
 test('labels and classes are escaped and decorative icons are hidden from assistive tech', () => {
   const decorative = renderIcon('market');
   assert.match(decorative, /aria-hidden="true"/);

@@ -2,7 +2,7 @@
 
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -95,6 +95,7 @@ async def get_aid_summary(
 @router.post("/requests")
 async def create_aid_request(
     req: AidRequestBody,
+    background_tasks: BackgroundTasks,
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     company: NatCompany = Depends(get_current_company),
     session: AsyncSession = Depends(get_db_session),
@@ -113,9 +114,16 @@ async def create_aid_request(
         )}
     except ValueError as exc:
         _raise_service_error(exc)
-    return await IdempotencyService.commit_response(
+    committed, created = await IdempotencyService.commit_response_once(
         session, company.user_id, endpoint, key, payload, response,
     )
+    from backend.natbirzha.services.company_aid_notifier import notify_new_aid_request
+
+    if created:
+        background_tasks.add_task(
+            notify_new_aid_request, int(response["request"]["id"])
+        )
+    return committed
 
 
 @router.post("/requests/{request_id}/cancel")

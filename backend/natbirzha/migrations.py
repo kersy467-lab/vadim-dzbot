@@ -896,6 +896,15 @@ async def _migrate_v27_release_bonus_pivocoins(conn) -> None:
         ))
 
 
+async def _migrate_v28_admin_rebirth_schedule(conn) -> None:
+    from backend.natbirzha.models.admin_rebirth import NatAdminRebirthSchedule
+    await conn.run_sync(
+        lambda sync_conn: NatAdminRebirthSchedule.__table__.create(
+            sync_conn, checkfirst=True
+        )
+    )
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -939,6 +948,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v25_001_rebirth_stock_notice", _migrate_v25_rebirth_stock_notice),
     ("natbirzha_v26_001_state_treasury_economy", _migrate_v26_state_treasury_economy),
     ("natbirzha_v27_001_release_bonus_pivocoins", _migrate_v27_release_bonus_pivocoins),
+    ("natbirzha_v28_001_admin_rebirth_schedule", _migrate_v28_admin_rebirth_schedule),
 )
 
 

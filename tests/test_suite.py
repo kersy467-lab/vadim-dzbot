@@ -929,6 +929,8 @@ async def main():
         "tests/natbirzha/test_maintenance_mode.py",
         "tests/natbirzha/test_admin_game_commands.py",
         "tests/natbirzha/test_company_reset_complete.py",
+        "tests/natbirzha/test_company_aid_notifications.py",
+        "tests/natbirzha/test_admin_rebirth_scheduling.py",
         "tests/test_ege_duel_timer.py",
         "tests/test_ege_and_frontend.py",
     )

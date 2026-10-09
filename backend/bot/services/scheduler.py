@@ -319,6 +319,30 @@ def setup_scheduler(bot: Bot):
         from backend.bot.services.liquidity_scheduler import register_liquidity_jobs
         register_liquidity_jobs(scheduler)
 
+        async def run_due_admin_rebirths():
+            try:
+                from backend.db.session import async_session_factory
+                from backend.natbirzha.services.admin_rebirth_schedule_service import (
+                    AdminRebirthScheduleService,
+                )
+
+                async with async_session_factory() as session:
+                    result = await AdminRebirthScheduleService.process_due(session)
+                if result["due"]:
+                    logger.info("Scheduled admin rebirths processed: %s", result)
+            except Exception:
+                logger.exception("Error processing scheduled admin rebirths")
+
+        scheduler.add_job(
+            run_due_admin_rebirths,
+            trigger="interval",
+            seconds=10,
+            id="natbirzha_admin_rebirth_schedule_job",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
         scheduler.start()
         logger.info(f"Scheduler started with evening digest ({settings.NOTIFICATION_TIME_EVENING}), canteen reminder, duty check (07:30), Monday duty reminder (06:00), fact rotation (every 30m), daily cleanup (00:05), and Natbirzha tick/settlement ({settings.TIMEZONE})")
 

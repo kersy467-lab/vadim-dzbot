@@ -22,10 +22,12 @@ from backend.natbirzha.api.creator_reset_routes import (
     world_reset,
 )
 from backend.natbirzha.api.creator_economy_routes import router as creator_economy_router
+from backend.natbirzha.api.creator_rebirth_routes import router as creator_rebirth_router
 
 router = APIRouter(prefix="/creator", tags=["Natbirzha Creator & State"])
 router.include_router(creator_reset_router)
 router.include_router(creator_economy_router)
+router.include_router(creator_rebirth_router)
 
 
 class WarningRequest(BaseModel):

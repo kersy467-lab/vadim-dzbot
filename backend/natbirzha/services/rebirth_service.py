@@ -252,7 +252,15 @@ class RebirthService:
         return {"price_before": round(old_price, 4), "price_after": new_price}
 
     @classmethod
-    async def perform(cls, session: AsyncSession, company_id: int, *, expected_count: int, now: datetime | None = None) -> dict:
+    async def perform(
+        cls,
+        session: AsyncSession,
+        company_id: int,
+        *,
+        expected_count: int,
+        now: datetime | None = None,
+        creator_override: bool = False,
+    ) -> dict:
         from backend.natbirzha.services.idle_economy_service import IdleEconomyService
         from backend.natbirzha.services.company_bootstrap import bootstrap_company_state
         from backend.natbirzha.services.company_reset_v2 import delete_company_complete_state
@@ -271,7 +279,16 @@ class RebirthService:
             raise ValueError("Состояние перерождения изменилось. Обновите экран")
         status = await cls.snapshot(session, company)
         if not status["available"]:
-            raise ValueError(" · ".join(status["reasons"]))
+            overrideable = {
+                f"Откройте «{status['terminal_name']}»",
+                "Закройте совместный завод и заберите свою продукцию",
+            }
+            remaining_reasons = [
+                reason for reason in status["reasons"]
+                if not (creator_override and reason in overrideable)
+            ]
+            if remaining_reasons:
+                raise ValueError(" · ".join(remaining_reasons))
 
         stock_before = await session.scalar(select(NatStock).where(
             NatStock.company_id == company.id

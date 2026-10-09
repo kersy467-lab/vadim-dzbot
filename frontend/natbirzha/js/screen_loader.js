@@ -1,6 +1,6 @@
 const screens = {
   onboarding: ['./screens/onboarding.js?v=20261009_luxury_ui_v2', 'renderOnboarding'],
-  overview: ['./screens/overview.js?v=20261009_rebirth_v1', 'renderOverview'],
+  overview: ['./screens/overview.js?v=20261009_compound_rebirth_v1', 'renderOverview'],
   production: ['./screens/tycoon.js?v=20261009_banner_contrast_v1', 'renderTycoon'],
   upgrades: ['./screens/upgrades.js?v=20261009_luxury_ui_v2', 'renderUpgrades'],
   market: ['./screens/market.js?v=20261009_bond_income_v1', 'renderMarket'],

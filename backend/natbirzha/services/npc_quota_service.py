@@ -30,9 +30,9 @@ class NPCQuotaMixin:
         company_cash_cap = None
         if action == "SELL" and item_id:
             company_cash_cap = nat_settings.NPC_COMPANY_DAILY_BUYBACK_CASH_LIMITS.get(item_id)
+        # Companies can buy any quantity from NPCs. Daily caps apply only to
+        # NPC purchases from companies (action == SELL), never to player buys.
         reserve_cap = None
-        if action == "BUY" and item_id:
-            reserve_cap = nat_settings.NPC_RARE_SELL_RESERVES.get(item_id)
         if company_cash_cap is not None:
             quota = float(company_cash_cap) / max(0.01, get_npc_buy_price(item_id))
         else:

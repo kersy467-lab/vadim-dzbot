@@ -115,7 +115,7 @@ export function renderOverview(container, showToast) {
             <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500" style="width: ${xpPercent}%"></div>
           </div>
           <div class="mt-1 text-[10px] text-slate-400">${isMaxLevel ? 'Основная шкала 1–60 завершена — дальше открывается мастерство.' : `До следующего уровня: ${Number(company.xp_to_next || 0)} XP. Производите товары, торгуйте и побеждайте в PvE.`}</div>
-          ${Number(company.rebirth_count || 0) > 0 ? `<div class="mt-2 text-xs text-violet-400">${window.NatIcons.icon('rebirth', 15)} Перерождение ${Number(company.rebirth_count)} · +${Number(company.rebirth_production_bonus_pct || 0)}% к выпуску товаров</div>` : ''}
+          ${Number(company.rebirth_count || 0) > 0 ? `<div class="mt-2 text-xs text-violet-400">${window.NatIcons.icon('rebirth', 15)} Перерождение ${Number(company.rebirth_count)} · ${Number(company.rebirth_production_multiplier_pct || 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}% от базы (бонус +${Number(company.rebirth_production_bonus_pct || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%)</div>` : ''}
           ${isMaxLevel && mastery ? `
             <div class="mastery-progress mt-3 rounded-xl p-2.5">
               <div class="flex items-center justify-between text-[11px] font-bold">
@@ -135,7 +135,7 @@ export function renderOverview(container, showToast) {
           <div class="min-w-0">
             <div class="text-[10px] font-black uppercase tracking-wider text-emerald-100">Новый цикл развития</div>
             <div class="mt-1 text-sm font-black">Перерождение · ${Number(company.rebirth_count || 0)}/10</div>
-            <div class="mt-1 text-[11px] leading-relaxed text-emerald-50">+${Number(company.rebirth_production_bonus_pct || 0)}% к выпуску · сброс с сохранением акций и дивидендов</div>
+            <div class="mt-1 text-[11px] leading-relaxed text-white">${Number(company.rebirth_production_multiplier_pct || 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}% от базового выпуска · бонус +${Number(company.rebirth_production_bonus_pct || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}% · акции и дивиденды сохраняются</div>
           </div>
           <button id="company-rebirth-btn" type="button" class="min-h-11 shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-900 shadow-sm active:scale-95 transition-transform">Открыть</button>
         </div>
@@ -349,11 +349,11 @@ export function renderOverview(container, showToast) {
   }
 
   container.querySelector('#company-rebirth-btn')?.addEventListener('click', async () => {
-    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261009_rebirth_v1');
+    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261009_compound_rebirth_v1');
     await renderCompanyRebirthPanel(container, showToast, () => renderOverview(container, showToast));
   });
   container.querySelector('#company-aid-btn')?.addEventListener('click', async () => {
-    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261009_luxury_ui_v2');
+    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261009_aid_any_level_v1');
     const wrapper = document.createElement('div');
     wrapper.className = 'max-w-md mx-auto p-4 pb-24';
     const back = document.createElement('button');

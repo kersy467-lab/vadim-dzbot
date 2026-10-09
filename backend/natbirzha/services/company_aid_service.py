@@ -16,7 +16,6 @@ from backend.natbirzha.models.inventory import CANONICAL_ITEMS, NatInventory
 class CompanyAidService:
     """Transfer existing cash or unreserved goods; this service never mints funds."""
 
-    BEGINNER_LEVEL_MAX = 10
     RECEIVABLE_LIMIT_CASH = 100_000.0
     RECEIVABLE_WINDOW = timedelta(days=7)
 
@@ -108,7 +107,6 @@ class CompanyAidService:
         )
         if not company or company.is_bankrupt:
             raise ValueError("Компания не найдена или находится в банкротстве")
-        cls._validate_recipient(company)
         if kind == "cash":
             if amount_cash is None:
                 raise ValueError("Запрос денег должен быть от 0 до 100 000 cash")
@@ -159,7 +157,6 @@ class CompanyAidService:
             .join(NatCompany, NatCompany.id == NatCompanyAidRequest.company_id)
             .where(
                 NatCompanyAidRequest.status == "OPEN",
-                NatCompany.level <= cls.BEGINNER_LEVEL_MAX,
                 NatCompany.is_bankrupt.is_(False),
                 *([NatCompanyAidRequest.company_id != exclude_company_id]
                   if exclude_company_id is not None else []),
@@ -183,11 +180,6 @@ class CompanyAidService:
         request.updated_at = datetime.utcnow()
         await session.flush()
         return cls._request_view(request)
-
-    @classmethod
-    def _validate_recipient(cls, company: NatCompany) -> None:
-        if company.level > cls.BEGINNER_LEVEL_MAX:
-            raise ValueError("Помощь доступна компаниям начинающих уровней до 10")
 
     @staticmethod
     async def _received_recently(
@@ -286,8 +278,6 @@ class CompanyAidService:
         sender, recipient = by_id.get(sender_company_id), by_id.get(recipient_company_id)
         if not sender or not recipient or sender.is_bankrupt or recipient.is_bankrupt:
             raise ValueError("Обе компании должны существовать и быть активны")
-        cls._validate_recipient(recipient)
-
         request = await session.scalar(select(NatCompanyAidRequest).where(
             NatCompanyAidRequest.id == request_id,
         ).with_for_update())

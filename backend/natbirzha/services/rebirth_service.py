@@ -26,9 +26,14 @@ from backend.natbirzha.models import (
 from backend.natbirzha.models.rebirth import NatCompanyRebirth
 from backend.natbirzha.models.company_aid import NatCompanyAidRequest
 from backend.natbirzha.services.player_registry_service import PlayerRegistryService
+from backend.natbirzha.services.industry_upgrade_service import IndustryUpgradeService
+from backend.natbirzha.services.progression_service import (
+    MAX_REBIRTHS,
+    rebirth_production_bonus_pct,
+    rebirth_production_multiplier,
+)
 
 logger = logging.getLogger(__name__)
-MAX_REBIRTHS = 10
 
 
 class RebirthService:
@@ -89,6 +94,9 @@ class RebirthService:
     @classmethod
     async def snapshot(cls, session: AsyncSession, company: NatCompany) -> dict:
         rank = max(0, int(company.rebirth_count or 0))
+        rebirth_multiplier = rebirth_production_multiplier(rank)
+        next_rebirth_multiplier = rebirth_production_multiplier(rank + 1)
+        pvc_multiplier = IndustryUpgradeService.bonus_multiplier(company)
         terminal = cls.terminal_spec(company)
         gate = cls.announcement_gate_spec(company)
         owned = await session.scalar(select(NatBusiness.id).where(
@@ -113,8 +121,17 @@ class RebirthService:
         return {
             "count": rank,
             "max_count": MAX_REBIRTHS,
-            "bonus_pct": rank * 25,
-            "next_bonus_pct": (rank + 1) * 25,
+            "bonus_pct": rebirth_production_bonus_pct(rank),
+            "total_pct": round(rebirth_multiplier * 100.0, 2),
+            "multiplier": round(rebirth_multiplier, 6),
+            "next_bonus_pct": rebirth_production_bonus_pct(rank + 1),
+            "next_total_pct": round(next_rebirth_multiplier * 100.0, 2),
+            "next_multiplier": round(next_rebirth_multiplier, 6),
+            "pvc_bonus_pct": round((pvc_multiplier - 1.0) * 100.0, 2),
+            "combined_total_pct": round(rebirth_multiplier * pvc_multiplier * 100.0, 2),
+            "next_combined_total_pct": round(
+                next_rebirth_multiplier * pvc_multiplier * 100.0, 2
+            ),
             "available": not reasons,
             "reasons": reasons,
             "terminal_name": terminal["name"],
@@ -303,7 +320,10 @@ class RebirthService:
         return {
             "success": True,
             "rebirth_count": company.rebirth_count,
-            "production_bonus_pct": company.rebirth_count * 25,
+            "production_bonus_pct": rebirth_production_bonus_pct(company.rebirth_count),
+            "production_multiplier_pct": round(
+                rebirth_production_multiplier(company.rebirth_count) * 100.0, 2
+            ),
             "tax_paid": tax_paid,
             "cash": company.cash,
             "next_factory": status["next_factory"],

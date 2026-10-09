@@ -59,7 +59,7 @@ export async function renderCompanyAidPanel(container, showToast, onRefresh) {
   const header = el('header', 'space-y-1');
   header.append(
     el('h2', 'text-xl font-black', 'Помощь компаниям'),
-    el('p', 'text-xs text-slate-500', 'Поддержите небольшую компанию деньгами или товарами со своего склада.'),
+    el('p', 'text-xs text-slate-500', 'Поддержите компанию любого уровня деньгами или товарами со своего склада.'),
   );
   root.append(header);
 
@@ -166,7 +166,7 @@ export async function renderCompanyAidPanel(container, showToast, onRefresh) {
   function renderMine(request) {
     myRequestBody.replaceChildren();
     if (!request) {
-      myRequestBody.append(el('div', `${classes.card} text-sm text-slate-500`, 'Открытой заявки нет. Получать помощь могут компании до 10 уровня.'));
+      myRequestBody.append(el('div', `${classes.card} text-sm text-slate-500`, 'Открытой заявки нет. Запросить помощь может компания любого уровня.'));
       createButton.disabled = false;
       return;
     }

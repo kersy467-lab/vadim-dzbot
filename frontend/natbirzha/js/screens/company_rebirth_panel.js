@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_rebirth_v1';
+import { NatAPI } from '../api.js?v=20261009_compound_rebirth_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 
 function node(tag, text, className = '') {
@@ -7,6 +7,9 @@ function node(tag, text, className = '') {
   element.className = className;
   return element;
 }
+
+const pct = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+const factor = (value) => Number(value || 1).toLocaleString('ru-RU', { maximumFractionDigits: 4 });
 
 export async function renderCompanyRebirthPanel(container, showToast, onBack) {
   const wrapper = node('div', '', 'max-w-md mx-auto p-4 pb-24 space-y-3');
@@ -22,12 +25,19 @@ export async function renderCompanyRebirthPanel(container, showToast, onBack) {
     if (!wrapper.isConnected) return;
     body.replaceChildren();
 
-    const summary = node('section', '', 'rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm');
+    const summary = node('section', '', 'rounded-2xl border p-4 shadow-sm');
+    summary.style.setProperty('background', '#eef7f1', 'important');
+    summary.style.setProperty('border-color', '#b8d5c2', 'important');
+    summary.style.setProperty('color', '#173b2f', 'important');
     summary.append(
-      node('div', `Перерождений: ${status.count}/${status.max_count}`, 'text-lg font-black text-emerald-950'),
-      node('p', `Сейчас: +${status.bonus_pct}% к выпуску товаров. После следующего перерождения: +${status.next_bonus_pct}%, без роста расхода сырья.`, 'mt-1 text-sm leading-relaxed text-slate-700'),
-      node('p', 'Акции и дивиденды сохраняются. Котировка сбрасывается на 99%; инвесторы могут продать акции через обычную биржу. Облигации списываются, их стоимость остаётся в казне.', 'mt-2 text-xs leading-relaxed text-slate-600'),
+      node('div', `Перерождений: ${status.count}/${status.max_count}`, 'text-lg font-black'),
+      node('p', `Перерождения дают ${pct(status.total_pct)}% базового выпуска (×${factor(status.multiplier)}; бонус +${pct(status.bonus_pct)}%). После следующего: ${pct(status.next_total_pct)}% от базы (×${factor(status.next_multiplier)}). Расход сырья не растёт.`, 'mt-1 text-sm leading-relaxed'),
+      node('p', `Прокачка отрасли за PVC: +${pct(status.pvc_bonus_pct)}%. Сейчас вместе с перерождениями: ${pct(status.combined_total_pct)}% от базы (×${factor(Number(status.combined_total_pct || 100) / 100)}); после следующего перерождения: ${pct(status.next_combined_total_pct)}%. Мастерство и улучшения заводов считаются отдельно.`, 'mt-2 text-xs leading-relaxed'),
+      node('p', 'Акции и дивиденды сохраняются. Котировка сбрасывается на 99%; инвесторы могут продать акции через обычную биржу. Облигации списываются, их стоимость остаётся в казне.', 'mt-2 text-xs leading-relaxed'),
     );
+    for (const textNode of summary.querySelectorAll('p')) {
+      textNode.style.setProperty('color', '#334155', 'important');
+    }
     body.append(summary);
 
     const announceCard = node('section', '', 'rounded-2xl border border-amber-200 bg-amber-50/80 p-3');
@@ -56,7 +66,7 @@ export async function renderCompanyRebirthPanel(container, showToast, onBack) {
     }
     body.append(announceCard);
 
-    const rebirthButton = node('button', status.available ? 'Начать новую жизнь' : 'Перерождение пока недоступно', 'w-full min-h-12 rounded-xl bg-gradient-to-r from-emerald-700 to-emerald-500 p-3 font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50');
+    const rebirthButton = node('button', status.available ? 'Начать новую жизнь' : 'Перерождение пока недоступно', `w-full min-h-12 rounded-xl p-3 font-black shadow-sm disabled:cursor-not-allowed disabled:opacity-100 ${status.available ? 'bg-emerald-800 text-white' : 'border border-slate-300 bg-slate-100 text-slate-700'}`);
     rebirthButton.disabled = !status.available;
     rebirthButton.addEventListener('click', async () => {
       if (!confirm(`Перерождение сбросит: ${status.reset}. Сохранятся: ${status.preserved}. Это действие нельзя отменить. Продолжить?`)) return;
@@ -67,7 +77,7 @@ export async function renderCompanyRebirthPanel(container, showToast, onBack) {
         const stockText = result.stock_rebase
           ? ` Цена акций: ${Number(result.stock_rebase.price_before).toLocaleString('ru-RU')} → ${Number(result.stock_rebase.price_after).toLocaleString('ru-RU')}.`
           : '';
-        showToast(`Перерождение ${result.rebirth_count}: +${result.production_bonus_pct}% производства.${stockText}`, 'success');
+        showToast(`Перерождение ${result.rebirth_count}: выпуск ${pct(result.production_multiplier_pct)}% от базы (бонус +${pct(result.production_bonus_pct)}%).${stockText}`, 'success');
         onBack();
       } catch (error) {
         showToast(error.message, 'error');

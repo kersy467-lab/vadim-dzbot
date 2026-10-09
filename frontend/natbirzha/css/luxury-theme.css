@@ -48,7 +48,7 @@ header {
 
 .brand-mark {
   color: #fffefa;
-  background: linear-gradient(145deg, var(--lux-emerald), #559273);
+  background: linear-gradient(145deg, var(--lux-emerald), #3c735a);
   box-shadow: 0 4px 12px rgba(23, 102, 79, .16);
 }
 
@@ -181,7 +181,47 @@ header {
 
 #screen-container [class*="bg-gradient-to"] {
   color: #fffefa !important;
-  background: linear-gradient(135deg, var(--lux-emerald), #4a896b) !important;
+  background: linear-gradient(135deg, var(--lux-emerald), #3c735a) !important;
+}
+
+/* Emerald gradients get a dark background in this theme; replace their old
+   dark gray/green utility foregrounds with light text. */
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-1"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-2"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-3"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-4"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-5"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-6"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-7"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-8"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-slate-9"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-gray-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-emerald-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-green-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-pink-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-fuchsia-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-violet-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-purple-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-indigo-"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] [class*="text-blue-"] {
+  color: #e5f0e8 !important;
+}
+
+#screen-container [class*="bg-gradient-to"][class*="text-white"],
+#screen-container [class*="bg-gradient-to"] [class*="text-white"] {
+  color: #fffefa !important;
+}
+
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] button[class*="bg-white"],
+#screen-container [class*="bg-gradient-to"][class*="from-emerald-"] button[class*="bg-white"] [class*="text-"] {
+  color: var(--lux-emerald-deep) !important;
+}
+
+#screen-container [class*="bg-emerald-50"][class*="text-emerald-"],
+#screen-container [class*="bg-emerald-100"][class*="text-emerald-"],
+#screen-container [class*="bg-green-50"][class*="text-green-"],
+#screen-container [class*="bg-green-100"][class*="text-green-"] {
+  color: var(--lux-emerald-deep) !important;
 }
 
 #screen-container [class*="text-slate-100"], #screen-container [class*="text-slate-200"],
@@ -204,6 +244,7 @@ header {
 
 /* Keep text readable on the dark emerald banner gradients. */
 #screen-container .tycoon-hero .tycoon-hero-kicker,
+#screen-container .tycoon-hero .tycoon-hero-subtitle,
 #screen-container #creator-banner-card .creator-banner-subtitle {
   color: #e5f0e8 !important;
 }
@@ -233,7 +274,7 @@ header {
 .tycoon-screen { color: var(--lux-ink) !important; }
 .tycoon-hero {
   color: #fffefa;
-  background: linear-gradient(135deg, var(--lux-emerald-deep), #49876b);
+  background: linear-gradient(135deg, var(--lux-emerald-deep), #3c735a);
   box-shadow: var(--lux-shadow);
 }
 .tycoon-business-title, .tycoon-stat b, .tycoon-subgrid b { color: var(--lux-ink) !important; }

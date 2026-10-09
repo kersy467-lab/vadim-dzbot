@@ -8,6 +8,8 @@ from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
 
 ECONOMY_XP_VALUE_PER_POINT = 40.0
+MAX_REBIRTHS = 10
+REBIRTH_BONUS_PER_COUNT = 0.25
 
 
 def _transition_cost(current_level: int) -> int:
@@ -62,11 +64,22 @@ def _mastery_snapshot(company: NatCompany) -> Dict[str, Any]:
     }
 
 
+def rebirth_production_multiplier(rebirth_count: int) -> float:
+    """Compound each rebirth's 25% yield bonus without increasing inputs."""
+    count = min(MAX_REBIRTHS, max(0, int(rebirth_count or 0)))
+    return (1.0 + REBIRTH_BONUS_PER_COUNT) ** count
+
+
+def rebirth_production_bonus_pct(rebirth_count: int) -> float:
+    """Return the compounded rebirth bonus above the 100% base yield."""
+    return round((rebirth_production_multiplier(rebirth_count) - 1.0) * 100.0, 2)
+
+
 def company_production_multiplier(company: NatCompany) -> float:
-    """Permanent yield bonuses increase output without scaling material consumption."""
+    """Mastery and rebirth multiply output without scaling material consumption."""
     mastery = max(0, int(_mastery_snapshot(company)["rank"]))
-    rebirths = min(10, max(0, int(getattr(company, "rebirth_count", 0) or 0)))
-    return (1.0 + mastery / 100.0) * (1.0 + rebirths * 0.25)
+    rebirths = getattr(company, "rebirth_count", 0) or 0
+    return (1.0 + mastery / 100.0) * rebirth_production_multiplier(rebirths)
 
 
 def progress_snapshot(company: NatCompany) -> Dict[str, Any]:
@@ -145,10 +158,13 @@ def economy_xp_from_value(value: float) -> int:
 
 
 __all__ = [
+    "MAX_REBIRTHS",
     "apply_xp",
     "company_production_multiplier",
     "economy_xp_from_value",
     "mastery_xp_required_for_rank",
     "progress_snapshot",
+    "rebirth_production_bonus_pct",
+    "rebirth_production_multiplier",
     "xp_required_for_level",
 ]

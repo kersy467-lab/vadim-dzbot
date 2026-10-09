@@ -11,7 +11,11 @@ from backend.natbirzha.services.auth_service import get_strict_natbirzha_user, g
 from backend.natbirzha.services.company_service import CompanyService
 from backend.natbirzha.services.company_rename_service import CompanyRenameService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
-from backend.natbirzha.services.progression_service import progress_snapshot
+from backend.natbirzha.services.progression_service import (
+    progress_snapshot,
+    rebirth_production_bonus_pct,
+    rebirth_production_multiplier,
+)
 
 router = APIRouter(prefix="/company", tags=["Natbirzha Company"])
 
@@ -185,7 +189,10 @@ async def get_company_status(
         "era": progression["era"],
         "mastery": mastery,
         "rebirth_count": int(company.rebirth_count or 0),
-        "rebirth_production_bonus_pct": int(company.rebirth_count or 0) * 25,
+        "rebirth_production_bonus_pct": rebirth_production_bonus_pct(company.rebirth_count or 0),
+        "rebirth_production_multiplier_pct": round(
+            rebirth_production_multiplier(company.rebirth_count or 0) * 100.0, 2
+        ),
         "cash": company.cash,
         "nat_balance": company.nat_balance,
         "territory_tiles": company.territory_tiles,

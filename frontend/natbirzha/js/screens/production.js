@@ -3,7 +3,7 @@ import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { getBuildingIcon, getBuildingName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { buildFactoryPages } from '../factory_map.js?v=20260926_local_update_v1';
-import { openCatalogModal } from './catalog.js?v=20261009_luxury_ui_v2';
+import { openCatalogModal } from './catalog.js?v=20261009_item_art_v2';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 
 let cachedRecipes = null;

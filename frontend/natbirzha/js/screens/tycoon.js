@@ -3,7 +3,7 @@ import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { getSpecializationIcon, getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { renderProductionReadiness } from './tycoon_production_status.js?v=20261009_luxury_ui_v2';
+import { renderProductionReadiness } from './tycoon_production_status.js?v=20261009_item_art_v2';
 
 let refreshTimer = null;
 let releaseRefreshCleanup = null;

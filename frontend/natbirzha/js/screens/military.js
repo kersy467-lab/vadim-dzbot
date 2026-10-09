@@ -2,7 +2,7 @@ import { NatAPI } from '../api.js?v=20261009_bankruptcy_recovery_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { renderTournamentSection } from './military_tournament.js?v=20260926_local_update_v1';
-import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20261009_luxury_ui_v2';
+import { bindHospitalHandlers, renderHospitalSection } from './military_hospital.js?v=20261009_item_art_v2';
 
 import { armyRequirementText, esc, number, timeLeft, unavailableReason } from './military_helpers.js?v=20260928_mobile_perf_v1';
 const UNITS = [

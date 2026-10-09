@@ -46,6 +46,31 @@ test('resource illustration module is cache-busted in Telegram webviews', async 
   assert.match(iconModule, /from '\.\/resource_icons\.mjs\?v=20261009_item_art_v2'/);
 });
 
+test('item-art cache version reaches every screen module that renders resource icons', async () => {
+  const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
+  const [app, loader, overview, market, tycoon, military, creator, production] = await Promise.all([
+    read('../frontend/natbirzha/js/app.js'),
+    read('../frontend/natbirzha/js/screen_loader.js'),
+    read('../frontend/natbirzha/js/screens/overview.js'),
+    read('../frontend/natbirzha/js/screens/market.js'),
+    read('../frontend/natbirzha/js/screens/tycoon.js'),
+    read('../frontend/natbirzha/js/screens/military.js'),
+    read('../frontend/natbirzha/js/screens/creator.js'),
+    read('../frontend/natbirzha/js/screens/production.js'),
+  ]);
+  assert.match(app, /screen_loader\.js\?v=20261009_item_art_v2/);
+  assert.match(loader, /screens\/overview\.js\?v=20261009_item_art_v2/);
+  assert.match(loader, /screens\/market\.js\?v=20261009_item_art_v2/);
+  assert.match(loader, /screens\/tycoon\.js\?v=20261009_item_art_v2/);
+  assert.match(loader, /screens\/military\.js\?v=20261009_item_art_v2/);
+  assert.match(market, /market_commodities\.js\?v=20261009_item_art_v2/);
+  assert.match(overview, /company_aid_panel\.js\?v=20261009_item_art_v2/);
+  assert.match(tycoon, /tycoon_production_status\.js\?v=20261009_item_art_v2/);
+  assert.match(military, /military_hospital\.js\?v=20261009_item_art_v2/);
+  assert.match(creator, /creator_moderation\.js\?v=20261009_item_art_v2/);
+  assert.match(production, /catalog\.js\?v=20261009_item_art_v2/);
+});
+
 test('labels and classes are escaped and decorative icons are hidden from assistive tech', () => {
   const decorative = renderIcon('market');
   assert.match(decorative, /aria-hidden="true"/);

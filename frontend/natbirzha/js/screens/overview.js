@@ -353,7 +353,7 @@ export function renderOverview(container, showToast) {
     await renderCompanyRebirthPanel(container, showToast, () => renderOverview(container, showToast));
   });
   container.querySelector('#company-aid-btn')?.addEventListener('click', async () => {
-    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261009_aid_any_level_v1');
+    const { renderCompanyAidPanel } = await import('./company_aid_panel.js?v=20261009_item_art_v2');
     const wrapper = document.createElement('div');
     wrapper.className = 'max-w-md mx-auto p-4 pb-24';
     const back = document.createElement('button');

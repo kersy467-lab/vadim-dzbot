@@ -19,6 +19,7 @@ class NatStock(Base):
     
     current_price: Mapped[float] = mapped_column(Float, default=10.0, nullable=False)
     last_valuation: Mapped[float] = mapped_column(Float, default=100000.0, nullable=False)
+    rebirth_valuation_scale: Mapped[float] = mapped_column(Float, default=1.0, server_default="1.0", nullable=False)
     dividend_rate_pct: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
     valuation_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, nullable=True)
     is_listed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

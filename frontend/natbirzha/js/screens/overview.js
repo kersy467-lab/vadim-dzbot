@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
+import { NatAPI } from '../api.js?v=20261009_rebirth_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getItemInfo } from '../items.js?v=20261009_luxury_ui_v2';
 import { getSpecializationIcon, getSpecializationName } from '../localization.js?v=20261009_luxury_ui_v2';
@@ -130,6 +130,17 @@ export function renderOverview(container, showToast) {
         </div>
       </div>
 
+      <section class="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-800 to-emerald-600 p-4 text-white shadow-md" aria-label="Перерождение компании">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-[10px] font-black uppercase tracking-wider text-emerald-100">Новый цикл развития</div>
+            <div class="mt-1 text-sm font-black">Перерождение · ${Number(company.rebirth_count || 0)}/10</div>
+            <div class="mt-1 text-[11px] leading-relaxed text-emerald-50">+${Number(company.rebirth_production_bonus_pct || 0)}% к выпуску · сброс с сохранением акций и дивидендов</div>
+          </div>
+          <button id="company-rebirth-btn" type="button" class="min-h-11 shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-900 shadow-sm active:scale-95 transition-transform">Открыть</button>
+        </div>
+      </section>
+
       <!-- Financial Balance Stats Grid -->
       <div class="grid grid-cols-2 gap-3">
         <div class="glass-card rounded-2xl p-4 shadow-sm">
@@ -244,7 +255,6 @@ export function renderOverview(container, showToast) {
       <div class="pt-2 flex flex-wrap items-center justify-center gap-2">
         <button id="help-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors">${window.NatIcons.icon('help', 14)} Как играть</button>
         <button id="company-aid-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-emerald-600">${window.NatIcons.icon('handshake', 14)} Помощь компаниям</button>
-        <button id="company-rebirth-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-violet-400">${window.NatIcons.icon('rebirth', 14)} Перерождение · ${Number(company.rebirth_count || 0)}</button>
         ${Number(company.level || 0) >= 14 ? `<button id="loans-btn" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">${window.NatIcons.icon('money', 14)} Долги</button>` : ''}
         <button
           id="refresh-btn"
@@ -339,7 +349,7 @@ export function renderOverview(container, showToast) {
   }
 
   container.querySelector('#company-rebirth-btn')?.addEventListener('click', async () => {
-    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261009_luxury_ui_v2');
+    const { renderCompanyRebirthPanel } = await import('./company_rebirth_panel.js?v=20261009_rebirth_v1');
     await renderCompanyRebirthPanel(container, showToast, () => renderOverview(container, showToast));
   });
   container.querySelector('#company-aid-btn')?.addEventListener('click', async () => {

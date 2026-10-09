@@ -62,6 +62,7 @@ from backend.natbirzha.models import (
     NatStockHolding,
     NatStockOrder,
     NatStockPriceSnapshot,
+    NatStockTrade,
     NatSupplyDeal,
     NatSupplyDealSettlement,
     NatTaxDaily,
@@ -180,7 +181,16 @@ async def delete_company_complete_state(session: AsyncSession, cid: int, *, for_
     if not for_rebirth:
         await session.execute(delete(NatSupplyDeal).where(NatSupplyDeal.id.in_(deal_ids)))
 
-    if not for_rebirth:
+    if for_rebirth:
+        await session.execute(update(NatJointFactoryProposal).where(
+            or_(
+                NatJointFactoryProposal.proposer_company_id == cid,
+                NatJointFactoryProposal.partner_company_id == cid,
+                NatJointFactoryProposal.factory_id.in_(reset_joint_factory_ids),
+            ),
+            NatJointFactoryProposal.status == "PENDING",
+        ).values(status="CANCELLED"))
+    else:
         # 7. Joint factories
         await session.execute(delete(NatJointFactorySettlement).where(
             NatJointFactorySettlement.factory_id.in_(reset_joint_factory_ids)
@@ -233,32 +243,84 @@ async def delete_company_complete_state(session: AsyncSession, cid: int, *, for_
     await session.execute(delete(NatCompanyEconomyState).where(NatCompanyEconomyState.company_id == cid))
 
     # 11. Stocks, orderbook, snapshots and dividends
-    hourly_accrual_ids = select(NatHourlyDividendAccrual.id).where(
-        NatHourlyDividendAccrual.stock_id.in_(reset_stock_ids)
-    )
-    await session.execute(delete(NatHourlyDividendPayment).where(or_(
-        NatHourlyDividendPayment.stock_id.in_(reset_stock_ids),
-        NatHourlyDividendPayment.holder_company_id == cid,
-        NatHourlyDividendPayment.accrual_id.in_(hourly_accrual_ids),
-    )))
-    await session.execute(delete(NatHourlyDividendAccrual).where(
-        NatHourlyDividendAccrual.stock_id.in_(reset_stock_ids)
-    ))
-    await session.execute(delete(NatDividendPayment).where(or_(
-        NatDividendPayment.stock_id.in_(reset_stock_ids),
-        NatDividendPayment.holder_company_id == cid,
-    )))
-    await session.execute(delete(NatDividend).where(NatDividend.stock_id.in_(reset_stock_ids)))
-    await session.execute(delete(NatStockOrder).where(or_(
-        NatStockOrder.stock_id.in_(reset_stock_ids), NatStockOrder.trader_company_id == cid
-    )))
-    await session.execute(delete(NatStockHolding).where(or_(
-        NatStockHolding.stock_id.in_(reset_stock_ids), NatStockHolding.holder_company_id == cid
-    )))
-    await session.execute(delete(NatStockPriceSnapshot).where(
-        NatStockPriceSnapshot.stock_id.in_(reset_stock_ids)
-    ))
-    await session.execute(delete(NatStock).where(NatStock.company_id == cid))
+    if for_rebirth:
+        from backend.natbirzha.services.stock_orderbook_service import StockOrderbookService
+
+        own_stocks = list((await session.scalars(
+            select(NatStock).where(NatStock.company_id == cid).with_for_update()
+        )).all())
+        own_stock_by_id = {int(stock.id): stock for stock in own_stocks}
+        active_orders = list((await session.scalars(
+            select(NatStockOrder).where(
+                NatStockOrder.status == "ACTIVE",
+                NatStockOrder.remaining_shares > 0,
+                or_(NatStockOrder.stock_id.in_(reset_stock_ids), NatStockOrder.trader_company_id == cid),
+            ).with_for_update()
+        )).all())
+        refundable_company_ids = {
+            int(order.trader_company_id)
+            for order in active_orders
+            if order.order_type == "BUY"
+        }
+        refundable_companies = {}
+        if refundable_company_ids:
+            refundable_companies = {
+                int(company.id): company
+                for company in (await session.scalars(
+                    select(NatCompany).where(NatCompany.id.in_(refundable_company_ids)).with_for_update()
+                )).all()
+            }
+        for order in active_orders:
+            stock = own_stock_by_id.get(int(order.stock_id))
+            if stock is not None and StockOrderbookService._is_ipo_order(stock, order):
+                continue
+            if order.order_type == "BUY":
+                buyer = refundable_companies.get(int(order.trader_company_id))
+                if buyer is not None:
+                    buyer.cash = round(
+                        float(buyer.cash) + int(order.remaining_shares) * float(order.price), 2
+                    )
+            order.status = "CANCELLED"
+            order.remaining_shares = 0
+
+        # Keep the company's shares and all dividend accrual/payment rows. Only
+        # the pre-rebirth chart and trade evidence are reset for a fresh quote.
+        await session.execute(delete(NatStockPriceSnapshot).where(
+            NatStockPriceSnapshot.stock_id.in_(reset_stock_ids)
+        ))
+        await session.execute(delete(NatStockTrade).where(
+            NatStockTrade.stock_id.in_(reset_stock_ids)
+        ))
+    else:
+        hourly_accrual_ids = select(NatHourlyDividendAccrual.id).where(
+            NatHourlyDividendAccrual.stock_id.in_(reset_stock_ids)
+        )
+        await session.execute(delete(NatHourlyDividendPayment).where(or_(
+            NatHourlyDividendPayment.stock_id.in_(reset_stock_ids),
+            NatHourlyDividendPayment.holder_company_id == cid,
+            NatHourlyDividendPayment.accrual_id.in_(hourly_accrual_ids),
+        )))
+        await session.execute(delete(NatHourlyDividendAccrual).where(
+            NatHourlyDividendAccrual.stock_id.in_(reset_stock_ids)
+        ))
+        await session.execute(delete(NatDividendPayment).where(or_(
+            NatDividendPayment.stock_id.in_(reset_stock_ids),
+            NatDividendPayment.holder_company_id == cid,
+        )))
+        await session.execute(delete(NatDividend).where(NatDividend.stock_id.in_(reset_stock_ids)))
+        await session.execute(delete(NatStockOrder).where(or_(
+            NatStockOrder.stock_id.in_(reset_stock_ids), NatStockOrder.trader_company_id == cid
+        )))
+        await session.execute(delete(NatStockHolding).where(or_(
+            NatStockHolding.stock_id.in_(reset_stock_ids), NatStockHolding.holder_company_id == cid
+        )))
+        await session.execute(delete(NatStockPriceSnapshot).where(
+            NatStockPriceSnapshot.stock_id.in_(reset_stock_ids)
+        ))
+        await session.execute(delete(NatStockTrade).where(
+            NatStockTrade.stock_id.in_(reset_stock_ids)
+        ))
+        await session.execute(delete(NatStock).where(NatStock.company_id == cid))
 
     # 12. Starter factories, inventory, market orders, restructuring and core company record
     await session.execute(delete(NatFactory).where(NatFactory.company_id == cid))

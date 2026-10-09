@@ -809,6 +809,15 @@ async def _migrate_v24_company_renewal(conn) -> None:
         await conn.run_sync(lambda sync_conn, model=model: model.__table__.create(sync_conn, checkfirst=True))
 
 
+async def _migrate_v25_rebirth_stock_notice(conn) -> None:
+    await _add_columns(conn, "nat_companies", {
+        "rebirth_announcement_for_count": "INTEGER",
+    })
+    await _add_columns(conn, "nat_stocks", {
+        "rebirth_valuation_scale": "FLOAT NOT NULL DEFAULT 1.0",
+    })
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -849,6 +858,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v22_001_stock_trade_price_guard", _migrate_v22_stock_trade_price_guard),
     ("natbirzha_v23_001_npc_company_buyback_limits", _migrate_v23_npc_company_buyback_limits),
     ("natbirzha_v24_001_company_renewal", _migrate_v24_company_renewal),
+    ("natbirzha_v25_001_rebirth_stock_notice", _migrate_v25_rebirth_stock_notice),
 )
 
 

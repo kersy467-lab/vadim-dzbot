@@ -141,10 +141,12 @@ class StockService:
             if not is_due and not quote_outside_fair_guard:
                 continue
 
-            valuation = (
-                await StockService.calculate_company_valuation(session, company)
-                if is_due else float(stock.last_valuation or 0.0)
-            )
+            if is_due:
+                valuation = await StockService.calculate_company_valuation(session, company)
+                rebirth_scale = getattr(stock, "rebirth_valuation_scale", None)
+                valuation *= max(0.0, float(1.0 if rebirth_scale is None else rebirth_scale))
+            else:
+                valuation = float(stock.last_valuation or 0.0)
             fair_price = valuation / max(1, int(stock.total_shares or 1))
             pressure = await StockOrderbookService.market_pressure(session, stock)
             market_price = StockService.blended_market_price(

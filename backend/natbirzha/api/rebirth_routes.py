@@ -16,9 +16,26 @@ class RebirthRequest(BaseModel):
     confirmed: Literal[True]
 
 
+class RebirthAnnouncementRequest(BaseModel):
+    expected_count: int = Field(ge=0, le=10)
+
+
 @router.get('')
 async def rebirth_status(company: NatCompany = Depends(get_current_company), session: AsyncSession = Depends(get_db_session)):
     return await RebirthService.snapshot(session, company)
+
+
+@router.post('/announce')
+async def rebirth_announce(
+    req: RebirthAnnouncementRequest,
+    company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
+):
+    try:
+        return await RebirthService.announce(session, company.id, expected_count=req.expected_count)
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post('')

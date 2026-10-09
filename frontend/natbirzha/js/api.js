@@ -154,6 +154,7 @@ export const NatAPI = {
   cancelAidRequest: (id) => request(`/api/natbirzha/aid/requests/${parseInt(id,10)}/cancel`, {method:'POST'}),
   transferAid: (payload) => request('/api/natbirzha/aid/transfer', {method:'POST',body:JSON.stringify(payload)}),
   getRebirthStatus: () => request('/api/natbirzha/company/rebirth'),
+  announceRebirth: (count) => request('/api/natbirzha/company/rebirth/announce', {method:'POST',body:JSON.stringify({expected_count:count})}),
   rebirthCompany: (count) => request('/api/natbirzha/company/rebirth', {method:'POST',body:JSON.stringify({expected_count:count,confirmed:true})}),
   // Auth & Company
   login: () => request('/api/natbirzha/auth/login', { method: 'POST' }),

@@ -1,4 +1,4 @@
-import { getAuthHeader } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { getAuthHeader } from '../api.js?v=20261009_perf_tuning_v1';
 
 export async function declareCreatorBondBankruptcy(bondId) {
   const id = Number.parseInt(bondId, 10);

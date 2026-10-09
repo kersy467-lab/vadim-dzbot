@@ -21,16 +21,28 @@ export function setNavigationAbortSignal(signal) {
 // Immutable catalog-like responses are reused briefly across tabs. Dynamic
 // balances, inventories and order books intentionally never enter this cache.
 const responseCache = new Map();
+const pendingCacheRequests = new Map();
 
 function cachedGet(endpoint, ttlMs) {
   const now = Date.now();
   const cached = responseCache.get(endpoint);
   if (cached && cached.expiresAt > now) return Promise.resolve(cached.data);
 
-  return request(endpoint).then((data) => {
+  const pending = pendingCacheRequests.get(endpoint);
+  if (pending) return pending;
+
+  // Cached catalogs are useful even after the user leaves the screen that
+  // started loading them, so let these small immutable requests finish.
+  const requestPromise = request(endpoint, { ignoreNavigationAbort: true }).then((data) => {
     responseCache.set(endpoint, { data, expiresAt: Date.now() + ttlMs });
     return data;
+  }).finally(() => {
+    if (pendingCacheRequests.get(endpoint) === requestPromise) {
+      pendingCacheRequests.delete(endpoint);
+    }
   });
+  pendingCacheRequests.set(endpoint, requestPromise);
+  return requestPromise;
 }
 
 const REASON_MAP = {
@@ -79,6 +91,7 @@ function parseErrorMessage(data, status) {
 
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('/') ? endpoint : `/api/natbirzha/${endpoint}`;
+  const { ignoreNavigationAbort = false, ...fetchOptions } = options;
   const headers = {
     'Content-Type': 'application/json',
     ...getAuthHeader(),
@@ -93,9 +106,9 @@ async function request(endpoint, options = {}) {
   }
 
   const response = await fetch(url, {
-    ...options,
+    ...fetchOptions,
     headers,
-    signal: options.signal || navigationAbortSignal || undefined,
+    signal: options.signal || (ignoreNavigationAbort ? undefined : navigationAbortSignal || undefined),
   });
 
   const data = await response.json().catch(() => ({}));
@@ -110,9 +123,9 @@ async function request(endpoint, options = {}) {
         ...(options.headers || {}),
       };
       const retryResp = await fetch(url, {
-        ...options,
+        ...fetchOptions,
         headers: retryHeaders,
-        signal: options.signal || navigationAbortSignal || undefined,
+        signal: options.signal || (ignoreNavigationAbort ? undefined : navigationAbortSignal || undefined),
       });
       const retryData = await retryResp.json().catch(() => ({}));
       if (!retryResp.ok) {
@@ -168,7 +181,10 @@ export const NatAPI = {
   getIndustryOverview: () => cachedGet('/api/natbirzha/company/industries', 30 * 1000),
 
   // NATBIRZHA 2.0 idle/tycoon businesses
-  getBusinessCatalog: () => cachedGet('/api/natbirzha/businesses/catalog', 5 * 60 * 1000),
+  getBusinessCatalog: (specialization = null) => {
+    const query = specialization ? `?specialization=${encodeURIComponent(specialization)}` : '';
+    return cachedGet(`/api/natbirzha/businesses/catalog${query}`, 5 * 60 * 1000);
+  },
   getBusinessUpgradeSummary: () => request('/api/natbirzha/company/upgrade-summary'),
   getBusinessInputItems: () => request('/api/natbirzha/company/business-inputs'),
   getEmpireSummary: () => request('/api/natbirzha/company/empire-summary'),

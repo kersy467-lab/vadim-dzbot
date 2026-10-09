@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261008_company_renewal_v1';
+import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { ITEMS, getItemInfo } from '../items.js?v=20261008_company_aid_v1';
 import { formatNumber } from '../format.js';
 

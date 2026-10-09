@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261008_company_renewal_v1';
+import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { getItemInfo } from '../items.js?v=20260928_ai_compute_fix_v1';
 import { getSpecializationName } from '../localization.js?v=20260927_ai_industry_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
@@ -323,7 +323,7 @@ function compactBusinessRow(business) {
 
 async function reload(root, showToast) {
   const [summary, catalog, assetCatalog] = await Promise.all([
-    NatAPI.getEmpireSummary(), NatAPI.getBusinessCatalog(), NatAPI.getBusinessAssetCatalog(),
+    NatAPI.getEmpireSummary(), NatAPI.getBusinessCatalog(store.company?.specialization), NatAPI.getBusinessAssetCatalog(),
   ]);
   store.updateCompany({
     cash: summary.cash,

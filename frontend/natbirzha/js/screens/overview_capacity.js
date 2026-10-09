@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 
 export async function updateBusinessCapacityCard(container) {
   const card = container.querySelector('#business-capacity-card');
@@ -6,10 +6,10 @@ export async function updateBusinessCapacityCard(container) {
   const button = card?.querySelector('#expand-capacity-btn');
   if (!card || !summaryNode || !button) return;
   try {
-    const summary = await NatAPI.getEmpireSummary();
+    const summary = await NatAPI.getBusinessCapacity();
     if (container.querySelector('#business-capacity-card') !== card) return;
     const slots = summary.slots || {};
-    const expansion = summary.slot_expansion || {};
+    const expansion = summary.slot_expansion || summary;
     summaryNode.textContent = `Занято ${Number(slots.used || 0)} / ${Number(slots.max || 10)} слотов.`;
     if (expansion.maxed) {
       summaryNode.textContent += ' Достигнут предел.';

@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20260928_market_frontend_perf_v1';
+import { NatAPI } from '../api.js?v=20261009_perf_tuning_v1';
 import { store } from '../state.js?v=20260926_local_update_v1';
 import { getSpecializationName } from '../localization.js?v=20260926_local_update_v1';
 import { marketChange, renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';

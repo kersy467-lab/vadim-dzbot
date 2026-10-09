@@ -2,16 +2,18 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.session import get_db_session
 from backend.natbirzha.catalogs.businesses import visible_business_specs
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.company import NatCompany
+from backend.natbirzha.models.business import NatBusiness
 from backend.natbirzha.services.auth_service import get_current_company
-from backend.natbirzha.services.business_service import BusinessService
+from backend.natbirzha.services.business_service import BusinessService, get_business_spec
 from backend.natbirzha.services.business_capacity_service import BusinessCapacityService
 from backend.natbirzha.services.empire_summary_service import EmpireSummaryService
 from backend.natbirzha.services.idempotency_service import IdempotencyService
@@ -86,9 +88,12 @@ async def _settle_before_mutation(session: AsyncSession, company: NatCompany) ->
 
 
 @router.get("/catalog")
-async def business_catalog() -> dict:
+async def business_catalog(specialization: Optional[str] = Query(default=None, max_length=64)) -> dict:
     _require_tycoon_v2()
-    return {"items": [_catalog_item(spec) for spec in visible_business_specs()]}
+    specs = visible_business_specs()
+    if specialization:
+        specs = [spec for spec in specs if spec.get("specialization") == specialization]
+    return {"items": [_catalog_item(spec) for spec in specs]}
 
 
 @router.get("")
@@ -139,9 +144,24 @@ async def business_input_items(
 @company_router.get("/business-capacity")
 async def business_capacity_quote(
     company: NatCompany = Depends(get_current_company),
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     _require_tycoon_v2()
-    return BusinessCapacityService.quote(company)
+    businesses = (await session.execute(
+        select(NatBusiness.business_type, NatBusiness.slot_weight, NatBusiness.status)
+        .where(NatBusiness.company_id == company.id)
+    )).all()
+    used_slots = sum(
+        int(slot_weight or 1)
+        for business_type, slot_weight, status in businesses
+        if status not in {"BANKRUPT", "MERGING"}
+        and not (get_business_spec(business_type) or {}).get("legacy_hidden", False)
+    )
+    return {
+        **BusinessCapacityService.quote(company),
+        "slots": BusinessCapacityService.slot_limits(company, used=used_slots),
+        "cash": round(float(company.cash or 0), 2),
+    }
 
 
 @company_router.post("/business-capacity/expand")

@@ -120,7 +120,7 @@ export function checkAndRevealCreatorAccess() {
   if (creatorBtn && isCreator) {
     creatorBtn.classList.remove('hidden');
   }
-  document.getElementById('next-game-nav-btn')?.classList.toggle('hidden', !(user?.is_creator === true || user?.role === 'admin'));
+  document.getElementById('next-game-nav-btn')?.classList.toggle('hidden', !isCreator);
   return isCreator;
 }
 

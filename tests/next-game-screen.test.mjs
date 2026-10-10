@@ -17,6 +17,7 @@ test('admin launcher opens a lazy next-game screen without replacing legacy tab 
   assert.match(app, /is-next-game/);
   assert.match(app, /renderTab !== 'next-game'/);
   assert.match(app, /user\?\.is_creator === true/);
+  assert.match(app, /next-game-nav-btn'\)\?\.classList\.toggle\('hidden', !isCreator\)/);
   assert.match(app, /backToMain = tab === 'next-game' && tab === store.currentTab/);
   assert.match(loader, /'next-game': \['\.\/screens\/next_game\.js/);
   for (const method of [

@@ -24,7 +24,12 @@ from backend.natbirzha.services.next_game_active_time import (
     MAX_ACTIVE_MULTIPLIER, MAX_HEARTBEAT_GAP_SECONDS, active_cycle_multiplier,
     active_multiplier_for_cycle, active_production_enabled, output_with_active_bonus,
 )
-_INPUT_ACTIONS = frozenset({"move", "pickup", "deliver", "interact"})
+from backend.natbirzha.services.active_production_minigame import (
+    MIN_TAP_INTERVAL_SECONDS, WHEEL_SPEED_DEGREES_PER_SECOND,
+    advance_wheel, apply_tap_result, average_interval_multiplier, grade_tap,
+    multiplier_for_charge, timing_state,
+)
+_INPUT_ACTIONS = frozenset({"move", "pickup", "deliver", "interact", "tap"})
 
 
 class NextGameActiveProductionService:
@@ -67,6 +72,9 @@ class NextGameActiveProductionService:
         end = min(now, row.last_interaction_at + timedelta(seconds=ACTIVE_TIMEOUT_SECONDS))
         if end <= row.last_ping_at:
             return
+        multiplier = average_interval_multiplier(
+            row.last_ping_at, end, row.skill_charge, row.last_skill_tap_at,
+        )
         session.add(NatNextGameActiveInterval(
             session_id=row.id,
             company_id=row.company_id,
@@ -74,6 +82,7 @@ class NextGameActiveProductionService:
             start_at=row.last_ping_at,
             end_at=end,
             reason=reason,
+            output_multiplier=multiplier,
         ))
 
     @staticmethod
@@ -153,6 +162,10 @@ class NextGameActiveProductionService:
         await cls._lock_economy(session)
         company = await cls._company(session, owner_tg_id)
         await cls._scene_facility(session, company, branch_id)
+        previous_skill = await session.scalar(select(NatNextGameActiveSession).where(
+            NatNextGameActiveSession.company_id == company.id,
+            NatNextGameActiveSession.selected_branch_id == branch_id,
+        ).order_by(NatNextGameActiveSession.started_at.desc()).limit(1))
         previous = list((await session.scalars(select(NatNextGameActiveSession).where(
             NatNextGameActiveSession.company_id == company.id,
             NatNextGameActiveSession.status == "ACTIVE",
@@ -169,6 +182,12 @@ class NextGameActiveProductionService:
             started_at=current, last_ping_at=current, last_interaction_at=current,
             expires_at=current + timedelta(seconds=ACTIVE_TIMEOUT_SECONDS),
             last_sequence=0, last_user_input_counter=0, scene_version=1,
+            skill_charge=max(0, min(16, int(previous_skill.skill_charge))) if previous_skill else 0,
+            hit_streak=max(0, int(previous_skill.hit_streak)) if previous_skill else 0,
+            last_skill_tap_at=previous_skill.last_skill_tap_at if previous_skill else None,
+            wheel_angle=float(secrets.randbelow(36_000)) / 100,
+            wheel_direction=1 if secrets.randbelow(2) else -1,
+            target_angle=float(secrets.randbelow(36_000)) / 100,
         )
         session.add(row)
         await session.flush()
@@ -181,6 +200,7 @@ class NextGameActiveProductionService:
             "active_timeout_seconds": ACTIVE_TIMEOUT_SECONDS,
             "warning_after_seconds": IDLE_WARNING_SECONDS,
             "selected_branch_id": branch_id,
+            "timing": timing_state(row, current),
             "facilities": cls._scene_payload(snapshot),
             "production": snapshot.get("production"),
         }
@@ -208,6 +228,7 @@ class NextGameActiveProductionService:
             "status": row.status,
             "active": NextGameActiveProductionService._active_now(row, now),
             "last_valid_interaction_age": age,
+            "timing": timing_state(row, now),
         }
 
     @classmethod
@@ -245,40 +266,68 @@ class NextGameActiveProductionService:
             await session.flush()
             return {"active": False, "status": row.status, "reason": row.end_reason}
         if sequence <= row.last_sequence:
-            return cls._session_summary(row, current) | {"duplicate": True, "next_heartbeat_seconds": HEARTBEAT_SECONDS}
+            return cls._session_summary(row, current) | {
+                "duplicate": True, "next_heartbeat_seconds": HEARTBEAT_SECONDS,
+                "tap_result": None,
+            }
         if scene_action not in _INPUT_ACTIONS | {"idle"}:
             raise ValueError("Такое событие сцены не поддерживается")
 
-        meaningful_input = (
+        elapsed = max(0.0, (current - row.last_ping_at).total_seconds())
+        pointer_angle = advance_wheel(
+            row.wheel_angle, row.wheel_direction, WHEEL_SPEED_DEGREES_PER_SECOND, elapsed,
+        )
+        await cls._record_confirmed_tail(session, row, current, "heartbeat", sequence)
+        tap_result = None
+        if scene_action == "tap" and user_input_counter > row.last_user_input_counter:
+            since_tap = (
+                (current - row.last_skill_tap_at).total_seconds()
+                if row.last_skill_tap_at else MIN_TAP_INTERVAL_SECONDS
+            )
+            if since_tap >= MIN_TAP_INTERVAL_SECONDS:
+                tap_result = grade_tap(pointer_angle, row.target_angle)
+                row.skill_charge, row.hit_streak = apply_tap_result(
+                    row.skill_charge, row.hit_streak, tap_result,
+                )
+                row.last_skill_tap_at = current
+                row.last_interaction_at = current
+                row.last_user_input_counter = user_input_counter
+                if tap_result == "gold":
+                    row.wheel_direction = -1 if row.wheel_direction > 0 else 1
+            else:
+                tap_result = "too_soon"
+        legacy_input = (
             scene_action in {"pickup", "deliver", "interact"}
             and user_input_counter > row.last_user_input_counter
         )
-        await cls._record_confirmed_tail(session, row, current, "heartbeat", sequence)
-        if meaningful_input:
+        if legacy_input:
             row.last_interaction_at = current
             row.last_user_input_counter = user_input_counter
+        row.wheel_angle = pointer_angle
         row.last_ping_at = current
         row.last_sequence = sequence
         row.expires_at = current + timedelta(seconds=ACTIVE_TIMEOUT_SECONDS)
         active = cls._active_now(row, current)
-        snapshot = await cls._snapshot(session, owner_tg_id, current)
-        working = int((snapshot.get("production") or {}).get("active", 0))
-        total = int((snapshot.get("production") or {}).get("total", 0))
+        snapshot = None if scene_action == "tap" else await cls._snapshot(session, owner_tg_id, current)
+        working = int((snapshot.get("production") or {}).get("active", 0)) if snapshot else None
+        total = int((snapshot.get("production") or {}).get("total", 0)) if snapshot else None
         next_cycles = [facility.get("next_cycle_at") for facility in snapshot.get("facilities", [])
-                       if facility.get("next_cycle_at")]
+                       if facility.get("next_cycle_at")] if snapshot else []
         age = max(0, int((current - row.last_interaction_at).total_seconds()))
         return {
             "status": row.status,
             "active": active,
             "server_now": current.isoformat(),
             "next_heartbeat_seconds": HEARTBEAT_SECONDS,
-            "multiplier_now": 1.5 if active and working else 1.0,
+            "multiplier_now": multiplier_for_charge(row.skill_charge) if active else 1.0,
+            "timing": timing_state(row, current),
+            "tap_result": tap_result,
             "last_valid_interaction_age": age,
             "idle_warning": IDLE_WARNING_SECONDS <= age < ACTIVE_TIMEOUT_SECONDS,
             "working_facilities": working,
             "total_facilities": total,
             "nearest_cycle_at": min(next_cycles) if next_cycles else None,
-            "production_summary": snapshot.get("production"),
+            "production_summary": snapshot.get("production") if snapshot else None,
         }
 
     @classmethod

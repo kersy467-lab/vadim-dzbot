@@ -1,134 +1,48 @@
-const SHIFT_LENGTH = 5;
-
-const ORDER_TYPES = Object.freeze([
-  { id: 'standard', label: 'Стандартный заказ', basePoints: 80, target: 0.24, tolerance: 0.31 },
-  { id: 'precision', label: 'Точная партия', basePoints: 140, target: 0.72, tolerance: 0.13 },
-]);
-const ORDER_TYPE_IDS = new Set(ORDER_TYPES.map(({ id }) => id));
-
-function orderPreferenceKey(branchId) {
-  return `natbirzha:active-order-choice:${String(branchId)}`;
+export function normalizeAngle(value) {
+  const angle = Number(value);
+  return Number.isFinite(angle) ? ((angle % 360) + 360) % 360 : 0;
 }
 
-export function loadProductionOrderPreference(storage, branchId) {
-  if (!storage || branchId == null) return 'standard';
-  try {
-    const saved = storage.getItem(orderPreferenceKey(branchId));
-    return ORDER_TYPE_IDS.has(saved) ? saved : 'standard';
-  } catch {
-    return 'standard';
-  }
+export function advancePointer(angle, direction, speed, seconds) {
+  return normalizeAngle(Number(angle) + (Number(direction) < 0 ? -1 : 1)
+    * Number(speed) * Math.max(0, Number(seconds) || 0));
 }
 
-export function saveProductionOrderPreference(storage, branchId, orderId) {
-  if (!storage || branchId == null || !ORDER_TYPE_IDS.has(orderId)) return false;
-  try {
-    storage.setItem(orderPreferenceKey(branchId), orderId);
-    return true;
-  } catch {
-    return false;
-  }
+export function angleInZone(angle, center, halfWidth) {
+  const distance = Math.abs(((normalizeAngle(angle) - normalizeAngle(center) + 540) % 360) - 180);
+  return distance <= Number(halfWidth);
 }
 
-function orderOffers(scene, completedOrders) {
-  const offset = ((completedOrders % 3) - 1) * 0.04;
-  const cargo = scene?.visual_pickup || 'Груз';
-  const workstation = scene?.workstation || 'Производственная линия';
-  const delivery = scene?.delivery_marker || 'Склад';
-  return ORDER_TYPES.map((order) => ({
-    ...order,
-    target: (order.target + offset) % 0.88,
-    cargo: `${cargo} №${completedOrders + 1}`,
-    workstation,
-    delivery,
-  }));
+export function tapFeedback(pointerAngle, targetAngle, goldHalfWidth = 28, blueHalfWidth = 22) {
+  if (angleInZone(pointerAngle, targetAngle, goldHalfWidth)) return 'gold';
+  if (angleInZone(pointerAngle, Number(targetAngle) + 180, blueHalfWidth)) return 'blue';
+  return 'miss';
 }
 
-export function createProductionShift(scene, { bestScore = 0, shiftNumber = 1, selectedOrderId = 'standard' } = {}) {
-  const safeScene = {
-    visual_pickup: scene?.visual_pickup || 'Груз',
-    workstation: scene?.workstation || 'Производственная линия',
-    delivery_marker: scene?.delivery_marker || 'Склад',
-  };
+export function createTimingGameState(serverState = {}, localNow = 0) {
   return {
-    scene: safeScene,
-    phase: 'offer',
-    shiftNumber,
-    offers: orderOffers(safeScene, 0),
-    selectedOrderId: ORDER_TYPE_IDS.has(selectedOrderId) ? selectedOrderId : 'standard',
-    activeOrder: null,
-    completedOrders: 0,
-    score: 0,
-    bestScore: Math.max(0, Number(bestScore) || 0),
-    combo: 0,
-    quality: null,
+    pointerAngle: normalizeAngle(serverState.pointer_angle),
+    targetAngle: normalizeAngle(serverState.target_angle),
+    direction: Number(serverState.direction) < 0 ? -1 : 1,
+    speed: Math.max(1, Number(serverState.speed) || 132),
+    goldHalfWidth: Math.max(1, Number(serverState.gold_half_width) || 28),
+    blueHalfWidth: Math.max(1, Number(serverState.blue_half_width) || 22),
+    charge: Math.max(0, Math.min(16, Number(serverState.charge) || 0)),
+    streak: Math.max(0, Number(serverState.streak) || 0),
+    multiplier: Math.max(1, Math.min(5, Number(serverState.multiplier) || 1)),
+    maximumMultiplier: Math.max(1, Math.min(5, Number(serverState.maximum_multiplier) || 5)),
+    syncedAt: Number(localNow) || 0,
     lastResult: null,
   };
 }
 
-export function selectProductionOrder(state, orderId) {
-  if (state.phase !== 'offer' || !state.offers.some((order) => order.id === orderId)) return state;
-  return { ...state, selectedOrderId: orderId };
+export function pointerAt(state, localNow) {
+  const elapsed = Math.max(0, (Number(localNow) - state.syncedAt) / 1000);
+  return advancePointer(state.pointerAngle, state.direction, state.speed, elapsed);
 }
 
-export function acceptProductionOrder(state) {
-  if (state.phase !== 'offer') return state;
-  const selected = state.offers.find((order) => order.id === state.selectedOrderId);
-  if (!selected) return state;
-  return { ...state, phase: 'pickup', activeOrder: { ...selected, orderNumber: state.completedOrders + 1 } };
-}
-
-export function collectProductionCargo(state) {
-  return state.phase === 'pickup' ? { ...state, phase: 'work' } : state;
-}
-
-export function startProductionLine(state) {
-  return state.phase === 'work' ? { ...state, phase: 'calibrate' } : state;
-}
-
-function calibrationGrade(order, position) {
-  const distance = Math.abs(((Number(position) - order.target + 1.5) % 1) - 0.5);
-  if (distance <= order.tolerance * 0.4) return 2;
-  if (distance <= order.tolerance) return 1;
-  return 0;
-}
-
-export function finishProductionCalibration(state, position) {
-  if (state.phase !== 'calibrate' || !state.activeOrder) return state;
-  return { ...state, phase: 'deliver', quality: calibrationGrade(state.activeOrder, position) };
-}
-
-export function deliverProductionOrder(state) {
-  if (state.phase !== 'deliver' || !state.activeOrder) return state;
-  const quality = state.quality || 0;
-  const combo = quality > 0 ? state.combo + 1 : 0;
-  const qualityPoints = quality === 2 ? 60 : quality === 1 ? 25 : 0;
-  const comboPoints = quality > 0 ? Math.min(combo, 4) * 10 : 0;
-  const points = state.activeOrder.basePoints + qualityPoints + comboPoints;
-  const score = state.score + points;
-  const completedOrders = state.completedOrders + 1;
-  const complete = completedOrders >= SHIFT_LENGTH;
-  const lastResult = { points, quality, combo, order: state.activeOrder.label };
-  return {
-    ...state,
-    phase: complete ? 'complete' : 'offer',
-    offers: complete ? [] : orderOffers(state.scene, completedOrders),
-    selectedOrderId: state.selectedOrderId,
-    activeOrder: null,
-    completedOrders,
-    score,
-    bestScore: Math.max(state.bestScore, score),
-    combo,
-    quality: null,
-    lastResult,
-  };
-}
-
-export function startNextProductionShift(state) {
-  if (state.phase !== 'complete') return state;
-  return createProductionShift(state.scene, {
-    bestScore: Math.max(state.bestScore, state.score),
-    shiftNumber: state.shiftNumber + 1,
-    selectedOrderId: state.selectedOrderId,
-  });
+export function updateTimingGameState(previous, serverState = {}, localNow = 0) {
+  const next = createTimingGameState(serverState, localNow);
+  next.lastResult = previous?.lastResult || null;
+  return next;
 }

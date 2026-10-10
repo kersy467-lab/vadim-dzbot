@@ -17,7 +17,7 @@ from backend.natbirzha.services.next_game_active_production_service import (
 )
 
 
-def test_active_multiplier_counts_only_clipped_cycle_overlap_and_caps_at_fifty_percent():
+def test_active_multiplier_counts_only_clipped_cycle_overlap_and_caps_at_five_x():
     start = datetime(2026, 10, 10, 12, 0)
     end = start + timedelta(seconds=300)
 
@@ -34,6 +34,21 @@ def test_active_multiplier_counts_only_clipped_cycle_overlap_and_caps_at_fifty_p
     ])
     assert capped == 1.5
     assert capped_seconds == 300
+
+
+def test_active_multiplier_time_weights_server_scored_segments_and_caps_at_five_x():
+    start = datetime(2026, 10, 10, 12, 0)
+    end = start + timedelta(seconds=300)
+
+    weighted, active_seconds = active_cycle_multiplier(start, end, [
+        (start, start + timedelta(seconds=100), 2.0),
+        (start + timedelta(seconds=100), start + timedelta(seconds=200), 5.0),
+    ])
+    assert weighted == 2.66666667
+    assert active_seconds == 200
+
+    capped, _ = active_cycle_multiplier(start, end, [(start, end, 99.0)])
+    assert capped == 5.0
 
 
 def test_active_multiplier_merges_overlapping_intervals_and_ignores_invalid_cycles():
@@ -134,13 +149,68 @@ def test_session_tokens_rotate_and_duplicate_pulses_cannot_add_more_active_time(
             factor, seconds = await active_cycle_multiplier_from_db(
                 session, row.company_id, start, start + timedelta(seconds=300),
             )
-            assert factor == 1.075
+            assert factor == 1.0
             assert seconds == 45
             await NextGameActiveProductionService.finish(
                 session, 772002, started['session_id'], started['session_token'],
                 status='STOPPED', now=start + timedelta(seconds=31),
             )
             assert row.status == 'STOPPED'
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_timing_taps_are_server_scored_rate_limited_and_saved_as_output_factor(monkeypatch):
+    async def check():
+        monkeypatch.setenv('NEXT_GAME_ACTIVE_PRODUCTION_ENABLED', 'true')
+        engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        start = datetime(2026, 10, 10, 12, 0)
+        async with sessions() as session:
+            await NextGameService.create_company(session, 772003, 'Ритм-цех')
+            await NextGameService.select_sector(session, 772003, 'resources')
+            await NextGameService.select_branch(session, 772003, 'ore_mining')
+            await NextGameService.build_facility(session, 772003, now=start)
+            started = await NextGameActiveProductionService.start(
+                session, 772003, 'ore_mining', now=start,
+            )
+            row = await session.get(NatNextGameActiveSession, started['session_id'])
+            timing = started['timing']
+            from backend.natbirzha.services.active_production_minigame import advance_wheel
+            pointer = advance_wheel(
+                timing['pointer_angle'], timing['direction'], timing['speed'], .1,
+            )
+            # The chosen tap is a timestamped server event; clients cannot submit a claimed grade.
+            row.target_angle = pointer
+            first = await NextGameActiveProductionService.pulse(
+                session, 772003, started['session_id'], started['session_token'],
+                1, 'tap', 1, now=start + timedelta(seconds=.1),
+            )
+            assert first['tap_result'] == 'gold'
+            assert first['timing']['charge'] == 2
+            assert first['timing']['multiplier'] == 1.5
+            assert first['timing']['direction'] == -timing['direction']
+
+            retry = await NextGameActiveProductionService.pulse(
+                session, 772003, started['session_id'], started['session_token'],
+                2, 'tap', 2, now=start + timedelta(seconds=.3),
+            )
+            assert retry['tap_result'] == 'too_soon'
+            assert retry['timing']['charge'] == 2
+
+            heartbeat = await NextGameActiveProductionService.pulse(
+                session, 772003, started['session_id'], started['session_token'],
+                3, 'idle', 2, now=start + timedelta(seconds=15.1),
+            )
+            assert heartbeat['timing']['charge'] == 2
+            intervals = list((await session.scalars(select(NatNextGameActiveInterval).where(
+                NatNextGameActiveInterval.session_id == row.id,
+            ))).all())
+            assert intervals[-1].output_multiplier == pytest.approx(1.5)
+            assert intervals[-1].start_at == start + timedelta(seconds=.3)
         await engine.dispose()
 
     asyncio.run(check())
@@ -181,6 +251,7 @@ def test_settlement_applies_only_confirmed_active_time_and_does_not_pay_for_scen
             session.add(NatNextGameActiveInterval(
                 session_id='active-test-session', company_id=company_id, pulse_seq=1,
                 start_at=start, end_at=start + timedelta(seconds=90), reason='heartbeat',
+                output_multiplier=5.0,
             ))
             await session.flush()
             cash_before = (await NextGameService.snapshot(session, 772001, now=start))['company']['cash']
@@ -193,12 +264,12 @@ def test_settlement_applies_only_confirmed_active_time_and_does_not_pay_for_scen
             ))).all())
 
             assert result['cycles_completed'] == 1
-            assert inventory.quantity == pytest.approx(12 * 1.15)
+            assert inventory.quantity == pytest.approx(12 * 2.2)
             assert (await NextGameService._owned_company(session, 772001)).cash == cash_before - operating_cost
             assert len(ledger) == 1
-            assert ledger[0].metadata_json['active_production_multiplier'] == pytest.approx(1.15)
+            assert ledger[0].metadata_json['active_production_multiplier'] == pytest.approx(2.2)
             assert ledger[0].metadata_json['active_seconds'] == 90
-            assert ledger[0].metadata_json['bonus_output'] == pytest.approx(1.8)
+            assert ledger[0].metadata_json['bonus_output'] == pytest.approx(14.4)
             assert not any(row.action in {'ACTIVE_GAME_REWARD', 'GAME_DELIVERY'} for row in (
                 await session.scalars(select(NatNextGameLedger).where(
                     NatNextGameLedger.company_id == company_id,

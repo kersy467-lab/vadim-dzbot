@@ -15,7 +15,7 @@ HEARTBEAT_SECONDS = 15
 MAX_HEARTBEAT_GAP_SECONDS = 30
 ACTIVE_TIMEOUT_SECONDS = 90
 IDLE_WARNING_SECONDS = 60
-MAX_ACTIVE_MULTIPLIER = 1.5
+MAX_ACTIVE_MULTIPLIER = 5.0
 
 
 def active_production_enabled() -> bool:
@@ -26,29 +26,38 @@ def active_production_enabled() -> bool:
 def active_cycle_multiplier(
     cycle_start: datetime,
     cycle_end: datetime,
-    intervals: Iterable[tuple[datetime, datetime]],
+    intervals: Iterable[tuple[datetime, datetime] | tuple[datetime, datetime, float]],
 ) -> tuple[float, float]:
-    """Integrate the union of server-confirmed intervals over one cycle."""
+    """Integrate server-confirmed multiplier intervals over one production cycle."""
     duration = (cycle_end - cycle_start).total_seconds()
     if duration <= 0:
         return 1.0, 0
-    clipped = sorted(
-        (max(cycle_start, start), min(cycle_end, end))
-        for start, end in intervals
-        if end > cycle_start and start < cycle_end and end > start
-    )
-    merged: list[list[datetime]] = []
-    for start, end in clipped:
-        if end <= start:
+    clipped: list[tuple[datetime, datetime, float]] = []
+    for entry in intervals:
+        start, end = entry[0], entry[1]
+        # Two-column rows are pre-minigame activity records and retain their old 1.5x rate.
+        factor = 1.5 if len(entry) == 2 else float(entry[2])
+        if end <= cycle_start or start >= cycle_end or end <= start:
             continue
-        if not merged or start > merged[-1][1]:
-            merged.append([start, end])
-        elif end > merged[-1][1]:
-            merged[-1][1] = end
-    seconds = min(duration, sum((end - start).total_seconds() for start, end in merged))
-    seconds = round(max(0.0, seconds), 4)
-    multiplier = min(MAX_ACTIVE_MULTIPLIER, 1.0 + 0.5 * seconds / duration)
-    return round(multiplier, 8), seconds
+        clipped.append((max(cycle_start, start), min(cycle_end, end),
+                        max(1.0, min(float(MAX_ACTIVE_MULTIPLIER), factor))))
+    if not clipped:
+        return 1.0, 0
+
+    boundaries = sorted({point for start, end, _ in clipped for point in (start, end)})
+    active_seconds = 0.0
+    weighted_bonus_seconds = 0.0
+    for left, right in zip(boundaries, boundaries[1:]):
+        seconds = (right - left).total_seconds()
+        if seconds <= 0:
+            continue
+        covering = [value for start, end, value in clipped if start < right and end > left]
+        if covering:
+            active_seconds += seconds
+            weighted_bonus_seconds += seconds * (max(covering) - 1.0)
+    active_seconds = round(min(duration, max(0.0, active_seconds)), 4)
+    multiplier = 1.0 + weighted_bonus_seconds / duration
+    return round(min(MAX_ACTIVE_MULTIPLIER, multiplier), 8), active_seconds
 
 
 async def active_multiplier_for_cycle(
@@ -60,7 +69,11 @@ async def active_multiplier_for_cycle(
     if not active_production_enabled():
         return 1.0, 0
     rows = (await session.execute(
-        select(NatNextGameActiveInterval.start_at, NatNextGameActiveInterval.end_at).where(
+        select(
+            NatNextGameActiveInterval.start_at,
+            NatNextGameActiveInterval.end_at,
+            NatNextGameActiveInterval.output_multiplier,
+        ).where(
             NatNextGameActiveInterval.company_id == company_id,
             NatNextGameActiveInterval.start_at < cycle_end,
             NatNextGameActiveInterval.end_at > cycle_start,

@@ -9,7 +9,7 @@ const screens = {
   creator: ['./screens/creator.js?v=20261009_luxury_ui_v2', 'renderCreator'],
   leaderboard: ['./screens/leaderboard.js?v=20261008_company_renewal_v1', 'renderLeaderboard'],
   help: ['./screens/help.js?v=20261009_luxury_ui_v2', 'renderHelp'],
-  'next-game': ['./screens/next_game.js?v=20261010_active_production_v5', 'renderNextGame'],
+  'next-game': ['./screens/next_game.js?v=20261011_rhythm_v1', 'renderNextGame'],
 };
 
 export async function loadScreen(tab) {

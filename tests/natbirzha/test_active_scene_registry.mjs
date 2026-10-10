@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { buildSceneRegistry, SCENE_FAMILIES, sceneForBranch } from '../../frontend/natbirzha/js/active_production/scene_registry.mjs';
 import { renderActiveProductionScene } from '../../frontend/natbirzha/js/active_production/scene.mjs';
 import { paint } from '../../frontend/natbirzha/js/active_production/render.mjs';
+import { createTimingGameState } from '../../frontend/natbirzha/js/active_production/gameplay.mjs';
 
 const pythonCatalog = JSON.parse(execFileSync('python', ['-c', [
   'import json',
@@ -28,7 +29,7 @@ test('scene registry builds a themed scene for every current branch ID', () => {
   assert.notEqual(registry.get('ore_mining').workstation, registry.get('logistics').workstation);
 });
 
-test('the fullscreen scene escapes company and facility labels and exposes phone controls', () => {
+test('the fullscreen scene escapes labels and exposes the timing game without movement controls', () => {
   const html = renderActiveProductionScene(
     { name: '<script>broken</script>' },
     { selected_branch_id: 'ore_mining', facilities: [{
@@ -37,29 +38,35 @@ test('the fullscreen scene escapes company and facility labels and exposes phone
   );
 
   assert.ok(!html.includes('<script>'));
-  assert.ok(html.includes('data-active-joystick'));
+  assert.ok(!html.includes('data-active-joystick'));
   assert.ok(html.includes('data-active-exit'));
-  assert.ok(html.includes('data-active-order-select'));
-  assert.ok(html.includes('data-active-action'));
-  assert.ok(html.includes('data-active-calibration'));
-  assert.ok(html.includes('aria-label="2D-сцена активного производства"'));
+  assert.ok(!html.includes('data-active-order-select'));
+  assert.ok(html.includes('data-active-tap'));
+  assert.ok(html.includes('×5'));
+  assert.ok(html.includes('aria-label="Мини-игра: попади стрелкой в золотую или синюю зону"'));
 });
 
-test('the production scene uses layered floor lighting and a moving conveyor detail', () => {
-  const calls = { gradients: 0, fills: 0, dashOffsets: [] };
+test('the rhythm mini-game renders colored target zones, pointer, charge and hit feedback', () => {
+  const calls = { gradients: 0, fills: 0, strokes: 0, texts: [] };
   const ctx = {
     clearRect() {}, fillRect() { calls.fills += 1; }, strokeRect() {},
-    beginPath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, closePath() {},
-    fill() {}, stroke() {}, arc() {}, ellipse() {}, fillText() {}, setLineDash() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {},
+    fill() {}, stroke() { calls.strokes += 1; }, arc() {}, fillText(text) { calls.texts.push(text); },
     save() {}, restore() {},
     createLinearGradient() { calls.gradients += 1; return { addColorStop() {} }; },
-    set lineDashOffset(value) { calls.dashOffsets.push(value); },
+    createRadialGradient() { calls.gradients += 1; return { addColorStop() {} }; },
   };
 
   paint(ctx, 360, 240, { scene_family: 'materials', microvariant: 0, workstation: 'ЛИНИЯ' }, {
-    actor: { x: 180, y: 130 }, hasCargo: true, shift: { phase: 'work' },
+    ...createTimingGameState({ pointer_angle: 30, target_angle: 60, direction: 1,
+      speed: 132, charge: 4, streak: 2, multiplier: 2, server_now: '2026-10-11T12:00:00' }, 1000),
+    lastResult: 'gold',
   }, 1250);
 
-  assert.ok(calls.gradients >= 2, 'the floor and worker should use layered shading');
-  assert.ok(calls.dashOffsets.some((value) => value !== 0), 'the conveyor dashes should move to show production flow');
+  assert.ok(calls.gradients >= 2, 'the wheel and center use layered shading');
+  assert.ok(calls.strokes >= 4, 'the wheel track and colored target zones should be painted');
+  assert.ok(calls.texts.includes('×2.00'));
+  assert.ok(calls.texts.includes('ЗОЛОТО +2'));
+  assert.ok(calls.texts.includes('СИНИЙ +1'));
+  assert.ok(calls.texts.includes('ТОЧНО!'));
 });

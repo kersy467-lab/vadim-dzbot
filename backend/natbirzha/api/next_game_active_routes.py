@@ -28,8 +28,8 @@ class SessionRequest(BaseModel):
 
 class PulseRequest(SessionRequest):
     sequence: int = Field(ge=1)
-    scene_action: Literal["idle", "move", "pickup", "deliver", "interact"]
-    user_input_counter: int = Field(ge=0)
+    scene_action: Literal["idle", "move", "pickup", "deliver", "interact", "tap"]
+    user_input_counter: int = Field(ge=0, le=2_147_483_647)
 
 
 async def _commit(session: AsyncSession, action: Awaitable[dict]) -> dict:

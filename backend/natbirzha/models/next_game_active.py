@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
-    BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Integer, String,
+    BigInteger, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -40,6 +40,12 @@ class NatNextGameActiveSession(Base):
     last_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_user_input_counter: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     scene_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    skill_charge: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    hit_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    wheel_angle: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
+    wheel_direction: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    target_angle: Mapped[float] = mapped_column(Float, nullable=False, default=180, server_default="180")
+    last_skill_tap_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     end_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 
@@ -62,6 +68,9 @@ class NatNextGameActiveInterval(Base):
     pulse_seq: Mapped[int] = mapped_column(Integer, nullable=False)
     start_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     end_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    output_multiplier: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1.5, server_default="1.5",
+    )
     reason: Mapped[str] = mapped_column(String(24), nullable=False, default="heartbeat")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 

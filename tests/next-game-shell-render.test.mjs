@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderShell, renderMore } from '../frontend/natbirzha/js/screens/next_game_shell.js';
+import { renderHeader, renderShell, renderMore } from '../frontend/natbirzha/js/screens/next_game_shell.js';
 import { renderDevelopment } from '../frontend/natbirzha/js/screens/next_game_development.js';
 import { renderFactories, estimateAutonomy } from '../frontend/natbirzha/js/screens/next_game_factories.js';
 import { renderOverview } from '../frontend/natbirzha/js/screens/next_game_overview.js';
@@ -23,7 +23,8 @@ function fixture(count = 35) {
 test('five bottom destinations and grouped finance services use accessible vector icons', () => {
   const shell = renderShell(fixture().company, 'bank');
   assert.equal((shell.match(/data-next-view=/g) || []).length, 5);
-  assert.equal((shell.match(/<svg /g) || []).length, 5);
+  const nav = shell.match(/<nav class="next-game-nav"[\s\S]*?<\/nav>/)?.[0] || '';
+  assert.equal((nav.match(/<svg /g) || []).length, 5);
   assert.match(shell, /data-next-view="more" class="is-active" aria-current="page"/);
   assert.match(shell, /&lt;script&gt;/);
   assert.doesNotMatch(shell, /military|upgrades|data-next-view="bank"/);
@@ -31,6 +32,24 @@ test('five bottom destinations and grouped finance services use accessible vecto
   for (const view of ['bank', 'capital', 'competition', 'help', 'contracts', 'admin']) {
     assert.match(more, new RegExp(`data-next-view="${view}"`));
   }
+});
+
+test('company header restores identity, sector, progression and creator-only state access', () => {
+  const state = fixture();
+  state.company.ticker = 'NORTH';
+  state.company.level = 60;
+  state.company.xp = 110000;
+  state.company.xp_to_next_level = 0;
+  state.settings.rebirths = 2;
+
+  const header = renderHeader(state, true);
+  assert.match(header, /NORTH/);
+  assert.match(header, /Промышленность/);
+  assert.match(header, /<small>Уровень<\/small><b>60/u);
+  assert.match(header, /<small>Мастерство<\/small><b>51/u);
+  assert.match(header, /<small>Перерождение<\/small><b>2\s*<em>\/ 10/u);
+  assert.match(header, /data-next-admin/);
+  assert.doesNotMatch(renderHeader(state, false), /data-next-admin/);
 });
 
 test('development displays connected route, two gated choices and bounded catalog', () => {

@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20261010_shell_v2';
 import { esc, bindAction } from './next_game_common.js?v=20261010_shell_v2';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_shell_v2';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_visual_recovery_v3';
 import { renderOverview } from './next_game_overview.js?v=20261010_shell_v2';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261010_shell_v2';
 import { renderFactories, bindFactories } from './next_game_factories.js?v=20261010_shell_v2';
@@ -8,6 +8,13 @@ import { renderFactories, bindFactories } from './next_game_factories.js?v=20261
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
 let activeNextGameView = 'overview';
+
+function currentCreatorAccess() {
+  const user = window.NatApp?.store?.user;
+  const creatorButton = document.getElementById('creator-nav-btn');
+  return Boolean(user?.is_creator === true || user?.role === 'admin'
+    || (creatorButton && !creatorButton.classList.contains('hidden')));
+}
 
 function renderCompanyForm(container, showToast) {
   container.innerHTML = `<div class="next-game-screen">${renderHeader(null)}<section class="next-game-panel"><h2>Создай компанию</h2><p>В тестовом мире 2.0 у компании собственные заводы, cash и сохранение.</p><label for="next-game-company-name">Название компании</label><input id="next-game-company-name" maxlength="80" minlength="2" value="Новая корпорация"><button id="next-game-create" type="button" class="next-game-primary">Создать компанию</button></section></div>`;
@@ -31,7 +38,7 @@ async function loadSection(session, section) {
   if (section === 'capital') session.state.equity = equity;
   session.loaded.add(section);
   const header = session.container.querySelector('.next-game-header');
-  if (header) header.outerHTML = renderHeader(session.state.company);
+  if (header) header.outerHTML = renderHeader(session.state, currentCreatorAccess());
 }
 
 async function renderFinance(content, session, view, refresh) {
@@ -77,7 +84,7 @@ async function mountActive(session) {
     session.updatedAt = Date.now();
     session.loaded.clear();
     const header = container.querySelector('.next-game-header');
-    if (header) header.outerHTML = renderHeader(state.company);
+    if (header) header.outerHTML = renderHeader(state, currentCreatorAccess());
     await mountActive(session);
   };
   const redraw = () => mountActive(session);
@@ -96,7 +103,7 @@ async function mountActive(session) {
       const target = document.createElement('div');
       target.className = 'next-game-module';
       if (view === 'market') {
-        const { renderNextGameMarket } = await import('./next_game_market.js?v=20261010_shell_v2');
+        const { renderNextGameMarket } = await import('./next_game_market.js?v=20261010_visual_recovery_v3');
         await renderNextGameMarket(target, state, showToast, refresh);
       } else if (['bank', 'capital', 'competition'].includes(view)) await renderFinance(target, session, view, refresh);
       else if (view === 'bonds') {
@@ -149,7 +156,7 @@ function startSession(container, state, showToast) {
         if (snapshot.recovery?.requires_ack) return renderNextGame(container, showToast);
         Object.assign(state, snapshot); session.updatedAt = Date.now(); session.loaded.clear();
         const header = container.querySelector('.next-game-header');
-        if (header) header.outerHTML = renderHeader(state.company);
+        if (header) header.outerHTML = renderHeader(state, currentCreatorAccess());
         return mountActive(session);
       }).catch((error) => {
         if (entries.get(container) !== session || version !== session.version) return;
@@ -158,11 +165,12 @@ function startSession(container, state, showToast) {
     } else mountActive(session);
   };
   state.navigateNextGame = navigate;
-  container.innerHTML = renderShell(state.company, session.view);
+  container.innerHTML = renderShell(state, session.view, currentCreatorAccess());
   container.querySelector('.next-game-screen').addEventListener('click', (event) => {
-    const button = event.target.closest('[data-next-view], [data-next-legacy]');
+    const button = event.target.closest('[data-next-view], [data-next-legacy], [data-next-admin]');
     if (!button || button.disabled) return;
     if (button.hasAttribute('data-next-legacy')) window.NatApp?.navigateTo('overview');
+    else if (button.hasAttribute('data-next-admin')) window.NatApp?.navigateTo('creator');
     else navigate(button.dataset.nextView);
   });
   container.querySelector('.next-game-screen').addEventListener('next-game-navigate', (event) => {

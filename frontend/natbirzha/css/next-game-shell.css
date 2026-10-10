@@ -150,3 +150,262 @@ body.is-next-game { padding-bottom: 0; }
 .next-game-bankruptcy-screen { min-height: calc(100dvh - 5rem); padding-bottom: 1rem; }
 .next-game-screen .next-game-simple-list { display: grid; gap: .6rem; }
 .next-game-screen .next-game-simple-list > button { width: 100%; grid-template-columns: minmax(0, 1fr) auto; text-align: left; }
+
+/* Product-level finish for the 2.0 shell: company identity first, actions second. */
+.next-game-screen {
+  min-height: calc(100dvh - 7rem);
+  font-size: .9rem;
+  line-height: 1.55;
+  background: var(--ng-canvas);
+}
+.next-game-header {
+  gap: .75rem;
+  padding: .15rem 0 1.1rem;
+  border: 0;
+  margin-bottom: .25rem;
+}
+.next-game-header-top {
+  min-height: 1.75rem;
+  align-items: center;
+}
+.next-game-world-label {
+  color: var(--ng-muted);
+  font-size: .63rem;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.next-game-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .45rem 0 .25rem;
+}
+.next-game-brand {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-width: 0;
+}
+.next-game-brand > span:last-child { display: grid; line-height: 1.2; }
+.next-game-brand b { color: var(--ng-ink); font-size: .78rem; letter-spacing: .015em; }
+.next-game-brand small { margin-top: .15rem; font-size: .61rem; }
+.next-game-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: 0 0 auto;
+  border-radius: .85rem;
+  color: #fff;
+  background: linear-gradient(145deg, #17664f, #428466);
+  box-shadow: 0 5px 14px rgba(23, 102, 79, .2);
+  font-size: .73rem;
+  font-weight: 950;
+  letter-spacing: -.04em;
+}
+.next-game-admin-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  min-height: 2.45rem;
+  flex: 0 0 auto;
+  padding: .45rem .7rem;
+  border: 1px solid #dcc99c;
+  border-radius: .8rem;
+  color: #755927;
+  background: linear-gradient(135deg, #fbf4e3, #f1e5c7);
+  box-shadow: 0 3px 10px rgba(99, 77, 35, .08);
+  font-size: .65rem;
+  font-weight: 850;
+}
+html[data-theme="midnight"] .next-game-admin-link { color: #f5dfaa; border-color: #746442; background: #302b20; }
+html[data-theme="pearl"] .next-game-admin-link { color: #62553f; border-color: #d8cba9; background: #f6f0df; }
+.next-game-admin-link svg { flex: 0 0 auto; }
+.next-game-company-card {
+  display: grid;
+  gap: .85rem;
+  min-width: 0;
+  padding: .95rem;
+  border: 1px solid color-mix(in srgb, var(--ng-accent) 42%, white);
+  border-radius: 1.15rem;
+  color: var(--ng-on-accent);
+  background: linear-gradient(132deg, var(--ng-accent), color-mix(in srgb, var(--ng-accent) 76%, white));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ng-accent) 18%, transparent);
+}
+.next-game-company-main {
+  display: grid;
+  grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+  min-width: 0;
+}
+.next-game-company-mark {
+  display: grid;
+  place-items: center;
+  width: 2.7rem;
+  height: 2.7rem;
+  border: 1px solid color-mix(in srgb, var(--ng-on-accent) 25%, transparent);
+  border-radius: .9rem;
+  color: var(--ng-on-accent);
+  background: color-mix(in srgb, var(--ng-on-accent) 14%, transparent);
+}
+.next-game-company-details { min-width: 0; }
+.next-game-company-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .25rem; }
+.next-game-company-tag, .next-game-sector-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 1.28rem;
+  padding: .1rem .4rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ng-on-accent) 26%, transparent);
+  border-radius: 999px;
+  color: var(--ng-on-accent);
+  background: color-mix(in srgb, var(--ng-on-accent) 13%, transparent);
+  font-size: .6rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.next-game-company-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .04em; }
+.next-game-screen .next-game-company-card h1 {
+  overflow: hidden;
+  color: var(--ng-on-accent);
+  font-size: clamp(1rem, 4.4vw, 1.28rem);
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+}
+.next-game-company-number { display: block; margin-top: .2rem; color: color-mix(in srgb, var(--ng-on-accent) 78%, transparent); font-size: .63rem; }
+.next-game-company-cash {
+  display: grid;
+  justify-items: end;
+  max-width: 7.1rem;
+  min-width: 0;
+  text-align: right;
+}
+.next-game-company-cash > span { color: color-mix(in srgb, var(--ng-on-accent) 76%, transparent); font-size: .61rem; }
+.next-game-company-cash b {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ng-on-accent);
+  font-size: clamp(.85rem, 3.8vw, 1.15rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.next-game-company-cash small { color: color-mix(in srgb, var(--ng-on-accent) 76%, transparent); font-size: .6rem; }
+.next-game-company-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .4rem;
+}
+.next-game-company-stats > span {
+  display: grid;
+  gap: .08rem;
+  min-width: 0;
+  padding: .4rem .5rem;
+  border: 1px solid color-mix(in srgb, var(--ng-on-accent) 20%, transparent);
+  border-radius: .68rem;
+  background: color-mix(in srgb, var(--ng-on-accent) 12%, transparent);
+}
+.next-game-company-stats small { color: color-mix(in srgb, var(--ng-on-accent) 76%, transparent); font-size: .57rem; }
+.next-game-company-stats b { color: var(--ng-on-accent); font-size: .8rem; line-height: 1.2; }
+.next-game-company-stats em { color: color-mix(in srgb, var(--ng-on-accent) 76%, transparent); font-size: .61rem; font-style: normal; font-weight: 650; }
+.next-game-company-progress, .next-game-mastery-progress > div {
+  height: .34rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ng-on-accent) 25%, transparent);
+}
+.next-game-company-progress > span, .next-game-mastery-progress > div > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ng-on-accent);
+}
+.next-game-mastery-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem .5rem; align-items: center; }
+.next-game-mastery-progress > span { display: grid; line-height: 1.15; }
+.next-game-mastery-progress b { color: var(--ng-on-accent); font-size: .66rem; }
+.next-game-mastery-progress small, .next-game-mastery-progress strong { color: color-mix(in srgb, var(--ng-on-accent) 78%, transparent); font-size: .56rem; }
+.next-game-mastery-progress > div { grid-column: 1 / -1; height: .25rem; }
+.next-game-mastery-progress > div > span { background: color-mix(in srgb, var(--ng-on-accent) 78%, transparent); }
+.next-game-screen h1, .next-game-screen h2, .next-game-screen h3 { letter-spacing: -.015em; }
+.next-game-screen h2 { font-size: 1.08rem; }
+.next-game-screen p { font-size: .83rem; line-height: 1.55; }
+.next-game-panel {
+  gap: .8rem;
+  padding: 1.05rem;
+  border-radius: 1.05rem;
+  box-shadow: 0 8px 24px rgba(36, 51, 44, .055);
+}
+.next-game-dashboard-grid article {
+  min-height: 4.65rem;
+  align-content: center;
+  padding: .82rem;
+  background: var(--ng-surface);
+  box-shadow: 0 3px 12px rgba(36, 51, 44, .035);
+}
+.next-game-dashboard-grid span { font-size: .73rem; }
+.next-game-dashboard-grid b { font-size: 1.18rem; font-variant-numeric: tabular-nums; }
+.next-game-primary, .next-game-secondary { font-size: .82rem; }
+.next-game-nav button span { font-size: .69rem; }
+.next-game-nav button svg { width: 1.35rem; height: 1.35rem; }
+.next-game-more-tile { min-height: 7rem; padding: .95rem; background: var(--ng-surface); box-shadow: 0 4px 14px rgba(36, 51, 44, .045); }
+.next-game-more-tile > svg { width: 1.55rem; height: 1.55rem; }
+.next-game-more-tile b { font-size: .83rem; }
+.next-game-more-tile span { font-size: .73rem; line-height: 1.4; }
+
+/* Native accordions otherwise inherit the legacy theme's opaque white card. */
+#screen-container .next-game-screen details {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ng-border) !important;
+  border-radius: .85rem;
+  color: var(--ng-ink) !important;
+  background: var(--ng-surface) !important;
+  box-shadow: none !important;
+}
+#screen-container .next-game-screen details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  min-height: 2.75rem;
+  padding: .65rem .8rem;
+  color: var(--ng-accent) !important;
+  background: var(--ng-soft) !important;
+  font-size: .79rem;
+  font-weight: 800;
+  line-height: 1.35;
+  list-style: none;
+  cursor: pointer;
+}
+#screen-container .next-game-screen details > summary::-webkit-details-marker { display: none; }
+#screen-container .next-game-screen details > summary::after {
+  content: '+';
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: var(--ng-accent);
+  background: var(--ng-surface);
+  font-size: 1rem;
+  line-height: 1;
+}
+#screen-container .next-game-screen details[open] > summary::after { content: '−'; }
+#screen-container .next-game-screen details[open] > :not(summary) { margin-inline: .75rem; }
+#screen-container .next-game-screen details[open] > :last-child { margin-bottom: .75rem; }
+@media (max-width: 360px) {
+  .next-game-company-main { grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .next-game-company-mark { width: 2.4rem; height: 2.4rem; }
+  .next-game-company-cash { grid-column: 2; justify-items: start; max-width: 100%; text-align: left; }
+  .next-game-admin-link { padding-inline: .5rem; font-size: .59rem; }
+  .next-game-company-card { padding: .8rem; }
+}

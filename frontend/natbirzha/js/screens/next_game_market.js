@@ -1,6 +1,6 @@
 import { NatAPI } from '../api.js?v=20261010_shell_v2';
 import { renderCommodityCatalog } from './market_commodities.js?v=20261009_item_art_v2';
-import { esc, renderNextMarketItem } from './next_game_market_item.js?v=20261010_market_v2';
+import { esc, renderNextMarketItem } from './next_game_market_item.js?v=20261010_visual_recovery_v3';
 
 const requests = new WeakMap();
 
@@ -79,10 +79,16 @@ export async function renderNextGameMarket(container, state, showToast, refresh)
     ['contracts', 'Контракты', 'Договоры поставки и займы', 'document'],
     ['projects', 'Проекты', 'Совместные заводы', 'construction'],
   ];
-  container.innerHTML = `<div class="next-market market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24">
-    <div><h2 class="text-xl font-black">Биржа</h2><p class="text-xs text-slate-500">Товары, капитал и финансовые инструменты</p></div>
-    <div class="next-market-sections">${sections.map(([id, name, description, icon]) => `<button type="button" data-market-section="${id}" class="next-market-tile glass-card rounded-2xl p-4 text-left">
-      <span class="next-market-tile-icon">${window.NatIcons?.icon?.(icon, 30) || ''}</span><span><b>${name}</b><small>${description}</small></span><span class="text-pink-500">›</span></button>`).join('')}</div>
+  container.innerHTML = `<div class="next-market next-market-home market-contrast-surface space-y-4 max-w-md mx-auto p-4 pb-24">
+    <section class="next-market-hero">
+      <span class="next-market-hero-kicker">НАТБИРЖА · ФИНАНСОВЫЙ ЦЕНТР</span>
+      <h2>Биржа</h2>
+      <p>Сырьё, акции и капитал компаний в одном месте.</p>
+      <span class="next-market-hero-art" aria-hidden="true">${window.NatIcons?.icon?.('market', 28) || ''}</span>
+    </section>
+    <div class="next-market-section-heading"><div><span>ТОРГОВЫЕ РАЗДЕЛЫ</span><h3>Выберите направление</h3></div></div>
+    <div class="next-market-sections">${sections.map(([id, name, description, icon]) => `<button type="button" data-market-section="${id}" class="next-market-tile">
+      <span class="next-market-tile-icon" data-market-icon="${id}">${window.NatIcons?.icon?.(icon, 27) || ''}</span><span class="next-market-tile-copy"><b>${name}</b><small>${description}</small></span><span class="next-market-tile-arrow" aria-hidden="true">›</span></button>`).join('')}</div>
   </div>`;
   container.querySelectorAll('[data-market-section]').forEach((button) => {
     button.addEventListener('click', () => {

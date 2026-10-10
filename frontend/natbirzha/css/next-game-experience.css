@@ -1,0 +1,211 @@
+/* A cohesive luxury interface for the isolated 2.0 game. */
+.next-game-screen {
+  --ng-hero-a: #123f32;
+  --ng-hero-b: #1b6a51;
+  --ng-hero-ink: #f7fbf6;
+  --ng-gold: #d7b96e;
+  width: min(100%, 46rem);
+  min-height: 100dvh;
+  padding: .85rem .85rem calc(8.25rem + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(ellipse at 100% 4%, color-mix(in srgb, var(--ng-accent) 8%, transparent), transparent 19rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--ng-surface) 34%, var(--ng-canvas)), var(--ng-canvas) 19rem);
+  font-size: .9rem;
+  line-height: 1.55;
+}
+html[data-theme="midnight"] .next-game-screen { --ng-hero-a: #13241e; --ng-hero-b: #24513d; --ng-hero-ink: #f7f5ec; --ng-gold: #e4c875; }
+html[data-theme="pearl"] .next-game-screen { --ng-hero-a: #1f4659; --ng-hero-b: #36748a; --ng-hero-ink: #f8fbfc; --ng-gold: #e4cb91; }
+.next-game-screen :is(h1,h2,h3,h4) { letter-spacing: -.025em; }
+.next-game-screen h2 { font-size: 1.12rem; font-weight: 850; }
+.next-game-screen h3 { font-size: .92rem; font-weight: 800; }
+.next-game-screen p { font-size: .84rem; line-height: 1.55; }
+.next-game-screen .next-game-eyebrow { color: var(--ng-highlight); font-size: .61rem; letter-spacing: .1em; }
+.next-game-content, .next-game-module { gap: .95rem; }
+.next-game-header { gap: .7rem; padding-bottom: .25rem; }
+.next-game-header-top .next-game-back { min-height: 1.9rem; padding: .35rem .6rem; border: 1px solid var(--ng-border); border-radius: 999px; background: var(--ng-surface); }
+.next-game-world-label { padding: .32rem .5rem; border: 1px solid var(--ng-border); border-radius: 999px; background: var(--ng-surface); font-size: .57rem; }
+.next-game-brand-row { padding: .2rem .1rem .35rem; }
+.next-game-brand-mark { border: 1px solid color-mix(in srgb, var(--ng-accent) 25%, white); border-radius: .85rem; color: #fff; background: linear-gradient(145deg, var(--ng-hero-a), var(--ng-hero-b)); }
+.next-game-brand b { font-size: .8rem; letter-spacing: .045em; }
+.next-game-brand small { font-size: .64rem; }
+.next-game-admin-link { min-height: 2.55rem; border-radius: .85rem; font-size: .69rem; }
+.next-game-company-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  gap: .78rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--ng-gold) 48%, var(--ng-hero-b));
+  border-radius: 1.35rem;
+  color: var(--ng-hero-ink);
+  background: radial-gradient(circle at 96% 12%, color-mix(in srgb, var(--ng-gold) 22%, transparent), transparent 10rem), linear-gradient(128deg, var(--ng-hero-a), var(--ng-hero-b));
+  box-shadow: 0 13px 30px color-mix(in srgb, var(--ng-hero-a) 20%, transparent);
+}
+.next-game-company-card::after { position: absolute; z-index: -1; top: -3.5rem; right: -3.4rem; width: 10rem; height: 10rem; border: 1px solid color-mix(in srgb, var(--ng-hero-ink) 13%, transparent); border-radius: 50%; box-shadow: 0 0 0 1.3rem color-mix(in srgb, var(--ng-hero-ink) 4%, transparent), 0 0 0 2.6rem color-mix(in srgb, var(--ng-hero-ink) 3%, transparent); content: ''; pointer-events: none; }
+.next-game-company-card :is(h1,.next-game-company-cash b,.next-game-company-stats b,.next-game-mastery-progress b) { color: var(--ng-hero-ink) !important; }
+.next-game-company-number, .next-game-company-cash > span, .next-game-company-cash small,
+.next-game-company-stats small, .next-game-company-stats em,
+.next-game-mastery-progress small, .next-game-mastery-progress strong { color: color-mix(in srgb, var(--ng-hero-ink) 88%, transparent) !important; }
+.next-game-company-mark { border-color: color-mix(in srgb, var(--ng-gold) 45%, transparent); color: var(--ng-gold); background: color-mix(in srgb, var(--ng-hero-ink) 9%, transparent); }
+.next-game-company-tag, .next-game-sector-tag { border-color: color-mix(in srgb, var(--ng-hero-ink) 34%, transparent); color: var(--ng-hero-ink); background: color-mix(in srgb, var(--ng-hero-ink) 11%, transparent); }
+.next-game-company-stats > span { border-color: color-mix(in srgb, var(--ng-hero-ink) 26%, transparent); background: color-mix(in srgb, var(--ng-hero-ink) 10%, transparent); }
+.next-game-company-progress { background: color-mix(in srgb, var(--ng-hero-ink) 25%, transparent); }
+.next-game-company-progress > span { background: var(--ng-gold); }
+.next-game-mastery-progress > div { background: color-mix(in srgb, var(--ng-hero-ink) 25%, transparent); }
+.next-game-mastery-progress > div > span { background: var(--ng-gold); }
+.next-game-panel, .next-game-overview-card, .next-game-service-directory {
+  border: 1px solid color-mix(in srgb, var(--ng-border) 82%, var(--ng-accent));
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--ng-surface) 97%, var(--ng-soft));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ng-ink) 6%, transparent);
+}
+.next-game-panel { gap: .85rem; padding: 1.05rem; }
+.next-game-primary, .next-game-secondary { min-height: 2.9rem; border-radius: .85rem; font-size: .8rem; transition: transform .16s ease, box-shadow .16s ease, filter .16s ease; }
+.next-game-primary { box-shadow: 0 6px 14px color-mix(in srgb, var(--ng-accent) 20%, transparent); }
+.next-game-primary:active, .next-game-secondary:active, .next-game-more-tile:active { transform: scale(.985); }
+.next-game-primary:focus-visible, .next-game-secondary:focus-visible, .next-game-more-tile:focus-visible { outline: 3px solid color-mix(in srgb, var(--ng-highlight) 58%, transparent) !important; outline-offset: 2px; }
+.next-game-nav {
+  bottom: calc(.55rem + env(safe-area-inset-bottom));
+  width: min(calc(100% - 1rem), 27rem);
+  gap: .25rem;
+  padding: .42rem;
+  border: 1px solid color-mix(in srgb, var(--ng-border) 88%, var(--ng-accent));
+  border-radius: 1.3rem;
+  background: color-mix(in srgb, var(--ng-surface) 90%, transparent);
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--ng-ink) 18%, transparent);
+  backdrop-filter: blur(18px);
+}
+.next-game-nav button { min-height: 3.25rem; gap: .17rem; border-radius: .92rem; transition: background .18s ease, color .18s ease, transform .18s ease; }
+.next-game-nav button svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.8; }
+.next-game-nav button span { font-size: .65rem; }
+.next-game-nav button.is-active { border: 1px solid color-mix(in srgb, var(--ng-accent) 16%, var(--ng-border)); background: linear-gradient(145deg, color-mix(in srgb, var(--ng-accent) 12%, var(--ng-surface)), var(--ng-soft)); box-shadow: 0 3px 9px color-mix(in srgb, var(--ng-accent) 10%, transparent); }
+.next-game-nav button.is-active svg { filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--ng-accent) 20%, transparent)); }
+.next-game-overview-card { display: grid; gap: .85rem; min-width: 0; padding: 1rem; }
+.next-game-overview-heading { display: grid; grid-template-columns: 2.65rem minmax(0,1fr) auto; align-items: center; gap: .65rem; }
+.next-game-overview-mark, .next-game-section-mark { display: grid; place-items: center; width: 2.55rem; height: 2.55rem; border: 1px solid color-mix(in srgb, var(--ng-accent) 20%, var(--ng-border)); border-radius: .9rem; color: var(--ng-accent); background: var(--ng-soft); }
+.next-game-overview-heading > div { display: grid; gap: .08rem; min-width: 0; }
+.next-game-overview-heading h2 { font-size: 1.03rem; }
+.next-game-operating-state { display: inline-flex; align-items: center; gap: .32rem; max-width: 7rem; padding: .3rem .48rem; border: 1px solid var(--ng-border); border-radius: 999px; color: var(--ng-muted); background: var(--ng-soft); font-size: .59rem; font-weight: 800; line-height: 1.2; }
+.next-game-operating-state i { width: .42rem; height: .42rem; flex: 0 0 auto; border-radius: 50%; background: currentColor; }
+.next-game-operating-state.is-live { border-color: color-mix(in srgb, var(--ng-success) 35%, var(--ng-border)); color: var(--ng-success); background: var(--ng-success-bg); }
+.next-game-operating-state.is-warning { border-color: color-mix(in srgb, var(--ng-error) 28%, var(--ng-border)); color: var(--ng-error); background: var(--ng-error-bg); }
+.next-game-overview-finance { position: relative; display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 6rem; overflow: hidden; padding: .85rem 1rem; border: 1px solid color-mix(in srgb, var(--ng-success) 22%, var(--ng-border)); border-radius: 1rem; background: linear-gradient(110deg, var(--ng-success-bg), color-mix(in srgb, var(--ng-surface) 75%, var(--ng-success-bg))); }
+.next-game-overview-finance > div { display: grid; gap: .1rem; min-width: 0; }
+.next-game-overview-finance > div > span { color: var(--ng-muted); font-size: .7rem; font-weight: 750; }
+.next-game-overview-finance strong { color: var(--ng-success); font-size: clamp(1.35rem, 6vw, 1.8rem); font-variant-numeric: tabular-nums; letter-spacing: -.04em; line-height: 1.15; }
+.next-game-overview-finance small { color: var(--ng-muted); font-size: .64rem; }
+.next-game-finance-art { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; flex: 0 0 auto; border: 1px solid color-mix(in srgb, var(--ng-success) 20%, transparent); border-radius: 1.1rem; color: var(--ng-success); background: color-mix(in srgb, var(--ng-surface) 50%, transparent); transform: rotate(4deg); }
+.next-game-overview-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .55rem; }
+.next-game-overview-metrics article { display: grid; gap: .28rem; min-width: 0; padding: .72rem; border: 1px solid var(--ng-border); border-radius: .9rem; background: var(--ng-surface); }
+.next-game-overview-metrics article > span { display: flex; align-items: center; gap: .32rem; color: var(--ng-muted); font-size: .64rem; font-weight: 700; }
+.next-game-overview-metrics article > span svg { color: var(--ng-accent); }
+.next-game-overview-metrics article > b { overflow: hidden; color: var(--ng-ink); font-size: 1rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.next-game-overview-metrics article > b small { color: var(--ng-muted); font-size: .72rem; font-weight: 600; }
+.next-game-overview-route { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.next-game-overview-route > div { display: grid; gap: .05rem; min-width: 0; }
+.next-game-overview-route > div > span { color: var(--ng-highlight); font-size: .56rem; font-weight: 850; letter-spacing: .1em; }
+.next-game-overview-route > div > b { overflow: hidden; color: var(--ng-ink); font-size: .77rem; text-overflow: ellipsis; white-space: nowrap; }
+.next-game-route-level { flex: 0 0 auto; padding: .28rem .48rem; border-radius: .55rem; color: var(--ng-accent); background: var(--ng-soft); font-size: .67rem; font-weight: 850; }
+.next-game-overview-card .next-game-progress { height: .42rem; background: var(--ng-soft); }
+.next-game-overview-card .next-game-progress span { background: linear-gradient(90deg, var(--ng-accent), color-mix(in srgb, var(--ng-gold) 65%, var(--ng-accent))); }
+.next-game-overview-xp { display: flex; justify-content: space-between; gap: .5rem; color: var(--ng-muted); font-size: .62rem; }
+.next-game-overview-action { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding: .6rem .9rem; text-align: left; }
+.next-game-overview-action > span { display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; color: var(--ng-on-accent); background: color-mix(in srgb, var(--ng-on-accent) 15%, transparent); font-size: 1rem; }
+.next-game-section-heading { display: flex; align-items: center; gap: .6rem; }
+.next-game-section-heading > div { display: grid; gap: .02rem; }
+.next-game-section-heading h2 { font-size: 1rem; }
+.next-game-section-heading .next-game-eyebrow { font-size: .56rem; }
+.next-game-section-mark { width: 2.3rem; height: 2.3rem; border-radius: .75rem; }
+.next-game-section-mark.is-gold { color: var(--ng-highlight); background: color-mix(in srgb, var(--ng-highlight) 12%, var(--ng-surface)); }
+.next-game-quick-links { gap: .55rem; }
+.next-game-quick-links button { display: grid; grid-template-columns: 2.1rem minmax(0,1fr) 1.3rem; align-items: center; gap: .55rem; min-height: 3.8rem; padding: .55rem .65rem; text-align: left; }
+.next-game-quick-links button > span:first-child { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .65rem; color: var(--ng-accent); background: color-mix(in srgb, var(--ng-accent) 9%, var(--ng-surface)); }
+.next-game-quick-links button > span:nth-child(2) { display: grid; gap: .06rem; }
+.next-game-quick-links button b { color: var(--ng-ink); font-size: .73rem; }
+.next-game-quick-links button small { color: var(--ng-muted); font-size: .61rem; }
+.next-game-quick-links button i { color: var(--ng-accent); font-size: .9rem; font-style: normal; text-align: right; }
+.next-game-activity ul { gap: .45rem; }
+.next-game-activity li { grid-template-columns: 2rem minmax(0,1fr) auto; align-items: center; gap: .5rem; min-height: 3.4rem; padding: .5rem .55rem; border: 1px solid color-mix(in srgb, var(--ng-border) 80%, transparent); border-radius: .8rem; background: var(--ng-soft); }
+.next-game-activity-icon { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border: 1px solid var(--ng-border); border-radius: .65rem; color: var(--ng-accent); background: var(--ng-surface); }
+.next-game-activity-icon[data-kind="positive"] { color: var(--ng-success); }
+.next-game-activity-icon[data-kind="negative"] { color: var(--ng-error); }
+.next-game-activity-copy { display: grid; gap: .05rem; min-width: 0; }
+.next-game-activity-copy b { overflow: hidden; color: var(--ng-ink); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.next-game-activity-copy small { color: var(--ng-muted); font-size: .57rem; }
+.next-game-activity li strong { max-width: 8.5rem; color: var(--ng-ink); font-size: .68rem; font-variant-numeric: tabular-nums; text-align: right; }
+.next-game-activity li strong.is-positive { color: var(--ng-success); }
+.next-game-activity li strong.is-negative { color: var(--ng-error); }
+.next-game-service-directory { display: grid; gap: 1.1rem; padding: 1rem; }
+.next-game-service-intro { position: relative; display: grid; gap: .27rem; padding: .35rem .15rem .8rem; }
+.next-game-service-intro h2 { font-size: 1.3rem; }
+.next-game-service-intro p { max-width: 20rem; padding-right: 4.2rem; }
+.next-game-service-count { position: absolute; right: 0; bottom: .85rem; padding: .3rem .5rem; border: 1px solid var(--ng-border); border-radius: 999px; color: var(--ng-accent); background: var(--ng-soft); font-size: .61rem; font-weight: 800; }
+.next-game-more-group { gap: .55rem; }
+.next-game-more-group-heading { display: flex; align-items: center; gap: .45rem; padding: 0 .1rem; }
+.next-game-more-group-heading > span { color: var(--ng-highlight); font-size: .58rem; font-weight: 900; letter-spacing: .08em; }
+.next-game-more-group-heading h3 { color: var(--ng-ink); font-size: .8rem; }
+.next-game-more-grid { gap: .5rem; }
+.next-game-more-tile { grid-template-columns: 2.45rem minmax(0,1fr) 1rem; align-items: center; gap: .55rem; min-height: 4.5rem; padding: .6rem; border-radius: .9rem; background: var(--ng-surface); box-shadow: 0 4px 12px color-mix(in srgb, var(--ng-ink) 5%, transparent); text-align: left; }
+.next-game-more-icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border: 1px solid color-mix(in srgb, var(--ng-accent) 16%, var(--ng-border)); border-radius: .8rem; color: var(--ng-accent); background: var(--ng-soft); }
+.next-game-more-icon svg { width: 1.35rem; height: 1.35rem; }
+.next-game-more-copy { display: grid; gap: .12rem; min-width: 0; }
+.next-game-more-copy b { color: var(--ng-ink); overflow-wrap: break-word; font-size: .69rem; line-height: 1.25; hyphens: auto; }
+.next-game-more-copy small { color: var(--ng-muted); font-size: .59rem; line-height: 1.35; }
+.next-game-more-arrow { color: var(--ng-accent); font-size: .82rem; font-weight: 800; }
+.next-game-more-icon[data-service-icon="capital"], .next-game-more-icon[data-service-icon="bonds"] { color: #8a692f; background: color-mix(in srgb, #d4b767 16%, var(--ng-surface)); }
+.next-game-more-icon[data-service-icon="help"], .next-game-more-icon[data-service-icon="contracts"] { color: #356b83; background: color-mix(in srgb, #7bb4c7 17%, var(--ng-surface)); }
+.next-game-view-heading { display: grid; gap: .6rem; padding: .2rem .2rem .45rem; background: transparent !important; }
+.next-game-view-heading-top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.next-game-view-heading-top > span { color: var(--ng-muted); font-size: .56rem; font-weight: 800; letter-spacing: .075em; text-align: right; }
+.next-game-view-heading .next-game-back { min-height: 2rem; padding: .35rem .6rem; border: 1px solid var(--ng-border); border-radius: 999px; background: var(--ng-surface); }
+.next-game-view-title { display: flex; align-items: center; gap: .65rem; }
+.next-game-view-title > span { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border: 1px solid color-mix(in srgb, var(--ng-accent) 20%, var(--ng-border)); border-radius: .95rem; color: var(--ng-accent); background: var(--ng-soft); }
+.next-game-view-title > div { display: grid; gap: .04rem; }
+.next-game-view-title h2 { font-size: 1.35rem; }
+.next-game-view-title small { color: var(--ng-muted); font-size: .65rem; }
+.next-game-subview { display: block; }
+.next-game-sector, .next-game-facility-card, .next-game-graph-node { border-radius: 1rem; }
+.next-game-facility-card { gap: .8rem; padding: .95rem; border-left: 3px solid color-mix(in srgb, var(--ng-accent) 55%, var(--ng-border)); background: color-mix(in srgb, var(--ng-soft) 68%, var(--ng-surface)); }
+.next-game-facility-heading { align-items: center; }
+.next-game-recipe { border-radius: .9rem; background: var(--ng-surface); }
+.next-game-input-list li, .next-game-inventory li { border: 1px solid color-mix(in srgb, var(--ng-border) 70%, transparent); border-radius: .75rem; background: var(--ng-soft); }
+.next-game-status { padding: .33rem .55rem; border-radius: 999px; }
+.next-game-auto-setting { border-radius: 1rem; background: color-mix(in srgb, var(--ng-soft) 75%, var(--ng-surface)); }
+.next-game-graph-node.is-current { border-color: var(--ng-highlight); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ng-highlight) 10%, transparent); }
+.next-game-checkpoint { border-top: 3px solid var(--ng-highlight); }
+.next-game-catalog-node { border-radius: .9rem; background: var(--ng-surface); }
+.next-game-screen :is(.next-game-bank-balance,.next-game-bank-reserve,.next-game-bank-loan,.next-game-bank-account,.next-game-capital-issue,.next-game-capital-own,.next-game-aid-card) { border-radius: 1rem; }
+.next-game-screen .next-game-bank-balance { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--ng-success) 30%, var(--ng-border)); background: linear-gradient(135deg, var(--ng-success-bg), var(--ng-soft)); }
+.next-game-screen .next-game-bank-balance b { color: var(--ng-success); font-size: 1.22rem; font-variant-numeric: tabular-nums; }
+.next-game-screen .next-game-bank-account-state { width: fit-content; padding: .27rem .5rem; border-radius: 999px; color: var(--ng-muted); background: var(--ng-surface); font-size: .65rem; font-weight: 800; }
+.next-game-screen .next-game-bank-account-state.is-open { color: var(--ng-success); background: var(--ng-success-bg); }
+.next-game-screen details.next-game-disclosure { overflow: hidden; border: 1px solid var(--ng-border); border-radius: .95rem; background: var(--ng-surface); }
+.next-game-screen details.next-game-disclosure > summary { min-height: 3rem; padding: .8rem 2.7rem .8rem .85rem; color: var(--ng-ink); background: var(--ng-soft); font-size: .76rem; }
+.next-game-screen details.next-game-disclosure[open] > summary { color: var(--ng-accent); }
+.next-game-screen .next-game-leaderboard, .next-game-screen .next-game-rank-row { border-radius: 1rem; }
+.next-game-screen .next-game-aid-card { border-left: 3px solid var(--ng-accent); background: var(--ng-soft); }
+.next-game-screen form { gap: .8rem; }
+.next-game-screen label { color: var(--ng-ink); font-size: .74rem; font-weight: 750; }
+.next-game-screen label :is(input,select,textarea) { margin-top: .25rem; }
+.next-game-screen :is(input,select,textarea) { border-radius: .85rem !important; }
+.next-game-screen [role="alert"], .next-game-screen .next-game-blocked-reason { border: 1px solid color-mix(in srgb, var(--ng-error) 22%, transparent); border-radius: .8rem; }
+.next-game-screen [role="alert"] { padding: .75rem; color: var(--ng-error); background: var(--ng-error-bg); }
+@media (min-width: 640px) {
+  .next-game-screen { padding-inline: 1.15rem; }
+  .next-game-overview-metrics article { padding: .85rem; }
+  .next-game-service-directory { padding: 1.2rem; }
+}
+@media (max-width: 360px) {
+  .next-game-screen { padding-inline: .55rem; }
+  .next-game-company-card { padding: .82rem; }
+  .next-game-overview-card, .next-game-panel, .next-game-service-directory { padding: .82rem; }
+  .next-game-overview-heading { grid-template-columns: 2.3rem minmax(0,1fr); }
+  .next-game-overview-mark { width: 2.2rem; height: 2.2rem; }
+  .next-game-operating-state { grid-column: 2; max-width: max-content; }
+  .next-game-more-tile { grid-template-columns: 2.15rem minmax(0,1fr) .8rem; gap: .4rem; padding: .5rem; }
+  .next-game-more-icon { width: 2.1rem; height: 2.1rem; }
+  .next-game-more-copy small { font-size: .56rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .next-game-screen *, .next-game-screen *::before, .next-game-screen *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

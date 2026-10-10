@@ -1,7 +1,7 @@
 import { NatAPI } from '../api.js?v=20261010_shell_v2';
 import { esc, bindAction } from './next_game_common.js?v=20261010_shell_v2';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_visual_recovery_v3';
-import { renderOverview } from './next_game_overview.js?v=20261010_shell_v2';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_experience_v1';
+import { renderOverview } from './next_game_overview.js?v=20261010_experience_v1';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261010_shell_v2';
 import { renderFactories, bindFactories } from './next_game_factories.js?v=20261010_shell_v2';
 

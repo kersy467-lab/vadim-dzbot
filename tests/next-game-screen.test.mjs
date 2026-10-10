@@ -13,7 +13,7 @@ test('admin launcher opens a lazy next-game screen without replacing legacy tab 
     read('../frontend/natbirzha/js/next_game_api.js'),
   ]);
   assert.match(html, /id="next-game-nav-btn"/);
-  assert.match(html, /\/static\/natbirzha\/js\/app\.js\?v=20261010_launcher_visibility_v1/);
+  assert.match(html, /\/static\/natbirzha\/js\/app\.js\?v=20261010_experience_v1/);
   assert.match(app, /next-game-nav-btn/);
   assert.match(app, /is-next-game/);
   assert.match(app, /renderTab !== 'next-game'/);

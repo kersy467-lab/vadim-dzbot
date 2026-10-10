@@ -89,9 +89,10 @@ export function renderMore() {
     ['Сообщество', [['competition', 'Рейтинг', 'Результаты компаний'], ['help', 'Помощь', 'Деньги и сырьё на любом уровне']]],
     ['Управление', [['admin', 'Администрирование', 'Состояние тестового мира']]],
   ];
-  return `<section class="next-game-panel"><h2>Ещё</h2><p>Сервисы компании и правила игры.</p>${groups.map(([title, links]) => `<div class="next-game-more-group"><h3>${title}</h3><div class="next-game-more-grid">${links.map(([id, label, hint]) => `<button type="button" data-next-view="${id}" class="next-game-more-tile">${icon(id, 25)}<b>${label}</b><span>${hint}</span></button>`).join('')}</div></div>`).join('')}</section>`;
+  return `<section class="next-game-service-directory"><div class="next-game-service-intro"><span class="next-game-eyebrow">ЦЕНТР УПРАВЛЕНИЯ</span><h2>Сервисы компании</h2><p>Финансы, развитие и инструменты для совместной игры — собраны по задачам.</p><span class="next-game-service-count">${groups.reduce((total, [, links]) => total + links.length, 0)} разделов</span></div>${groups.map(([title, links], index) => `<section class="next-game-more-group" data-service-group="${index}"><div class="next-game-more-group-heading"><span>${String(index + 1).padStart(2, '0')}</span><h3>${title}</h3></div><div class="next-game-more-grid">${links.map(([id, label, hint]) => `<button type="button" data-next-view="${id}" class="next-game-more-tile"><span class="next-game-more-icon" data-service-icon="${id}">${icon(id, 23)}</span><span class="next-game-more-copy"><b>${label}</b><small>${hint}</small></span><span class="next-game-more-arrow" aria-hidden="true">→</span></button>`).join('')}</div></section>`).join('')}</section>`;
 }
 
 export function renderSubview(title, content) {
-  return `<div class="next-game-subview"><button type="button" data-next-view="more" class="next-game-back">← Ещё</button><h2>${esc(title)}</h2></div>${content}`;
+  const glyph = ({ Банк: 'bank', Инвестиции: 'capital', Рейтинг: 'competition' })[title] || 'activity';
+  return `<header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>НАТБИРЖА 2.0 · РАЗДЕЛ КОМПАНИИ</span></div><div class="next-game-view-title"><span>${icon(glyph, 23)}</span><div><h2>${esc(title)}</h2><small>Управляй активами и решениями компании</small></div></div></header>${content}`;
 }

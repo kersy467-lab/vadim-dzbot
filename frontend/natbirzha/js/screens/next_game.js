@@ -1,4 +1,5 @@
 import { NatAPI } from '../api.js?v=20261010_active_production_v1';
+import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { esc, bindAction } from './next_game_common.js?v=20261010_shell_v2';
 import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_experience_v1';
 import { renderOverview } from './next_game_overview.js?v=20261010_experience_v1';
@@ -8,6 +9,28 @@ import { renderFactories, bindFactories } from './next_game_factories.js?v=20261
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
 let activeNextGameView = 'overview';
+
+function closeActiveProduction(session) {
+  const activeScene = session.activeProductionScene;
+  const activeSession = session.activeProductionSession;
+  session.activeProductionScene = null;
+  session.activeProductionSession = null;
+  if (activeScene?.destroy) void activeScene.destroy('PAUSED').catch(() => {});
+  else if (activeSession?.session_id) {
+    void NatAPI.pauseNextGameActiveProduction(activeSession.session_id, activeSession.session_token).catch(() => {});
+  }
+}
+
+function retireSession(session) {
+  session.releaseScreenCleanup?.();
+  session.releaseScreenCleanup = null;
+  session.version += 1;
+  closeActiveProduction(session);
+  session.view = 'factories';
+  activeNextGameView = 'factories';
+  document.body.classList.remove('is-active-production');
+  if (entries.get(session.container) === session) entries.delete(session.container);
+}
 
 function currentCreatorAccess() {
   const user = window.NatApp?.store?.user;
@@ -70,6 +93,10 @@ async function mountActive(session) {
   const version = ++session.version;
   const { container, state, showToast } = session;
   const view = session.view;
+  if (view !== 'active-production' && (session.activeProductionScene || session.activeProductionSession)) {
+    closeActiveProduction(session);
+  }
+  if (view === 'active-production' && session.activeProductionScene) return;
   document.body.classList.toggle('is-active-production', view === 'active-production');
   const content = container.querySelector('[data-next-content]');
   if (!content) return;
@@ -102,7 +129,13 @@ async function mountActive(session) {
       }
       content.innerHTML = renderFactories(state);
       bindFactories(content, state, NatAPI, showToast, refresh, async (branchId) => {
-        session.activeProductionSession = await NatAPI.startNextGameActiveProduction(branchId);
+        const startVersion = session.version;
+        const activeSession = await NatAPI.startNextGameActiveProduction(branchId);
+        if (entries.get(container) !== session || session.version !== startVersion || session.view !== 'factories') {
+          await NatAPI.pauseNextGameActiveProduction(activeSession.session_id, activeSession.session_token).catch(() => {});
+          return;
+        }
+        session.activeProductionSession = activeSession;
         session.view = 'active-production';
         activeNextGameView = 'active-production';
         await mountActive(session);
@@ -178,9 +211,12 @@ async function mountActive(session) {
 }
 
 function startSession(container, state, showToast) {
+  const previous = entries.get(container);
+  if (previous) retireSession(previous);
   const initialView = activeNextGameView === 'active-production' ? 'factories' : activeNextGameView;
   const session = { container, state, showToast, view: initialView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now() };
   entries.set(container, session);
+  session.releaseScreenCleanup = registerScreenCleanup(() => retireSession(session));
   const navigate = (view) => {
     if (view === 'projects' || view === 'contracts') state.partnershipView = view === 'projects' ? 'projects' : 'supply';
     session.view = view;
@@ -216,6 +252,8 @@ function startSession(container, state, showToast) {
 }
 
 export async function renderNextGame(container, showToast = () => {}) {
+  const previous = entries.get(container);
+  if (previous) retireSession(previous);
   const token = {};
   initialRequests.set(container, token);
   entries.delete(container);

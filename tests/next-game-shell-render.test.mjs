@@ -40,18 +40,44 @@ test('every service tile in More has a mounted screen and an API-backed section'
   const targets = [...more.matchAll(/data-next-view="([a-z-]+)"/g)].map((match) => match[1]);
   const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
   const api = await readFile(new URL('../frontend/natbirzha/js/next_game_api.js', import.meta.url), 'utf8');
+  const services = {
+    progression: ['next_game_progression.js', '/progression'],
+    operations: ['next_game_operations.js', '/operations/actions'],
+    bank: ['next_game_bank.js', '/bank/loan'],
+    capital: ['next_game_capital.js', '/capital/ipo'],
+    bonds: ['next_game_bonds.js', '/bonds'],
+    civic: ['next_game_civic.js', '/civic'],
+    contracts: ['next_game_contracts.js', '/partnerships/supply'],
+    projects: ['next_game_contracts.js', '/partnerships/projects'],
+    liquidation: ['next_game_liquidation.js', '/liquidation'],
+    competition: ['next_game_competition.js', '/competition'],
+    help: ['next_game_support.js', '/support'],
+    admin: ['next_game_admin.js', '/admin/operations'],
+  };
 
   assert.equal(new Set(targets).size, 12);
   for (const target of targets) {
-    assert.ok(entry.includes(`view === '${target}'`) || entry.includes(`'${target}'`), `unmounted tile: ${target}`);
+    const service = services[target];
+    assert.ok(service, `service tile has no screen/API mapping: ${target}`);
+    assert.ok(entry.includes(service[0]), `service tile has no screen module: ${target}`);
+    assert.ok(api.includes(service[1]), `service tile has no backend API: ${target}`);
   }
-  for (const endpoint of [
-    '/api/natbirzha/next-game/progression', '/api/natbirzha/next-game/operations',
-    '/api/natbirzha/next-game/bank/loan', '/api/natbirzha/next-game/capital/ipo',
-    '/api/natbirzha/next-game/bonds', '/api/natbirzha/next-game/civic',
-    '/api/natbirzha/next-game/partnerships', '/api/natbirzha/next-game/liquidation',
-    '/api/natbirzha/next-game/competition', '/api/natbirzha/next-game/support',
-  ]) assert.ok(api.includes(endpoint), `missing service API: ${endpoint}`);
+});
+
+test('active production tears down on screen and subview navigation and scopes keyboard input', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
+  const scene = await readFile(new URL('../frontend/natbirzha/js/active_production/scene.mjs', import.meta.url), 'utf8');
+
+  assert.match(entry, /registerScreenCleanup/);
+  assert.match(entry, /function retireSession/);
+  assert.match(entry, /function closeActiveProduction/);
+  assert.match(entry, /view !== 'active-production'/);
+  assert.match(scene, /root\.addEventListener\('keydown'/);
+  assert.match(scene, /root\.addEventListener\('keyup'/);
+  assert.doesNotMatch(scene, /document\.addEventListener\('key(?:down|up)'/);
+  assert.match(scene, /window\.addEventListener\('blur'/);
+  assert.match(scene, /document\.addEventListener\('visibilitychange'/);
 });
 
 test('company header restores identity, sector, progression and creator-only state access', () => {

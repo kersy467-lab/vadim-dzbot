@@ -7,7 +7,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character
 export function renderActiveProductionScene(company, activeSession) {
   const picked = activeSession.facilities?.find((row) => row.branch_id === activeSession.selected_branch_id);
   const scene = sceneForBranch(activeSession.selected_branch_id, picked?.sector_id, picked?.scene);
-  return `<section class="next-active-production" data-active-scene data-family="${escapeHtml(scene?.scene_family || 'resources')}" tabindex="-1">
+  return `<section class="next-active-production" data-active-scene data-family="${escapeHtml(scene?.scene_family || 'resources')}" tabindex="0">
     <header class="active-production-header"><div><span>АКТИВНОЕ ПРОИЗВОДСТВО</span><h1>${escapeHtml(company?.name || 'Компания')} · ${escapeHtml(picked?.name || scene?.branch_name || 'Завод')}</h1></div><button type="button" data-active-exit aria-label="Закрыть сцену">×</button></header>
     <div class="active-production-summary"><b data-active-mode>Сессия активна · до ×1,50</b><span data-active-output>Проверяем состояние заводов…</span><span data-active-cycle>Загружаем ближайший производственный цикл…</span><small data-active-hint>Игровые действия только для экрана — доход считает сервер по производственным циклам.</small></div>
     <div class="active-production-canvas-wrap"><canvas data-active-canvas aria-label="2D-сцена активного производства"></canvas><div class="active-production-objective" data-active-objective></div></div>
@@ -114,6 +114,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   const sceneRoot = document.createElement('div'); sceneRoot.innerHTML = renderActiveProductionScene(company, activeSession);
   container.replaceChildren(sceneRoot.firstElementChild);
   const root = container.querySelector('[data-active-scene]');
+  root.focus({ preventScroll: true });
   const canvas = root.querySelector('[data-active-canvas]'); const ctx = canvas.getContext('2d');
   const selected = activeSession.facilities?.find((row) => row.branch_id === activeSession.selected_branch_id);
   const scene = sceneForBranch(activeSession.selected_branch_id, selected?.sector_id, selected?.scene);
@@ -159,12 +160,12 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     game.target = { x: clamp(event.clientX - rect.left, 18, width - 18), y: clamp(event.clientY - rect.top, 18, height - 18) };
     countInput('move'); root.focus({ preventScroll: true });
   }, { signal: controller.signal });
-  document.addEventListener('keydown', (event) => {
+  root.addEventListener('keydown', (event) => {
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(event.key)) return;
     if (game.paused || game.closed) return;
     event.preventDefault(); keys.add(event.key.toLowerCase());
   }, { signal: controller.signal });
-  document.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()), { signal: controller.signal });
+  root.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()), { signal: controller.signal });
 
   const pauseServer = async (reason = 'page_hidden') => {
     if (!currentSession?.session_id || game.paused || game.closed) return;
@@ -264,6 +265,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     await destroy('STOPPED'); onExit?.();
   }, { signal: controller.signal }));
   document.addEventListener('visibilitychange', () => { if (document.hidden) void pauseServer('page_hidden'); }, { signal: controller.signal });
+  window.addEventListener('blur', () => { void pauseServer('focus_lost'); }, { signal: controller.signal });
   window.addEventListener('pagehide', () => { void pauseServer('page_hidden'); }, { signal: controller.signal });
   window.addEventListener('offline', () => { void pauseServer('offline'); }, { signal: controller.signal });
   window.addEventListener('online', () => {

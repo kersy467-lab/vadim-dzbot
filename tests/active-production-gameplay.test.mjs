@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as productionGameplay from '../frontend/natbirzha/js/active_production/gameplay.mjs';
 import {
   acceptProductionOrder,
   collectProductionCargo,
@@ -16,6 +17,40 @@ const scene = {
   workstation: 'Прокатный стан',
   delivery_marker: 'Склад готовой продукции',
 };
+
+test('the chosen contract preference survives sessions and is scoped to a facility', () => {
+  const values = new Map();
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+  };
+
+  assert.equal(typeof productionGameplay.saveProductionOrderPreference, 'function');
+  assert.equal(typeof productionGameplay.loadProductionOrderPreference, 'function');
+  productionGameplay.saveProductionOrderPreference(storage, 'branch-1', 'precision');
+
+  assert.equal(productionGameplay.loadProductionOrderPreference(storage, 'branch-1'), 'precision');
+  assert.equal(productionGameplay.loadProductionOrderPreference(storage, 'branch-2'), 'standard');
+  values.set('natbirzha:active-order-choice:branch-1', 'invalid');
+  assert.equal(productionGameplay.loadProductionOrderPreference(storage, 'branch-1'), 'standard');
+});
+
+test('a saved contract choice is used for the next order and next shift', () => {
+  let shift = createProductionShift(scene, { selectedOrderId: 'precision' });
+  assert.equal(shift.selectedOrderId, 'precision');
+
+  for (let index = 0; index < 5; index += 1) {
+    shift = acceptProductionOrder(shift);
+    shift = collectProductionCargo(shift);
+    shift = startProductionLine(shift);
+    shift = finishProductionCalibration(shift, shift.activeOrder.target);
+    shift = deliverProductionOrder(shift);
+    if (shift.phase === 'offer') assert.equal(shift.selectedOrderId, 'precision');
+  }
+
+  shift = startNextProductionShift(shift);
+  assert.equal(shift.selectedOrderId, 'precision');
+});
 
 test('the shift offers a safe route and a higher-scoring precision order', () => {
   let shift = createProductionShift(scene);

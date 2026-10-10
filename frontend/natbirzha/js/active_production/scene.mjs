@@ -1,15 +1,17 @@
 import { sceneForBranch } from './scene_registry.mjs';
-import { paint, stationPoints } from './render.mjs?v=20261010_shift_render_v1';
+import { paint, stationPoints } from './render.mjs?v=20261010_shift_render_v2';
 import {
   acceptProductionOrder,
   collectProductionCargo,
   createProductionShift,
   deliverProductionOrder,
   finishProductionCalibration,
+  loadProductionOrderPreference,
+  saveProductionOrderPreference,
   selectProductionOrder,
   startNextProductionShift,
   startProductionLine,
-} from './gameplay.mjs?v=20261010_shift_gameplay_v1';
+} from './gameplay.mjs?v=20261010_shift_gameplay_v2';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -22,7 +24,7 @@ export function renderActiveProductionScene(company, activeSession) {
     <header class="active-production-header"><div><span>АКТИВНОЕ ПРОИЗВОДСТВО</span><h1>${escapeHtml(company?.name || 'Компания')} · ${escapeHtml(picked?.name || scene?.branch_name || 'Завод')}</h1></div><button type="button" data-active-exit aria-label="Закрыть сцену">×</button></header>
     <div class="active-production-summary"><b data-active-mode>Сессия активна · до ×1,50</b><span data-active-output>Проверяем состояние заводов…</span><span data-active-cycle>Загружаем ближайший производственный цикл…</span><small data-active-hint>Игровые действия только для экрана — доход считает сервер по производственным циклам.</small></div>
     <div class="active-production-canvas-wrap"><canvas data-active-canvas aria-label="2D-сцена активного производства"></canvas><div class="active-production-objective" data-active-objective></div></div>
-    <div class="active-production-footer"><p data-active-task>Выбери заказ, забери груз, запусти линию и отвези готовую партию.</p><div class="active-production-game"><div class="active-production-game-stats"><b data-active-runs>Заказы: 0/5</b><span data-active-score>Очки: 0</span><span data-active-combo>Серия: 0</span><span data-active-best>Рекорд: 0</span></div><label class="active-production-order-select">Контракт на смену<select data-active-order-select aria-label="Выбор производственного заказа"></select></label><p data-active-order-details></p><div class="active-production-calibration" data-active-calibration hidden><div class="active-production-calibration-track"><i data-active-calibration-zone></i><b data-active-calibration-needle></b></div><small data-active-quality-status>Нажми, когда метка будет в зелёной зоне. Ошибки не отменяют заказ.</small></div></div><div class="active-production-controls"><div class="active-production-joystick" data-active-joystick role="application" aria-label="Виртуальный джойстик"><span></span></div><div class="active-production-actions"><b data-active-server-activity>Активная смена</b><small>Очки влияют только на личный рекорд</small><button type="button" data-active-action>Принять заказ</button><button type="button" data-active-resume hidden>Продолжить</button><button type="button" data-active-exit>Выйти</button></div></div></div>
+    <div class="active-production-footer"><p data-active-task>Выбери заказ, забери груз, запусти линию и отвези готовую партию.</p><div class="active-production-game"><div class="active-production-game-stats"><b data-active-runs>Заказы: 0/5</b><span data-active-score>Очки: 0</span><span data-active-combo>Серия: 0</span><span data-active-best>Рекорд: 0</span></div><label class="active-production-order-select">Контракт на смену<select data-active-order-select aria-label="Выбор производственного заказа"></select><small>Выбор запоминается для этого завода</small></label><p data-active-order-details></p><div class="active-production-calibration" data-active-calibration hidden><div class="active-production-calibration-track"><i data-active-calibration-zone></i><b data-active-calibration-needle></b></div><small data-active-quality-status>Нажми, когда метка будет в зелёной зоне. Ошибки не отменяют заказ.</small></div></div><div class="active-production-controls"><div class="active-production-joystick" data-active-joystick role="application" aria-label="Виртуальный джойстик"><span></span></div><div class="active-production-actions"><b data-active-server-activity>Активная смена</b><small>Очки влияют только на личный рекорд</small><button type="button" data-active-action>Принять заказ</button><button type="button" data-active-resume hidden>Продолжить</button><button type="button" data-active-exit>Выйти</button></div></div></div>
   </section>`;
 }
 
@@ -36,6 +38,16 @@ function loadLocalRecord(key) {
 function saveLocalRecord(key, score) {
   try { window.localStorage.setItem(key, String(score)); }
   catch { /* a private browser context can disable local storage */ }
+}
+
+function loadOrderPreference(branchId) {
+  try { return loadProductionOrderPreference(window.localStorage, branchId); }
+  catch { return 'standard'; }
+}
+
+function saveOrderPreference(branchId, orderId) {
+  try { saveProductionOrderPreference(window.localStorage, branchId, orderId); }
+  catch { /* storage can be disabled in private browser contexts */ }
 }
 
 export function mountActiveProductionScene(container, { company, activeSession, api, onExit, showToast = () => {} }) {
@@ -60,8 +72,9 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   output.textContent = `${production.active || 0}/${production.total || 0} заводов работают`;
   const controller = new AbortController(); const keys = new Set();
   const recordKey = `natbirzha:active-shift-best:${activeSession.selected_branch_id}`;
+  const selectedOrderId = loadOrderPreference(activeSession.selected_branch_id);
   let savedBest = loadLocalRecord(recordKey);
-  const game = { actor: { x: 0, y: 0 }, hasCargo: false, shift: createProductionShift(scene, { bestScore: savedBest }),
+  const game = { actor: { x: 0, y: 0 }, hasCargo: false, shift: createProductionShift(scene, { bestScore: savedBest, selectedOrderId }),
     activityCounter: 0, lastSentCounter: 0, lastAction: 'idle', direction: { x: 0, y: 0 }, target: null,
     paused: false, pauseRequested: false, closed: false, frame: 0, pulseTimer: 0, loopAt: 0, pulseBusy: false,
     calibrationPosition: 0, lastHudSignature: '',
@@ -178,6 +191,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   root.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()), { signal: controller.signal });
   orderSelect.addEventListener('change', () => {
     game.shift = selectProductionOrder(game.shift, orderSelect.value);
+    saveOrderPreference(activeSession.selected_branch_id, game.shift.selectedOrderId);
     recordInteraction('interact');
     updateGameplayUi();
   }, { signal: controller.signal });

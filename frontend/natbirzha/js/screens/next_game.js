@@ -141,7 +141,7 @@ async function mountActive(session) {
         await mountActive(session);
       });
     } else if (view === 'active-production') {
-        const { mountActiveProductionScene } = await import('../active_production/scene.mjs?v=20261010_active_production_v4');
+        const { mountActiveProductionScene } = await import('../active_production/scene.mjs?v=20261010_active_production_v5');
       if (version !== session.version || entries.get(container) !== session) {
         const stale = session.activeProductionSession;
         if (stale?.session_id) await NatAPI.pauseNextGameActiveProduction(stale.session_id, stale.session_token).catch(() => {});

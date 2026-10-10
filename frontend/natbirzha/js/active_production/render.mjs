@@ -24,6 +24,16 @@ function drawStation(ctx, family, point, title, variant, pulse, isDestination = 
   ctx.beginPath(); ctx.ellipse(x, y + 23, 67, 18, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#fffdf6'; ctx.strokeStyle = accent; ctx.lineWidth = 4;
   roundedRect(ctx, x - 43, y - 37, 86, 61, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(37, 65, 51, .09)';
+  roundedRect(ctx, x - 35, y + 17, 70, 7, 3); ctx.fill();
+  ctx.fillStyle = accent; ctx.globalAlpha = 0.72;
+  roundedRect(ctx, x - 29, y + 19, 58, 2, 1); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = pulse > 0.35 ? '#68b77b' : '#d9ad47';
+  ctx.beginPath(); ctx.arc(x - 33, y - 28, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.72)';
+  for (const boltX of [-34, 34]) {
+    ctx.beginPath(); ctx.arc(x + boltX, y + 10, 1.8, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.fillStyle = accent;
   if (isDestination && family === 'resources') {
     ctx.fillRect(x - 24, y - 14, 38, 24); ctx.fillStyle = '#f4dfb5'; ctx.fillRect(x - 18, y - 8, 18, 12);
@@ -71,17 +81,58 @@ function drawStation(ctx, family, point, title, variant, pulse, isDestination = 
   ctx.restore();
 }
 
+function drawFloor(ctx, width, height, baseColor) {
+  const background = ctx.createLinearGradient(0, 0, 0, height);
+  background.addColorStop(0, baseColor);
+  background.addColorStop(0.62, 'rgba(255,255,255,.16)');
+  background.addColorStop(1, 'rgba(77,112,84,.12)');
+  ctx.fillStyle = background; ctx.fillRect(0, 0, width, height);
+  const floorTop = height * 0.69;
+  ctx.fillStyle = 'rgba(63, 96, 73, .055)'; ctx.fillRect(0, floorTop, width, height - floorTop);
+  ctx.strokeStyle = 'rgba(65, 103, 78, .11)'; ctx.lineWidth = 1;
+  for (let row = 0; row < 4; row += 1) {
+    const y = floorTop + (height - floorTop) * (row / 4);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+  }
+  const vanishingPoint = width * 0.5;
+  for (let column = -3; column <= 3; column += 1) {
+    ctx.beginPath(); ctx.moveTo(vanishingPoint + column * 9, floorTop); ctx.lineTo(vanishingPoint + column * width * 0.19, height); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.38)';
+  for (let marker = 0; marker < 8; marker += 1) {
+    const x = (marker + 0.5) * width / 8;
+    ctx.beginPath(); ctx.arc(x, floorTop + 5, 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawCargoBox(ctx, x, y) {
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 9, y + 5); ctx.lineTo(x, y + 10); ctx.lineTo(x - 9, y + 5); ctx.closePath();
+  ctx.fillStyle = '#f2d88a'; ctx.fill(); ctx.strokeStyle = '#8b6832'; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 9, y + 5); ctx.lineTo(x, y + 10); ctx.lineTo(x, y + 22); ctx.lineTo(x - 9, y + 16); ctx.closePath();
+  ctx.fillStyle = '#bd8738'; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y + 10); ctx.lineTo(x + 9, y + 5); ctx.lineTo(x + 9, y + 16); ctx.lineTo(x, y + 22); ctx.closePath();
+  ctx.fillStyle = '#d5a34e'; ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,248,216,.8)'; ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x, y + 19); ctx.stroke();
+  ctx.restore();
+}
+
 export function paint(ctx, width, height, scene, game, now) {
   const color = scene?.scene_family === 'energy' ? '#edf3da' : scene?.scene_family === 'technology' ? '#e8eef7' : '#e8efe0';
-  ctx.clearRect(0, 0, width, height); ctx.fillStyle = color; ctx.fillRect(0, 0, width, height);
+  ctx.clearRect(0, 0, width, height); drawFloor(ctx, width, height, color);
   ctx.fillStyle = 'rgba(255,255,255,.45)';
   for (let i = 0; i < 9; i += 1) {
     const x = ((i * 137 + 33) % width); const y = ((i * 79 + 22) % height);
     ctx.beginPath(); ctx.arc(x, y, 10 + (i % 3) * 4, 0, Math.PI * 2); ctx.fill();
   }
   const { source, workstation, destination } = stationPoints(width, height);
-  ctx.strokeStyle = 'rgba(77, 122, 99, .32)'; ctx.lineWidth = 12; ctx.setLineDash([11, 10]);
+  ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(48, 84, 63, .16)'; ctx.lineWidth = 23; ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(source.x, source.y); ctx.lineTo(workstation.x, workstation.y); ctx.lineTo(destination.x, destination.y); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(255,255,255,.62)'; ctx.lineWidth = 17;
+  ctx.beginPath(); ctx.moveTo(source.x, source.y); ctx.lineTo(workstation.x, workstation.y); ctx.lineTo(destination.x, destination.y); ctx.stroke();
+  ctx.strokeStyle = 'rgba(77, 122, 99, .52)'; ctx.lineWidth = 9; ctx.setLineDash([3, 9]); ctx.lineDashOffset = -(now / 85) % 12;
+  ctx.beginPath(); ctx.moveTo(source.x, source.y); ctx.lineTo(workstation.x, workstation.y); ctx.lineTo(destination.x, destination.y); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
   const pulse = (Math.sin(now / 430) + 1) / 2;
   drawStation(ctx, scene?.scene_family, source, 'ПРИЁМКА', scene?.microvariant || 0, pulse);
   drawStation(ctx, scene?.scene_family, workstation, scene?.workstation || 'ЛИНИЯ', (scene?.microvariant || 0) + 1, pulse);
@@ -89,9 +140,16 @@ export function paint(ctx, width, height, scene, game, now) {
   const target = ({ pickup: source, work: workstation, calibrate: workstation, deliver: destination })[game.shift.phase];
   if (target) { ctx.strokeStyle = '#218866'; ctx.lineWidth = 3 + pulse * 2; ctx.beginPath(); ctx.arc(target.x, target.y, 48 + pulse * 7, 0, Math.PI * 2); ctx.stroke(); }
   ctx.fillStyle = '#2b5c49'; ctx.beginPath(); ctx.ellipse(game.actor.x, game.actor.y + 14, 19, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = scene?.scene_family === 'infrastructure' ? '#397e6b' : '#d3983c';
-  roundedRect(ctx, game.actor.x - 18, game.actor.y - 8, 36, 21, 8); ctx.fill();
-  ctx.fillStyle = '#fff4cf'; ctx.beginPath(); ctx.arc(game.actor.x, game.actor.y - 13, 9, 0, Math.PI * 2); ctx.fill();
+  const uniform = ctx.createLinearGradient(game.actor.x - 18, game.actor.y - 8, game.actor.x + 18, game.actor.y + 13);
+  uniform.addColorStop(0, scene?.scene_family === 'infrastructure' ? '#59a38b' : '#efbc52');
+  uniform.addColorStop(1, scene?.scene_family === 'infrastructure' ? '#286956' : '#bd7d2f');
+  ctx.strokeStyle = '#415d4d'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(game.actor.x - 13, game.actor.y - 1); ctx.lineTo(game.actor.x - 22, game.actor.y + 8); ctx.moveTo(game.actor.x + 13, game.actor.y - 1); ctx.lineTo(game.actor.x + 22, game.actor.y + 8); ctx.stroke();
+  roundedRect(ctx, game.actor.x - 18, game.actor.y - 8, 36, 21, 8); ctx.fillStyle = uniform; ctx.fill(); ctx.strokeStyle = 'rgba(53,79,62,.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#fff3bd'; roundedRect(ctx, game.actor.x - 15, game.actor.y + 1, 30, 3, 1); ctx.fill();
+  ctx.fillStyle = '#e3b17e'; ctx.beginPath(); ctx.arc(game.actor.x, game.actor.y - 13, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f4d26d'; ctx.beginPath(); ctx.arc(game.actor.x, game.actor.y - 16, 8, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#9c762f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(game.actor.x - 10, game.actor.y - 15); ctx.lineTo(game.actor.x + 10, game.actor.y - 15); ctx.stroke();
   ctx.fillStyle = '#3e5148'; ctx.beginPath(); ctx.arc(game.actor.x - 10, game.actor.y + 14, 5, 0, Math.PI * 2); ctx.arc(game.actor.x + 10, game.actor.y + 14, 5, 0, Math.PI * 2); ctx.fill();
-  if (game.hasCargo) { ctx.fillStyle = '#d4aa57'; ctx.fillRect(game.actor.x - 7, game.actor.y - 34, 14, 13); ctx.strokeStyle = '#8b6832'; ctx.strokeRect(game.actor.x - 7, game.actor.y - 34, 14, 13); }
+  if (game.hasCargo) drawCargoBox(ctx, game.actor.x + 15, game.actor.y - 37);
 }

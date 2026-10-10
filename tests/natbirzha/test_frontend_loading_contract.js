@@ -56,11 +56,11 @@ assert(
     && screenLoader.includes("./screens/market.js?v=20261009_item_art_v2")
     && screenLoader.includes("./screens/upgrades.js?v=20261009_luxury_ui_v2")
     && screenLoader.includes("./screens/tycoon.js?v=20261010_auto_upgrade_v1")
-    && app.includes("./screen_loader.js?v=20261010_active_production_v4")
+    && app.includes("./screen_loader.js?v=20261010_active_production_v5")
     && app.includes("./icons.mjs?v=20261010_semantic_icons_v4")
-    && indexHtml.includes('/js/app.js?v=20261010_active_production_v4')
-    && indexHtml.includes('next-game-active-production.css?v=20261010_active_production_v2')
-    && screenLoader.includes("./screens/next_game.js?v=20261010_active_production_v4"),
+    && indexHtml.includes('/js/app.js?v=20261010_active_production_v5')
+    && indexHtml.includes('next-game-active-production.css?v=20261010_active_production_v3')
+    && screenLoader.includes("./screens/next_game.js?v=20261010_active_production_v5"),
   'changed frontend entry, loader, and upgrade assets should use fresh cache-bust versions',
 );
 const apiImportVersions = new Set(javascriptFiles(path.join(__dirname, '../../frontend/natbirzha/js'))

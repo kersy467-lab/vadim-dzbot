@@ -4,6 +4,31 @@ const ORDER_TYPES = Object.freeze([
   { id: 'standard', label: 'Стандартный заказ', basePoints: 80, target: 0.24, tolerance: 0.31 },
   { id: 'precision', label: 'Точная партия', basePoints: 140, target: 0.72, tolerance: 0.13 },
 ]);
+const ORDER_TYPE_IDS = new Set(ORDER_TYPES.map(({ id }) => id));
+
+function orderPreferenceKey(branchId) {
+  return `natbirzha:active-order-choice:${String(branchId)}`;
+}
+
+export function loadProductionOrderPreference(storage, branchId) {
+  if (!storage || branchId == null) return 'standard';
+  try {
+    const saved = storage.getItem(orderPreferenceKey(branchId));
+    return ORDER_TYPE_IDS.has(saved) ? saved : 'standard';
+  } catch {
+    return 'standard';
+  }
+}
+
+export function saveProductionOrderPreference(storage, branchId, orderId) {
+  if (!storage || branchId == null || !ORDER_TYPE_IDS.has(orderId)) return false;
+  try {
+    storage.setItem(orderPreferenceKey(branchId), orderId);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function orderOffers(scene, completedOrders) {
   const offset = ((completedOrders % 3) - 1) * 0.04;
@@ -19,7 +44,7 @@ function orderOffers(scene, completedOrders) {
   }));
 }
 
-export function createProductionShift(scene, { bestScore = 0, shiftNumber = 1 } = {}) {
+export function createProductionShift(scene, { bestScore = 0, shiftNumber = 1, selectedOrderId = 'standard' } = {}) {
   const safeScene = {
     visual_pickup: scene?.visual_pickup || 'Груз',
     workstation: scene?.workstation || 'Производственная линия',
@@ -30,7 +55,7 @@ export function createProductionShift(scene, { bestScore = 0, shiftNumber = 1 } 
     phase: 'offer',
     shiftNumber,
     offers: orderOffers(safeScene, 0),
-    selectedOrderId: 'standard',
+    selectedOrderId: ORDER_TYPE_IDS.has(selectedOrderId) ? selectedOrderId : 'standard',
     activeOrder: null,
     completedOrders: 0,
     score: 0,
@@ -88,7 +113,7 @@ export function deliverProductionOrder(state) {
     ...state,
     phase: complete ? 'complete' : 'offer',
     offers: complete ? [] : orderOffers(state.scene, completedOrders),
-    selectedOrderId: 'standard',
+    selectedOrderId: state.selectedOrderId,
     activeOrder: null,
     completedOrders,
     score,
@@ -104,5 +129,6 @@ export function startNextProductionShift(state) {
   return createProductionShift(state.scene, {
     bestScore: Math.max(state.bestScore, state.score),
     shiftNumber: state.shiftNumber + 1,
+    selectedOrderId: state.selectedOrderId,
   });
 }

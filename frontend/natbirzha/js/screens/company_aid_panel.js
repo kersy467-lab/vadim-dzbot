@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_theme_auto_upgrade_next_game_v1';
+import { NatAPI } from '../api.js?v=20261010_bank_deposits_v1';
 import { ITEMS, getItemInfo } from '../items.js?v=20261009_item_art_v1';
 import { formatNumber } from '../format.js';
 

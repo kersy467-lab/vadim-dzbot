@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_theme_auto_upgrade_next_game_v1';
+import { NatAPI } from '../api.js?v=20261010_bank_deposits_v1';
 import { store } from '../state.js?v=20260927_ai_hybrids_v1';
 
 const ALLOWED_SOURCE_STATUSES = new Set([

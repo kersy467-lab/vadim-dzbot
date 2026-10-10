@@ -10,6 +10,7 @@ import {
   getTelegramUserId,
   getAuthHeader,
 } from './auth.js';
+import { createNextGameAPI } from './next_game_api.js?v=20261010_competition_v1';
 
 // App navigation owns this signal. A request started for a screen that the
 // player has already left must not keep the old screen alive.
@@ -181,16 +182,7 @@ export const NatAPI = {
 
   getIndustryOverview: () => cachedGet('/api/natbirzha/company/industries', 30 * 1000),
 
-  getNextGameMap: () => request('/api/natbirzha/next-game/map'),
-  createNextGameCompany: (name) => request('/api/natbirzha/next-game/company', {
-    method: 'POST', body: JSON.stringify({ name: String(name || '').trim() }),
-  }),
-  selectNextGameSector: (sector_id) => request('/api/natbirzha/next-game/sector', {
-    method: 'PUT', body: JSON.stringify({ sector_id }),
-  }),
-  selectNextGameBranch: (branch_id) => request('/api/natbirzha/next-game/branch', {
-    method: 'PUT', body: JSON.stringify({ branch_id }),
-  }),
+  ...createNextGameAPI(request),
 
   // NATBIRZHA 2.0 idle/tycoon businesses
   getBusinessCatalog: (specialization = null) => {

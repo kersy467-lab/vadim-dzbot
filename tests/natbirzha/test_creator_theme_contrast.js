@@ -5,9 +5,12 @@ const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '../..');
 const creatorPath = path.join(root, 'frontend/natbirzha/js/screens/creator.js');
-const themePath = path.join(root, 'frontend/natbirzha/css/luxury-theme.css');
+const themePaths = [
+  path.join(root, 'frontend/natbirzha/css/luxury-theme.css'),
+  path.join(root, 'frontend/natbirzha/css/creator-theme.css'),
+];
 const creator = fs.readFileSync(creatorPath, 'utf8');
-const theme = fs.readFileSync(themePath, 'utf8');
+const theme = themePaths.map((themePath) => fs.readFileSync(themePath, 'utf8')).join('\n');
 
 function luminance(color) {
   const channels = color.match(/[0-9a-f]{2}/gi).map((pair) => parseInt(pair, 16) / 255);

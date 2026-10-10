@@ -6,6 +6,15 @@ from sqlalchemy import text
 from backend.natbirzha.rebirth_stock_migration import migrate_rebirth_stock_anchor
 from backend.natbirzha.auto_upgrade_migration import migrate_auto_upgrade_to_nine
 from backend.natbirzha.next_game_migration import migrate_next_game_sandbox
+from backend.natbirzha.next_game_economy_migration import (
+    migrate_next_game_bank,
+    migrate_next_game_economy,
+)
+from backend.natbirzha.next_game_market_migration import migrate_next_game_market
+from backend.natbirzha.next_game_deposit_migration import migrate_next_game_deposits
+from backend.natbirzha.next_game_equity_migration import migrate_next_game_equity
+from backend.natbirzha.next_game_banking_migration import migrate_next_game_banking
+from backend.natbirzha.next_game_finance_migration import migrate_next_game_finance
 
 
 Migration = Callable[[object], Awaitable[None]]
@@ -955,6 +964,13 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v29_001_rebirth_valuation_anchor", migrate_rebirth_stock_anchor),
     ("natbirzha_v30_001_auto_upgrade_to_nine", migrate_auto_upgrade_to_nine),
     ("natbirzha_v31_001_next_game_sandbox", migrate_next_game_sandbox),
+    ("natbirzha_v32_001_next_game_economy", migrate_next_game_economy),
+    ("natbirzha_v33_001_next_game_bank_loan", migrate_next_game_bank),
+    ("natbirzha_v34_001_next_game_market", migrate_next_game_market),
+    ("natbirzha_v35_001_next_game_term_deposits", migrate_next_game_deposits),
+    ("natbirzha_v36_001_next_game_ipo_market", migrate_next_game_equity),
+    ("natbirzha_v37_001_next_game_corporate_banking", migrate_next_game_banking),
+    ("natbirzha_v38_001_next_game_direct_finance", migrate_next_game_finance),
 )
 
 

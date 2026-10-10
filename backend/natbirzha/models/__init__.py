@@ -4,7 +4,19 @@ All models inherit from Base and are automatically discovered by SQLAlchemy.
 """
 
 from backend.natbirzha.models.company import NatCompany, NatFactory
-from backend.natbirzha.models.next_game import NatNextGameCompany
+from backend.natbirzha.models.next_game import (
+    NatNextGameCompany, NatNextGameFacility, NatNextGameInventory,
+    NatNextGameLedger, NatNextGameLoan, NatNextGameDeposit, NatNextGameMarketOrder,
+    NatNextGameMarketTrade, NatNextGameTreasury,
+)
+from backend.natbirzha.models.next_game_equity import (
+    NatNextGameShareIssue, NatNextGameShareHolding, NatNextGameShareOrder,
+    NatNextGameShareTrade, NatNextGameDividend, NatNextGameDividendPayment,
+)
+from backend.natbirzha.models.next_game_banking import (
+    NatNextGameBankAccount, NatNextGameBankPayment, NatNextGameCorporateLoan,
+)
+from backend.natbirzha.models.next_game_finance import NatNextGameFinanceContract
 from backend.natbirzha.models.bankruptcy_market import NatBankruptcyMarketLot
 from backend.natbirzha.models.inventory import (
     CANONICAL_ITEMS,
@@ -102,6 +114,23 @@ from backend.natbirzha.models.joint_factories import (
 __all__ = [
     "NatCompany",
     "NatNextGameCompany",
+    "NatNextGameFacility",
+    "NatNextGameInventory",
+    "NatNextGameLedger",
+    "NatNextGameLoan",
+    "NatNextGameDeposit",
+    "NatNextGameMarketOrder",
+    "NatNextGameMarketTrade",
+    "NatNextGameTreasury",
+    "NatNextGameShareIssue",
+    "NatNextGameShareHolding",
+    "NatNextGameShareOrder",
+    "NatNextGameShareTrade",
+    "NatNextGameDividend",
+    "NatNextGameDividendPayment",
+    "NatNextGameBankAccount",
+    "NatNextGameBankPayment",
+    "NatNextGameCorporateLoan",
     "NatFactory",
     "NatBankruptcyMarketLot",
     "CANONICAL_ITEMS",
@@ -199,3 +228,5 @@ __all__.extend([
     "NatCompanyRebirth", "NatCompanyAidRequest", "NatCompanyAidTransfer",
     "NatAdminRebirthSchedule",
 ])
+
+__all__.append("NatNextGameFinanceContract")

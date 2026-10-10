@@ -107,12 +107,15 @@ console.log('state.js reactivity and safe updates verified!');
 
 console.log('=== [Natbirzha Test 3/5] Testing api.js request handling & error resilience ===');
 const apiScript = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/api.js'), 'utf-8');
+const nextGameApiScript = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/next_game_api.js'), 'utf-8')
+  .replace(/export\s+function\s+createNextGameAPI/, 'function createNextGameAPI');
 const cleanedApiScript = apiScript
   .replace(/import\s*\{[^}]+\}\s*from\s*['"]\.\/auth\.js['"];?/s, '')
+  .replace(/import\s*\{[^}]+\}\s*from\s*['"]\.\/next_game_api\.js(?:\?[^'"]*)?['"];?/s, '')
   .replace(/export\s+function\s+setNavigationAbortSignal/, 'function setNavigationAbortSignal')
   .replace(/export\s+const\s+NatAPI\s+=/, 'const NatAPI =');
-// Keep the lightweight CommonJS harness compatible with named helper exports.
-const normalizedApiScript = cleanedApiScript.replace(/export\s*\{[^}]+\};?/g, '');
+// Keep the lightweight CommonJS harness compatible with the isolated game API module.
+const normalizedApiScript = `${nextGameApiScript}\n${cleanedApiScript.replace(/export\s*\{[^}]+\};?/g, '')}`;
 
 const mockBrowserWindow = {
   location: { search: '?tg_user_id=777', hostname: 'localhost' },

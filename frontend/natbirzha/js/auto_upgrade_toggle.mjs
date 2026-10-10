@@ -1,4 +1,4 @@
-import { NatAPI } from './api.js?v=20261010_theme_auto_upgrade_next_game_v1';
+import { NatAPI } from './api.js?v=20261010_bank_deposits_v1';
 
 function paint(button, enabled) {
   button.setAttribute('aria-pressed', String(enabled));

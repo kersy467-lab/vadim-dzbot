@@ -126,12 +126,20 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   const production = activeSession.production || {};
   output.textContent = `${production.active || 0}/${production.total || 0} заводов работают`;
   const controller = new AbortController(); const keys = new Set();
-  const game = { actor: { x: 0, y: 0 }, hasCargo: false, deliveries: 0, lastPulse: 0,
-    inputCounter: 0, lastSentCounter: 0, lastAction: 'idle', direction: { x: 0, y: 0 }, target: null,
-    paused: false, closed: false, frame: 0, pulseTimer: 0, loopAt: 0, pulseBusy: false,
+  const game = { actor: { x: 0, y: 0 }, hasCargo: false, deliveries: 0,
+    activityCounter: 0, lastSentCounter: 0, lastAction: 'idle', direction: { x: 0, y: 0 }, target: null,
+    paused: false, pauseRequested: false, closed: false, frame: 0, pulseTimer: 0, loopAt: 0, pulseBusy: false,
     nextCycleAt: activeSession.facilities?.map((row) => row.next_cycle_at).filter(Boolean)
       .sort((left, right) => Date.parse(left) - Date.parse(right))[0] || null, lastCountdown: 0 };
   let width = 1; let height = 1; let pulseSequence = 0; let currentSession = activeSession;
+
+  const resetInput = () => {
+    keys.clear();
+    game.direction = { x: 0, y: 0 };
+    game.target = null;
+    game.lastSentCounter = game.activityCounter;
+    game.lastAction = 'idle';
+  };
 
   const resize = () => {
     const rect = canvas.getBoundingClientRect(); const ratio = Math.min(2, window.devicePixelRatio || 1);
@@ -141,7 +149,10 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     if (!game.actor.x) { game.actor.x = width * 0.5; game.actor.y = height * 0.52; }
   };
   resize(); window.addEventListener('resize', resize, { signal: controller.signal });
-  const countInput = (action) => { game.inputCounter += 1; game.lastAction = action; };
+  const recordInteraction = (action) => {
+    game.activityCounter += 1;
+    game.lastAction = action;
+  };
   const setMove = (event) => {
     const rect = joystick.getBoundingClientRect(); const dx = event.clientX - (rect.left + rect.width / 2);
     const dy = event.clientY - (rect.top + rect.height / 2); const length = Math.hypot(dx, dy) || 1;
@@ -149,7 +160,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   };
   const joystick = root.querySelector('[data-active-joystick]');
   joystick.addEventListener('pointerdown', (event) => {
-    joystick.setPointerCapture(event.pointerId); setMove(event); countInput('move');
+    joystick.setPointerCapture(event.pointerId); setMove(event);
   }, { signal: controller.signal });
   joystick.addEventListener('pointermove', (event) => { if (joystick.hasPointerCapture(event.pointerId)) setMove(event); }, { signal: controller.signal });
   const releaseJoystick = (event) => { if (joystick.hasPointerCapture(event.pointerId)) joystick.releasePointerCapture(event.pointerId); game.direction = { x: 0, y: 0 }; };
@@ -158,7 +169,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   canvas.addEventListener('pointerdown', (event) => {
     const rect = canvas.getBoundingClientRect();
     game.target = { x: clamp(event.clientX - rect.left, 18, width - 18), y: clamp(event.clientY - rect.top, 18, height - 18) };
-    countInput('move'); root.focus({ preventScroll: true });
+    root.focus({ preventScroll: true });
   }, { signal: controller.signal });
   root.addEventListener('keydown', (event) => {
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(event.key)) return;
@@ -168,7 +179,10 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   root.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()), { signal: controller.signal });
 
   const pauseServer = async (reason = 'page_hidden') => {
-    if (!currentSession?.session_id || game.paused || game.closed) return;
+    if (!currentSession?.session_id || game.closed) return;
+    game.pauseRequested = true;
+    if (game.paused) return;
+    resetInput();
     game.paused = true; clearInterval(game.pulseTimer); cancelAnimationFrame(game.frame);
     mode.textContent = 'Пауза · бонус остановлен'; resumeButton.hidden = false;
     try { await api.pauseNextGameActiveProduction(currentSession.session_id, currentSession.session_token); }
@@ -184,13 +198,14 @@ export function mountActiveProductionScene(container, { company, activeSession, 
       return;
     }
     game.pulseBusy = true;
-    const action = game.inputCounter > game.lastSentCounter ? game.lastAction : 'idle';
+    const submittedActivityCounter = game.activityCounter;
+    const action = submittedActivityCounter > game.lastSentCounter ? game.lastAction : 'idle';
     try {
       const response = await api.pulseNextGameActiveProduction({
         session_id: currentSession.session_id, session_token: currentSession.session_token,
-        sequence: ++pulseSequence, scene_action: action, user_input_counter: game.inputCounter,
+        sequence: ++pulseSequence, scene_action: action, user_input_counter: submittedActivityCounter,
       });
-      game.lastSentCounter = game.inputCounter;
+      game.lastSentCounter = submittedActivityCounter;
       mode.textContent = response.active ? 'Сессия активна · до ×1,50' : 'Пауза · бонус ×1,00';
       output.textContent = `${response.working_facilities || 0}/${response.total_facilities || 0} заводов работают`;
       game.nextCycleAt = response.nearest_cycle_at || game.nextCycleAt;
@@ -219,7 +234,6 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     if (length > 0.1) {
       game.actor.x = clamp(game.actor.x + dx / length * 150 * elapsed, 20, width - 20);
       game.actor.y = clamp(game.actor.y + dy / length * 150 * elapsed, 20, height - 20);
-      if (timestamp - game.lastPulse > 600) { countInput('move'); game.lastPulse = timestamp; }
       game.target = null;
     } else if (game.target) {
       const diffX = game.target.x - game.actor.x; const diffY = game.target.y - game.actor.y; const distance = Math.hypot(diffX, diffY);
@@ -230,7 +244,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     if (Math.hypot(marker.x - game.actor.x, marker.y - game.actor.y) < 58) {
       game.hasCargo = !game.hasCargo;
       if (!game.hasCargo) { game.deliveries += 1; runCount.textContent = `Рейсы: ${game.deliveries}`; }
-      countInput(game.hasCargo ? 'pickup' : 'deliver');
+      recordInteraction(game.hasCargo ? 'pickup' : 'deliver');
       task.textContent = game.hasCargo ? `Партия доставлена на участок. Теперь отвези её к: ${scene?.delivery_marker || 'складу'}.` : `Собрал ${scene?.visual_pickup || 'груз'}. Отвези его к следующей точке.`;
     }
     objective.textContent = game.hasCargo ? `Везёшь: ${scene?.visual_pickup || 'груз'}` : `Задача: ${scene?.workstation || 'участок'}`;
@@ -243,14 +257,24 @@ export function mountActiveProductionScene(container, { company, activeSession, 
   };
   const resume = async () => {
     resumeButton.disabled = true;
+    resetInput();
+    game.pauseRequested = false;
     try {
-      currentSession = await api.startNextGameActiveProduction(activeSession.selected_branch_id);
-      pulseSequence = 0; game.lastSentCounter = 0; game.lastAction = 'idle'; game.paused = false;
+      const resumedSession = await api.startNextGameActiveProduction(activeSession.selected_branch_id);
+      if (game.closed || game.pauseRequested || document.hidden) {
+        if (!game.closed) { resetInput(); resumeButton.hidden = false; }
+        try { await api.pauseNextGameActiveProduction(resumedSession.session_id, resumedSession.session_token); }
+        catch { /* the heartbeat timeout is the fallback for a hidden or closed app */ }
+        return;
+      }
+      currentSession = resumedSession;
+      pulseSequence = 0; game.activityCounter = game.hasCargo ? 1 : 0;
+      game.lastSentCounter = game.activityCounter; game.lastAction = 'idle'; game.paused = false;
       mode.textContent = 'Сессия активна · до ×1,50'; resumeButton.hidden = true;
       task.textContent = 'Двигайся к выделенной точке, затем доставь визуальную партию на склад.';
       startTimers(); sendPulse();
-    } catch (error) { showToast(error.message || 'Не удалось возобновить сцену', 'error'); }
-    finally { resumeButton.disabled = false; }
+    } catch (error) { if (!game.closed) showToast(error.message || 'Не удалось возобновить сцену', 'error'); }
+    finally { if (!game.closed) resumeButton.disabled = false; }
   };
   resumeButton.addEventListener('click', resume, { signal: controller.signal });
   const destroy = async (status = 'PAUSED') => {

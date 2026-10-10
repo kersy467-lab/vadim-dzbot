@@ -98,14 +98,28 @@ def test_session_tokens_rotate_and_duplicate_pulses_cannot_add_more_active_time(
 
             pulse = await NextGameActiveProductionService.pulse(
                 session, 772002, started['session_id'], started['session_token'],
-                1, 'move', 1, now=start + timedelta(seconds=15),
+                1, 'pickup', 1, now=start + timedelta(seconds=15),
             )
             retry = await NextGameActiveProductionService.pulse(
                 session, 772002, started['session_id'], started['session_token'],
-                1, 'move', 1, now=start + timedelta(seconds=20),
+                1, 'pickup', 1, now=start + timedelta(seconds=20),
             )
             assert pulse['active'] is True
             assert retry['duplicate'] is True
+
+            fake_move = await NextGameActiveProductionService.pulse(
+                session, 772002, started['session_id'], started['session_token'],
+                2, 'move', 2, now=start + timedelta(seconds=25),
+            )
+            assert fake_move['active'] is True
+            assert row.last_interaction_at == start + timedelta(seconds=15)
+            assert row.last_user_input_counter == 1
+            completed_route = await NextGameActiveProductionService.pulse(
+                session, 772002, started['session_id'], started['session_token'],
+                3, 'deliver', 2, now=start + timedelta(seconds=30),
+            )
+            assert completed_route['active'] is True
+            assert row.last_interaction_at == start + timedelta(seconds=30)
 
             await NextGameActiveProductionService.finish(
                 session, 772002, started['session_id'], started['session_token'],

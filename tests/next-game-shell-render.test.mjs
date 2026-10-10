@@ -78,6 +78,12 @@ test('active production tears down on screen and subview navigation and scopes k
   assert.doesNotMatch(scene, /document\.addEventListener\('key(?:down|up)'/);
   assert.match(scene, /window\.addEventListener\('blur'/);
   assert.match(scene, /document\.addEventListener\('visibilitychange'/);
+  assert.match(scene, /const resetInput = \(\) => \{[\s\S]*?keys\.clear\(\)[\s\S]*?game\.direction = \{ x: 0, y: 0 \}[\s\S]*?game\.target = null[\s\S]*?game\.lastSentCounter = game\.activityCounter[\s\S]*?game\.lastAction = 'idle'/);
+  assert.match(scene, /pauseServer = async[\s\S]*?resetInput\(\)/);
+  assert.match(scene, /const resume = async[\s\S]*?resetInput\(\)/);
+  assert.match(scene, /game\.pauseRequested = true/);
+  assert.match(scene, /game\.closed \|\| game\.pauseRequested \|\| document\.hidden/);
+  assert.match(scene, /game\.activityCounter = game\.hasCargo \? 1 : 0/);
 });
 
 test('company header restores identity, sector, progression and creator-only state access', () => {

@@ -249,7 +249,12 @@ class NextGameActiveProductionService:
         if scene_action not in _INPUT_ACTIONS | {"idle"}:
             raise ValueError("Такое событие сцены не поддерживается")
 
-        meaningful_input = scene_action in _INPUT_ACTIONS and user_input_counter > row.last_user_input_counter
+        next_interaction = "pickup" if user_input_counter % 2 else "deliver"
+        meaningful_input = (
+            scene_action == next_interaction
+            and scene_action in {"pickup", "deliver"}
+            and user_input_counter > row.last_user_input_counter
+        )
         await cls._record_confirmed_tail(session, row, current, "heartbeat", sequence)
         if meaningful_input:
             row.last_interaction_at = current

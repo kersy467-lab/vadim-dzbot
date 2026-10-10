@@ -1,0 +1,14 @@
+.next-game-screen .next-game-community-list { display:grid; gap:16px; margin-top:16px; }
+.next-game-screen .next-game-aid-card { padding:16px; border:1px solid var(--ng-border); border-radius:16px; background:var(--ng-soft); }
+.next-game-screen .next-game-aid-heading { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.next-game-screen .next-game-aid-heading span { color:var(--ng-accent); font-size:.75rem; font-weight:700; }
+.next-game-screen .next-game-aid-card progress { width:100%; height:8px; accent-color:var(--ng-accent); }
+.next-game-screen textarea { box-sizing:border-box; width:100%; min-height:80px; color:var(--ng-ink); background:var(--ng-surface); border:1px solid var(--ng-border); border-radius:12px; padding:12px; }
+.next-game-screen .next-game-disclosure { margin-top:16px; border-top:1px solid var(--ng-border); padding-top:16px; }
+.next-game-screen .next-game-disclosure summary { cursor:pointer; color:var(--ng-accent); font-weight:800; }
+.next-game-screen form { display:grid; gap:12px; margin-top:16px; }
+.next-game-screen .next-game-audit-list { list-style:none; padding:0; margin:16px 0 0; }
+.next-game-screen .next-game-audit-list li { display:flex; gap:16px; justify-content:space-between; padding:14px 0; border-top:1px solid var(--ng-border); }
+.next-game-screen .next-game-audit-list p { margin:4px 0; }
+.next-game-screen [hidden] { display:none !important; }
+

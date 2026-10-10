@@ -30,6 +30,14 @@ from backend.natbirzha.api.next_game_equity_routes import router as next_game_eq
 from backend.natbirzha.api.next_game_banking_routes import router as next_game_banking_router
 from backend.natbirzha.api.next_game_finance_routes import router as next_game_finance_router
 from backend.natbirzha.api.next_game_competition_routes import router as next_game_competition_router
+from backend.natbirzha.api.next_game_community_routes import router as next_game_community_router
+from backend.natbirzha.api.next_game_market_routes import router as next_game_market_router
+from backend.natbirzha.api.next_game_partnership_routes import router as next_game_partnership_router
+from backend.natbirzha.api.next_game_bond_routes import router as next_game_bond_router
+from backend.natbirzha.api.next_game_progression_routes import router as next_game_progression_router
+from backend.natbirzha.api.next_game_operations_routes import router as next_game_operations_router
+from backend.natbirzha.api.next_game_civic_routes import router as next_game_civic_router
+from backend.natbirzha.api.next_game_bankruptcy_routes import router as next_game_bankruptcy_router
 from backend.natbirzha.api.tax_routes import router as tax_router
 from backend.natbirzha.api.state_share_routes import creator_router as state_share_creator_router
 from backend.natbirzha.api.state_share_routes import player_router as state_share_player_router
@@ -111,6 +119,14 @@ def build_natbirzha_router(admin_only: bool | None = None) -> APIRouter:
     router.include_router(next_game_banking_router)
     router.include_router(next_game_finance_router)
     router.include_router(next_game_competition_router)
+    router.include_router(next_game_community_router)
+    router.include_router(next_game_market_router)
+    router.include_router(next_game_partnership_router)
+    router.include_router(next_game_bond_router)
+    router.include_router(next_game_progression_router)
+    router.include_router(next_game_operations_router)
+    router.include_router(next_game_civic_router)
+    router.include_router(next_game_bankruptcy_router)
     # Keep status and admin controls reachable during a tech break. The write
     # endpoints perform their own administrator checks.
     router.include_router(maintenance_router)

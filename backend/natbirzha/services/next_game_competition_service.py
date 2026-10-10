@@ -26,11 +26,11 @@ class NextGameCompetitionService:
         if viewer is None:
             raise ValueError("Сначала создай тестовую компанию")
         companies = list((await session.scalars(
-            select(NatNextGameCompany).order_by(NatNextGameCompany.id)
+            select(NatNextGameCompany).where(NatNextGameCompany.owner_tg_id > 0).order_by(NatNextGameCompany.id)
         )).all())
         items = get_next_game_items()
         production_rows = list((await session.scalars(select(NatNextGameLedger).where(
-            NatNextGameLedger.action == "PRODUCTION_OUTPUT",
+            NatNextGameLedger.action.in_(("PRODUCTION_OUTPUT", "JOINT_OUTPUT")),
             NatNextGameLedger.created_at >= current - timedelta(hours=24),
         ).order_by(NatNextGameLedger.id))).all())
         production_value: dict[int, float] = {}

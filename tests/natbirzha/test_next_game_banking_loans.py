@@ -32,6 +32,8 @@ def test_bank_business_loan_is_cash_backed_idempotent_and_repaid_to_the_lender()
             borrower = await session.scalar(select(NatNextGameCompany).where(
                 NatNextGameCompany.owner_tg_id == 830_002
             ))
+            # Capitalize lender explicitly: the new build price leaves only 3000.
+            bank.cash = 5000
             bank_id, borrower_id = bank.id, borrower.id
             bank_cash_before = float(bank.cash)
             borrower_cash_before = float(borrower.cash)

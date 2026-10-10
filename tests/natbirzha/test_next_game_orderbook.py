@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -29,7 +29,7 @@ def test_limit_order_match_uses_older_seller_price_and_refunds_buy_escrow():
 
             ask = await NextGameMarketService.create_limit_order(
                 session, 81001, "energy", "SELL", 5, 5,
-                now=datetime(2026, 10, 10, 12, 0),
+                now=datetime.utcnow() + timedelta(days=1),
             )
             bid = await NextGameMarketService.create_limit_order(
                 session, 81002, "energy", "BUY", 3, 8,
@@ -73,7 +73,7 @@ def test_limit_order_match_uses_older_buyer_price_and_keeps_partial_escrow():
             await NextGameService.trade(session, 81102, "energy", "BUY", 2)
             bid = await NextGameMarketService.create_limit_order(
                 session, 81101, "energy", "BUY", 4, 10,
-                now=datetime(2026, 10, 10, 12, 0),
+                now=datetime.utcnow() + timedelta(days=1),
             )
             ask = await NextGameMarketService.create_limit_order(
                 session, 81102, "energy", "SELL", 2, 8,
@@ -182,7 +182,7 @@ def test_npc_trades_and_production_cannot_consume_reserved_stock_or_cash():
             await NextGameService.select_sector(session, 81401, "resources")
             await NextGameService.select_branch(session, 81401, "ore_mining")
             await NextGameService.build_facility(
-                session, 81401, now=datetime(2026, 10, 10, 12, 0)
+                session, 81401, now=datetime.utcnow() + timedelta(days=1)
             )
             company = await session.scalar(select(NatNextGameCompany).where(
                 NatNextGameCompany.owner_tg_id == 81401
@@ -212,7 +212,7 @@ def test_npc_trades_and_production_cannot_consume_reserved_stock_or_cash():
 
             # Reserved energy is absent from available production inputs.
             blocked = await NextGameService.settle_company(
-                session, 81401, now=datetime(2026, 10, 10, 12, 10)
+                session, 81401, now=datetime.utcnow() + timedelta(days=1, minutes=10)
             )
             assert blocked["cycles_completed"] == 0
             assert blocked["blocked"]

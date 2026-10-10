@@ -1,0 +1,25 @@
+"""Authored production facilities for the bank corporation."""
+
+NODES = [
+    ('trade_finance', 'Центр торгового финансирования', 'credit_services', 8.0, {'logistics_capacity': 2.0, 'payment_services': 3.0, 'energy': 3.0}, 2),
+    ('insurance_desk', 'Центр страхования предприятий', 'insurance_services', 8.0, {'construction_capacity': 1.0, 'components': 1.0, 'energy': 3.0}, 2),
+    ('leasing_desk', 'Лизинговая компания', 'leasing_services', 6.0, {'machinery': 1.0, 'credit_services': 1.0, 'energy': 3.0}, 2),
+    ('payroll_center', 'Зарплатный процессинговый центр', 'payment_services', 20.0, {'components': 2.0, 'energy': 4.0}, 3),
+    ('export_settlement', 'Центр экспортных расчётов', 'settlement_services', 8.0, {'port_capacity': 1.0, 'payment_services': 4.0, 'energy': 4.0}, 3),
+    ('project_finance', 'Банк проектного финансирования', 'credit_services', 15.0, {'industrial_modules': 0.25, 'construction_capacity': 2.0, 'energy': 4.0}, 3),
+    ('risk_engine', 'Центр кредитного скоринга', 'risk_services', 8.0, {'ai_compute': 2.0, 'security_services': 1.0, 'energy': 5.0}, 4),
+    ('custody_center', 'Депозитарный центр', 'custody_services', 8.0, {'electronics': 1.0, 'payment_services': 4.0, 'energy': 5.0}, 4),
+    ('supply_finance', 'Факторинговая платформа поставок', 'credit_services', 20.0, {'logistics_capacity': 3.0, 'settlement_services': 1.0, 'energy': 5.0}, 4),
+    ('infrastructure_fund', 'Фонд инфраструктурных проектов', 'investment_services', 14.0, {'urban_services': 1.0, 'credit_services': 2.0, 'energy': 5.0}, 5),
+    ('industrial_leasing', 'Платформа промышленного лизинга', 'leasing_services', 12.0, {'robots': 0.5, 'risk_services': 1.0, 'energy': 5.0}, 5),
+    ('clearing_network', 'Национальная клиринговая сеть', 'settlement_services', 15.0, {'security_services': 1.0, 'payment_services': 8.0, 'energy': 6.0}, 5),
+    ('venture_fund', 'Фонд технологических инвестиций', 'investment_services', 20.0, {'model_services': 1.0, 'custody_services': 1.0, 'energy': 7.0}, 6),
+    ('commodity_exchange', 'Товарная расчётная палата', 'settlement_services', 20.0, {'logistics_capacity': 3.0, 'risk_services': 1.0, 'energy': 7.0}, 6),
+    ('reinsurance', 'Перестраховочная платформа', 'insurance_services', 18.0, {'risk_services': 2.0, 'custody_services': 1.0, 'energy': 7.0}, 6),
+    ('open_banking', 'Платформа открытого банкинга', 'payment_services', 90.0, {'cloud_compute': 1.0, 'security_services': 1.0, 'energy': 8.0}, 7),
+    ('climate_finance', 'Фонд энергетической модернизации', 'investment_services', 28.0, {'grid_services': 2.0, 'risk_services': 1.0, 'energy': 8.0}, 7),
+    ('industrial_bonds', 'Центр промышленных облигаций', 'investment_services', 30.0, {'industrial_modules': 0.5, 'custody_services': 2.0, 'energy': 8.0}, 7),
+    ('international_clearing', 'Международный расчётный центр', 'settlement_services', 30.0, {'quantum_services': 0.25, 'security_services': 2.0, 'payment_services': 10.0, 'energy': 10.0}, 8),
+    ('orbital_finance', 'Фонд гражданской орбитальной экономики', 'investment_services', 45.0, {'orbital_logistics': 0.25, 'insurance_services': 2.0, 'energy': 10.0}, 8),
+    ('systemic_risk', 'Институт системного финансового риска', 'risk_services', 30.0, {'quantum_services': 0.25, 'engineering_services': 1.0, 'energy': 10.0}, 8),
+]

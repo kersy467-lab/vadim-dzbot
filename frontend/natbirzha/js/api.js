@@ -10,7 +10,7 @@ import {
   getTelegramUserId,
   getAuthHeader,
 } from './auth.js';
-import { createNextGameAPI } from './next_game_api.js?v=20261010_competition_v1';
+import { createNextGameAPI } from './next_game_api.js?v=20261010_shell_v2';
 
 // App navigation owns this signal. A request started for a screen that the
 // player has already left must not keep the old screen alive.

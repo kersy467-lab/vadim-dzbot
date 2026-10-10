@@ -1,0 +1,25 @@
+"""Authored production facilities for the materials corporation."""
+
+NODES = [
+    ('rolling_mill', 'Прокатный стан', 'rolled_metal', 9.0, {'steel': 4.0, 'energy': 6.0}, 2),
+    ('steel_frames', 'Цех металлоконструкций', 'metal_structures', 7.0, {'rolled_metal': 3.0, 'energy': 5.0}, 2),
+    ('brick_kiln', 'Кирпичный завод', 'brick', 30.0, {'minerals': 10.0, 'energy': 6.0}, 2),
+    ('concrete_mix', 'Бетонный узел', 'concrete', 18.0, {'cement': 6.0, 'minerals': 4.0, 'water': 8.0, 'energy': 4.0}, 3),
+    ('nickel_smelter', 'Никелевый электролизный завод', 'nickel_metal', 9.0, {'nickel_concentrate': 5.0, 'energy': 10.0}, 3),
+    ('sawmill', 'Лесопильный комбинат', 'lumber', 20.0, {'wood_raw': 15.0, 'energy': 5.0}, 3),
+    ('pulp_plant', 'Целлюлозный комбинат', 'cellulose', 18.0, {'wood_raw': 10.0, 'basic_chem': 2.0, 'water': 8.0, 'energy': 8.0}, 4),
+    ('cardboard_press', 'Тарно-картонная фабрика', 'cardboard', 35.0, {'cellulose': 10.0, 'water': 4.0, 'energy': 6.0}, 4),
+    ('furniture_works', 'Мебельная фабрика', 'furniture', 10.0, {'lumber': 10.0, 'plastics': 1.0, 'energy': 6.0}, 4),
+    ('electrical_works', 'Электротехнический завод', 'electrical_equipment', 6.0, {'copper': 3.0, 'components': 2.0, 'steel': 2.0, 'energy': 8.0}, 5),
+    ('auto_parts', 'Завод автомобильных узлов', 'auto_components', 8.0, {'rolled_metal': 4.0, 'components': 2.0, 'energy': 9.0}, 5),
+    ('alloy_forge', 'Кузница специальных сплавов', 'advanced_alloy', 6.0, {'steel': 2.0, 'nickel_metal': 2.0, 'cobalt_raw': 1.0, 'energy': 10.0}, 5),
+    ('titanium_forge', 'Вакуумная титановая печь', 'titanium_alloy', 5.0, {'minerals': 8.0, 'aluminum': 2.0, 'industrial_gases': 1.0, 'energy': 12.0}, 6),
+    ('prefab_plant', 'Комбинат сборных модулей', 'prefab_modules', 6.0, {'concrete': 6.0, 'metal_structures': 3.0, 'engineered_wood': 1.0, 'energy': 10.0}, 6),
+    ('industrial_module', 'Сборка технологических линий', 'industrial_modules', 4.0, {'machinery': 2.0, 'automation_systems': 1.0, 'precision_parts': 1.0, 'energy': 12.0}, 6),
+    ('battery_packs', 'Сборка накопительных батарей', 'battery_pack', 5.0, {'batteries': 3.0, 'electrolyte': 2.0, 'components': 1.0, 'energy': 10.0}, 7),
+    ('orbital_forge', 'Кузница орбитальных сплавов', 'orbital_alloy', 3.0, {'titanium_alloy': 2.0, 'advanced_alloy': 2.0, 'industrial_gases': 1.0, 'energy': 15.0}, 7),
+    ('recycling_works', 'Завод восстановления металлов', 'steel', 65.0, {'metal_structures': 10.0, 'energy': 18.0, 'water': 8.0}, 7),
+    ('megafactory_modules', 'Сборка модулей мегафабрик', 'industrial_modules', 8.0, {'robots': 2.0, 'machinery': 2.0, 'advanced_alloy': 1.0, 'energy': 15.0}, 8),
+    ('civil_airframes', 'Завод гражданских летательных систем', 'aerospace_system', 3.0, {'orbital_alloy': 1.0, 'advanced_composite': 2.0, 'electronics': 2.0, 'energy': 18.0}, 8),
+    ('orbital_habitat', 'Сборка орбитальных жилых модулей', 'habitat_module', 3.0, {'prefab_modules': 3.0, 'orbital_alloy': 1.0, 'life_support': 1.0, 'energy': 20.0}, 8),
+]

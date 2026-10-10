@@ -178,6 +178,11 @@ def test_next_game_endpoints_are_admin_only_and_save_a_separate_preview():
                 assert paid.json() == paid_replay.json()
                 assert paid.json()['paid_amount'] == 5_050
 
+                # Fund this banking/API fixture after construction and upgrades.
+                async with sessions() as session:
+                    company = await session.scalar(select(NatNextGameCompany).where(NatNextGameCompany.owner_tg_id == 990001))
+                    company.cash += 5000
+                    await session.commit()
                 deposit_body = {'amount': 1_000, 'term_days': 7}
                 deposit_headers = {'Idempotency-Key': 'next-game-bank-deposit-1'}
                 deposit = client.post(

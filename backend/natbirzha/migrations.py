@@ -15,6 +15,9 @@ from backend.natbirzha.next_game_deposit_migration import migrate_next_game_depo
 from backend.natbirzha.next_game_equity_migration import migrate_next_game_equity
 from backend.natbirzha.next_game_banking_migration import migrate_next_game_banking
 from backend.natbirzha.next_game_finance_migration import migrate_next_game_finance
+from backend.natbirzha.next_game_community_migration import migrate_next_game_community
+from backend.natbirzha.next_game_recovery_migration import migrate_next_game_recovery
+from backend.natbirzha.next_game_operations_migration import migrate_next_game_operations
 
 
 Migration = Callable[[object], Awaitable[None]]
@@ -971,6 +974,9 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v36_001_next_game_ipo_market", migrate_next_game_equity),
     ("natbirzha_v37_001_next_game_corporate_banking", migrate_next_game_banking),
     ("natbirzha_v38_001_next_game_direct_finance", migrate_next_game_finance),
+    ("natbirzha_v39_001_next_game_community", migrate_next_game_community),
+    ("natbirzha_v40_001_next_game_recovery", migrate_next_game_recovery),
+    ("natbirzha_v41_001_next_game_operations_civic", migrate_next_game_operations),
 )
 
 

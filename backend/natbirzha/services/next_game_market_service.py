@@ -20,6 +20,7 @@ from backend.natbirzha.services.next_game_service import (
     NextGameService,
 )
 from backend.natbirzha.services.next_game_market_read_service import NextGameMarketReadService
+from backend.natbirzha.services.next_game_advance_service import NextGameAdvanceService
 
 
 def _utcnow() -> datetime:
@@ -157,10 +158,14 @@ class NextGameMarketService:
         session.add(order)
         await session.flush()
         trades = await cls._match_order(session, order, current)
+        await NextGameAdvanceService.fund(session, company, order, now=current)
         await session.flush()
+        order_payload = (await NextGameAdvanceService.decorate_orders(
+            session, [NextGameMarketReadService.order_payload(order, company.name)],
+        ))[0]
         return {
             "success": True,
-            "order": NextGameMarketReadService.order_payload(order, company.name),
+            "order": order_payload,
             "executed_quantity": round(sum(row["quantity"] for row in trades), 4),
             "remaining_quantity": round(float(order.remaining_quantity), 4),
             "trades": trades,
@@ -203,13 +208,14 @@ class NextGameMarketService:
             seller_order = maker if incoming.side == "BUY" else incoming
             buyer = await session.get(NatNextGameCompany, buyer_order.company_id)
             seller = await session.get(NatNextGameCompany, seller_order.company_id)
-            if buyer is None or seller is None or buyer.id == seller.id:
+            if buyer is None or seller is None or buyer.owner_tg_id == seller.owner_tg_id:
                 continue
 
             inventory = await NextGameService._inventory_row(session, buyer.id, incoming.item_id)
             existing_quantity = float(inventory.quantity if inventory else 0.0)
             sell_escrow = await cls.reserved_sell_quantity(session, buyer.id, incoming.item_id)
-            capacity = max(0.0, MAX_INVENTORY_PER_ITEM - existing_quantity - sell_escrow)
+            from backend.natbirzha.services.next_game_operations_effects import warehouse_capacity
+            capacity = max(0.0, await warehouse_capacity(session, buyer.id) - existing_quantity - sell_escrow)
             fill = round(min(
                 float(incoming.remaining_quantity),
                 float(maker.remaining_quantity),
@@ -229,7 +235,8 @@ class NextGameMarketService:
                 next_reserve = 0.0
             released = max(0.0, _cash(old_reserve - next_reserve))
             buyer.cash = _cash(float(buyer.cash) + max(0.0, released - trade_value))
-            seller.cash = _cash(float(seller.cash) + trade_value)
+            repayment = await NextGameAdvanceService.repay_fill(session, seller_order, trade_value)
+            seller.cash = _cash(float(seller.cash) + trade_value - repayment)
             buyer_order.remaining_quantity = next_buyer_quantity
             buyer_order.reserved_cash = next_reserve
             seller_order.remaining_quantity = max(
@@ -276,6 +283,11 @@ class NextGameMarketService:
             raise ValueError("Открытая заявка не найдена")
         if order.status != "OPEN" or order.remaining_quantity <= 0:
             raise ValueError("Заявка уже закрыта")
+        funded = (await NextGameAdvanceService.decorate_orders(
+            session, [NextGameMarketReadService.order_payload(order, company.name)],
+        ))[0]
+        if funded["advance_locked"]:
+            raise ValueError("Казна профинансировала ордер: снять товар до погашения аванса нельзя")
         released_cash = 0.0
         released_quantity = 0.0
         if order.side == "BUY":

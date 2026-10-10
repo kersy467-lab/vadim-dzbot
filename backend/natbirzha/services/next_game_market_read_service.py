@@ -13,6 +13,7 @@ from backend.natbirzha.models.next_game import (
 )
 from backend.natbirzha.next_game_catalog import get_next_game_items
 from backend.natbirzha.services.next_game_service import NextGameService
+from backend.natbirzha.services.next_game_advance_service import NextGameAdvanceService
 
 
 class NextGameMarketReadService:
@@ -89,7 +90,7 @@ class NextGameMarketReadService:
             -row["limit_price"] if row["side"] == "BUY" else row["limit_price"],
             row["id"],
         ))
-        return payloads
+        return await NextGameAdvanceService.decorate_orders(session, payloads)
 
     @classmethod
     async def trade_history(

@@ -1,0 +1,42 @@
+/* Only 2.0 market surfaces override legacy utility palette rules. */
+#screen-container .next-game-screen .market-contrast-surface { color: var(--ng-ink); background: var(--ng-canvas); max-width: 100%; }
+#screen-container .next-game-screen .market-contrast-surface .glass-card,
+#screen-container .next-game-screen .market-commodity-row,
+#screen-container .next-game-screen .market-liquidity-row { color: var(--ng-ink) !important; background: var(--ng-surface) !important; border-color: var(--ng-border) !important; }
+#screen-container .next-game-screen .market-contrast-surface [class*="text-slate-"],
+#screen-container .next-game-screen .market-contrast-surface [class*="text-gray-"],
+#screen-container .next-game-screen .next-market-tile small { color: var(--ng-muted) !important; }
+#screen-container .next-game-screen .market-contrast-surface [class*="text-pink-"],
+#screen-container .next-game-screen .market-contrast-surface [class*="text-blue-"],
+#screen-container .next-game-screen .market-back { color: var(--ng-accent) !important; }
+#screen-container .next-game-screen .market-contrast-surface [class*="text-emerald-"],
+#screen-container .next-game-screen .next-market .depth-bid { color: var(--ng-success) !important; }
+#screen-container .next-game-screen .market-contrast-surface [class*="text-rose-"],
+#screen-container .next-game-screen .next-market .depth-ask { color: var(--ng-error) !important; }
+#screen-container .next-game-screen .market-contrast-surface [class*="text-amber-"] { color: var(--ng-highlight) !important; }
+#screen-container .next-game-screen .commodity-category-tab { color: var(--ng-muted) !important; background: var(--ng-surface) !important; }
+#screen-container .next-game-screen .commodity-category-tab[aria-selected="true"] { color: var(--ng-on-accent) !important; background: var(--ng-accent) !important; }
+.next-market-sections { display: grid; gap: 12px; }
+.next-market-tile { display: flex; width: 100%; align-items: center; gap: 14px; }
+.next-market-tile > span:nth-child(2) { flex: 1; min-width: 0; }
+.next-market-tile b { display: block; font-size: 15px; }
+.next-market-tile small { display: block; margin-top: 4px; font-size: 11px; }
+.next-market-tile-icon { color: var(--ng-accent); flex-shrink: 0; }
+.next-market-quote { padding: 10px; border-radius: 12px; display: grid; gap: 5px; font-size: 10px; }
+.next-market-quote b { font-size: 15px; }
+#screen-container .next-game-screen .next-market-quote-sell { background: var(--ng-success-bg) !important; color: var(--ng-success) !important; }
+#screen-container .next-game-screen .next-market-quote-buy { background: var(--ng-error-bg) !important; color: var(--ng-error) !important; }
+.next-market-input { display: block; width: 100%; margin-top: 5px; padding: 9px 12px; border: 1px solid var(--ng-border); border-radius: 10px; background: var(--ng-surface); color: var(--ng-ink); font-size: 12px; }
+.next-market-action { padding: 10px 12px; border-radius: 11px; font-size: 12px; font-weight: 700; }
+#screen-container .next-game-screen .next-market-action { color: var(--ng-on-accent) !important; background: var(--ng-accent) !important; }
+#screen-container .next-game-screen .next-market-sell { color: var(--ng-ink) !important; background: var(--ng-success-bg) !important; border: 1px solid var(--ng-success); }
+.next-market-side { padding: 10px; border: 1px solid var(--ng-border); border-radius: 11px; font-size: 12px; }
+.next-market-own-order { display: flex; justify-content: space-between; align-items: center; padding: 9px; border-radius: 10px; font-size: 11px; gap: 8px; }
+#screen-container .next-game-screen .next-market-own-order { background: var(--ng-soft) !important; color: var(--ng-ink) !important; }
+.next-market button:disabled { opacity: .5; cursor: wait; }
+.next-market-advance { padding: 10px; border-radius: 10px; }
+#screen-container .next-game-screen .next-market-advance { color: var(--ng-highlight) !important; background: var(--ng-soft) !important; }
+#screen-container .next-game-screen .next-market-advance p { color: var(--ng-highlight) !important; margin-top: 5px; font-size: 10px; }
+.next-market-advance summary { cursor: pointer; margin-top: 6px; font-size: 10px; }
+#screen-container .next-game-screen .next-market .market-chart-price,
+#screen-container .next-game-screen .next-market .market-chart-label { fill: var(--ng-muted); }

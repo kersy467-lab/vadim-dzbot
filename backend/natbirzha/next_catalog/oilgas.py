@@ -1,0 +1,25 @@
+"""Authored production facilities for the oilgas corporation."""
+
+NODES = [
+    ('gasoline_unit', 'Бензиновая ректификационная колонна', 'gasoline', 12.0, {'oil_crude': 5.0, 'energy': 5.0}, 2),
+    ('jet_distillery', 'Установка авиационного керосина', 'jet_fuel', 10.0, {'oil_crude': 5.0, 'energy': 6.0}, 2),
+    ('acid_plant', 'Завод основных реагентов', 'basic_chem', 14.0, {'gas_natural': 4.0, 'water': 5.0, 'energy': 6.0}, 2),
+    ('lubricant_plant', 'Завод промышленных масел', 'lubricants', 8.0, {'oil_crude': 6.0, 'basic_chem': 1.0, 'energy': 6.0}, 3),
+    ('catalyst_plant', 'Катализаторная фабрика', 'catalyst', 6.0, {'rare_earths': 2.0, 'nickel_concentrate': 1.0, 'basic_chem': 2.0, 'energy': 8.0}, 3),
+    ('electrolyte_plant', 'Электролитный цех', 'electrolyte', 12.0, {'basic_chem': 4.0, 'ultrapure_water': 3.0, 'energy': 7.0}, 3),
+    ('wine_cellar', 'Винодельческий комбинат', 'wine', 10.0, {'grapes': 12.0, 'sugar_raw': 2.0, 'clean_water': 3.0, 'energy': 5.0}, 4),
+    ('bio_reagents', 'Биореакторный комплекс', 'bioreagent', 8.0, {'bio_raw': 8.0, 'basic_chem': 3.0, 'ultrapure_water': 4.0, 'energy': 8.0}, 4),
+    ('composite_resin', 'Фабрика композитных связующих', 'composite', 12.0, {'plastics': 4.0, 'cellulose': 3.0, 'basic_chem': 2.0, 'energy': 8.0}, 4),
+    ('spirits_cellar', 'Коньячный дом выдержки', 'aged_spirits', 8.0, {'wine': 6.0, 'wood_raw': 2.0, 'energy': 5.0}, 5),
+    ('polymer_fiber', 'Завод полимерных волокон', 'polymer_fiber', 12.0, {'plastics': 5.0, 'catalyst': 1.0, 'energy': 8.0}, 5),
+    ('medical_polymers', 'Цех медицинских полимеров', 'medical_polymer', 8.0, {'plastics': 3.0, 'bioreagent': 1.0, 'ultrapure_water': 5.0, 'energy': 9.0}, 5),
+    ('hydrogenation', 'Комплекс гидрогенизации', 'synthetic_fuel', 10.0, {'oil_crude': 5.0, 'green_hydrogen': 2.0, 'catalyst': 1.0, 'energy': 12.0}, 6),
+    ('cryogenic_unit', 'Криогенный топливный завод', 'cryogenic_fuel', 4.0, {'green_hydrogen': 3.0, 'industrial_gases': 2.0, 'energy': 15.0}, 6),
+    ('advanced_resin', 'Сверхпрочные композиты', 'advanced_composite', 6.0, {'polymer_fiber': 3.0, 'composite': 2.0, 'catalyst': 1.0, 'energy': 10.0}, 6),
+    ('biopharma', 'Биофармацевтический комбинат', 'pharmaceuticals', 8.0, {'bioreagent': 4.0, 'medical_polymer': 1.0, 'ultrapure_water': 10.0, 'energy': 12.0}, 7),
+    ('carbon_recycling', 'Переработка углеродного сырья', 'carbon_material', 8.0, {'coal': 4.0, 'basic_chem': 3.0, 'energy': 15.0}, 7),
+    ('precision_catalysis', 'Лаборатория селективного катализа', 'catalyst', 15.0, {'gallium_raw': 2.0, 'rare_earths': 2.0, 'ai_compute': 2.0, 'energy': 12.0}, 7),
+    ('orbital_propellant', 'Комплекс орбитального топлива', 'cryogenic_fuel', 8.0, {'green_hydrogen': 6.0, 'lng': 4.0, 'catalyst': 2.0, 'energy': 20.0}, 8),
+    ('biomedical_exports', 'Фабрика диагностических наборов', 'diagnostics', 6.0, {'bioreagent': 3.0, 'sensors': 1.0, 'medical_polymer': 2.0, 'energy': 12.0}, 8),
+    ('closed_chemistry', 'Замкнутый химический комбинат', 'basic_chem', 100.0, {'industrial_gases': 3.0, 'water': 20.0, 'catalyst': 2.0, 'energy': 25.0}, 8),
+]

@@ -38,7 +38,7 @@ textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
   outline-offset: 2px;
 }
 
-header {
+body > header {
   background: rgba(255, 254, 250, .96) !important;
   border-color: var(--lux-border) !important;
   box-shadow: 0 3px 14px rgba(37, 59, 46, .045);

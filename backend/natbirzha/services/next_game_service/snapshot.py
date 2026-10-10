@@ -1,11 +1,12 @@
 """Read-only snapshots for the isolated NATBIRZHA 2.0 game."""
 from datetime import datetime
 from typing import Any
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.natbirzha.models.next_game import (
     NatNextGameCompany, NatNextGameFacility, NatNextGameInventory,
     NatNextGameLedger, NatNextGameLoan, NatNextGameDeposit,
+    NatNextGameMarketOrder,
 )
 from backend.natbirzha.next_game_catalog import (
     find_next_game_branch, get_next_game_catalog, get_next_game_items,
@@ -34,7 +35,8 @@ class NextGameSnapshotMixin:
 
     @classmethod
     async def snapshot(
-        cls, session: AsyncSession, owner_tg_id: int, *, now: datetime | None = None
+        cls, session: AsyncSession, owner_tg_id: int, *, now: datetime | None = None,
+        section: str = "full",
     ) -> dict[str, Any]:
         await cls._lock_treasury_for_sqlite(session)
         company = await session.scalar(
@@ -63,20 +65,51 @@ class NextGameSnapshotMixin:
         )).all())
         facility_rows = []
         current = now or _utcnow()
+        from backend.natbirzha.services.next_game_progression_service import NextGameProgressionService
+        from backend.natbirzha.services.next_game_operations_effects import (
+            factory_recipe, warehouse_capacity, production_slots, used_production_slots,
+        )
+        from backend.natbirzha.services.next_game_civic_accounting import event_multiplier
+        bonus = await NextGameProgressionService.production_bonus(session, company)
+        bonus *= await event_multiplier(session, company, now=current)
+        warehouse_limit = await warehouse_capacity(session, company.id)
+        own = {row.item_id: float(row.quantity) for row in inventory_rows}
+        reserved = dict((await session.execute(select(NatNextGameMarketOrder.item_id,
+            func.sum(NatNextGameMarketOrder.remaining_quantity)).where(
+                NatNextGameMarketOrder.company_id == company.id,
+                NatNextGameMarketOrder.side == "SELL", NatNextGameMarketOrder.status == "OPEN")
+            .group_by(NatNextGameMarketOrder.item_id))).all())
+        from backend.natbirzha.models.next_game_progression import NatNextGameMerger
+        mergers = (await session.scalars(select(NatNextGameMerger).where(
+            NatNextGameMerger.company_id == company.id, NatNextGameMerger.status == "ACTIVE"))).all()
+        consumed_branch_ids = sorted({source["branch_id"] for merger in mergers for source in merger.sources_json})
+        merger_recipes = {merger.branch_id: merger.recipe_json for merger in mergers}
         market_ids: set[str] = set()
         for facility in facilities:
             branch = find_next_game_branch(facility.branch_id)
             if not branch:
                 continue
-            recipe = facility_recipe_at_level(branch["factory"], facility.level)
-            blocked_reason = await cls._cycle_block_reason(session, company, recipe)
+            base_recipe = {**branch["factory"], **merger_recipes.get(facility.branch_id, {})}
+            recipe = facility_recipe_at_level(base_recipe, facility.level)
+            recipe["output_quantity"] = round(recipe["output_quantity"] * bonus, 4)
+            recipe = await factory_recipe(session, company, facility, recipe, now=current)
+            blocked_reason = None
+            if company.cash < recipe["operating_cost"]:
+                blocked_reason = "Недостаточно cash на расходы цикла"
+            for item_id, needed in recipe["inputs"].items():
+                if own.get(item_id, 0) + 1e-9 < needed:
+                    blocked_reason = f"{items[item_id]['name']}: не хватает {needed - own.get(item_id, 0):g} {items[item_id]['unit']}"
+                    break
+            output_id = recipe["output_item"]
+            if own.get(output_id, 0) + reserved.get(output_id, 0) + recipe["output_quantity"] > warehouse_limit:
+                blocked_reason = "Склад заполнен; продайте готовый товар"
             market_ids.add(recipe["output_item"])
             market_ids.update(recipe["inputs"])
             facility_rows.append({
                 "id": facility.id, "branch_id": facility.branch_id,
                 "name": recipe["facility_name"], "level": facility.level,
                 "next_cycle_at": facility.next_cycle_at.isoformat(), "recipe": recipe,
-                "output_multiplier": facility_output_multiplier(facility.level),
+                "output_multiplier": facility_output_multiplier(facility.level) * bonus,
                 "upgrade_cost": (
                     facility_upgrade_cost(facility.level)
                     if int(facility.level) < MAX_FACILITY_LEVEL else None
@@ -95,7 +128,6 @@ class NextGameSnapshotMixin:
             if branch:
                 market_ids.add(branch["factory"]["output_item"])
                 market_ids.update(branch["factory"]["inputs"])
-        own = {row.item_id: float(row.quantity) for row in inventory_rows}
         reserve = dict(treasury.inventory_json or {})
         market = []
         for item_id in sorted(market_ids):
@@ -129,42 +161,53 @@ class NextGameSnapshotMixin:
                 NatNextGameLoan.company_id == company.id,
                 NatNextGameLoan.status == "ACTIVE",
             ).order_by(NatNextGameLoan.id.desc()).with_for_update()
-        )
+        ) if section in {"full", "bank"} else None
         loan_payload = cls._loan_snapshot(active_loan, current) if active_loan else None
         active_deposits = list((await session.scalars(
             select(NatNextGameDeposit).where(NatNextGameDeposit.company_id == company.id)
             .where(NatNextGameDeposit.status == "ACTIVE")
             .order_by(NatNextGameDeposit.matures_at, NatNextGameDeposit.id)
-        )).all())
+        )).all()) if section in {"full", "bank"} else []
         closed_deposits = list((await session.scalars(
             select(NatNextGameDeposit).where(
                 NatNextGameDeposit.company_id == company.id,
                 NatNextGameDeposit.status != "ACTIVE",
             ).order_by(NatNextGameDeposit.id.desc()).limit(12)
-        )).all())
+        )).all()) if section in {"full", "bank"} else []
         deposit_rows = [
             cls._deposit_snapshot(row, current)
             for row in [*active_deposits, *closed_deposits]
         ]
         reserved_deposits = await cls._deposit_liability(session)
-        available_treasury_cash = max(0.0, round(float(treasury.cash) - reserved_deposits, 2))
+        available_treasury_cash = await cls._available_treasury_cash(session, treasury)
         from backend.natbirzha.services.next_game_market_service import NextGameMarketService
 
         order_book = await NextGameMarketService.market_snapshot(
             session, company_id=company.id, item_ids=market_ids,
-        )
+        ) if section in {"full", "market"} else {}
         from backend.natbirzha.services.next_game_equity_service import NextGameEquityService
         from backend.natbirzha.services.next_game_banking_service import NextGameBankingService
 
-        equity = await NextGameEquityService.snapshot(session, company)
-        banking = await NextGameBankingService.snapshot(session, company)
+        equity = await NextGameEquityService.snapshot(session, company) if section in {"full", "capital"} else {}
+        banking = await NextGameBankingService.snapshot(session, company) if section in {"full", "bank"} else {}
         from backend.natbirzha.services.next_game_finance_service import NextGameFinanceContractService
 
-        banking["direct_finance"] = await NextGameFinanceContractService.snapshot(session, company)
+        if section in {"full", "bank"}:
+            banking["direct_finance"] = await NextGameFinanceContractService.snapshot(session, company)
+        from backend.natbirzha.services.next_game_community_service import profile
+        settings = await profile(session, company.id)
+        from backend.natbirzha.services.next_game_production_summary import production_summary
         return {
             "company": cls.snapshot_company(company),
+            "settings": {"auto_upgrade": settings.auto_upgrade, "rebirths": settings.rebirths,
+                         "pvc_balance": settings.pvc_balance, "pvc_level": settings.pvc_level},
             "corporations": get_next_game_catalog(),
             "facilities": facility_rows,
+            "consumed_branch_ids": consumed_branch_ids,
+            "capacity": {"warehouse_capacity": warehouse_limit,
+                         "production_slots": await production_slots(session, company.id),
+                         "used_slots": await used_production_slots(session, company.id)},
+            "production": production_summary(company, facility_rows, own),
             "inventory": inventory,
             "market": market,
             "market_orders": order_book,

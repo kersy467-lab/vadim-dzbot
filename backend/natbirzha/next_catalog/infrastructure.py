@@ -1,0 +1,25 @@
+"""Authored production facilities for the infrastructure corporation."""
+
+NODES = [
+    ('urban_water', 'Городская водопроводная сеть', 'clean_water', 100.0, {'water': 60.0, 'energy': 6.0}, 2),
+    ('cold_storage', 'Холодильный распределительный центр', 'cold_capacity', 12.0, {'energy': 10.0, 'logistics_capacity': 2.0}, 2),
+    ('road_freight', 'Автотранспортный терминал', 'logistics_capacity', 18.0, {'fuel_diesel': 4.0, 'energy': 3.0}, 2),
+    ('urban_builder', 'Домостроительный комбинат', 'construction_capacity', 20.0, {'brick': 10.0, 'concrete': 5.0, 'energy': 6.0}, 3),
+    ('rail_terminal', 'Железнодорожный грузовой двор', 'rail_capacity', 12.0, {'fuel_diesel': 3.0, 'steel': 1.0, 'energy': 5.0}, 3),
+    ('port_terminal', 'Морской контейнерный терминал', 'port_capacity', 12.0, {'fuel_diesel': 4.0, 'machinery': 1.0, 'energy': 5.0}, 3),
+    ('fresh_market', 'Тепличный распределительный комплекс', 'fresh_food', 15.0, {'grain': 5.0, 'fertilizer': 2.0, 'clean_water': 6.0, 'cold_capacity': 1.0, 'energy': 7.0}, 4),
+    ('dairy_processor', 'Молокоперерабатывающий комбинат', 'dairy_goods', 12.0, {'milk': 15.0, 'clean_water': 3.0, 'cold_capacity': 1.0, 'energy': 6.0}, 4),
+    ('factory_builder', 'Монтажный трест промышленных линий', 'construction_capacity', 35.0, {'industrial_modules': 1.0, 'concrete': 6.0, 'energy': 8.0}, 4),
+    ('container_hub', 'Международный контейнерный хаб', 'logistics_capacity', 45.0, {'port_capacity': 2.0, 'rail_capacity': 2.0, 'ai_compute': 1.0, 'energy': 8.0}, 5),
+    ('airport_cargo', 'Аэропортовый грузовой комплекс', 'air_capacity', 10.0, {'jet_fuel': 4.0, 'cold_capacity': 1.0, 'energy': 8.0}, 5),
+    ('robot_warehouse', 'Роботизированный склад', 'warehouse_services', 12.0, {'robots': 1.0, 'ai_compute': 1.0, 'energy': 8.0}, 5),
+    ('highspeed_rail', 'Скоростной грузовой коридор', 'rail_capacity', 25.0, {'electrical_equipment': 1.0, 'energy': 15.0, 'grid_quota': 10.0}, 6),
+    ('smart_city', 'Оператор городской инфраструктуры', 'urban_services', 12.0, {'construction_capacity': 3.0, 'sensors': 2.0, 'energy': 10.0}, 6),
+    ('water_reuse', 'Система оборотного водоснабжения', 'water', 1100.0, {'clean_water': 80.0, 'automation_systems': 1.0, 'energy': 15.0}, 6),
+    ('orbital_food', 'Фабрика длительных рационов', 'orbital_rations', 6.0, {'food': 8.0, 'dairy_goods': 2.0, 'bioreagent': 1.0, 'energy': 12.0}, 7),
+    ('life_support', 'Завод систем жизнеобеспечения', 'life_support', 4.0, {'ultrapure_water': 10.0, 'industrial_gases': 2.0, 'automation_systems': 1.0, 'energy': 10.0}, 7),
+    ('freight_exchange', 'Цифровая биржа грузопотоков', 'logistics_capacity', 70.0, {'cloud_compute': 1.0, 'payment_services': 5.0, 'energy': 10.0}, 7),
+    ('orbital_terminal', 'Гражданский орбитальный грузовой узел', 'orbital_logistics', 4.0, {'aerospace_system': 1.0, 'cryogenic_fuel': 2.0, 'air_capacity': 1.0, 'energy': 20.0}, 8),
+    ('national_corridor', 'Национальный транспортный коридор', 'logistics_capacity', 100.0, {'rail_capacity': 4.0, 'port_capacity': 4.0, 'credit_services': 2.0, 'energy': 15.0}, 8),
+    ('habitat_operator', 'Оператор автономных поселений', 'urban_services', 45.0, {'habitat_module': 1.0, 'life_support': 1.0, 'orbital_rations': 2.0, 'energy': 15.0}, 8),
+]

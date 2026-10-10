@@ -1,0 +1,25 @@
+"""Authored production facilities for the resources corporation."""
+
+NODES = [
+    ('coal_pit', 'Угольный разрез', 'coal', 14.0, {'energy': 3.0, 'water': 2.0}, 2),
+    ('copper_pit', 'Медный карьер', 'copper_ore', 10.0, {'energy': 4.0, 'water': 2.0}, 2),
+    ('water_intake', 'Речной водозабор', 'water', 100.0, {'energy': 2.0}, 2),
+    ('bauxite_pit', 'Бокситовый карьер', 'bauxite', 12.0, {'energy': 5.0, 'water': 3.0}, 3),
+    ('flux_quarry', 'Карьер флюсов', 'minerals', 22.0, {'energy': 4.0}, 3),
+    ('lithium_brine', 'Литиевые соляные поля', 'lithium_raw', 7.0, {'water': 6.0, 'energy': 4.0}, 3),
+    ('nickel_mine', 'Никелевый рудник', 'nickel_concentrate', 7.0, {'energy': 6.0, 'water': 4.0}, 4),
+    ('cobalt_mine', 'Кобальтовый рудник', 'cobalt_raw', 4.0, {'energy': 7.0, 'water': 4.0}, 4),
+    ('uranium_mine', 'Урановый рудник', 'uranium_raw', 4.0, {'energy': 8.0, 'clean_water': 3.0}, 4),
+    ('sugar_fields', 'Свекловичный агрокомплекс', 'sugar_raw', 20.0, {'fertilizer': 2.0, 'water': 8.0, 'energy': 3.0}, 5),
+    ('grain_mill', 'Мукомольный комбинат', 'flour', 24.0, {'grain': 12.0, 'energy': 3.0}, 5),
+    ('feed_mill', 'Комбикормовый комбинат', 'feed', 25.0, {'grain': 10.0, 'bio_raw': 2.0, 'energy': 3.0}, 5),
+    ('biomass_farm', 'Плантация технических культур', 'bio_raw', 35.0, {'fertilizer': 2.0, 'water': 10.0, 'energy': 3.0}, 6),
+    ('hop_farm', 'Хмелеводческий комплекс', 'hops', 12.0, {'fertilizer': 2.0, 'clean_water': 5.0, 'energy': 3.0}, 6),
+    ('dairy_farm', 'Молочная ферма', 'milk', 40.0, {'feed': 8.0, 'water': 10.0, 'energy': 4.0}, 6),
+    ('vineyards', 'Виноградные террасы', 'grapes', 18.0, {'fertilizer': 2.0, 'water': 8.0, 'energy': 4.0}, 7),
+    ('silver_mine', 'Серебряный рудник', 'silver_ore', 8.0, {'energy': 12.0, 'water': 6.0, 'machinery': 1.0}, 7),
+    ('gold_mine', 'Золотодобывающая артель', 'gold_ore', 5.0, {'energy': 12.0, 'water': 8.0, 'machinery': 1.0}, 7),
+    ('gallium_recovery', 'Галлиевый экстракционный цех', 'gallium_raw', 8.0, {'bauxite': 6.0, 'basic_chem': 2.0, 'energy': 10.0}, 8),
+    ('diamond_mine', 'Алмазная обогатительная фабрика', 'diamonds', 6.0, {'energy': 15.0, 'water': 10.0, 'machinery': 2.0}, 8),
+    ('seed_lab', 'Селекционная лаборатория', 'agrotech_seed', 5.0, {'bioreagent': 2.0, 'fertilizer': 3.0, 'ai_compute': 1.0}, 8),
+]

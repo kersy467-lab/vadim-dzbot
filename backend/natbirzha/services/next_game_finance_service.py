@@ -51,7 +51,7 @@ class NextGameFinanceContractService:
         borrower = await session.scalar(select(NatNextGameCompany).where(
             NatNextGameCompany.id == int(borrower_company_id),
         ).with_for_update())
-        if borrower is None:
+        if borrower is None or borrower.owner_tg_id <= 0:
             raise ValueError("Компания-заёмщик не найдена")
         if lender.id == borrower.id:
             raise ValueError("Нельзя выдать займ собственной компании")
@@ -84,7 +84,7 @@ class NextGameFinanceContractService:
             offer_key=key,
             offered_at=current,
         )
-        lender.cash = round(float(lender.cash) - amount, 2)
+        lender.cash = round(float(lender.cash) - amount, 8)
         session.add(contract)
         await session.flush()
         session.add(NextGameService._ledger(
@@ -132,7 +132,7 @@ class NextGameFinanceContractService:
             raise ValueError("Сначала погасите активный займ")
 
         current = now or _utcnow()
-        borrower.cash = round(float(borrower.cash) + float(contract.principal), 2)
+        borrower.cash = round(float(borrower.cash) + float(contract.principal), 8)
         contract.status = "ACTIVE"
         contract.accept_key = key
         contract.accepted_at = current
@@ -169,7 +169,7 @@ class NextGameFinanceContractService:
         if contract.status != "OPEN":
             raise ValueError("Можно отменить только ещё не принятое предложение")
         principal = round(float(contract.principal), 2)
-        lender.cash = round(float(lender.cash) + principal, 2)
+        lender.cash = round(float(lender.cash) + principal, 8)
         contract.status = "CANCELLED"
         contract.cancel_key = key
         session.add(NextGameService._ledger(
@@ -221,8 +221,8 @@ class NextGameFinanceContractService:
         paid_amount = round(float(contract.principal) * (1 + daily_rate * accrued), 2)
         if float(borrower.cash) + 1e-9 < paid_amount:
             raise ValueError("Недостаточно cash для погашения займа")
-        borrower.cash = round(float(borrower.cash) - paid_amount, 2)
-        lender.cash = round(float(lender.cash) + paid_amount, 2)
+        borrower.cash = round(float(borrower.cash) - paid_amount, 8)
+        lender.cash = round(float(lender.cash) + paid_amount, 8)
         contract.status = "PAID"
         contract.repayment_key = key
         contract.repaid_at = current
@@ -248,6 +248,12 @@ class NextGameFinanceContractService:
             (NatNextGameFinanceContract.status.in_(("OPEN", "ACTIVE")), 0), else_=1,
         ), NatNextGameFinanceContract.offered_at.desc(),
                    NatNextGameFinanceContract.id.desc()).limit(24))).all())
+        from backend.natbirzha.models.next_game_bankruptcy import NatNextGameDebtWriteoff
+        writeoffs = dict((await session.execute(select(NatNextGameDebtWriteoff.obligation_id,
+            NatNextGameDebtWriteoff.amount).where(NatNextGameDebtWriteoff.kind == "DIRECT_LOAN",
+            NatNextGameDebtWriteoff.obligation_id.in_([row.id for row in rows])))).all())
+        for row in rows:
+            row._writeoff_amount = writeoffs.get(row.id)
         related_ids = {row.lender_company_id for row in rows} | {row.borrower_company_id for row in rows}
         companies = list((await session.scalars(select(NatNextGameCompany).where(
             NatNextGameCompany.id.in_(related_ids or {company.id}),
@@ -271,8 +277,11 @@ class NextGameFinanceContractService:
     def _payload(cls, contract, lender, borrower, *, now: datetime | None = None) -> dict[str, Any]:
         current = now or _utcnow()
         daily_rate = int(contract.daily_rate_bps) / 10_000
-        if contract.status == "PAID":
-            due_amount = round(float(contract.repaid_amount or contract.maturity_amount), 2)
+        written_off = getattr(contract, "_writeoff_amount", None) is not None
+        if written_off:
+            due_amount = 0.0
+        elif contract.status == "PAID":
+            due_amount = round(float(contract.repaid_amount if contract.repaid_amount is not None else contract.maturity_amount), 2)
         elif contract.status == "ACTIVE" and contract.accepted_at is not None:
             elapsed = max(1, int((current - contract.accepted_at).total_seconds() // 86_400))
             due_amount = round(float(contract.principal) * (
@@ -280,7 +289,7 @@ class NextGameFinanceContractService:
             ), 2)
         else:
             due_amount = round(float(contract.maturity_amount), 2)
-        status = contract.status
+        status = "WRITTEN_OFF" if written_off else contract.status
         if status == "ACTIVE" and contract.due_at and current > contract.due_at:
             status = "OVERDUE"
         return {"contract": {
@@ -295,6 +304,8 @@ class NextGameFinanceContractService:
             "term_days": int(contract.term_days),
             "maturity_amount": round(float(contract.maturity_amount), 2),
             "due_amount": due_amount,
+            "paid_amount": float(contract.repaid_amount or 0),
+            "written_off_amount": float(getattr(contract, "_writeoff_amount", None) or 0),
             "status": status,
             "offered_at": contract.offered_at.isoformat(),
             "accepted_at": contract.accepted_at.isoformat() if contract.accepted_at else None,

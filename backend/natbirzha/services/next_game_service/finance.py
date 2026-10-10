@@ -43,38 +43,49 @@ class NextGameFinanceMixin:
         stock = dict(treasury.inventory_json or {})
         base = float(items[item_id]["base_price"])
         unit_price = round(base * (BUY_MARKUP if normalized_side == "BUY" else SELL_MARKDOWN), 2)
-        total = round(amount * unit_price, 2)
-        if total < 0.01:
+        raw_total = amount * unit_price
+        if raw_total < 0.01:
             raise ValueError("Сумма сделки должна быть не меньше 0,01 cash")
+        total = round(raw_total, 8)
         inventory = await cls._inventory_row(session, company.id, item_id)
         if normalized_side == "BUY":
             available = float(stock.get(item_id, 0.0))
             if available + 1e-9 < amount:
-                raise ValueError("В резерве 2.0 недостаточно товара")
+                # NPC imports any missing stock. Cash still goes to the finite bank.
+                imported = round(amount - available, 4)
+                stock[item_id] = amount
+                available = amount
+                session.add(cls._ledger(company.id, "NPC_IMPORT", 0, 0,
+                    item_id=item_id, treasury_quantity=imported))
             own_quantity = float(inventory.quantity if inventory else 0.0)
             from backend.natbirzha.services.next_game_market_service import NextGameMarketService
 
             reserved_sell = await NextGameMarketService.reserved_sell_quantity(
                 session, company.id, item_id,
             )
-            if own_quantity + reserved_sell + amount > MAX_INVENTORY_PER_ITEM + 1e-9:
+            from backend.natbirzha.services.next_game_operations_effects import warehouse_capacity
+            if own_quantity + reserved_sell + amount > await warehouse_capacity(session, company.id) + 1e-9:
                 raise ValueError("На складе 2.0 нет места для такого количества")
             if float(company.cash) + 1e-9 < total:
                 raise ValueError("Недостаточно cash на покупку")
-            company.cash = round(float(company.cash) - total, 2)
-            treasury.cash = round(float(treasury.cash) + total, 2)
+            company.cash = round(float(company.cash) - total, 8)
+            treasury.cash = round(float(treasury.cash) + total, 8)
             stock[item_id] = round(available - amount, 4)
             await cls._change_inventory(session, company.id, item_id, amount, row=inventory)
             company_delta, treasury_delta = -total, total
             company_quantity, treasury_quantity = amount, -amount
         else:
+            from backend.natbirzha.services.next_game_npc_policy import remaining_buyback
+            remaining = await remaining_buyback(session, company.id, item_id, now=now)
+            if remaining is not None and total > remaining + 1e-9:
+                raise ValueError(f"Остаток выкупа воды/энергии за игровые сутки: {remaining:,.2f} cash")
             available = float(inventory.quantity if inventory else 0.0)
             if available + 1e-9 < amount:
                 raise ValueError("Недостаточно товара на складе 2.0")
             if await cls._available_treasury_cash(session, treasury) + 1e-9 < total:
                 raise ValueError("В казне 2.0 недостаточно свободных средств для скупки")
-            company.cash = round(float(company.cash) + total, 2)
-            treasury.cash = round(float(treasury.cash) - total, 2)
+            company.cash = round(float(company.cash) + total, 8)
+            treasury.cash = round(float(treasury.cash) - total, 8)
             stock[item_id] = round(float(stock.get(item_id, 0.0)) + amount, 4)
             await cls._change_inventory(session, company.id, item_id, -amount, row=inventory)
             company_delta, treasury_delta = total, -total
@@ -117,8 +128,8 @@ class NextGameFinanceMixin:
         if await cls._available_treasury_cash(session, treasury) + 1e-9 < value:
             raise ValueError("В банке 2.0 недостаточно свободных средств для такого кредита")
         current = now or _utcnow()
-        company.cash = round(float(company.cash) + value, 2)
-        treasury.cash = round(float(treasury.cash) - value, 2)
+        company.cash = round(float(company.cash) + value, 8)
+        treasury.cash = round(float(treasury.cash) - value, 8)
         loan = NatNextGameLoan(
             company_id=company.id, principal=value, status="ACTIVE",
             issued_at=current, due_at=current + timedelta(days=1),
@@ -153,8 +164,8 @@ class NextGameFinanceMixin:
         if float(company.cash) + 1e-9 < total:
             raise ValueError(f"Для погашения нужно {total:,.2f} cash с процентами за {days} дн.")
         treasury = await cls._treasury(session)
-        company.cash = round(float(company.cash) - total, 2)
-        treasury.cash = round(float(treasury.cash) + total, 2)
+        company.cash = round(float(company.cash) - total, 8)
+        treasury.cash = round(float(treasury.cash) + total, 8)
         loan.status = "PAID"
         loan.repaid_at = current
         session.add(cls._ledger(
@@ -216,8 +227,8 @@ class NextGameFinanceMixin:
             opened_at=current,
             matures_at=current + timedelta(days=days),
         )
-        company.cash = round(float(company.cash) - value, 2)
-        treasury.cash = round(float(treasury.cash) + value, 2)
+        company.cash = round(float(company.cash) - value, 8)
+        treasury.cash = round(float(treasury.cash) + value, 8)
         session.add(deposit)
         await session.flush()
         session.add(cls._ledger(
@@ -258,8 +269,8 @@ class NextGameFinanceMixin:
         if float(treasury.cash) + 1e-9 < payout:
             raise ValueError("В казне 2.0 пока недостаточно средств для выплаты вклада")
         interest = round(payout - float(deposit.principal), 2)
-        company.cash = round(float(company.cash) + payout, 2)
-        treasury.cash = round(float(treasury.cash) - payout, 2)
+        company.cash = round(float(company.cash) + payout, 8)
+        treasury.cash = round(float(treasury.cash) - payout, 8)
         deposit.status = "WITHDRAWN"
         deposit.withdrawn_at = current
         session.add(cls._ledger(

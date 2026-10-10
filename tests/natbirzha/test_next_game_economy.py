@@ -34,13 +34,11 @@ def test_every_branch_has_a_marketable_factory_recipe_and_frozen_item_price():
         recipe = branch['factory']
         assert recipe['build_cost'] > 0
         assert recipe['cycle_seconds'] >= 60
-        assert recipe['output_item'] in CANONICAL_ITEMS or recipe['output_item'] in {
-            'payment_services', 'credit_services', 'investment_services',
-        }
+        assert recipe['output_item'] in get_next_game_items()
         assert recipe['output_item'] in NEXT_GAME_BASE_PRICES or recipe['output_item'] in CUSTOM_ITEMS
         assert recipe['output_quantity'] > 0
-        assert all(item in CANONICAL_ITEMS for item in recipe['inputs'])
-        assert all(item in NEXT_GAME_BASE_PRICES for item in recipe['inputs'])
+        assert all(item in get_next_game_items() for item in recipe['inputs'])
+        assert all(item in NEXT_GAME_BASE_PRICES or item in CUSTOM_ITEMS for item in recipe['inputs'])
 
 
 def test_every_factory_covers_npc_inputs_and_cycle_costs():
@@ -91,15 +89,15 @@ def test_admin_game_builds_produces_and_trades_without_touching_legacy_economy()
             )
             assert blocked_snapshot['facilities'][0]['status'] == 'blocked'
             assert 'Электроэнергия' in blocked_snapshot['facilities'][0]['blocked_reason']
-            await NextGameService.trade(session, 551777, 'energy', 'BUY', 10)
-            await NextGameService.trade(session, 551777, 'water', 'BUY', 5)
+            await NextGameService.trade(session, 551777, 'energy', 'BUY', 10, now=now)
+            await NextGameService.trade(session, 551777, 'water', 'BUY', 5, now=now)
             produced = await NextGameService.settle_company(session, 551777, now=now + timedelta(minutes=5))
             assert produced['cycles_completed'] == 1
-            sold = await NextGameService.trade(session, 551777, 'iron_ore', 'SELL', 12)
+            sold = await NextGameService.trade(session, 551777, 'iron_ore', 'SELL', 12, now=now + timedelta(minutes=5))
             assert sold['success'] is True
             assert sold['cash_delta'] > 0
 
-            snapshot = await NextGameService.snapshot(session, 551777)
+            snapshot = await NextGameService.snapshot(session, 551777, now=now + timedelta(minutes=5))
             assert snapshot['recent_activity'][0]['action'] == 'SELL'
             assert snapshot['recent_activity'][0]['cash_change'] == sold['cash_delta']
             inventory = {item['item_id']: item['quantity'] for item in snapshot['inventory']}
@@ -121,7 +119,7 @@ def test_admin_game_builds_produces_and_trades_without_touching_legacy_economy()
             assert all(round(row.cash_company_delta + row.cash_treasury_delta, 2) == 0 for row in ledger)
             assert (legacy.cash, legacy.level) == old_state
             with pytest.raises(ValueError, match='Недостаточно'):
-                await NextGameService.trade(session, 551777, 'iron_ore', 'SELL', 1)
+                await NextGameService.trade(session, 551777, 'iron_ore', 'SELL', 1, now=now + timedelta(minutes=5))
 
         await engine.dispose()
 
@@ -319,18 +317,28 @@ def test_admin_map_commits_lazy_production_settlement(monkeypatch):
 
         session = Session()
 
-        async def snapshot(_session, owner_tg_id):
+        async def lock(_session):
+            assert _session is session
+
+        async def scalar(_query):
+            return None
+
+        session.scalar = scalar
+        monkeypatch.setattr(next_game_routes.NextGameMarketService, 'lock_orderbook', staticmethod(lock))
+
+        async def snapshot(_session, owner_tg_id, *, section):
             assert _session is session
             assert owner_tg_id == 123456
+            assert section == 'overview'
             return {'company': {'id': 1}}
 
         monkeypatch.setattr(
             next_game_routes.NextGameService, 'snapshot', staticmethod(snapshot)
         )
         result = await next_game_routes.get_map(
-            admin=SimpleNamespace(tg_id=123456), session=session
+            admin=SimpleNamespace(tg_id=123456), session=session, section='overview'
         )
-        assert result == {'company': {'id': 1}}
+        assert result == {'company': {'id': 1}, 'recovery': {'requires_ack': False, 'was_triggered': False}}
         assert session.committed is True
 
     asyncio.run(check())

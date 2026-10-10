@@ -20,6 +20,11 @@ class NextGameProductionMixin:
         company = await cls._owned_company(session, owner_tg_id)
         treasury = await cls._treasury(session)
         current = now or _utcnow()
+        from backend.natbirzha.services.next_game_progression_service import NextGameProgressionService
+        from backend.natbirzha.services.next_game_fusion_service import NextGameFusionService
+        from backend.natbirzha.services.next_game_operations_effects import factory_recipe, complete_cycle
+        from backend.natbirzha.services.next_game_civic_accounting import event_multiplier
+        bonus = await NextGameProgressionService.production_bonus(session, company)
         facilities = list((await session.scalars(
             select(NatNextGameFacility).where(NatNextGameFacility.company_id == company.id)
             .order_by(NatNextGameFacility.id).with_for_update()
@@ -30,14 +35,19 @@ class NextGameProductionMixin:
             branch = find_next_game_branch(facility.branch_id)
             if not branch:
                 continue
-            recipe = facility_recipe_at_level(branch["factory"], facility.level)
-            interval = int(recipe["cycle_seconds"])
+            base_recipe = await NextGameFusionService.facility_recipe(session, facility, branch["factory"])
+            level_recipe = facility_recipe_at_level(base_recipe, facility.level)
+            interval = int(level_recipe["cycle_seconds"])
             if current < facility.next_cycle_at:
                 continue
             due = min(MAX_CATCH_UP_CYCLES, 1 + floor(
                 (current - facility.next_cycle_at).total_seconds() / interval
             ))
             for _ in range(due):
+                event_bonus = await event_multiplier(session, company, now=facility.next_cycle_at)
+                cycle_recipe = {**level_recipe,
+                    "output_quantity": round(level_recipe["output_quantity"] * bonus * event_bonus, 4)}
+                recipe = await factory_recipe(session, company, facility, cycle_recipe, now=facility.next_cycle_at)
                 reason = await cls._cycle_block_reason(session, company, recipe)
                 if reason:
                     blocked.append({"facility_id": str(facility.id), "reason": reason})
@@ -50,8 +60,8 @@ class NextGameProductionMixin:
                         company_quantity=-float(quantity), metadata={"facility_id": facility.id},
                     ))
                 cost = float(recipe["operating_cost"])
-                company.cash = round(float(company.cash) - cost, 2)
-                treasury.cash = round(float(treasury.cash) + cost, 2)
+                company.cash = round(float(company.cash) - cost, 8)
+                treasury.cash = round(float(treasury.cash) + cost, 8)
                 session.add(cls._ledger(company.id, "OPERATING_COST", -cost, cost, metadata={"facility_id": facility.id}))
                 output_id = recipe["output_item"]
                 await cls._change_inventory(session, company.id, output_id, float(recipe["output_quantity"]))
@@ -60,9 +70,12 @@ class NextGameProductionMixin:
                     company_quantity=float(recipe["output_quantity"]), metadata={"facility_id": facility.id},
                 ))
                 completed += 1
+                await complete_cycle(session, facility)
                 company.xp = int(company.xp) + XP_PER_CYCLE
                 company.level = min(60, 1 + int(company.xp) // XP_PER_LEVEL)
                 facility.next_cycle_at += timedelta(seconds=interval)
+        from backend.natbirzha.services.next_game_auto_upgrade_service import auto_upgrade_company
+        await auto_upgrade_company(session, cls, company, current)
         await session.flush()
         return {"cycles_completed": completed, "blocked": blocked}
 
@@ -83,8 +96,9 @@ class NextGameProductionMixin:
         reserved_output = await NextGameMarketService.reserved_sell_quantity(
             session, company.id, recipe["output_item"],
         )
+        from backend.natbirzha.services.next_game_operations_effects import warehouse_capacity
         if (float(output.quantity if output else 0.0) + reserved_output
-                + float(recipe["output_quantity"]) > MAX_INVENTORY_PER_ITEM):
+                + float(recipe["output_quantity"]) > await warehouse_capacity(session, company.id)):
             return "Склад заполнен; продайте готовый товар"
         return None
 

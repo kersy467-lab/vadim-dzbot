@@ -17,6 +17,22 @@ from backend.natbirzha.models.next_game_banking import (
     NatNextGameBankAccount, NatNextGameBankPayment, NatNextGameCorporateLoan,
 )
 from backend.natbirzha.models.next_game_finance import NatNextGameFinanceContract
+from backend.natbirzha.models.next_game_advance import NatNextGameMarketAdvance
+from backend.natbirzha.models.next_game_partnerships import NatNextGameSupplyDeal, NatNextGameJointProject
+from backend.natbirzha.models.next_game_bonds import NatNextGameBondSeries, NatNextGameBondHolding, NatNextGameBondListing
+from backend.natbirzha.models.next_game_progression import NatNextGameMerger
+from backend.natbirzha.models.next_game_community import (
+    NatNextGameProfile, NatNextGameHelpRequest, NatNextGameTransfer, NatNextGameAdminAudit,
+)
+from backend.natbirzha.models.next_game_operations import (
+    NatNextGameOperations, NatNextGameFactoryOperations, NatNextGameEmployee, NatNextGameVehicle,
+)
+from backend.natbirzha.models.next_game_civic import (
+    NatNextGameTaxAccount, NatNextGameTaxAssessment, NatNextGameCityOrder, NatNextGameEconomicEvent,
+)
+from backend.natbirzha.models.next_game_bankruptcy import (
+    NatNextGameBankruptcy, NatNextGameLiquidationLot, NatNextGameDebtWriteoff,
+)
 from backend.natbirzha.models.bankruptcy_market import NatBankruptcyMarketLot
 from backend.natbirzha.models.inventory import (
     CANONICAL_ITEMS,
@@ -230,3 +246,8 @@ __all__.extend([
 ])
 
 __all__.append("NatNextGameFinanceContract")
+__all__.extend([
+    "NatNextGameOperations", "NatNextGameFactoryOperations", "NatNextGameEmployee", "NatNextGameVehicle",
+    "NatNextGameTaxAccount", "NatNextGameTaxAssessment", "NatNextGameCityOrder", "NatNextGameEconomicEvent",
+    "NatNextGameBankruptcy", "NatNextGameLiquidationLot", "NatNextGameDebtWriteoff",
+])

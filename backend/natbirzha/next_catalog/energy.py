@@ -1,0 +1,25 @@
+"""Authored production facilities for the energy corporation."""
+
+NODES = [
+    ('river_hydro', 'Русловая гидростанция', 'energy', 32.0, {'water': 6.0}, 2),
+    ('solar_farm', 'Солнечная электростанция', 'energy', 30.0, {'grid_quota': 2.0}, 2),
+    ('wind_park', 'Ветровой парк', 'energy', 35.0, {'grid_quota': 3.0}, 2),
+    ('heat_recovery', 'Теплоутилизационная станция', 'district_heat', 18.0, {'gas_natural': 2.0, 'water': 5.0}, 3),
+    ('biomass_power', 'Биоэнергетическая станция', 'energy', 60.0, {'bio_raw': 8.0, 'water': 4.0}, 3),
+    ('grid_dispatch', 'Региональный диспетчерский центр', 'grid_quota', 120.0, {'energy': 15.0, 'components': 1.0}, 3),
+    ('ultrapure_plant', 'Мембранная водоочистка', 'ultrapure_water', 55.0, {'clean_water': 20.0, 'energy': 12.0}, 4),
+    ('fuel_assembly', 'Сборка реакторных кассет', 'reactor_fuel', 4.0, {'uranium_enriched': 1.0, 'precision_parts': 1.0, 'energy': 8.0}, 4),
+    ('storage_park', 'Парк стационарных накопителей', 'storage_capacity', 12.0, {'batteries': 2.0, 'energy': 8.0}, 4),
+    ('high_voltage', 'Высоковольтные подстанции', 'grid_quota', 260.0, {'electrical_equipment': 1.0, 'energy': 25.0}, 5),
+    ('hydrogen_electrolysis', 'Электролизный водородный комплекс', 'green_hydrogen', 12.0, {'ultrapure_water': 5.0, 'energy': 30.0}, 5),
+    ('microreactor', 'Станция малых реакторов', 'energy', 200.0, {'reactor_fuel': 1.0, 'water': 12.0}, 5),
+    ('smart_grid', 'Центр управления умной сетью', 'grid_services', 10.0, {'sensors': 1.0, 'ai_compute': 2.0, 'energy': 8.0}, 6),
+    ('pumped_storage', 'Гидроаккумулирующая станция', 'storage_capacity', 22.0, {'energy': 30.0, 'water': 15.0}, 6),
+    ('heat_network', 'Городская тепловая сеть', 'district_heat', 40.0, {'gas_natural': 4.0, 'energy': 10.0}, 6),
+    ('fusion_lab', 'Испытательный комплекс плазмы', 'plasma_services', 4.0, {'superalloy': 1.0, 'industrial_gases': 2.0, 'energy': 20.0}, 7),
+    ('hydrogen_station', 'Водородная заправочная сеть', 'hydrogen_services', 10.0, {'green_hydrogen': 3.0, 'logistics_capacity': 2.0, 'energy': 10.0}, 7),
+    ('national_grid', 'Межрегиональная энергомагистраль', 'grid_services', 18.0, {'electrical_equipment': 2.0, 'automation_systems': 1.0, 'energy': 15.0}, 7),
+    ('industrial_microgrid', 'Автономная фабричная энергосистема', 'energy', 240.0, {'gas_natural': 10.0, 'storage_capacity': 1.0, 'grid_quota': 8.0}, 8),
+    ('reactor_recycling', 'Центр переработки ядерного топлива', 'uranium_enriched', 8.0, {'reactor_fuel': 2.0, 'basic_chem': 4.0, 'energy': 20.0}, 8),
+    ('power_exchange', 'Биржа балансирующих мощностей', 'grid_services', 22.0, {'ai_compute': 4.0, 'payment_services': 5.0, 'energy': 15.0}, 8),
+]

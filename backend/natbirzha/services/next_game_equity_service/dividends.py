@@ -71,12 +71,12 @@ class NextGameEquityDividendMixin:
             issue_id=issue.id, issuer_company_id=issuer.id,
             per_share=rate, total_paid=total_paid, created_at=now or _utcnow(),
         )
-        issuer.cash = round(float(issuer.cash) - total_paid, 2)
+        issuer.cash = round(float(issuer.cash) - total_paid, 8)
         session.add(dividend)
         await session.flush()
         payload = []
         for holding, company, amount in payments:
-            company.cash = round(float(company.cash) + amount, 2)
+            company.cash = round(float(company.cash) + amount, 8)
             session.add(NatNextGameDividendPayment(
                 dividend_id=dividend.id, company_id=company.id,
                 shares=int(holding.shares), amount=amount,

@@ -1,0 +1,25 @@
+"""Authored production facilities for the technology corporation."""
+
+NODES = [
+    ('sensor_works', 'Фабрика промышленных датчиков', 'sensors', 6.0, {'components': 2.0, 'copper': 1.0, 'energy': 5.0}, 2),
+    ('telecom_works', 'Телекоммуникационный завод', 'telecom_equipment', 3.0, {'electronics': 2.0, 'copper': 1.0, 'energy': 6.0}, 2),
+    ('control_boards', 'Цех управляющих плат', 'components', 12.0, {'copper': 2.0, 'plastics': 2.0, 'energy': 5.0}, 2),
+    ('ai_accelerators', 'Фабрика ускорителей ИИ', 'ai_accelerator', 2.0, {'electronics': 3.0, 'gallium_raw': 1.0, 'ultrapure_water': 6.0, 'energy': 10.0}, 3),
+    ('industrial_software', 'Центр промышленного ПО', 'automation_systems', 4.0, {'ai_compute': 2.0, 'components': 2.0, 'energy': 8.0}, 3),
+    ('edge_servers', 'Сборка пограничных серверов', 'servers', 4.0, {'electronics': 2.0, 'components': 3.0, 'energy': 8.0}, 3),
+    ('vision_systems', 'Производство машинного зрения', 'vision_system', 4.0, {'sensors': 2.0, 'ai_compute': 2.0, 'electronics': 1.0, 'energy': 8.0}, 4),
+    ('industrial_drones', 'Завод промышленных беспилотников', 'industrial_drones', 3.0, {'auto_components': 2.0, 'sensors': 2.0, 'batteries': 1.0, 'energy': 10.0}, 4),
+    ('network_security', 'Центр защиты цифровых сетей', 'security_services', 8.0, {'servers': 1.0, 'ai_compute': 2.0, 'energy': 8.0}, 4),
+    ('quantum_lab', 'Квантовая вычислительная лаборатория', 'quantum_modules', 2.0, {'gallium_raw': 2.0, 'electronics': 2.0, 'industrial_gases': 1.0, 'energy': 15.0}, 5),
+    ('model_training', 'Центр обучения отраслевых моделей', 'model_services', 8.0, {'ai_accelerator': 1.0, 'cloud_compute': 1.0, 'energy': 12.0}, 5),
+    ('robot_cells', 'Сборка роботизированных ячеек', 'robots', 6.0, {'machinery': 3.0, 'sensors': 2.0, 'automation_systems': 1.0, 'energy': 12.0}, 5),
+    ('digital_twin', 'Лаборатория цифровых двойников', 'engineering_services', 8.0, {'model_services': 1.0, 'vision_system': 1.0, 'cloud_compute': 1.0, 'energy': 10.0}, 6),
+    ('medical_devices', 'Фабрика диагностического оборудования', 'diagnostics', 8.0, {'sensors': 2.0, 'electronics': 2.0, 'bioreagent': 1.0, 'energy': 10.0}, 6),
+    ('photonic_compute', 'Центр фотонных вычислений', 'ai_compute', 55.0, {'gallium_raw': 2.0, 'ultrapure_water': 10.0, 'energy': 25.0}, 6),
+    ('robot_integrator', 'Интегратор автономных заводов', 'automation_systems', 15.0, {'robots': 2.0, 'model_services': 2.0, 'energy': 15.0}, 7),
+    ('scientific_cloud', 'Научное вычислительное облако', 'cloud_compute', 8.0, {'quantum_modules': 1.0, 'servers': 2.0, 'energy': 20.0}, 7),
+    ('satellite_network', 'Сборка гражданских спутников', 'telecom_equipment', 20.0, {'aerospace_system': 1.0, 'electronics': 4.0, 'energy': 18.0}, 7),
+    ('quantum_platform', 'Оператор квантовых расчётов', 'quantum_services', 6.0, {'quantum_modules': 1.0, 'cloud_compute': 1.0, 'energy': 20.0}, 8),
+    ('engineering_ai', 'Институт инженерного ИИ', 'engineering_services', 15.0, {'model_services': 2.0, 'quantum_services': 1.0, 'energy': 15.0}, 8),
+    ('civil_autonomy', 'Фабрика автономной гражданской техники', 'industrial_drones', 8.0, {'robots': 2.0, 'vision_system': 2.0, 'battery_pack': 1.0, 'energy': 15.0}, 8),
+]

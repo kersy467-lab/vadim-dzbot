@@ -20,4 +20,5 @@ def test_private_bank_has_reachable_atm_clearing_and_client_service_branches():
     assert branches["atm_network"]["factory"]["output_item"] == "payment_services"
     assert branches["clearing_house"]["factory"]["output_item"] == "investment_services"
     assert branches["branch_network"]["factory"]["output_item"] == "credit_services"
-    assert all(len(branches[branch_id]["next_branch_ids"]) == 2 for branch_id in expected)
+    assert all(len(branches[branch_id]["next_branch_ids"]) >= 2 for branch_id in expected)
+    assert all(target in branches or any(target == node["id"] for sector in catalog for node in sector["branches"]) for branch_id in expected for target in branches[branch_id]["next_branch_ids"])

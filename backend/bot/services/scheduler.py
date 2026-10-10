@@ -347,6 +347,8 @@ def setup_scheduler(bot: Bot):
             coalesce=True,
         )
 
+        from backend.bot.services.next_game_scheduler import register_next_game_jobs
+        register_next_game_jobs(scheduler)
         scheduler.start()
         logger.info(f"Scheduler started with evening digest ({settings.NOTIFICATION_TIME_EVENING}), canteen reminder, duty check (07:30), Monday duty reminder (06:00), fact rotation (every 30m), daily cleanup (00:05), and Natbirzha tick/settlement ({settings.TIMEZONE})")
 

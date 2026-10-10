@@ -22,12 +22,13 @@ def test_catalog_has_a_small_starting_map_and_a_reachable_multistage_tree():
     assert len({branch['id'] for sector in corporations for branch in sector['branches']}) == sum(
         len(sector['branches']) for sector in corporations
     )
-    assert all(branch['outputs'] and len(branch['future_choices']) >= 2
+    assert all(branch['outputs'] and (branch['terminal'] or len(branch['future_choices']) >= 2)
                for sector in corporations for branch in sector['branches'])
     branch_ids = {branch['id'] for sector in corporations for branch in sector['branches']}
-    assert len(branch_ids) == 58
+    assert len(branch_ids) >= 200
     branch_names = {branch['id']: branch['name'] for sector in corporations for branch in sector['branches']}
-    assert all(len(branch['next_branch_ids']) == 2 for sector in corporations for branch in sector['branches'])
+    assert all((not branch['next_branch_ids']) if branch['terminal'] else len(branch['next_branch_ids']) >= 2
+               for sector in corporations for branch in sector['branches'])
     assert all(target in branch_ids for sector in corporations for branch in sector['branches']
                for target in branch['next_branch_ids'])
     assert all(branch['future_choices'] == [branch_names[target] for target in branch['next_branch_ids']]

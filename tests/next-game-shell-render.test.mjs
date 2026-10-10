@@ -73,6 +73,7 @@ test('active production tears down on screen and subview navigation and scopes k
   assert.match(entry, /function retireSession/);
   assert.match(entry, /function closeActiveProduction/);
   assert.match(entry, /view !== 'active-production'/);
+  assert.match(entry, /import\('\.\.\/active_production\/scene\.mjs\?v=/);
   assert.match(scene, /root\.addEventListener\('keydown'/);
   assert.match(scene, /root\.addEventListener\('keyup'/);
   assert.doesNotMatch(scene, /document\.addEventListener\('key(?:down|up)'/);

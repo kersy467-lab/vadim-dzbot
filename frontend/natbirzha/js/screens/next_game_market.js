@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_shell_v2';
+import { NatAPI } from '../api.js?v=20261010_active_production_v1';
 import { renderCommodityCatalog } from './market_commodities.js?v=20261009_item_art_v2';
 import { esc, renderNextMarketItem } from './next_game_market_item.js?v=20261010_visual_recovery_v3';
 

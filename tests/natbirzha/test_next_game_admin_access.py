@@ -12,6 +12,7 @@ from backend.natbirzha.api.next_game_routes import router as next_game_router
 from backend.natbirzha.api.next_game_equity_routes import router as next_game_equity_router
 from backend.natbirzha.api.next_game_banking_routes import router as next_game_banking_router
 from backend.natbirzha.api.next_game_finance_routes import router as next_game_finance_router
+from backend.natbirzha.api.next_game_active_routes import router as next_game_active_router
 from backend.natbirzha.api.next_game_competition_routes import router as next_game_competition_router
 from backend.natbirzha.config import nat_settings
 from backend.natbirzha.models.next_game import NatNextGameCompany
@@ -40,6 +41,7 @@ def test_next_game_endpoints_are_admin_only_and_save_a_separate_preview():
         app.include_router(next_game_banking_router, prefix='/api/natbirzha')
         app.include_router(next_game_finance_router, prefix='/api/natbirzha')
         app.include_router(next_game_competition_router, prefix='/api/natbirzha')
+        app.include_router(next_game_active_router, prefix='/api/natbirzha')
         app.dependency_overrides[get_db_session] = db_session
         app.dependency_overrides[get_strict_natbirzha_user] = current_user
         nat_settings.CREATOR_TG_IDS = '990001'
@@ -47,6 +49,8 @@ def test_next_game_endpoints_are_admin_only_and_save_a_separate_preview():
             with TestClient(app) as client:
                 actor['user'] = User(id=2, tg_id=990002, username='guest', full_name='Guest', role='student')
                 assert client.get('/api/natbirzha/next-game/map').status_code == 403
+                assert client.get('/api/natbirzha/next-game/active/config').status_code == 403
+                assert client.post('/api/natbirzha/next-game/active/start', json={'branch_id': 'ore_mining'}).status_code == 403
                 forbidden = client.post('/api/natbirzha/next-game/company', json={'name': 'No Access'})
                 assert forbidden.status_code == 403
                 assert client.post('/api/natbirzha/next-game/facility/build', json={}).status_code == 403

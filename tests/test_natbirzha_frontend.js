@@ -381,6 +381,8 @@ assert(startedFactory.cycle_ready_at === startResult.ready_at && startedFactory.
 const marketCoreCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market.js'), 'utf-8');
 const appSourceCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/app.js'), 'utf-8');
 const itemRegistryCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/items.js'), 'utf-8');
+const nextGameItemArtCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/next_game_item_art.mjs'), 'utf-8');
+const nextGameItemIds = [...nextGameItemArtCode.matchAll(/^\s{2}([a-z][a-z0-9_]*): p\(/gm)].map((match) => match[1]);
 const marketHtmlCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');
 const marketCommodityCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_commodities.js'), 'utf-8');
 const marketOrderbookCode = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/screens/market_orderbook_view.js'), 'utf-8');
@@ -464,9 +466,11 @@ const commodityHelperCode = marketCommodityCode
   .replace(/export\s+function\s+getCompanyInputIds/, 'function getCompanyInputIds')
   .replace(/export\s+function\s+renderCommodityCatalog[\s\S]*/, '');
 const canonicalItemRegistryCode = itemRegistryCode
+  .replace(/^import [^\n]+\r?\n/, '')
   .replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =')
   .replace(/export\s+function\s+getItemIconName/, 'function getItemIconName')
-  .replace(/export\s+function\s+getItemInfo/, 'function getItemInfo');
+  .replace(/export\s+function\s+getItemInfo/, 'function getItemInfo')
+  .replace('const NEXT_GAME_ITEM_ID_SET = new Set(NEXT_GAME_ITEM_IDS);', `const NEXT_GAME_ITEM_ID_SET = new Set(${JSON.stringify(nextGameItemIds)});`);
 const { ITEMS: canonicalItemsForMarket } = new Function(`${canonicalItemRegistryCode}\nreturn { ITEMS };`)();
 const marketHelperFn = new Function('getItemInfo', 'ITEMS', `${marketHelperCode}\nreturn { MARKET_ITEMS, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems };`);
 const { MARKET_ITEMS: initialMarketItems, getIndustryOutputIds, ensureIndustryProductsAvailable, mergeNpcRatesIntoMarketItems, prioritizeIndustryItems } = marketHelperFn((itemId) => (
@@ -668,7 +672,11 @@ assert(gamesCode.includes('prepareNatbirzhaNavigation'),
   'Natbirzha banner must call prepareNatbirzhaNavigation to carry over Telegram auth');
 
 const itemsScript = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/js/items.js'), 'utf-8');
-const cleanedItemsScript = itemsScript.replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =').replace(/export\s+function\s+getItemIconName/, 'function getItemIconName').replace(/export\s+function\s+getItemInfo/, 'function getItemInfo');
+const cleanedItemsScript = itemsScript.replace(/^import [^\n]+\r?\n/, '')
+  .replace(/export\s+const\s+ITEMS\s+=/, 'const ITEMS =')
+  .replace(/export\s+function\s+getItemIconName/, 'function getItemIconName')
+  .replace(/export\s+function\s+getItemInfo/, 'function getItemInfo')
+  .replace('const NEXT_GAME_ITEM_ID_SET = new Set(NEXT_GAME_ITEM_IDS);', `const NEXT_GAME_ITEM_ID_SET = new Set(${JSON.stringify(nextGameItemIds)});`);
 const itemsFn = new Function(cleanedItemsScript + '\nreturn { ITEMS, getItemInfo, getItemIconName };');
 const { ITEMS, getItemInfo, getItemIconName } = itemsFn();
 assert(ITEMS.water && ITEMS.water.name === 'Техническая вода', 'water must map to Russian name');

@@ -2,6 +2,20 @@
 export function createNextGameAPI(request) {
   return {
     getNextGameMap: (section = 'full') => request(`/api/natbirzha/next-game/map?section=${encodeURIComponent(section)}`),
+    getNextGameActiveProductionConfig: () => request('/api/natbirzha/next-game/active/config'),
+    getNextGameActiveProductionStatus: () => request('/api/natbirzha/next-game/active/status'),
+    startNextGameActiveProduction: (branch_id) => request('/api/natbirzha/next-game/active/start', {
+      method: 'POST', body: JSON.stringify({ branch_id: String(branch_id) }),
+    }),
+    pulseNextGameActiveProduction: (payload) => request('/api/natbirzha/next-game/active/pulse', {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+    pauseNextGameActiveProduction: (session_id, session_token) => request('/api/natbirzha/next-game/active/pause', {
+      method: 'POST', body: JSON.stringify({ session_id, session_token }),
+    }),
+    stopNextGameActiveProduction: (session_id, session_token) => request('/api/natbirzha/next-game/active/stop', {
+      method: 'POST', body: JSON.stringify({ session_id, session_token }),
+    }),
     getNextGameCompetition: () => request('/api/natbirzha/next-game/competition'),
     getNextGameRecovery: () => request('/api/natbirzha/next-game/recovery'),
     recoverNextGameCompany: (restart) => request('/api/natbirzha/next-game/recovery', { method: 'POST', body: JSON.stringify({ restart: Boolean(restart) }) }),

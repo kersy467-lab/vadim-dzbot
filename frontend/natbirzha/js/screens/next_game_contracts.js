@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_shell_v2';
+import { NatAPI } from '../api.js?v=20261010_active_production_v1';
 import { esc, number, icon, bindAction } from './next_game_common.js?v=20261010_shell_v2';
 
 const statusNames = { OPEN: 'Предложение', ACTIVE: 'Действует', COMPLETED: 'Выполнен', CANCELLED: 'Закрыт', EXPIRED: 'Срок истёк' };

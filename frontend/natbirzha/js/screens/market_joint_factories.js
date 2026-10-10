@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_bank_deposits_v1';
+import { NatAPI } from '../api.js?v=20261010_active_production_v1';
 import { formatNumber } from '../format.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({

@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_shell_v2';
+import { NatAPI } from '../api.js?v=20261010_active_production_v1';
 import { esc, number } from './next_game_common.js?v=20261010_shell_v2';
 
 function cost(quote, items) {

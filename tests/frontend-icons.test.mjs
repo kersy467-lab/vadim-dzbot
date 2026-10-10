@@ -42,8 +42,8 @@ test('every catalog item renders as its own colorful drawn resource illustration
 test('resource illustration module is cache-busted in Telegram webviews', async () => {
   const appModule = await readFile(new URL('../frontend/natbirzha/js/app.js', import.meta.url), 'utf8');
   const iconModule = await readFile(new URL('../frontend/natbirzha/js/icons.mjs', import.meta.url), 'utf8');
-  assert.match(appModule, /icons\.mjs\?v=20261009_semantic_icons_v3/);
-  assert.match(iconModule, /from '\.\/resource_icons\.mjs\?v=[A-Za-z0-9_-]+'/);
+  assert.match(appModule, /icons\.mjs\?v=20261010_semantic_icons_v4/);
+  assert.match(iconModule, /from '\.\/resource_icons\.mjs\?v=20261010_item_art_semantic_v4'/);
 });
 
 test('item-art cache version reaches every screen module that renders resource icons', async () => {

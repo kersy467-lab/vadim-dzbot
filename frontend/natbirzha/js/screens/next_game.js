@@ -1,9 +1,9 @@
-import { NatAPI } from '../api.js?v=20261010_shell_v2';
+import { NatAPI } from '../api.js?v=20261010_active_production_v1';
 import { esc, bindAction } from './next_game_common.js?v=20261010_shell_v2';
 import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_experience_v1';
 import { renderOverview } from './next_game_overview.js?v=20261010_experience_v1';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261010_shell_v2';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261010_shell_v2';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261010_active_production_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
@@ -70,6 +70,7 @@ async function mountActive(session) {
   const version = ++session.version;
   const { container, state, showToast } = session;
   const view = session.view;
+  document.body.classList.toggle('is-active-production', view === 'active-production');
   const content = container.querySelector('[data-next-content]');
   if (!content) return;
   container.querySelectorAll('.next-game-nav [data-next-view]').forEach((button) => {
@@ -94,8 +95,42 @@ async function mountActive(session) {
       content.innerHTML = renderDevelopment(state, session.development);
       bindDevelopment(content, state, session.development, NatAPI, showToast, refresh, redraw);
     } else if (view === 'factories') {
+      if (!session.loaded.has('active-production-config')) {
+        state.activeProductionConfig = await NatAPI.getNextGameActiveProductionConfig();
+        session.loaded.add('active-production-config');
+        if (version !== session.version || entries.get(container) !== session) return;
+      }
       content.innerHTML = renderFactories(state);
-      bindFactories(content, state, NatAPI, showToast, refresh);
+      bindFactories(content, state, NatAPI, showToast, refresh, async (branchId) => {
+        session.activeProductionSession = await NatAPI.startNextGameActiveProduction(branchId);
+        session.view = 'active-production';
+        activeNextGameView = 'active-production';
+        await mountActive(session);
+      });
+    } else if (view === 'active-production') {
+      const { mountActiveProductionScene } = await import('./active_production/scene.mjs?v=20261010_active_production_v1');
+      if (version !== session.version || entries.get(container) !== session) {
+        const stale = session.activeProductionSession;
+        if (stale?.session_id) await NatAPI.pauseNextGameActiveProduction(stale.session_id, stale.session_token).catch(() => {});
+        return;
+      }
+      const target = document.createElement('div');
+      target.className = 'active-production-host';
+      content.replaceChildren(target);
+      session.activeProductionScene?.destroy();
+      session.activeProductionScene = mountActiveProductionScene(target, {
+        company: state.company,
+        activeSession: session.activeProductionSession,
+        api: NatAPI,
+        showToast,
+        onExit: async () => {
+          session.activeProductionScene = null;
+          session.activeProductionSession = null;
+          session.view = 'factories';
+          activeNextGameView = 'factories';
+          await mountActive(session);
+        },
+      });
     } else if (view === 'more') content.innerHTML = renderMore();
     else {
       content.innerHTML = '<section class="next-game-panel"><p role="status">Загрузка раздела…</p></section>';
@@ -143,7 +178,8 @@ async function mountActive(session) {
 }
 
 function startSession(container, state, showToast) {
-  const session = { container, state, showToast, view: activeNextGameView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now() };
+  const initialView = activeNextGameView === 'active-production' ? 'factories' : activeNextGameView;
+  const session = { container, state, showToast, view: initialView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now() };
   entries.set(container, session);
   const navigate = (view) => {
     if (view === 'projects' || view === 'contracts') state.partnershipView = view === 'projects' ? 'projects' : 'supply';

@@ -13,6 +13,37 @@ test('resource metadata exposes stable icon names for common market groups', () 
   assert.equal(getItemInfo(null).icon, 'resource');
 });
 
+test('new NATBIRZHA 2.0 services keep item identity for colored market artwork', () => {
+  for (const itemId of [
+    'payment_services', 'credit_services', 'investment_services', 'district_heat',
+    'reactor_fuel', 'storage_capacity', 'green_hydrogen', 'grid_services',
+    'plasma_services', 'hydrogen_services', 'polymer_fiber', 'medical_polymer',
+    'carbon_material', 'diagnostics', 'battery_pack', 'habitat_module',
+    'cold_capacity', 'rail_capacity', 'port_capacity', 'air_capacity',
+    'warehouse_services', 'urban_services', 'life_support', 'orbital_logistics',
+    'vision_system', 'security_services', 'model_services', 'engineering_services',
+    'quantum_services', 'insurance_services', 'leasing_services', 'settlement_services',
+    'risk_services', 'custody_services',
+  ]) {
+    assert.equal(getItemInfo(itemId).icon, `item:${itemId}`, itemId);
+  }
+});
+
+test('new energy and financial services have distinct semantic colors and artwork', () => {
+  const gradient = (id) => renderResourceIcon(id).match(/<stop stop-color="([^"]+)"\/>/)?.[1];
+  const payment = renderResourceIcon('payment_services');
+  const heat = renderResourceIcon('district_heat');
+  const plasma = renderResourceIcon('plasma_services');
+
+  assert.notEqual(gradient('payment_services'), gradient('not_a_real_item'));
+  assert.notEqual(gradient('district_heat'), gradient('payment_services'));
+  assert.notEqual(gradient('plasma_services'), gradient('district_heat'));
+  assert.match(payment, /data-item="payment_services"/);
+  assert.match(heat, /data-item="district_heat"/);
+  assert.match(plasma, /data-item="plasma_services"/);
+  assert.doesNotMatch(payment, /M4 8 12 4 20 8v10/);
+});
+
 test('resource art uses stable semantic colors for energy, water, crude oil, diesel, and beer', () => {
   const firstGradientStop = (itemId) =>
     renderResourceIcon(itemId).match(/<stop stop-color="([^"]+)"\/>/)?.[1];

@@ -1,4 +1,4 @@
-import { renderResourceIcon } from './resource_icons.mjs?v=20261009_item_art_semantic_v3';
+import { renderResourceIcon } from './resource_icons.mjs?v=20261010_item_art_semantic_v4';
 
 const ICON_PATHS = Object.freeze({
   overview: '<path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5z"/><path d="M9 21v-7h6v7"/>',

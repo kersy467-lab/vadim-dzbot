@@ -18,6 +18,7 @@ from backend.natbirzha.next_game_finance_migration import migrate_next_game_fina
 from backend.natbirzha.next_game_community_migration import migrate_next_game_community
 from backend.natbirzha.next_game_recovery_migration import migrate_next_game_recovery
 from backend.natbirzha.next_game_operations_migration import migrate_next_game_operations
+from backend.natbirzha.next_game_active_migration import migrate_next_game_active
 
 
 Migration = Callable[[object], Awaitable[None]]
@@ -977,6 +978,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v39_001_next_game_community", migrate_next_game_community),
     ("natbirzha_v40_001_next_game_recovery", migrate_next_game_recovery),
     ("natbirzha_v41_001_next_game_operations_civic", migrate_next_game_operations),
+    ("natbirzha_v42_001_next_game_active_production", migrate_next_game_active),
 )
 
 

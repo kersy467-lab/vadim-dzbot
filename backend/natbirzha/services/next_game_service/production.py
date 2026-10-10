@@ -53,6 +53,30 @@ class NextGameProductionMixin:
                     blocked.append({"facility_id": str(facility.id), "reason": reason})
                     facility.next_cycle_at = current + timedelta(seconds=interval)
                     break
+                from backend.natbirzha.services.next_game_active_production_service import (
+                    active_multiplier_for_cycle, output_with_active_bonus,
+                )
+                cycle_end = facility.next_cycle_at
+                cycle_start = cycle_end - timedelta(seconds=interval)
+                active_multiplier, active_seconds = await active_multiplier_for_cycle(
+                    session, company.id, cycle_start, cycle_end,
+                )
+                base_output = float(recipe["output_quantity"])
+                active_bonus_output = 0.0
+                if active_multiplier > 1:
+                    from backend.natbirzha.services.next_game_market_service import NextGameMarketService
+                    from backend.natbirzha.services.next_game_operations_effects import warehouse_capacity
+                    inventory = await cls._inventory_row(session, company.id, recipe["output_item"])
+                    reserved = await NextGameMarketService.reserved_sell_quantity(
+                        session, company.id, recipe["output_item"],
+                    )
+                    recipe["output_quantity"], active_bonus_output = output_with_active_bonus(
+                        base_output,
+                        active_multiplier,
+                        await warehouse_capacity(session, company.id),
+                        float(inventory.quantity if inventory else 0),
+                        reserved,
+                    )
                 for item_id, quantity in recipe["inputs"].items():
                     await cls._change_inventory(session, company.id, item_id, -float(quantity))
                     session.add(cls._ledger(
@@ -67,7 +91,12 @@ class NextGameProductionMixin:
                 await cls._change_inventory(session, company.id, output_id, float(recipe["output_quantity"]))
                 session.add(cls._ledger(
                     company.id, "PRODUCTION_OUTPUT", 0, 0, item_id=output_id,
-                    company_quantity=float(recipe["output_quantity"]), metadata={"facility_id": facility.id},
+                    company_quantity=float(recipe["output_quantity"]), metadata={
+                        "facility_id": facility.id,
+                        "active_production_multiplier": active_multiplier,
+                        "active_seconds": active_seconds,
+                        "bonus_output": active_bonus_output,
+                    },
                 ))
                 completed += 1
                 await complete_cycle(session, facility)

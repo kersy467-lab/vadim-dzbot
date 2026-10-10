@@ -1,3 +1,5 @@
+import { NEXT_GAME_ITEM_IDS } from './next_game_item_art.mjs?v=20261010_next_game_item_art_v1';
+
 /**
  * Natbirzha - Canonical Items Registry and Localization Dictionary
  * Maps item IDs to Russian names, legacy glyphs, and measurement units.
@@ -137,11 +139,15 @@ const ITEM_ALIASES = {
   brandy: 'aged_spirits',
 };
 
+const NEXT_GAME_ITEM_ID_SET = new Set(NEXT_GAME_ITEM_IDS);
+
 export function getItemIconName(itemId) {
   if (!itemId) return 'resource';
   const key = String(itemId).toLowerCase().trim();
   const canonical = ITEM_ALIASES[key] || key;
-  return Object.hasOwn(ITEMS, canonical) ? `item:${canonical}` : 'resource';
+  return Object.hasOwn(ITEMS, canonical) || NEXT_GAME_ITEM_ID_SET.has(canonical)
+    ? `item:${canonical}`
+    : 'resource';
 }
 
 /**
@@ -156,5 +162,5 @@ export function getItemInfo(itemId) {
   const item = ITEMS[key];
   return item
     ? { ...item, icon: `item:${key}` }
-    : { name: 'Неизвестный ресурс', icon: 'resource', unit: 'шт.' };
+    : { name: 'Неизвестный ресурс', icon: NEXT_GAME_ITEM_ID_SET.has(key) ? `item:${key}` : 'resource', unit: 'шт.' };
 }

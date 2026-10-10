@@ -1,3 +1,5 @@
+import { getNextGameItemArtwork } from './next_game_item_art.mjs?v=20261010_next_game_item_art_v1';
+
 const PALETTES = {
   energy: ['#f2c14e', '#976600', '#fff0a8'],
   water: ['#2496c8', '#155477', '#d8f1ff'],
@@ -76,9 +78,10 @@ function clampSize(value) {
 export function renderResourceIcon(itemId, { size = 20, className = '', label = '' } = {}) {
   const id = String(itemId || '').toLowerCase();
   if (!/^[a-z0-9_]+$/.test(id)) return '';
+  const special = getNextGameItemArtwork(id);
   const kind = kindFor(id);
-  const [bright, dark, light] = PALETTES[kind];
-  const shape = ART[kind].replaceAll('{light}', light).replaceAll('{dark}', dark);
+  const [bright, dark, light] = special?.palette || PALETTES[kind];
+  const shape = (special?.art || ART[kind]).replaceAll('{light}', light).replaceAll('{dark}', dark);
   const gradientId = `item-art-${id}`;
   const title = label ? `<title>${escapeAttribute(label)}</title>` : '';
   const accessible = label

@@ -34,6 +34,26 @@ test('five bottom destinations and grouped finance services use accessible vecto
   }
 });
 
+test('every service tile in More has a mounted screen and an API-backed section', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const more = renderMore();
+  const targets = [...more.matchAll(/data-next-view="([a-z-]+)"/g)].map((match) => match[1]);
+  const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
+  const api = await readFile(new URL('../frontend/natbirzha/js/next_game_api.js', import.meta.url), 'utf8');
+
+  assert.equal(new Set(targets).size, 12);
+  for (const target of targets) {
+    assert.ok(entry.includes(`view === '${target}'`) || entry.includes(`'${target}'`), `unmounted tile: ${target}`);
+  }
+  for (const endpoint of [
+    '/api/natbirzha/next-game/progression', '/api/natbirzha/next-game/operations',
+    '/api/natbirzha/next-game/bank/loan', '/api/natbirzha/next-game/capital/ipo',
+    '/api/natbirzha/next-game/bonds', '/api/natbirzha/next-game/civic',
+    '/api/natbirzha/next-game/partnerships', '/api/natbirzha/next-game/liquidation',
+    '/api/natbirzha/next-game/competition', '/api/natbirzha/next-game/support',
+  ]) assert.ok(api.includes(endpoint), `missing service API: ${endpoint}`);
+});
+
 test('company header restores identity, sector, progression and creator-only state access', () => {
   const state = fixture();
   state.company.ticker = 'NORTH';

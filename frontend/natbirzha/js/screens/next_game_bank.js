@@ -1,4 +1,4 @@
-import { NatAPI } from '../api.js?v=20261010_competition_v1';
+import { NatAPI } from '../api.js?v=20261010_active_production_v1';
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({

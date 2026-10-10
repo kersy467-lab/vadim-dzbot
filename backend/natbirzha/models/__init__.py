@@ -9,6 +9,9 @@ from backend.natbirzha.models.next_game import (
     NatNextGameLedger, NatNextGameLoan, NatNextGameDeposit, NatNextGameMarketOrder,
     NatNextGameMarketTrade, NatNextGameTreasury,
 )
+from backend.natbirzha.models.next_game_active import (
+    NatNextGameActiveSession, NatNextGameActiveInterval,
+)
 from backend.natbirzha.models.next_game_equity import (
     NatNextGameShareIssue, NatNextGameShareHolding, NatNextGameShareOrder,
     NatNextGameShareTrade, NatNextGameDividend, NatNextGameDividendPayment,

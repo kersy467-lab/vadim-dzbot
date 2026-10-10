@@ -1,5 +1,5 @@
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20261009_item_art_v1';
+import { getItemInfo } from '../items.js?v=20261010_item_art_v2';
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',

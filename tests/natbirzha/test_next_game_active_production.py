@@ -114,22 +114,28 @@ def test_session_tokens_rotate_and_duplicate_pulses_cannot_add_more_active_time(
             assert fake_move['active'] is True
             assert row.last_interaction_at == start + timedelta(seconds=15)
             assert row.last_user_input_counter == 1
-            completed_route = await NextGameActiveProductionService.pulse(
+            processed_order = await NextGameActiveProductionService.pulse(
                 session, 772002, started['session_id'], started['session_token'],
-                3, 'deliver', 2, now=start + timedelta(seconds=30),
+                3, 'interact', 2, now=start + timedelta(seconds=30),
             )
-            assert completed_route['active'] is True
+            assert processed_order['active'] is True
             assert row.last_interaction_at == start + timedelta(seconds=30)
+            delivered_order = await NextGameActiveProductionService.pulse(
+                session, 772002, started['session_id'], started['session_token'],
+                4, 'deliver', 3, now=start + timedelta(seconds=45),
+            )
+            assert delivered_order['active'] is True
+            assert row.last_interaction_at == start + timedelta(seconds=45)
 
             await NextGameActiveProductionService.finish(
                 session, 772002, started['session_id'], started['session_token'],
-                status='PAUSED', now=start + timedelta(seconds=30),
+                status='PAUSED', now=start + timedelta(seconds=45),
             )
             factor, seconds = await active_cycle_multiplier_from_db(
                 session, row.company_id, start, start + timedelta(seconds=300),
             )
-            assert factor == 1.05
-            assert seconds == 30
+            assert factor == 1.075
+            assert seconds == 45
             await NextGameActiveProductionService.finish(
                 session, 772002, started['session_id'], started['session_token'],
                 status='STOPPED', now=start + timedelta(seconds=31),

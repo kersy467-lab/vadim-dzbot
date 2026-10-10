@@ -38,5 +38,8 @@ test('the fullscreen scene escapes company and facility labels and exposes phone
   assert.ok(!html.includes('<script>'));
   assert.ok(html.includes('data-active-joystick'));
   assert.ok(html.includes('data-active-exit'));
+  assert.ok(html.includes('data-active-order-select'));
+  assert.ok(html.includes('data-active-action'));
+  assert.ok(html.includes('data-active-calibration'));
   assert.ok(html.includes('aria-label="2D-сцена активного производства"'));
 });

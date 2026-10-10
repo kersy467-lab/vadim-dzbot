@@ -84,7 +84,7 @@ test('active production tears down on screen and subview navigation and scopes k
   assert.match(scene, /const resume = async[\s\S]*?resetInput\(\)/);
   assert.match(scene, /game\.pauseRequested = true/);
   assert.match(scene, /game\.closed \|\| game\.pauseRequested \|\| document\.hidden/);
-  assert.match(scene, /game\.activityCounter = game\.hasCargo \? 1 : 0/);
+  assert.match(scene, /game\.activityCounter = 0/);
 });
 
 test('company header restores identity, sector, progression and creator-only state access', () => {

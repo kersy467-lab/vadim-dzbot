@@ -20,6 +20,7 @@ from backend.natbirzha.next_game_recovery_migration import migrate_next_game_rec
 from backend.natbirzha.next_game_operations_migration import migrate_next_game_operations
 from backend.natbirzha.next_game_active_migration import migrate_next_game_active
 from backend.natbirzha.next_game_active_minigame_migration import migrate_next_game_active_minigame
+from backend.natbirzha.next_game_active_targets_migration import migrate_next_game_active_targets
 
 
 Migration = Callable[[object], Awaitable[None]]
@@ -981,6 +982,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v41_001_next_game_operations_civic", migrate_next_game_operations),
     ("natbirzha_v42_001_next_game_active_production", migrate_next_game_active),
     ("natbirzha_v43_001_next_game_active_minigame", migrate_next_game_active_minigame),
+    ("natbirzha_v44_001_next_game_pick_lock_targets", migrate_next_game_active_targets),
 )
 
 

@@ -1,6 +1,9 @@
 import { sceneForBranch } from './scene_registry.mjs';
-import { paint } from './render.mjs?v=20261011_rhythm_render_v1';
-import { createTimingGameState, pointerAt, updateTimingGameState } from './gameplay.mjs?v=20261011_rhythm_game_v1';
+import { paint } from './render.mjs?v=20261011_pick_lock_v2';
+import {
+  createTimingGameState, estimateServerClockOffset, localTapAtServerMs, pointerAt,
+  updateTimingGameState,
+} from './gameplay.mjs?v=20261011_pick_lock_v2';
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -11,17 +14,17 @@ export function renderActiveProductionScene(company, activeSession) {
   const scene = sceneForBranch(activeSession.selected_branch_id, picked?.sector_id, picked?.scene);
   return `<section class="next-active-production" data-active-scene data-family="${escapeHtml(scene?.scene_family || 'resources')}" tabindex="0">
     <header class="active-production-header"><div><span>АКТИВНОЕ ПРОИЗВОДСТВО</span><h1>${escapeHtml(company?.name || 'Компания')} · ${escapeHtml(picked?.name || scene?.branch_name || 'Завод')}</h1></div><button type="button" data-active-exit aria-label="Закрыть сцену">×</button></header>
-    <div class="active-production-summary"><b data-active-mode>Ритм цеха · ×1,00</b><span data-active-output>Проверяем состояние заводов…</span><span data-active-cycle>Загружаем ближайший производственный цикл…</span><small data-active-hint>Попадай в движущиеся зоны: сервер учитывает подтверждённый множитель выпуска до ×5.</small></div>
-    <div class="active-production-canvas-wrap"><canvas data-active-canvas aria-label="Мини-игра: попади стрелкой в золотую или синюю зону"></canvas><div class="active-production-objective" data-active-objective>ПОПАДИ В ЗОНУ · БОНУС ДО ×5</div></div>
-    <div class="active-production-footer"><div class="active-production-game"><div class="active-production-game-stats"><b data-active-multiplier>×1,00 к выпуску</b><span data-active-charge>Заряд: 0/16</span><span data-active-streak>Серия: 0</span></div><p data-active-task>Золотая зона даёт +2 заряда и меняет направление стрелки. Синяя даёт +1, промах снимает 1 заряд.</p><div class="active-production-progress" aria-label="Заряд множителя"><i data-active-progress></i></div><div class="active-production-controls"><b data-active-server-activity>Серверная сессия активна</b><button type="button" data-active-tap>Ударить по метке</button><button type="button" data-active-resume hidden>Продолжить</button><button type="button" data-active-exit>Выйти</button></div><small class="active-production-footnote">Бонусный выпуск не тратит ресурсы. На склад он добавится с учётом свободного места.</small></div></div>
+    <div class="active-production-summary"><b data-active-mode>Взлом замка цеха · ×1,00</b><span data-active-output>Проверяем состояние заводов…</span><span data-active-cycle>Загружаем ближайший производственный цикл…</span><small data-active-hint>Нажимай, когда отмычка проходит по золотой или синей метке. Попадание убирает её; бонус выпуска растёт до ×5.</small></div>
+    <div class="active-production-canvas-wrap"><canvas data-active-canvas aria-label="Мини-игра: попадание вращающейся отмычкой по золотым и синим меткам"></canvas><div class="active-production-objective" data-active-objective>СНИМАЙ МЕТКИ · БОНУС ДО ×5</div></div>
+    <div class="active-production-footer"><div class="active-production-game"><div class="active-production-game-stats"><b data-active-multiplier>×1,00 к выпуску</b><span data-active-charge>Заряд: 0/16</span><span data-active-streak>Серия: 0</span></div><p data-active-task>Золотая метка даёт +2 заряда, синяя +1. Каждая метка исчезает после попадания, отмычка меняет направление.</p><div class="active-production-progress" aria-label="Заряд множителя"><i data-active-progress></i></div><div class="active-production-controls"><b data-active-server-activity>Серверная сессия активна</b><button type="button" data-active-tap>Нажать сейчас</button><button type="button" data-active-resume hidden>Продолжить</button><button type="button" data-active-exit>Выйти</button></div><small class="active-production-footnote">Бонусный выпуск не тратит ресурсы. На склад он добавится с учётом свободного места.</small></div></div>
   </section>`;
 }
 
 const resultText = {
-  gold: 'Точно! +2 заряда. Стрелка поменяла направление.',
-  blue: 'Хорошо! Синяя зона дала +1 заряд.',
-  miss: 'Промах: −1 заряд. Попробуй ещё раз.',
-  too_soon: 'Слишком быстро — дождись следующего прохода стрелки.',
+  gold: 'Попадание! Золотая метка убрана · +2 заряда.',
+  blue: 'Попадание! Синяя метка убрана · +1 заряд.',
+  miss: 'Отмычка прошла мимо. Лови следующую метку.',
+  too_soon: 'Удар ещё обрабатывается. Попробуй следующий проход.',
 };
 
 export function mountActiveProductionScene(container, { company, activeSession, api, onExit, showToast = () => {} }) {
@@ -54,6 +57,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     timing: createTimingGameState(activeSession.timing, Date.now()),
     paused: false, pauseRequested: false, closed: false, pulseBusy: false,
     frame: 0, pulseTimer: 0, loopAt: 0, activityCounter: 0, lastCountdown: 0,
+    serverOffsetMs: 0, pendingTapAt: null,
     nextCycleAt: activeSession.facilities?.map((row) => row.next_cycle_at).filter(Boolean)
       .sort((left, right) => Date.parse(left) - Date.parse(right))[0] || null,
   };
@@ -81,21 +85,25 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     chargeLabel.textContent = `Заряд: ${timing.charge}/16`;
     streakLabel.textContent = `Серия: ${timing.streak}`;
     progress.style.width = `${Math.min(100, (timing.charge / 16) * 100)}%`;
-    tapButton.disabled = game.paused || game.closed || game.pulseBusy || !navigator.onLine;
+    tapButton.disabled = game.paused || game.closed || !navigator.onLine;
     if (game.paused || !currentSession?.session_id) {
       mode.textContent = 'Пауза · бонус не накапливается';
       serverActivity.textContent = 'Сессия приостановлена';
       resumeButton.hidden = false;
     } else {
-      mode.textContent = `Ритм цеха · ×${multiplier.toFixed(2).replace('.', ',')} · потолок ×5`;
+      mode.textContent = `Взлом замка · ×${multiplier.toFixed(2).replace('.', ',')} · потолок ×5`;
       serverActivity.textContent = game.pulseBusy ? 'Синхронизация с сервером…' : 'Серверная сессия активна';
       resumeButton.hidden = true;
     }
   };
 
-  const syncFromServer = (response, action) => {
+  const syncFromServer = (response, action, requestStartedAt, responseReceivedAt) => {
     if (response.timing) {
-      game.timing = updateTimingGameState(game.timing, response.timing, Date.now());
+      const serverNowMs = Number(response.server_now_ms ?? response.timing.server_now_ms);
+      game.serverOffsetMs = estimateServerClockOffset(serverNowMs, requestStartedAt, responseReceivedAt);
+      game.timing = updateTimingGameState(
+        game.timing, response.timing, responseReceivedAt, game.serverOffsetMs,
+      );
     }
     if (action === 'tap' && response.tap_result) {
       game.timing.lastResult = response.tap_result;
@@ -120,8 +128,16 @@ export function mountActiveProductionScene(container, { company, activeSession, 
     updateHud();
   };
 
-  const sendPulse = async (action = 'idle') => {
-    if (game.pulseBusy || game.paused || game.closed) return;
+  const sendPulse = async (action = 'idle', localTapAtMs = null) => {
+    if (game.paused || game.closed) return;
+    if (game.pulseBusy) {
+      if (action === 'tap' && game.pendingTapAt === null) {
+        game.pendingTapAt = Number(localTapAtMs) || Date.now();
+        game.timing.lastResult = 'pending';
+        task.textContent = 'Удар принят · сверяю момент попадания.';
+      }
+      return;
+    }
     if (!navigator.onLine) {
       mode.textContent = 'Нет связи · активная смена приостановлена';
       hint.textContent = 'Проверь интернет и нажми «Продолжить», чтобы создать новую серверную сессию.';
@@ -130,7 +146,12 @@ export function mountActiveProductionScene(container, { company, activeSession, 
       return;
     }
     game.pulseBusy = true;
+    const requestStartedAt = Date.now();
     const counter = action === 'tap' ? ++game.activityCounter : game.activityCounter;
+    if (action === 'tap') {
+      game.timing.lastResult = 'pending';
+      task.textContent = 'Проверяю момент удара…';
+    }
     updateHud();
     try {
       const response = await api.pulseNextGameActiveProduction({
@@ -139,21 +160,32 @@ export function mountActiveProductionScene(container, { company, activeSession, 
         sequence: ++pulseSequence,
         scene_action: action,
         user_input_counter: counter,
+        ...(action === 'tap' ? {
+          tap_at_ms: localTapAtServerMs(Number(localTapAtMs) || requestStartedAt, game.serverOffsetMs),
+        } : {}),
       });
-      syncFromServer(response, action);
+      syncFromServer(response, action, requestStartedAt, Date.now());
     } catch {
-      if (action === 'tap') task.textContent = 'Сервер не ответил на удар. Награда без подтверждения не начисляется.';
+      if (action === 'tap') {
+        game.timing.lastResult = null;
+        task.textContent = 'Сервер не ответил на удар. Награда без подтверждения не начисляется.';
+      }
       mode.textContent = 'Связь потеряна · ждём сервер';
       hint.textContent = 'Мини-игра не меняет склад или баланс на клиенте; подтвердить результат может только сервер.';
     } finally {
       game.pulseBusy = false;
       updateHud();
+      const queuedTapAt = game.pendingTapAt;
+      game.pendingTapAt = null;
+      if (queuedTapAt !== null && !game.paused && !game.closed) {
+        void sendPulse('tap', queuedTapAt);
+      }
     }
   };
 
   const tap = () => {
-    if (game.paused || game.closed || game.pulseBusy || !navigator.onLine) return;
-    void sendPulse('tap');
+    if (game.paused || game.closed || !navigator.onLine) return;
+    void sendPulse('tap', Date.now());
   };
   tapButton.addEventListener('click', tap, { signal: controller.signal });
   canvas.addEventListener('pointerdown', (event) => {
@@ -205,7 +237,7 @@ export function mountActiveProductionScene(container, { company, activeSession, 
       pulseSequence = 0;
       game.timing = createTimingGameState(resumed.timing, Date.now());
       game.paused = false;
-      task.textContent = 'Золотая зона даёт +2 заряда, синяя +1. Набери 16 зарядов для ×5 выпуска.';
+      task.textContent = 'Снимай метки попаданиями: золотая даёт +2 заряда, синяя +1. Для ×5 нужно набрать 16.';
       hint.textContent = 'Повышенный выпуск считает сервер по мини-игре и добавляет его без дополнительного расхода сырья.';
       updateHud();
       startTimers();

@@ -4,6 +4,8 @@ import {
   angleInZone,
   advancePointer,
   createTimingGameState,
+  estimateServerClockOffset,
+  localTapAtServerMs,
   pointerAt,
   tapFeedback,
 } from '../frontend/natbirzha/js/active_production/gameplay.mjs';
@@ -32,4 +34,18 @@ test('timing state synchronizes server time and exposes no client-authored multi
   assert.equal(state.charge, 8);
   assert.equal(state.streak, 4);
   assert.equal(state.multiplier, 3);
+});
+
+test('client tap timestamps are converted to server time using the measured round trip', () => {
+  const offset = estimateServerClockOffset(1090, 1000, 1200);
+  assert.equal(offset, -10);
+  assert.equal(localTapAtServerMs(1500, offset), 1490);
+});
+
+test('wheel animation accounts for time since the server made its snapshot', () => {
+  const state = createTimingGameState({
+    pointer_angle: 0, target_angle: 0, direction: 1, speed: 100,
+    server_now_ms: 10_000,
+  }, 10_250, 100);
+  assert.equal(pointerAt(state, 10_250), 35);
 });

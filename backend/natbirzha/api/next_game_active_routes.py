@@ -30,6 +30,7 @@ class PulseRequest(SessionRequest):
     sequence: int = Field(ge=1)
     scene_action: Literal["idle", "move", "pickup", "deliver", "interact", "tap"]
     user_input_counter: int = Field(ge=0, le=2_147_483_647)
+    tap_at_ms: int | None = Field(default=None, ge=0, le=9_999_999_999_999)
 
 
 async def _commit(session: AsyncSession, action: Awaitable[dict]) -> dict:
@@ -81,6 +82,7 @@ async def pulse_session(
     return await _commit(session, NextGameActiveProductionService.pulse(
         session, int(admin.tg_id), str(request.session_id), request.session_token,
         request.sequence, request.scene_action, request.user_input_counter,
+        tap_at_ms=request.tap_at_ms,
     ))
 
 

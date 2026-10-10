@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import secrets
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -25,10 +26,9 @@ from backend.natbirzha.services.next_game_active_time import (
     active_multiplier_for_cycle, active_production_enabled, output_with_active_bonus,
 )
 from backend.natbirzha.services.active_production_minigame import (
-    MIN_TAP_INTERVAL_SECONDS, WHEEL_SPEED_DEGREES_PER_SECOND,
-    advance_wheel, apply_tap_result, average_interval_multiplier, grade_tap,
-    multiplier_for_charge, timing_state,
+    average_interval_multiplier, create_target_bars, multiplier_for_charge, timing_state,
 )
+from backend.natbirzha.services.next_game_active_input import process_active_input
 _INPUT_ACTIONS = frozenset({"move", "pickup", "deliver", "interact", "tap"})
 
 
@@ -188,6 +188,7 @@ class NextGameActiveProductionService:
             wheel_angle=float(secrets.randbelow(36_000)) / 100,
             wheel_direction=1 if secrets.randbelow(2) else -1,
             target_angle=float(secrets.randbelow(36_000)) / 100,
+            target_bars_json=json.dumps(create_target_bars(), separators=(",", ":")),
         )
         session.add(row)
         await session.flush()
@@ -242,6 +243,7 @@ class NextGameActiveProductionService:
         scene_action: str,
         user_input_counter: int,
         *,
+        tap_at_ms: int | None = None,
         now: datetime | None = None,
     ) -> dict:
         current = now or _utcnow()
@@ -273,29 +275,10 @@ class NextGameActiveProductionService:
         if scene_action not in _INPUT_ACTIONS | {"idle"}:
             raise ValueError("Такое событие сцены не поддерживается")
 
-        elapsed = max(0.0, (current - row.last_ping_at).total_seconds())
-        pointer_angle = advance_wheel(
-            row.wheel_angle, row.wheel_direction, WHEEL_SPEED_DEGREES_PER_SECOND, elapsed,
-        )
         await cls._record_confirmed_tail(session, row, current, "heartbeat", sequence)
-        tap_result = None
-        if scene_action == "tap" and user_input_counter > row.last_user_input_counter:
-            since_tap = (
-                (current - row.last_skill_tap_at).total_seconds()
-                if row.last_skill_tap_at else MIN_TAP_INTERVAL_SECONDS
-            )
-            if since_tap >= MIN_TAP_INTERVAL_SECONDS:
-                tap_result = grade_tap(pointer_angle, row.target_angle)
-                row.skill_charge, row.hit_streak = apply_tap_result(
-                    row.skill_charge, row.hit_streak, tap_result,
-                )
-                row.last_skill_tap_at = current
-                row.last_interaction_at = current
-                row.last_user_input_counter = user_input_counter
-                if tap_result == "gold":
-                    row.wheel_direction = -1 if row.wheel_direction > 0 else 1
-            else:
-                tap_result = "too_soon"
+        tap_result = process_active_input(
+            row, current, scene_action, user_input_counter, tap_at_ms,
+        )
         legacy_input = (
             scene_action in {"pickup", "deliver", "interact"}
             and user_input_counter > row.last_user_input_counter
@@ -303,7 +286,6 @@ class NextGameActiveProductionService:
         if legacy_input:
             row.last_interaction_at = current
             row.last_user_input_counter = user_input_counter
-        row.wheel_angle = pointer_angle
         row.last_ping_at = current
         row.last_sequence = sequence
         row.expires_at = current + timedelta(seconds=ACTIVE_TIMEOUT_SECONDS)

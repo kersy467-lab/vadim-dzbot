@@ -1,4 +1,4 @@
-import { normalizeAngle, pointerAt } from './gameplay.mjs?v=20261011_rhythm_game_v1';
+import { normalizeAngle, pointerAt } from './gameplay.mjs?v=20261011_pick_lock_v2';
 
 const radians = (degrees) => (Number(degrees) - 90) * Math.PI / 180;
 
@@ -11,7 +11,7 @@ function drawArc(ctx, x, y, radius, center, halfWidth, color, width) {
   ctx.stroke();
 }
 
-function drawTicks(ctx, x, y, radius, now) {
+function drawTicks(ctx, x, y, radius) {
   ctx.save();
   ctx.strokeStyle = 'rgba(48, 74, 69, .23)';
   ctx.lineWidth = 1;
@@ -58,9 +58,8 @@ export function paint(ctx, width, height, scene, game, now) {
   const size = Math.min(width, height);
   const outer = size * 0.39;
   const ring = outer * 0.2;
-  const target = normalizeAngle(game?.targetAngle || 0);
-  const blue = normalizeAngle(target + 180);
   const angle = pointerAt(game, now);
+  const serverNowMs = Number(now) + (Number(game?.serverOffsetMs) || 0);
   const pulse = 0.5 + Math.sin(Number(now) / 340) * 0.5;
 
   ctx.clearRect(0, 0, width, height);
@@ -93,11 +92,13 @@ export function paint(ctx, width, height, scene, game, now) {
   ctx.arc(x, y, outer, 0, Math.PI * 2);
   ctx.stroke();
 
-  drawArc(ctx, x, y, outer, target, game?.goldHalfWidth || 28,
-    `rgba(232, 166, 44, ${0.72 + pulse * 0.2})`, ring);
-  drawArc(ctx, x, y, outer, blue, game?.blueHalfWidth || 22,
-    'rgba(59, 166, 207, .88)', ring);
-  drawTicks(ctx, x, y, outer + 16, now);
+  for (const bar of game?.targetBars || []) {
+    if (Number(bar.visible_at_ms || 0) > serverNowMs) continue;
+    const isBlue = bar.kind === 'blue';
+    drawArc(ctx, x, y, outer, normalizeAngle(bar.angle), game?.targetHalfWidth || 12,
+      isBlue ? 'rgba(54, 155, 202, .94)' : `rgba(232, 166, 44, ${0.78 + pulse * 0.2})`, ring);
+  }
+  drawTicks(ctx, x, y, outer + 16);
 
   ctx.strokeStyle = 'rgba(255,255,255,.85)';
   ctx.lineWidth = 2;
@@ -121,26 +122,16 @@ export function paint(ctx, width, height, scene, game, now) {
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#71837b';
   ctx.font = '800 10px system-ui, sans-serif';
-  ctx.fillText('РИТМ ЦЕХА', x, y - 19);
+  ctx.fillText('ЗАМОК ЦЕХА', x, y - 19);
   ctx.fillStyle = '#263d37';
   ctx.font = `900 ${Math.max(25, Math.min(39, outer * 0.42))}px system-ui, sans-serif`;
   ctx.fillText(`×${Number(game?.multiplier || 1).toFixed(2)}`, x, y + 9);
   ctx.fillStyle = '#74847c';
   ctx.font = '700 9px system-ui, sans-serif';
-  ctx.fillText(`ЗАРЯД ${Number(game?.charge || 0)}/16`, x, y + 32);
-
-  for (const [center, label, color] of [
-    [target, 'ЗОЛОТО +2', '#956515'], [blue, 'СИНИЙ +1', '#277090'],
-  ]) {
-    const theta = radians(center);
-    const labelRadius = outer + ring * 0.95;
-    ctx.fillStyle = color;
-    ctx.font = '800 9px system-ui, sans-serif';
-    ctx.fillText(label, x + Math.cos(theta) * labelRadius, y + Math.sin(theta) * labelRadius);
-  }
+  ctx.fillText(`${(game?.targetBars || []).filter((bar) => Number(bar.visible_at_ms || 0) <= serverNowMs).length} МЕТОК · ${Number(game?.charge || 0)}/16`, x, y + 32);
 
   if (game?.lastResult) {
-    const messages = { gold: 'ТОЧНО!', blue: 'ХОРОШО!', miss: 'МИМО', too_soon: 'СЛИШКОМ РАНО' };
+    const messages = { pending: 'УДАР!', gold: 'ТОЧНО!', blue: 'ХОРОШО!', miss: 'МИМО', too_soon: 'ЕЩЁ РАЗ' };
     ctx.fillStyle = game.lastResult === 'gold' ? '#9a6815'
       : game.lastResult === 'blue' ? '#277090' : '#9e5145';
     ctx.font = '900 12px system-ui, sans-serif';

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import asyncio
+import json
 
 import pytest
 from sqlalchemy import select
@@ -14,6 +15,9 @@ from backend.natbirzha.services.next_game_service import NextGameService
 from backend.natbirzha.active_production_scene_catalog import get_active_production_scene_catalog
 from backend.natbirzha.services.next_game_active_production_service import (
     NextGameActiveProductionService, active_cycle_multiplier, output_with_active_bonus,
+)
+from backend.natbirzha.services.active_production_minigame import (
+    WHEEL_SPEED_DEGREES_PER_SECOND, advance_wheel, server_epoch_millis,
 )
 
 
@@ -184,7 +188,10 @@ def test_timing_taps_are_server_scored_rate_limited_and_saved_as_output_factor(m
                 timing['pointer_angle'], timing['direction'], timing['speed'], .1,
             )
             # The chosen tap is a timestamped server event; clients cannot submit a claimed grade.
-            row.target_angle = pointer
+            row.target_bars_json = json.dumps([{
+                'id': 'hit-me', 'angle': pointer, 'kind': 'gold',
+                'visible_at_ms': server_epoch_millis(start),
+            }])
             first = await NextGameActiveProductionService.pulse(
                 session, 772003, started['session_id'], started['session_token'],
                 1, 'tap', 1, now=start + timedelta(seconds=.1),
@@ -193,10 +200,11 @@ def test_timing_taps_are_server_scored_rate_limited_and_saved_as_output_factor(m
             assert first['timing']['charge'] == 2
             assert first['timing']['multiplier'] == 1.5
             assert first['timing']['direction'] == -timing['direction']
+            assert 'hit-me' not in {bar['id'] for bar in first['timing']['target_bars']}
 
             retry = await NextGameActiveProductionService.pulse(
                 session, 772003, started['session_id'], started['session_token'],
-                2, 'tap', 2, now=start + timedelta(seconds=.3),
+                2, 'tap', 2, now=start + timedelta(seconds=.2),
             )
             assert retry['tap_result'] == 'too_soon'
             assert retry['timing']['charge'] == 2
@@ -210,7 +218,59 @@ def test_timing_taps_are_server_scored_rate_limited_and_saved_as_output_factor(m
                 NatNextGameActiveInterval.session_id == row.id,
             ))).all())
             assert intervals[-1].output_multiplier == pytest.approx(1.5)
-            assert intervals[-1].start_at == start + timedelta(seconds=.3)
+            assert intervals[-1].start_at == start + timedelta(seconds=.2)
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
+def test_tap_is_scored_at_the_actual_client_press_and_hit_bar_disappears(monkeypatch):
+    async def check():
+        monkeypatch.setenv('NEXT_GAME_ACTIVE_PRODUCTION_ENABLED', 'true')
+        engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        start = datetime(2026, 10, 10, 12, 0)
+        pressed_at = start + timedelta(seconds=.2)
+        received_at = start + timedelta(seconds=.5)
+        async with sessions() as session:
+            await NextGameService.create_company(session, 772004, 'Точный удар')
+            await NextGameService.select_sector(session, 772004, 'resources')
+            await NextGameService.select_branch(session, 772004, 'ore_mining')
+            await NextGameService.build_facility(session, 772004, now=start)
+            started = await NextGameActiveProductionService.start(
+                session, 772004, 'ore_mining', now=start,
+            )
+            row = await session.get(NatNextGameActiveSession, started['session_id'])
+            direction = row.wheel_direction
+            initial_angle = row.wheel_angle
+            hit_angle = advance_wheel(
+                initial_angle, direction, WHEEL_SPEED_DEGREES_PER_SECOND, .2,
+            )
+            row.target_bars_json = json.dumps([{
+                'id': 'latency-safe-hit', 'angle': hit_angle, 'kind': 'gold',
+                'visible_at_ms': server_epoch_millis(start),
+            }])
+
+            result = await NextGameActiveProductionService.pulse(
+                session, 772004, started['session_id'], started['session_token'],
+                1, 'tap', 1, tap_at_ms=server_epoch_millis(pressed_at), now=received_at,
+            )
+
+            assert result['tap_result'] == 'gold'
+            assert result['timing']['charge'] == 2
+            assert result['timing']['direction'] == -direction
+            assert 'latency-safe-hit' not in {bar['id'] for bar in result['timing']['target_bars']}
+            expected_current_angle = advance_wheel(
+                hit_angle, -direction, WHEEL_SPEED_DEGREES_PER_SECOND, .3,
+            )
+            assert result['timing']['pointer_angle'] == pytest.approx(expected_current_angle)
+            assert row.last_skill_tap_at == pressed_at
+            assert len(result['timing']['target_bars']) == 1
+            assert result['timing']['target_bars'][0]['visible_at_ms'] > server_epoch_millis(received_at)
+
         await engine.dispose()
 
     asyncio.run(check())

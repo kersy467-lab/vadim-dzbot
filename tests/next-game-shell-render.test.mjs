@@ -64,7 +64,7 @@ test('every service tile in More has a mounted screen and an API-backed section'
   }
 });
 
-test('active production tears down on screen and subview navigation and scopes keyboard input', async () => {
+test('active production scores timed lock-pick taps and tears down on screen navigation', async () => {
   const { readFile } = await import('node:fs/promises');
   const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
   const scene = await readFile(new URL('../frontend/natbirzha/js/active_production/scene.mjs', import.meta.url), 'utf8');
@@ -74,17 +74,18 @@ test('active production tears down on screen and subview navigation and scopes k
   assert.match(entry, /function closeActiveProduction/);
   assert.match(entry, /view !== 'active-production'/);
   assert.match(entry, /import\('\.\.\/active_production\/scene\.mjs\?v=/);
-  assert.match(scene, /root\.addEventListener\('keydown'/);
-  assert.match(scene, /root\.addEventListener\('keyup'/);
-  assert.doesNotMatch(scene, /document\.addEventListener\('key(?:down|up)'/);
+  assert.match(scene, /data-active-tap/);
+  assert.match(scene, /canvas\.addEventListener\('pointerdown'/);
+  assert.match(scene, /tap_at_ms: localTapAtServerMs/);
+  assert.match(scene, /game\.pendingTapAt/);
+  assert.match(scene, /estimateServerClockOffset/);
   assert.match(scene, /window\.addEventListener\('blur'/);
   assert.match(scene, /document\.addEventListener\('visibilitychange'/);
-  assert.match(scene, /const resetInput = \(\) => \{[\s\S]*?keys\.clear\(\)[\s\S]*?game\.direction = \{ x: 0, y: 0 \}[\s\S]*?game\.target = null[\s\S]*?game\.lastSentCounter = game\.activityCounter[\s\S]*?game\.lastAction = 'idle'/);
-  assert.match(scene, /pauseServer = async[\s\S]*?resetInput\(\)/);
-  assert.match(scene, /const resume = async[\s\S]*?resetInput\(\)/);
+  assert.match(scene, /pauseServer = async/);
+  assert.match(scene, /const resume = async/);
   assert.match(scene, /game\.pauseRequested = true/);
   assert.match(scene, /game\.closed \|\| game\.pauseRequested \|\| document\.hidden/);
-  assert.match(scene, /game\.activityCounter = 0/);
+  assert.match(scene, /const destroy = async/);
 });
 
 test('company header restores identity, sector, progression and creator-only state access', () => {

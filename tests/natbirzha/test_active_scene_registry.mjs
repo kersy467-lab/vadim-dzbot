@@ -43,30 +43,40 @@ test('the fullscreen scene escapes labels and exposes the timing game without mo
   assert.ok(!html.includes('data-active-order-select'));
   assert.ok(html.includes('data-active-tap'));
   assert.ok(html.includes('×5'));
-  assert.ok(html.includes('aria-label="Мини-игра: попади стрелкой в золотую или синюю зону"'));
+  assert.ok(html.includes('aria-label="Мини-игра: попадание вращающейся отмычкой по золотым и синим меткам"'));
+  assert.ok(html.includes('data-active-tap'));
+  assert.ok(html.includes('Нажать сейчас'));
 });
 
-test('the rhythm mini-game renders colored target zones, pointer, charge and hit feedback', () => {
-  const calls = { gradients: 0, fills: 0, strokes: 0, texts: [] };
+test('the lock mini-game renders several removable gold and blue bars around the moving pick', () => {
+  const calls = { gradients: 0, fills: 0, strokes: 0, targetArcs: 0, texts: [] };
   const ctx = {
     clearRect() {}, fillRect() { calls.fills += 1; }, strokeRect() {},
     beginPath() {}, moveTo() {}, lineTo() {}, closePath() {},
-    fill() {}, stroke() { calls.strokes += 1; }, arc() {}, fillText(text) { calls.texts.push(text); },
+    fill() {}, stroke() { calls.strokes += 1; }, arc(_x, _y, _radius, start, end) {
+      if (Math.abs(end - start) < 1) calls.targetArcs += 1;
+    }, fillText(text) { calls.texts.push(text); },
     save() {}, restore() {},
     createLinearGradient() { calls.gradients += 1; return { addColorStop() {} }; },
     createRadialGradient() { calls.gradients += 1; return { addColorStop() {} }; },
   };
 
   paint(ctx, 360, 240, { scene_family: 'materials', microvariant: 0, workstation: 'ЛИНИЯ' }, {
-    ...createTimingGameState({ pointer_angle: 30, target_angle: 60, direction: 1,
-      speed: 132, charge: 4, streak: 2, multiplier: 2, server_now: '2026-10-11T12:00:00' }, 1000),
+    ...createTimingGameState({ pointer_angle: 30, direction: 1,
+      speed: 110, charge: 4, streak: 2, multiplier: 2,
+      target_bars: [
+        { id: 'gold-a', angle: 60, kind: 'gold', visible_at_ms: 0 },
+        { id: 'blue-a', angle: 220, kind: 'blue', visible_at_ms: 0 },
+        { id: 'gold-hidden', angle: 280, kind: 'gold', visible_at_ms: 5_000 },
+      ] }, 1000),
     lastResult: 'gold',
   }, 1250);
 
   assert.ok(calls.gradients >= 2, 'the wheel and center use layered shading');
-  assert.ok(calls.strokes >= 4, 'the wheel track and colored target zones should be painted');
+  assert.ok(calls.strokes >= 4, 'the wheel track and visible colored target bars should be painted');
+  assert.equal(calls.targetArcs, 2, 'only visible target bars render before the server-timed respawn');
   assert.ok(calls.texts.includes('×2.00'));
-  assert.ok(calls.texts.includes('ЗОЛОТО +2'));
-  assert.ok(calls.texts.includes('СИНИЙ +1'));
+  assert.ok(calls.texts.includes('ЗАМОК ЦЕХА'));
+  assert.ok(calls.texts.includes('2 МЕТОК · 4/16'));
   assert.ok(calls.texts.includes('ТОЧНО!'));
 });

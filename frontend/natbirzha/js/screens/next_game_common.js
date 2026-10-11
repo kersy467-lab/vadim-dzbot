@@ -29,6 +29,7 @@ const paths = {
   energy: '<path d="m13 2-3 8h6l-5 12 1-9H7z"/>',
   cash: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 9h.01M17 15h.01"/>',
   activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  war: '<path d="M14 4 20 10M5 19 18 6M7 4l4 4m3 8 4 4M4 7l3-3m10 17 3-3"/>',
 };
 
 export function icon(name, size = 22) {

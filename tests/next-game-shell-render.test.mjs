@@ -28,18 +28,25 @@ test('five bottom destinations and grouped finance services use accessible vecto
   assert.match(shell, /data-next-view="more" class="is-active" aria-current="page"/);
   assert.match(shell, /&lt;script&gt;/);
   assert.doesNotMatch(shell, /military|upgrades|data-next-view="bank"/);
-  const more = renderMore();
+  const more = renderMore(true);
   for (const view of ['bank', 'capital', 'competition', 'help', 'contracts', 'admin']) {
     assert.match(more, new RegExp(`data-next-view="${view}"`));
   }
+  for (const section of ['0.1', '0.2', '0.3', '0.4', '0.5', '0.6']) {
+    assert.match(more, new RegExp(`data-service-group="${section}"`));
+  }
+  assert.match(more, /data-next-view="war"/);
+  assert.match(more, /data-next-view="legacy-admin"/);
+  assert.doesNotMatch(renderMore(false), /data-next-view="admin"|data-next-view="legacy-admin"/);
 });
 
 test('every service tile in More has a mounted screen and an API-backed section', async () => {
   const { readFile } = await import('node:fs/promises');
-  const more = renderMore();
+  const more = renderMore(true);
   const targets = [...more.matchAll(/data-next-view="([a-z-]+)"/g)].map((match) => match[1]);
   const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
   const api = await readFile(new URL('../frontend/natbirzha/js/next_game_api.js', import.meta.url), 'utf8');
+  const legacyApi = await readFile(new URL('../frontend/natbirzha/js/api.js', import.meta.url), 'utf8');
   const services = {
     progression: ['next_game_progression.js', '/progression'],
     operations: ['next_game_operations.js', '/operations/actions'],
@@ -53,39 +60,31 @@ test('every service tile in More has a mounted screen and an API-backed section'
     competition: ['next_game_competition.js', '/competition'],
     help: ['next_game_support.js', '/support'],
     admin: ['next_game_admin.js', '/admin/operations'],
+    war: ['military.js', '/api/natbirzha/military/status'],
+    'legacy-admin': ['creator.js', '/api/natbirzha/creator/audit-log'],
   };
 
-  assert.equal(new Set(targets).size, 12);
+  assert.equal(new Set(targets).size, 14);
   for (const target of targets) {
     const service = services[target];
     assert.ok(service, `service tile has no screen/API mapping: ${target}`);
     assert.ok(entry.includes(service[0]), `service tile has no screen module: ${target}`);
-    assert.ok(api.includes(service[1]), `service tile has no backend API: ${target}`);
+    assert.ok((api + legacyApi).includes(service[1]), `service tile has no backend API: ${target}`);
   }
 });
 
-test('active production scores timed lock-pick taps and tears down on screen navigation', async () => {
+test('factory screen uses passive production and no active game or multiplier UI', async () => {
   const { readFile } = await import('node:fs/promises');
   const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
-  const scene = await readFile(new URL('../frontend/natbirzha/js/active_production/scene.mjs', import.meta.url), 'utf8');
+  const factories = await readFile(new URL('../frontend/natbirzha/js/screens/next_game_factories.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../frontend/natbirzha/index.html', import.meta.url), 'utf8');
 
   assert.match(entry, /registerScreenCleanup/);
-  assert.match(entry, /function retireSession/);
-  assert.match(entry, /function closeActiveProduction/);
-  assert.match(entry, /view !== 'active-production'/);
-  assert.match(entry, /import\('\.\.\/active_production\/scene\.mjs\?v=/);
-  assert.match(scene, /data-active-tap/);
-  assert.match(scene, /canvas\.addEventListener\('pointerdown'/);
-  assert.match(scene, /tap_at_ms: localTapAtServerMs/);
-  assert.match(scene, /game\.pendingTapAt/);
-  assert.match(scene, /estimateServerClockOffset/);
-  assert.match(scene, /window\.addEventListener\('blur'/);
-  assert.match(scene, /document\.addEventListener\('visibilitychange'/);
-  assert.match(scene, /pauseServer = async/);
-  assert.match(scene, /const resume = async/);
-  assert.match(scene, /game\.pauseRequested = true/);
-  assert.match(scene, /game\.closed \|\| game\.pauseRequested \|\| document\.hidden/);
-  assert.match(scene, /const destroy = async/);
+  assert.doesNotMatch(entry, /active-production|mountActiveProductionScene|startNextGameActiveProduction/);
+  assert.doesNotMatch(factories, /×\s*1[,.]|data-active-production|Играть в сцене|множитель/iu);
+  assert.match(factories, /data-next-upgrade/);
+  assert.match(factories, /data-next-auto-upgrade/);
+  assert.doesNotMatch(html, /next-game-active-production\.css/);
 });
 
 test('company header restores identity, sector, progression and creator-only state access', () => {
@@ -128,18 +127,34 @@ test('autonomy respects cash and limiting input with visible shortages and build
   state.market[0].quantity = 2;
   assert.deepEqual(estimateAutonomy(recipe, state), { cycles: 0, seconds: 0 });
   let markup = renderFactories(state);
-  assert.match(markup, /не хватает 3/);
+  assert.match(markup, /нужно ещё 3/);
   assert.match(markup, /data-next-build="b0"[^>]+disabled/);
   state.company.cash = 500;
   markup = renderFactories(state);
   assert.doesNotMatch(markup, /data-next-build="b0"[^>]+disabled/);
   state.facilities.push({ branch_id: 'b0', recipe, status: 'blocked', level: 1, blocked_reason: 'Руда' });
   assert.match(renderFactories(state), /Запасов не хватает на один цикл/);
-  assert.match(renderFactories(state), /Пополнить ресурсы/);
+  assert.match(renderFactories(state), /Пополнить склад/);
 });
 
 test('overview uses remaining XP and offers the correct first production action', () => {
-  const markup = renderOverview(fixture());
+  const state = fixture();
+  state.recent_activity = [{ action: 'BUY', cash_change: -99, item_name: 'Руда', created_at: '2026-10-11T10:00:00Z' }];
+  const markup = renderOverview(state);
   assert.match(markup, /aria-valuenow="20"/);
   assert.match(markup, /data-next-view="factories">Построить первый завод/);
+  assert.doesNotMatch(markup, /Последние операции|ЖУРНАЛ КОМПАНИИ|Руда/);
+});
+
+test('More routes mount legacy war and the complete old administration panel inside V2', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../frontend/natbirzha/js/app.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../frontend/natbirzha/index.html', import.meta.url), 'utf8');
+  assert.match(entry, /renderMilitary/);
+  assert.match(entry, /renderCreator/);
+  assert.match(entry, /legacy-admin/);
+  assert.match(entry, /view === 'war'/);
+  assert.match(app, /screen_loader\.js\?v=20261011_v2_consolidation_v1/);
+  assert.match(html, /app\.js\?v=20261011_v2_consolidation_v1/);
 });

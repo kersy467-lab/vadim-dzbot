@@ -408,8 +408,8 @@ assert(upgradeScreenCode.includes('renderHybridManager') && hybridScreenCode.inc
   'upgrade screen must provide access to industry hybrid enterprises');
 assert(!hybridScreenCode.includes('active_hybrid_limit') && hybridScreenCode.includes('sellHybrid'),
   'hybrid screen must not enforce a world-wide hybrid count and must allow selling a hybrid');
-assert(hybridScreenCode.includes('до 4-го уровня') && hybridScreenCode.includes('max_stage || 4'),
-  'hybrid screen must explain the per-facility four-level upgrade cap');
+assert(hybridScreenCode.includes('до 50-го уровня') && hybridScreenCode.includes('max_stage || 50'),
+  'hybrid screen must explain the current per-facility level cap');
 assert(natApiCode.includes('getHybridCatalog:') && natApiCode.includes('openHybrid:') && natApiCode.includes('sellHybrid:'),
   'hybrid API client must support discovery, formation and sale');
 

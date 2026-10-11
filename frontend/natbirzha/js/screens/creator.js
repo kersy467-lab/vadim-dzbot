@@ -12,7 +12,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
 
-export async function renderCreator(container, showToast) {
+export async function renderCreator(container, showToast, options = {}) {
   container.innerHTML = `
     <div class="creator-screen space-y-4 max-w-md mx-auto p-4 pb-24 text-slate-100">
       <div class="flex items-center justify-between">
@@ -56,20 +56,22 @@ export async function renderCreator(container, showToast) {
   container.querySelectorAll('.creator-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       activeTab = btn.dataset.tab;
-      renderCreator(container, showToast);
+      renderCreator(container, showToast, options);
     });
   });
 
 
   const refreshBtn = container.querySelector('#refresh-creator-btn');
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => renderCreator(container, showToast));
+    refreshBtn.addEventListener('click', () => renderCreator(container, showToast, options));
   }
 
   const exitBtn = container.querySelector('#exit-creator-btn');
   if (exitBtn) {
     exitBtn.addEventListener('click', () => {
-      if (window.NatApp?.navigateTo) {
+      if (typeof options.onExit === 'function') {
+        options.onExit();
+      } else if (window.NatApp?.navigateTo) {
         window.NatApp.navigateTo('overview');
       }
     });

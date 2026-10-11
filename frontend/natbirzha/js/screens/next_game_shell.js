@@ -1,4 +1,4 @@
-import { esc, number, icon } from './next_game_common.js?v=20261010_shell_v2';
+import { esc, number, icon } from './next_game_common.js?v=20261011_v2_consolidation_v1';
 
 export const mainTabs = [
   ['overview', 'Обзор'], ['map', 'Развитие'], ['factories', 'Заводы'],
@@ -81,18 +81,20 @@ export function renderShell(stateOrCompany, activeView = 'overview', isCreator =
   return `<div class="next-game-screen">${renderHeader(state, isCreator)}<div class="next-game-content" data-next-content aria-live="polite"></div><nav class="next-game-nav" aria-label="Разделы игры 2.0">${mainTabs.map(([id, label]) => `<button type="button" data-next-view="${id}" ${navView === id ? 'class="is-active" aria-current="page"' : ''}>${icon(id)}<span>${label}</span></button>`).join('')}</nav></div>`;
 }
 
-export function renderMore() {
+export function renderMore(isAdmin = false) {
   const groups = [
-    ['Развитие', [['progression', 'Бонусы компании', 'Мастерство, ПИВОкоины и перерождение'], ['operations', 'Инфраструктура', 'Склад, земля, сотрудники и транспорт']]],
-    ['Финансы', [['bank', 'Банк', 'Счета, кредиты и депозиты'], ['capital', 'Инвестиции', 'Акции компаний и IPO'], ['bonds', 'Облигации', 'Купоны и вторичный рынок'], ['civic', 'Заказы и налоги', 'Городской спрос и ежедневный расчёт']]],
-    ['Партнёрство', [['contracts', 'Поставки', 'Договоры торговли между компаниями'], ['projects', 'Совместные заводы', 'Общий вклад и общий выпуск'], ['liquidation', 'Продажа предприятий', 'Имущество банкротов на вторичном рынке']]],
-    ['Сообщество', [['competition', 'Рейтинг', 'Результаты компаний'], ['help', 'Помощь', 'Деньги и сырьё на любом уровне']]],
-    ['Управление', [['admin', 'Администрирование', 'Состояние тестового мира']]],
+    ['0.1', 'Развитие', [['progression', 'Бонусы компании', 'Мастерство, PVC и перерождение'], ['operations', 'Инфраструктура', 'Склад, земля и сотрудники']]],
+    ['0.2', 'Финансы', [['bank', 'Банк', 'Счета, кредиты и депозиты'], ['capital', 'Инвестиции', 'Акции компаний и IPO'], ['bonds', 'Облигации', 'Купоны и вторичный рынок'], ['civic', 'Заказы и налоги', 'Городской спрос и расчёты']]],
+    ['0.3', 'Партнёрство', [['contracts', 'Поставки', 'Договоры между компаниями'], ['projects', 'Совместные заводы', 'Общий вклад и выпуск'], ['liquidation', 'Продажа предприятий', 'Активы банкротов']]],
+    ['0.4', 'Сообщество', [['competition', 'Рейтинг', 'Результаты компаний'], ['help', 'Помощь', 'Поддержка компаний любого уровня']]],
+    ['0.5', 'Управление', isAdmin ? [['admin', 'Управление миром 2.0', 'Казна, компании и журнал действий'], ['legacy-admin', 'Панель основной игры', 'Модерация, игроки, финансы и турниры']] : []],
+    ['0.6', 'Война', [['war', 'Военные действия', 'Армия, границы, альянсы и турниры']]],
   ];
-  return `<section class="next-game-service-directory"><div class="next-game-service-intro"><span class="next-game-eyebrow">ЦЕНТР УПРАВЛЕНИЯ</span><h2>Сервисы компании</h2><p>Финансы, развитие и инструменты для совместной игры — собраны по задачам.</p><span class="next-game-service-count">${groups.reduce((total, [, links]) => total + links.length, 0)} разделов</span></div>${groups.map(([title, links], index) => `<section class="next-game-more-group" data-service-group="${index}"><div class="next-game-more-group-heading"><span>${String(index + 1).padStart(2, '0')}</span><h3>${title}</h3></div><div class="next-game-more-grid">${links.map(([id, label, hint]) => `<button type="button" data-next-view="${id}" class="next-game-more-tile"><span class="next-game-more-icon" data-service-icon="${id}">${icon(id, 23)}</span><span class="next-game-more-copy"><b>${label}</b><small>${hint}</small></span><span class="next-game-more-arrow" aria-hidden="true">→</span></button>`).join('')}</div></section>`).join('')}</section>`;
+  const sectionCount = groups.reduce((total, [, , links]) => total + links.length, 0);
+  return `<section class="next-game-service-directory"><div class="next-game-service-intro"><span class="next-game-eyebrow">ЦЕНТР УПРАВЛЕНИЯ</span><h2>Сервисы компании</h2><p>Выбери нужный раздел.</p><span class="next-game-service-count">${sectionCount} разделов</span></div>${groups.map(([numberLabel, title, links]) => `<section class="next-game-more-group" data-service-group="${numberLabel}"><div class="next-game-more-group-heading"><span>${numberLabel}</span><h3>${title}</h3></div>${links.length ? `<div class="next-game-more-grid">${links.map(([id, label, hint]) => `<button type="button" data-next-view="${id}" class="next-game-more-tile"><span class="next-game-more-icon" data-service-icon="${id}">${icon(id, 23)}</span><span class="next-game-more-copy"><b>${label}</b><small>${hint}</small></span><span class="next-game-more-arrow" aria-hidden="true">→</span></button>`).join('')}</div>` : '<p class="next-game-management-locked">Раздел доступен только администраторам.</p>'}</section>`).join('')}</section>`;
 }
 
 export function renderSubview(title, content) {
-  const glyph = ({ Банк: 'bank', Инвестиции: 'capital', Рейтинг: 'competition' })[title] || 'activity';
+  const glyph = ({ Банк: 'bank', Инвестиции: 'capital', Рейтинг: 'competition', Война: 'war' })[title] || 'activity';
   return `<header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>НАТБИРЖА 2.0 · РАЗДЕЛ КОМПАНИИ</span></div><div class="next-game-view-title"><span>${icon(glyph, 23)}</span><div><h2>${esc(title)}</h2><small>Управляй активами и решениями компании</small></div></div></header>${content}`;
 }

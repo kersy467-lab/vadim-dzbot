@@ -5,6 +5,10 @@ export const THEMES = Object.freeze([
   Object.freeze({ id: 'ivory', label: 'Айвори и шалфей', scheme: 'light' }),
   Object.freeze({ id: 'midnight', label: 'Ночная биржа', scheme: 'dark' }),
   Object.freeze({ id: 'pearl', label: 'Жемчуг и сталь', scheme: 'light' }),
+  Object.freeze({ id: 'rose', label: 'Розовый кварц', scheme: 'light' }),
+  Object.freeze({ id: 'wood', label: 'Тёплое дерево', scheme: 'light' }),
+  Object.freeze({ id: 'botanical', label: 'Ботанический сад', scheme: 'light' }),
+  Object.freeze({ id: 'mountain', label: 'Горный хребет', scheme: 'light' }),
 ]);
 
 const THEME_IDS = new Set(THEMES.map(({ id }) => id));

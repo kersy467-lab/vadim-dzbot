@@ -1,34 +1,21 @@
-import { NatAPI } from '../api.js?v=20261010_active_production_v1';
+import { NatAPI } from '../api.js?v=20261011_v2_consolidation_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { esc, bindAction } from './next_game_common.js?v=20261010_shell_v2';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261010_experience_v1';
-import { renderOverview } from './next_game_overview.js?v=20261010_experience_v1';
-import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261010_shell_v2';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261010_active_production_v1';
+import { esc, bindAction, icon } from './next_game_common.js?v=20261011_v2_consolidation_v1';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261011_v2_consolidation_v1';
+import { renderOverview } from './next_game_overview.js?v=20261011_v2_consolidation_v1';
+import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261011_v2_consolidation_v1';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261011_v2_consolidation_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
 let activeNextGameView = 'overview';
 
-function closeActiveProduction(session) {
-  const activeScene = session.activeProductionScene;
-  const activeSession = session.activeProductionSession;
-  session.activeProductionScene = null;
-  session.activeProductionSession = null;
-  if (activeScene?.destroy) void activeScene.destroy('PAUSED').catch(() => {});
-  else if (activeSession?.session_id) {
-    void NatAPI.pauseNextGameActiveProduction(activeSession.session_id, activeSession.session_token).catch(() => {});
-  }
-}
-
 function retireSession(session) {
   session.releaseScreenCleanup?.();
   session.releaseScreenCleanup = null;
   session.version += 1;
-  closeActiveProduction(session);
   session.view = 'factories';
   activeNextGameView = 'factories';
-  document.body.classList.remove('is-active-production');
   if (entries.get(session.container) === session) entries.delete(session.container);
 }
 
@@ -93,11 +80,6 @@ async function mountActive(session) {
   const version = ++session.version;
   const { container, state, showToast } = session;
   const view = session.view;
-  if (view !== 'active-production' && (session.activeProductionScene || session.activeProductionSession)) {
-    closeActiveProduction(session);
-  }
-  if (view === 'active-production' && session.activeProductionScene) return;
-  document.body.classList.toggle('is-active-production', view === 'active-production');
   const content = container.querySelector('[data-next-content]');
   if (!content) return;
   container.querySelectorAll('.next-game-nav [data-next-view]').forEach((button) => {
@@ -122,55 +104,26 @@ async function mountActive(session) {
       content.innerHTML = renderDevelopment(state, session.development);
       bindDevelopment(content, state, session.development, NatAPI, showToast, refresh, redraw);
     } else if (view === 'factories') {
-      if (!session.loaded.has('active-production-config')) {
-        state.activeProductionConfig = await NatAPI.getNextGameActiveProductionConfig();
-        session.loaded.add('active-production-config');
-        if (version !== session.version || entries.get(container) !== session) return;
-      }
       content.innerHTML = renderFactories(state);
-      bindFactories(content, state, NatAPI, showToast, refresh, async (branchId) => {
-        const startVersion = session.version;
-        const activeSession = await NatAPI.startNextGameActiveProduction(branchId);
-        if (entries.get(container) !== session || session.version !== startVersion || session.view !== 'factories') {
-          await NatAPI.pauseNextGameActiveProduction(activeSession.session_id, activeSession.session_token).catch(() => {});
-          return;
-        }
-        session.activeProductionSession = activeSession;
-        session.view = 'active-production';
-        activeNextGameView = 'active-production';
-        await mountActive(session);
-      });
-    } else if (view === 'active-production') {
-        const { mountActiveProductionScene } = await import('../active_production/scene.mjs?v=20261011_pick_lock_v2');
-      if (version !== session.version || entries.get(container) !== session) {
-        const stale = session.activeProductionSession;
-        if (stale?.session_id) await NatAPI.pauseNextGameActiveProduction(stale.session_id, stale.session_token).catch(() => {});
-        return;
-      }
-      const target = document.createElement('div');
-      target.className = 'active-production-host';
-      content.replaceChildren(target);
-      session.activeProductionScene?.destroy();
-      session.activeProductionScene = mountActiveProductionScene(target, {
-        company: state.company,
-        activeSession: session.activeProductionSession,
-        api: NatAPI,
-        showToast,
-        onExit: async () => {
-          session.activeProductionScene = null;
-          session.activeProductionSession = null;
-          session.view = 'factories';
-          activeNextGameView = 'factories';
-          await mountActive(session);
-        },
-      });
-    } else if (view === 'more') content.innerHTML = renderMore();
+      bindFactories(content, state, NatAPI, showToast, refresh);
+    } else if (view === 'more') content.innerHTML = renderMore(currentCreatorAccess());
     else {
+      if (['admin', 'legacy-admin'].includes(view) && !currentCreatorAccess()) {
+        throw new Error('Этот раздел доступен только администраторам');
+      }
       content.innerHTML = '<section class="next-game-panel"><p role="status">Загрузка раздела…</p></section>';
       // Detached mount keeps a slow request from overwriting a newer selected tab.
       const target = document.createElement('div');
       target.className = 'next-game-module';
-      if (view === 'market') {
+      if (view === 'war') {
+        target.innerHTML = `<section class="next-game-legacy-view"><header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>0.6 · ВОЙНА</span></div><div class="next-game-view-title"><span>${icon('war', 23)}</span><div><h2>Военные действия</h2><small>Армия, границы, альянсы и турниры</small></div></div></header><div data-next-legacy-war></div></section>`;
+        const { renderMilitary } = await import('./military.js?v=20261011_v2_consolidation_v1');
+        await renderMilitary(target.querySelector('[data-next-legacy-war]'), showToast);
+      } else if (view === 'legacy-admin') {
+        target.innerHTML = `<section class="next-game-legacy-view"><header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>0.5 · УПРАВЛЕНИЕ</span></div><div class="next-game-view-title"><span>⌂</span><div><h2>Панель основной игры</h2><small>Старые государственные инструменты и управление игроками</small></div></div></header><div data-next-legacy-admin></div></section>`;
+        const { renderCreator } = await import('./creator.js?v=20261011_v2_consolidation_v1');
+        await renderCreator(target.querySelector('[data-next-legacy-admin]'), showToast, { onExit: () => state.navigateNextGame?.('more') });
+      } else if (view === 'market') {
         const { renderNextGameMarket } = await import('./next_game_market.js?v=20261010_visual_recovery_v3');
         await renderNextGameMarket(target, state, showToast, refresh);
       } else if (['bank', 'capital', 'competition'].includes(view)) await renderFinance(target, session, view, refresh);
@@ -213,8 +166,7 @@ async function mountActive(session) {
 function startSession(container, state, showToast) {
   const previous = entries.get(container);
   if (previous) retireSession(previous);
-  const initialView = activeNextGameView === 'active-production' ? 'factories' : activeNextGameView;
-  const session = { container, state, showToast, view: initialView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now() };
+  const session = { container, state, showToast, view: activeNextGameView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now() };
   entries.set(container, session);
   session.releaseScreenCleanup = registerScreenCleanup(() => retireSession(session));
   const navigate = (view) => {
@@ -237,12 +189,13 @@ function startSession(container, state, showToast) {
     } else mountActive(session);
   };
   state.navigateNextGame = navigate;
+  session.navigate = navigate;
   container.innerHTML = renderShell(state, session.view, currentCreatorAccess());
   container.querySelector('.next-game-screen').addEventListener('click', (event) => {
     const button = event.target.closest('[data-next-view], [data-next-legacy], [data-next-admin]');
     if (!button || button.disabled) return;
     if (button.hasAttribute('data-next-legacy')) window.NatApp?.navigateTo('overview');
-    else if (button.hasAttribute('data-next-admin')) window.NatApp?.navigateTo('creator');
+    else if (button.hasAttribute('data-next-admin')) navigate('legacy-admin');
     else navigate(button.dataset.nextView);
   });
   container.querySelector('.next-game-screen').addEventListener('next-game-navigate', (event) => {

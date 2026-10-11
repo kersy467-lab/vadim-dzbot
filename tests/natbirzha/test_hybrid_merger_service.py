@@ -96,11 +96,11 @@ def test_server_owned_hybrid_recipes_cover_every_active_industry() -> None:
         assert all(quantity > 0 for quantity in recipe["resource_requirements"].values())
 
 
-def test_each_hybrid_has_a_four_level_upgrade_cap() -> None:
+def test_each_hybrid_uses_the_full_career_upgrade_scale() -> None:
     for recipe in HYBRID_RECIPES.values():
         spec = get_business_spec(recipe["business_type"])
-        assert recipe["max_stage"] == 4
-        assert spec is not None and spec["max_stage"] == 4
+        assert recipe["max_stage"] == 50
+        assert spec is not None and spec["max_stage"] == 50
 
 
 def test_each_hybrid_has_a_balanced_resource_production_spec() -> None:
@@ -138,7 +138,7 @@ def test_hybrid_catalog_shows_upgrade_target_level() -> None:
                 data = await hybrid_catalog(company, session)
                 assert "active_hybrid_limit" not in data
                 recipe = next(item for item in data["recipes"] if item["id"] == "hybrid_miner")
-                assert recipe["max_stage"] == 4
+                assert recipe["max_stage"] == 50
                 row = next(item for item in data["businesses"] if item["id"] == source.id)
                 assert row["stage"] == 25
                 assert row["target_stage"] == 26

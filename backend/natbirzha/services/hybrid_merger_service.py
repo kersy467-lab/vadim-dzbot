@@ -154,7 +154,10 @@ class HybridMergerService:
             business_type=recipe["business_type"],
             custom_name=business_spec["name"],
             specialization=recipe["specialization"],
-            stage=1,
+            stage=min(
+                int(business_spec["max_stage"]),
+                max(1, (int(ordered_sources[0].stage) + int(ordered_sources[1].stage) + 1) // 2),
+            ),
             status="ACTIVE",
             capital_invested=extra_capital,
             base_income_per_hour=float(business_spec["base_income_per_hour"]),

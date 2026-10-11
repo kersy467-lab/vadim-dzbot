@@ -105,7 +105,7 @@ async def hybrid_catalog(
             "name": (hybrid_spec or {}).get("name", "Гибридный комплекс"),
             "hybrid_business_id": merger.hybrid_business_id,
             "stage": int(hybrid.stage) if hybrid is not None else None,
-            "max_stage": int((hybrid_spec or {}).get("max_stage", 4)),
+            "max_stage": int((hybrid_spec or {}).get("max_stage", 50)),
             "status": hybrid.status if hybrid is not None else "MISSING",
             "source_business_ids": [merger.source_business_a_id, merger.source_business_b_id],
             "source_business_names": [

@@ -120,6 +120,73 @@ def _sum_rates(specs: list[dict[str, Any]], field: str, factor: float = 1.0) -> 
     }
 
 
+def _market_value(entries: dict[str, float]) -> float:
+    return sum(
+        float(quantity) * float(CANONICAL_ITEMS[item_id]["base_price"])
+        for item_id, quantity in entries.items()
+    )
+
+
+def _stage_profile(spec: dict[str, Any], stage: int) -> dict[str, float]:
+    profiles = spec.get("stage_rates") or {}
+    return profiles.get(stage) or profiles.get(str(stage)) or {
+        "input": 1.0,
+        "output": 1.0,
+        "maintenance": 1.0,
+        "payback_hours": 0.0,
+    }
+
+
+def _combined_stage_rates(
+    source_specs: list[dict[str, Any]],
+    inputs: dict[str, float],
+    outputs: dict[str, float],
+    maintenance: float,
+) -> dict[int, dict[str, float]]:
+    """Keep a hybrid's stage throughput equal to its two source lines combined."""
+    output_base_value = _market_value(outputs)
+    input_base_value = _market_value(inputs)
+    source_output_values = [_market_value(spec["outputs_per_hour"]) for spec in source_specs]
+    source_input_values = [
+        _market_value({item: quantity for item, quantity in spec["inputs_per_hour"].items() if item in inputs})
+        for spec in source_specs
+    ]
+    source_maintenance_values = [float(spec["base_maintenance_per_hour"]) for spec in source_specs]
+    source_total_output = sum(source_output_values)
+    profiles: dict[int, dict[str, float]] = {}
+
+    for stage in range(1, 51):
+        rates = [_stage_profile(spec, stage) for spec in source_specs]
+        combined_output = sum(
+            source_output_values[index] * float(rates[index]["output"])
+            for index in range(len(source_specs))
+        )
+        combined_input = sum(
+            source_input_values[index] * float(rates[index]["input"])
+            for index in range(len(source_specs))
+        )
+        combined_maintenance = sum(
+            source_maintenance_values[index] * float(rates[index]["maintenance"])
+            for index in range(len(source_specs))
+        )
+        profiles[stage] = {
+            "input": round((1 - INPUT_REDUCTION_RATIO) * combined_input / input_base_value, 8)
+            if input_base_value > 0 else 1.0,
+            "output": round((1 + OUTPUT_BONUS_RATIO) * combined_output / output_base_value, 8)
+            if output_base_value > 0 else 1.0,
+            "maintenance": round((1 - MAINTENANCE_REDUCTION_RATIO) * combined_maintenance / maintenance, 8)
+            if maintenance > 0 else 1.0,
+            "payback_hours": round(
+                sum(
+                    source_output_values[index] * float(rates[index].get("payback_hours", 0.0))
+                    for index in range(len(source_specs))
+                ) / source_total_output,
+                6,
+            ) if source_total_output > 0 else 0.0,
+        }
+    return profiles
+
+
 def build_hybrid_catalog(
     source_catalog: dict[str, dict[str, Any]],
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
@@ -153,6 +220,9 @@ def build_hybrid_catalog(
             )
             inputs = _sum_rates(source_specs, "inputs_per_hour", 1 - INPUT_REDUCTION_RATIO)
             outputs = _sum_rates(source_specs, "outputs_per_hour", 1 + OUTPUT_BONUS_RATIO)
+            # A combined plant can internally supply an input produced by one
+            # of its own lines, matching the ordinary career balance rules.
+            inputs = {item: quantity for item, quantity in inputs.items() if item not in outputs}
             source_items = tuple(dict.fromkeys(
                 item_id
                 for spec in source_specs
@@ -191,10 +261,17 @@ def build_hybrid_catalog(
                 starter=False,
                 unique=False,
             )
+            # career_business calibrates standalone plants for their opening
+            # price. A hybrid already contains both calibrated source recipes;
+            # applying that calibration again discards most of their output.
+            spec["inputs_per_hour"] = inputs
+            spec["outputs_per_hour"] = outputs
             spec["base_maintenance_per_hour"] = maintenance
-            # Hybrid lines are a compact collaboration upgrade with four
-            # progression levels; this is per facility, not a world-wide cap.
-            spec["max_stage"] = 4
+            spec["max_stage"] = 50
+            spec["stage_rates"] = _combined_stage_rates(
+                source_specs, inputs, outputs, maintenance
+            )
+            spec["economy_version"] = "hybrid_combined_production_v1"
             spec["hybrid_only"] = True
             spec["hybrid_source_business_types"] = source_types
             spec["input_reduction_ratio"] = INPUT_REDUCTION_RATIO

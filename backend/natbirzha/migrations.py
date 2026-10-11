@@ -923,6 +923,12 @@ async def _migrate_v28_admin_rebirth_schedule(conn) -> None:
     )
 
 
+async def _migrate_v45_hybrid_progress(conn) -> None:
+    from backend.natbirzha.hybrid_merger_migration import migrate_hybrid_progress
+
+    await migrate_hybrid_progress(conn)
+
+
 MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_p2_001", _migrate_p2_columns),
     ("natbirzha_p2_002", _migrate_p2_data),
@@ -983,6 +989,7 @@ MIGRATIONS: tuple[tuple[str, Migration], ...] = (
     ("natbirzha_v42_001_next_game_active_production", migrate_next_game_active),
     ("natbirzha_v43_001_next_game_active_minigame", migrate_next_game_active_minigame),
     ("natbirzha_v44_001_next_game_pick_lock_targets", migrate_next_game_active_targets),
+    ("natbirzha_v45_001_hybrid_progress", _migrate_v45_hybrid_progress),
 )
 
 

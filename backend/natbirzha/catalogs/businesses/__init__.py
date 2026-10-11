@@ -86,7 +86,6 @@ CAREER_BUSINESSES = scale_catalog_energy_inputs(
 CAREER_BUSINESSES = add_ai_compute_demand(CAREER_BUSINESSES)
 CAREER_BUSINESSES = balance_career_catalog(CAREER_BUSINESSES)
 HYBRID_BUSINESSES, HYBRID_RECIPES = build_hybrid_catalog(CAREER_BUSINESSES)
-HYBRID_BUSINESSES = balance_career_catalog(HYBRID_BUSINESSES)
 CAREER_BUSINESSES = {**CAREER_BUSINESSES, **HYBRID_BUSINESSES}
 CAREER_BUSINESSES = add_employee_beverages_to_catalog(CAREER_BUSINESSES)
 CAREER_BUSINESSES = cap_career_catalog_expenses(CAREER_BUSINESSES)
@@ -95,6 +94,16 @@ CAREER_BUSINESSES = apply_industry_resource_usage_adjustments(
     input_field="inputs_per_hour",
     resource_production_only=True,
 )
+for _spec in CAREER_BUSINESSES.values():
+    if _spec.get("hybrid_only") and _spec.get("actual_open_roi_hours") is not None:
+        _spec["target_open_roi_hours"] = max(
+            float(_spec["target_open_roi_hours"]),
+            float(_spec["actual_open_roi_hours"]),
+        )
+HYBRID_BUSINESSES = {
+    business_type: CAREER_BUSINESSES[business_type]
+    for business_type in HYBRID_BUSINESSES
+}
 JOINT_FACTORY_RECIPES = build_joint_factory_catalog(CAREER_BUSINESSES)
 # Keep already-running AI/forestry collaboration factories settling after the
 # specialization rename and partnership refresh. These recipes are never

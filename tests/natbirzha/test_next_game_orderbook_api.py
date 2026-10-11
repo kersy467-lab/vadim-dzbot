@@ -152,7 +152,7 @@ def test_market_migration_postgresql_path_checks_tables_before_creating_them():
 def test_market_screen_exposes_bid_ask_book_limit_forms_and_cancel_controls():
     screen = "\n".join(Path(f"frontend/natbirzha/js/screens/{name}.js").read_text(encoding="utf-8") for name in ("next_game_market", "next_game_market_item"))
     api = Path("frontend/natbirzha/js/next_game_api.js").read_text(encoding="utf-8")
-    assert "Bids" in screen and "Asks" in screen
+    assert "BID" in screen and "ASK" in screen
     assert "createNextGameLimitOrder" in screen
     assert "cancelNextGameOrder" in screen
     assert 'Number(data.reference_price || item.base_price)' in screen

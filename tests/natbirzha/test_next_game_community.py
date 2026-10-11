@@ -119,8 +119,10 @@ def test_auto_upgrade_stops_at_nine_and_never_repeats_within_minute():
             facility.next_cycle_at = current + timedelta(days=1)
             await NextGameService.settle_company(session, 800001, now=current)
             after = company.cash
-            assert facility.level == 9
+            assert facility.level == 8 and facility.upgrade_target_level == 9
             await NextGameService.settle_company(session, 800001, now=current + timedelta(seconds=10))
+            assert facility.level == 8 and facility.upgrade_target_level == 9
             await NextGameService.settle_company(session, 800001, now=current + timedelta(minutes=2))
-            assert facility.level == 9 and company.cash == after
+            assert facility.level == 9 and facility.upgrade_target_level is None
+            assert company.cash == after
     asyncio.run(check())

@@ -7,11 +7,13 @@ STARTING_COMPANY_CASH = 10_000.0
 MAX_TRADE_QUANTITY = 10_000.0
 MAX_INVENTORY_PER_ITEM = 100_000.0
 MAX_CATCH_UP_CYCLES = 100
-MAX_FACILITY_LEVEL = 10
-FACILITY_UPGRADE_BASE_COST = 2_500.0
-FACILITY_OUTPUT_PER_LEVEL = 0.25
+MAX_FACILITY_LEVEL = 50
+FACILITY_UPGRADE_BASE_COST = 150.0
+FACILITY_UPGRADE_SECONDS_PER_LEVEL = 3
+FACILITY_OUTPUT_PER_LEVEL = 0.04
 XP_PER_CYCLE = 200
 XP_PER_LEVEL = 1_000
+XP_PER_FACILITY_UPGRADE = 600
 BUY_MARKUP = 1.20
 SELL_MARKDOWN = 0.80
 MAX_BANK_LOAN = 50_000.0
@@ -36,11 +38,16 @@ def facility_output_multiplier(level: int) -> float:
     return round(1 + max(0, int(level) - 1) * FACILITY_OUTPUT_PER_LEVEL, 4)
 
 
+def facility_upgrade_duration(current_level: int) -> int:
+    return FACILITY_UPGRADE_SECONDS_PER_LEVEL * int(current_level)
+
+
 def facility_recipe_at_level(recipe: dict, level: int) -> dict:
     multiplier = facility_output_multiplier(level)
     return {**recipe, "output_quantity": round(float(recipe["output_quantity"]) * multiplier, 4)}
 
 
 __all__ = [name for name in globals() if name.isupper()] + [
-    "_utcnow", "facility_upgrade_cost", "facility_output_multiplier", "facility_recipe_at_level",
+    "_utcnow", "facility_upgrade_cost", "facility_upgrade_duration",
+    "facility_output_multiplier", "facility_recipe_at_level",
 ]

@@ -24,6 +24,7 @@ from backend.natbirzha.models.next_game_advance import NatNextGameMarketAdvance
 from backend.natbirzha.models.next_game_partnerships import NatNextGameSupplyDeal, NatNextGameJointProject
 from backend.natbirzha.models.next_game_bonds import NatNextGameBondSeries, NatNextGameBondHolding, NatNextGameBondListing
 from backend.natbirzha.models.next_game_progression import NatNextGameMerger
+from backend.natbirzha.models.next_game_managers import NatNextGameManager
 from backend.natbirzha.models.next_game_community import (
     NatNextGameProfile, NatNextGameHelpRequest, NatNextGameTransfer, NatNextGameAdminAudit,
 )
@@ -141,6 +142,7 @@ __all__ = [
     "NatNextGameMarketOrder",
     "NatNextGameMarketTrade",
     "NatNextGameTreasury",
+    "NatNextGameManager",
     "NatNextGameShareIssue",
     "NatNextGameShareHolding",
     "NatNextGameShareOrder",

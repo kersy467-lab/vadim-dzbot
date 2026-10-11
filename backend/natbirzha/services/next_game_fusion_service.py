@@ -35,7 +35,8 @@ class NextGameFusionService:
         ))).all()
         eligible = []
         for facility in facilities:
-            if facility.level >= 5 and not any(row.branch_id == facility.branch_id for row in mergers):
+            if (facility.level >= 5 and facility.upgrade_target_level is None
+                    and not any(row.branch_id == facility.branch_id for row in mergers)):
                 branch = find_next_game_branch(facility.branch_id)
                 if branch:
                     eligible.append({"id": facility.id, "branch_id": facility.branch_id,
@@ -60,6 +61,8 @@ class NextGameFusionService:
         if len(sources) != 2 or any(row.level < 5 for row in sources):
             raise ValueError("Нужны два собственных предприятия не ниже уровня 5")
         for source in sources:
+            if source.upgrade_target_level is not None:
+                raise ValueError("Дождитесь завершения улучшения перед объединением предприятия")
             from backend.natbirzha.services.next_game_operations_effects import has_factory_assets
             if await has_factory_assets(session, source.id):
                 raise ValueError("Объединение недоступно: у источника есть штат, транспорт, автоматизация или действующая лицензия")
@@ -97,6 +100,13 @@ class NextGameFusionService:
                       "created_at": row.created_at.isoformat(), "original_id": row.id} for row in sources]
         # Both persisted source rows are consumed. Exactly one complex remains.
         anchor = sources[0].branch_id
+        from backend.natbirzha.models.next_game_managers import NatNextGameManager
+        for source in sources:
+            managers = (await session.scalars(select(NatNextGameManager).where(
+                NatNextGameManager.facility_id == source.id,
+            ).with_for_update())).all()
+            for manager in managers:
+                manager.facility_id = None
         for source in sources:
             await session.delete(source)
         await session.flush()
@@ -131,6 +141,8 @@ class NextGameFusionService:
         ).with_for_update())
         if complex_row is None:
             raise ValueError("Предприятие объединения не найдено")
+        if complex_row.upgrade_target_level is not None:
+            raise ValueError("Дождитесь завершения улучшения перед разделением комплекса")
         from backend.natbirzha.services.next_game_operations_effects import production_slots, used_production_slots
         if await used_production_slots(session, company.id) + len(merger.sources_json) - 1 > await production_slots(session, company.id):
             raise ValueError("Для исходных предприятий расширьте производственную площадку")
@@ -145,6 +157,12 @@ class NextGameFusionService:
             created_at=current, next_cycle_at=current + timedelta(seconds=first_recipe["cycle_seconds"]))
         session.add(target)
         await session.flush()
+        from backend.natbirzha.models.next_game_managers import NatNextGameManager
+        managers = (await session.scalars(select(NatNextGameManager).where(
+            NatNextGameManager.facility_id == complex_row.id,
+        ).with_for_update())).all()
+        for manager in managers:
+            manager.facility_id = None
         from backend.natbirzha.services.next_game_operations_effects import move_factory_assets
         await move_factory_assets(session, complex_row.id, target.id)
         await session.delete(complex_row)

@@ -89,7 +89,7 @@ def test_fusion_consumes_sources_once_and_restores_original_levels():
             assert len(facilities) == 1
             assert await Fusion.consumed_branch(session, company.id, "renewables")
             recipe = await Fusion.facility_recipe(session, facilities[0], {})
-            assert recipe["output_quantity"] == pytest.approx((16 * 2 + 9 * 2) * 1.25)
+            assert recipe["output_quantity"] == pytest.approx((16 * 1.16 + 9 * 1.16) * 1.25)
             assert recipe["inputs"] == {"coal": 2, "water": 1}
             assert recipe["operating_cost"] == 55
             assert await cash_total(session) == pytest.approx(before)

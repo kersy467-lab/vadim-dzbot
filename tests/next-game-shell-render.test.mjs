@@ -93,14 +93,13 @@ test('company header restores identity, sector, progression and creator-only sta
   state.company.level = 60;
   state.company.xp = 110000;
   state.company.xp_to_next_level = 0;
-  state.settings.rebirths = 2;
 
   const header = renderHeader(state, true);
   assert.match(header, /NORTH/);
   assert.match(header, /Промышленность/);
-  assert.match(header, /<small>Уровень<\/small><b>60/u);
+  assert.match(header, /<small>Уровень компании<\/small><b>60/u);
   assert.match(header, /<small>Мастерство<\/small><b>51/u);
-  assert.match(header, /<small>Перерождение<\/small><b>2\s*<em>\/ 10/u);
+  assert.doesNotMatch(header, /Перерождение|\/ 10/u);
   assert.match(header, /data-next-admin/);
   assert.doesNotMatch(renderHeader(state, false), /data-next-admin/);
 });
@@ -120,6 +119,39 @@ test('development displays connected route, two gated choices and bounded catalo
   assert.match(renderDevelopment(state, { query: 'Направление 999', inspected: 'b999' }), /Ресурсы на цикл/);
 });
 
+test('development shows territory progress when unlocked and never offers rebirth', () => {
+  const state = fixture();
+  state.progression_map = {
+    revealed: false,
+    unlock_requirement: { facility_level: 8, message: 'Улучшите первый завод до уровня 8, чтобы открыть карту территорий.' },
+    territories: [], sectors: [], next_branches: [],
+  };
+  let markup = renderDevelopment(state);
+  assert.match(markup, /Улучшите первый завод до уровня 8/);
+  assert.doesNotMatch(markup, /Перерождение|data-rebirth-start|переродиться/iu);
+
+  state.progression_map = {
+    revealed: true,
+    active_sector_id: 'industry',
+    current_branch_id: 'b0',
+    unlock_requirement: { facility_level: 8, message: '' },
+    sectors: [{ id: 'industry', name: 'Промышленность', territories: [
+      { id: 'region-1', tier: 1, name: 'Промышленная долина', state: 'current', facilities: [
+        { id: 'b0', name: 'Рудный завод', outputs: 'Руда', state: 'built', facility_level: 8, required_company_level: 1 },
+      ] },
+    ] }],
+    territories: [{ id: 'region-1', tier: 1, name: 'Промышленная долина', state: 'current', facilities: [
+      { id: 'b0', name: 'Рудный завод', outputs: 'Руда', state: 'built', facility_level: 8, required_company_level: 1 },
+    ] }],
+    next_branches: [],
+  };
+  markup = renderDevelopment(state);
+  assert.match(markup, /Карта территорий/);
+  assert.match(markup, /Промышленная долина/);
+  assert.match(markup, /Рудный завод/);
+  assert.doesNotMatch(markup, /Перерождение|data-rebirth-start|переродиться/iu);
+});
+
 test('autonomy respects cash and limiting input with visible shortages and build affordability', () => {
   const state = fixture();
   const recipe = state.corporations[0].branches[0].factory;
@@ -135,6 +167,28 @@ test('autonomy respects cash and limiting input with visible shortages and build
   state.facilities.push({ branch_id: 'b0', recipe, status: 'blocked', level: 1, blocked_reason: 'Руда' });
   assert.match(renderFactories(state), /Запасов не хватает на один цикл/);
   assert.match(renderFactories(state), /Пополнить склад/);
+});
+
+test('continuous upgrades show server timer and managers only affect cash expenses', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const api = await readFile(new URL('../frontend/natbirzha/js/next_game_api.js', import.meta.url), 'utf8');
+  const state = fixture();
+  state.company.level = 12;
+  state.facilities.push({ branch_id: 'b0', level: 3, upgrade_target_level: 4,
+    upgrade_seconds_remaining: 22, upgrade_reserved_cash: 450,
+    recipe: { ...state.corporations[0].branches[0].factory, operating_cost: 19.6 }, status: 'active' });
+  state.managers = [{ id: 9, name: 'Анна Белова', rarity: 'common', reward_level: 5,
+    discount_pct: 2, facility_id: 1, branch_id: 'b0' }];
+  const markup = renderFactories(state);
+  assert.match(markup, /Улучшение до 4 уровня/);
+  assert.match(markup, /Осталось около 22 сек/);
+  assert.match(markup, /Списано и учтено в казне: 450 cash/);
+  assert.doesNotMatch(markup, /data-next-upgrade="b0"/);
+  assert.match(markup, /Анна Белова/);
+  assert.match(markup, /2%/);
+  assert.match(markup, /только cash-расходы/);
+  assert.match(api, /assignNextGameManager[\s\S]*manager\/assign/);
+  assert.match(markup, /data-next-manager-assign="9"/);
 });
 
 test('overview uses remaining XP and offers the correct first production action', () => {
@@ -155,6 +209,6 @@ test('More routes mount legacy war and the complete old administration panel ins
   assert.match(entry, /renderCreator/);
   assert.match(entry, /legacy-admin/);
   assert.match(entry, /view === 'war'/);
-  assert.match(app, /screen_loader\.js\?v=20261011_v2_consolidation_v1/);
-  assert.match(html, /app\.js\?v=20261011_v2_consolidation_v1/);
+  assert.match(app, /screen_loader\.js\?v=20261011_continuous_progression_v1/);
+  assert.match(html, /app\.js\?v=20261011_continuous_progression_v1/);
 });

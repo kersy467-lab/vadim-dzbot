@@ -1,4 +1,4 @@
-import { esc, number, pathEntries, bindAction } from './next_game_common.js?v=20261011_v2_consolidation_v1';
+import { esc, number, pathEntries, bindAction } from './next_game_common.js?v=20261011_continuous_progression_v1';
 
 export function estimateAutonomy(recipe, state) {
   const items = new Map((state.market || state.inventory || []).map((item) => [item.item_id, item]));
@@ -52,9 +52,13 @@ function facilityCard({ branch, sector, index, facility, state, items, consumed 
   const canUpgrade = facility && facility.upgrade_cost != null
     && Number(state.company.level) >= Number(facility.required_company_level)
     && Number(state.company.cash) >= Number(facility.upgrade_cost);
-  const upgrade = facility?.upgrade_cost != null
-    ? `<button type="button" data-next-upgrade="${esc(branch.id)}" class="next-game-primary" ${canUpgrade ? '' : 'disabled'}>Улучшить до ${number(facility.upgrade_level, 0)} уровня · ${number(facility.upgrade_cost, 0)} cash</button><small>Нужен уровень компании ${number(facility.required_company_level, 0)}.</small>`
-    : facility ? '<small class="next-game-factory-max">Максимальный уровень</small>'
+  const pendingLevel = Number(facility?.upgrade_target_level || 0);
+  const remaining = Number(facility?.upgrade_seconds_remaining || 0);
+  const upgrade = pendingLevel
+    ? `<div class="next-game-upgrade-pending"><b>Улучшение до ${number(pendingLevel, 0)} уровня</b><span>Осталось около ${number(remaining, 0)} сек.</span><small>Списано и учтено в казне: ${number(facility.upgrade_reserved_cash, 0)} cash. Завод пока работает на ${number(facility.level, 0)} уровне.</small></div>`
+    : facility?.upgrade_cost != null
+      ? `<button type="button" data-next-upgrade="${esc(branch.id)}" class="next-game-primary" ${canUpgrade ? '' : 'disabled'}>Начать улучшение до ${number(facility.upgrade_level, 0)} · ${number(facility.upgrade_cost, 0)} cash · ${number(facility.upgrade_duration_seconds, 0)} сек.</button><small>Нужен уровень компании ${number(facility.required_company_level, 0)}.</small>`
+      : facility ? `<small class="next-game-factory-max">${Number(facility.level) === 50 ? 'Максимальный уровень 50' : 'Сохранённый уровень ' + number(facility.level, 0) + ' · предел улучшений 50'}</small>`
       : `<button type="button" data-next-build="${esc(branch.id)}" class="next-game-primary" ${canBuild ? '' : 'disabled'}>Построить · ${number(buildCost, 0)} cash</button>${canBuild ? '' : `<small>Не хватает ${number(buildCost - Number(state.company.cash || 0), 0)} cash.</small>`}`;
   const autonomy = facility ? autonomyLabel(estimateAutonomy(recipe, state)) : 'Пока не построен';
 
@@ -66,6 +70,44 @@ function facilityCard({ branch, sector, index, facility, state, items, consumed 
     ${facility?.blocked_reason ? `<p class="next-game-blocked-reason">Не хватает: ${esc(facility.blocked_reason)}</p><button type="button" data-next-view="market" class="next-game-secondary">Пополнить склад</button>` : ''}
     <div class="next-game-factory-action">${upgrade}</div>
   </article>`;
+}
+
+function renderManagers(state) {
+  const managers = state.managers || [];
+  const facilities = state.facilities || [];
+  const rarities = { common: 'обычный', rare: 'редкий', epic: 'эпический', legendary: 'легендарный' };
+  const occupied = new Map(managers.filter((row) => row.branch_id).map((row) => [row.branch_id, row.id]));
+  const cards = managers.map((manager) => {
+    const choices = facilities.map((facility) => {
+      const name = facility.name || facility.recipe?.facility_name || facility.branch_id;
+      const busy = occupied.has(facility.branch_id) && occupied.get(facility.branch_id) !== manager.id;
+      const selected = manager.branch_id === facility.branch_id ? ' selected' : '';
+      const disabled = busy ? ' disabled' : '';
+      return '<option value="' + esc(facility.branch_id) + '"' + selected + disabled + '>'
+        + esc(name) + ' · ур. ' + number(facility.level, 0)
+        + (busy ? ' · назначен другой менеджер' : '') + '</option>';
+    }).join('');
+    return '<article class="next-game-manager-card is-' + esc(manager.rarity) + '">'
+      + '<div class="next-game-manager-card-heading"><span class="next-game-manager-seal">'
+      + number(manager.discount_pct, 0) + '%</span><div><b>' + esc(manager.name)
+      + '</b><small>' + esc(rarities[manager.rarity] || manager.rarity) + ' · награда за '
+      + number(manager.reward_level, 0) + ' уровень</small></div></div>'
+      + '<p>Снижает только cash-расходы цикла. Ресурсы и выпуск не меняются.</p>'
+      + '<label>Завод<select data-next-manager-select><option value="">Не назначен</option>'
+      + choices + '</select></label><button type="button" data-next-manager-assign="'
+      + manager.id + '" class="next-game-secondary">Сохранить назначение</button></article>';
+  }).join('');
+  const summary = managers.length
+    ? '<div class="next-game-manager-grid">' + cards + '</div>'
+    : '<p>Менеджеры гарантированно открываются на уровнях 5, 15, 30 и 45. Ближайший специалист: '
+      + ([5, 15, 30, 45].find((level) => level > Number(state.company?.level || 1))
+        || 'все награды получены') + '.</p>';
+  return '<section class="next-game-panel next-game-manager-panel">'
+    + '<div class="next-game-development-heading"><div><span class="next-game-eyebrow">'
+    + 'КОМАНДА И СПЕЦИАЛИСТЫ</span><h3>Менеджеры заводов</h3></div>'
+    + '<span class="next-game-manager-count">' + managers.length + ' / 4</span></div>'
+    + '<p>Назначьте одного специалиста на свободный завод. Скидка меняет только денежные расходы.</p>'
+    + summary + '</section>';
 }
 
 export function renderFactories(state) {
@@ -84,7 +126,8 @@ export function renderFactories(state) {
   const stopped = [...facilities.values()].filter((facility) => facility.status === 'blocked').length;
 
   return `<section class="next-game-factory-page">
-    <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Все циклы идут автоматически. Здесь видны выпуск, сырьё и стоимость улучшений.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div></header>
+    <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Циклы идут автоматически. Улучшение занимает время, а до завершения завод продолжает работать на прежнем уровне.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div></header>
+    ${renderManagers(state)}
     <label class="next-game-auto-setting"><input type="checkbox" data-next-auto-upgrade ${state.settings?.auto_upgrade ? 'checked' : ''}><span><b>Автоулучшение до 9 уровня</b><small>Покупает доступное улучшение, когда хватает cash и уровня компании.</small></span></label>
     <div class="next-game-facility-list">${cards}</div>
     ${inventoryMarkup(items)}
@@ -95,6 +138,22 @@ export function renderFactories(state) {
 export function bindFactories(container, state, api, showToast, refresh) {
   bindAction(container, '[data-next-build]', (button) => api.buildNextGameFacility(button.dataset.nextBuild), refresh, showToast, 'Завод построен');
   bindAction(container, '[data-next-upgrade]', (button) => api.upgradeNextGameFacility(button.dataset.nextUpgrade), refresh, showToast, 'Завод улучшен');
+  container.querySelectorAll('[data-next-manager-assign]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        const managerId = Number(button.dataset.nextManagerAssign);
+        const branchId = button.closest('.next-game-manager-card')
+          ?.querySelector('[data-next-manager-select]')?.value || null;
+        await api.assignNextGameManager(managerId, branchId);
+        showToast('Назначение менеджера сохранено', 'success');
+        await refresh();
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message, 'error');
+      }
+    });
+  });
   container.querySelector('[data-next-auto-upgrade]')?.addEventListener('change', async (event) => {
     const input = event.currentTarget;
     input.disabled = true;

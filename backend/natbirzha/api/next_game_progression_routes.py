@@ -1,5 +1,5 @@
-"""Idempotent upgrades, source-consuming fusion and confirmed rebirth."""
-from fastapi import APIRouter, Depends, Header
+"""Persistent progression upgrades, managers and source-consuming factory fusion."""
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.models import User
@@ -8,12 +8,9 @@ from backend.natbirzha.api.creator_auth import get_current_creator
 from backend.natbirzha.api.next_game_mutation import mutate
 from backend.natbirzha.services.next_game_progression_service import NextGameProgressionService as Progression
 from backend.natbirzha.services.next_game_fusion_service import NextGameFusionService as Fusion
+from backend.natbirzha.services.next_game_manager_service import assign_manager
 
 router = APIRouter(prefix="/next-game/progression", tags=["Next Game Progression"])
-
-
-class RebirthRequest(BaseModel):
-    confirm: bool = False
 
 
 class FusionRequest(BaseModel):
@@ -22,6 +19,11 @@ class FusionRequest(BaseModel):
 
 class DissolveRequest(BaseModel):
     merger_id: int = Field(gt=0)
+
+
+class ManagerAssignmentRequest(BaseModel):
+    manager_id: int = Field(gt=0)
+    branch_id: str | None = Field(default=None, min_length=2, max_length=64)
 
 
 @router.get("")
@@ -40,10 +42,27 @@ async def pvc_upgrade(key: str | None = Header(None, alias="Idempotency-Key"),
 
 
 @router.post("/rebirth")
-async def rebirth(body: RebirthRequest, key: str | None = Header(None, alias="Idempotency-Key"),
-    admin: User = Depends(get_current_creator), session: AsyncSession = Depends(get_db_session)):
-    return await mutate(session, admin, key, "/next-game/progression/rebirth", body.model_dump(),
-        lambda: Progression.rebirth(session, int(admin.tg_id), confirm=body.confirm))
+async def rebirth_disabled(admin: User = Depends(get_current_creator)):
+    raise HTTPException(
+        status_code=410,
+        detail="Перерождения отключены: развитие компании и заводов сохраняется без сброса.",
+    )
+
+
+@router.post("/manager/assign")
+async def manager_assign(
+    body: ManagerAssignmentRequest,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    admin: User = Depends(get_current_creator),
+    session: AsyncSession = Depends(get_db_session),
+):
+    payload = body.model_dump()
+    return await mutate(
+        session, admin, key, "/next-game/progression/manager/assign", payload,
+        lambda: assign_manager(
+            session, int(admin.tg_id), body.manager_id, body.branch_id,
+        ),
+    )
 
 
 @router.post("/fuse")

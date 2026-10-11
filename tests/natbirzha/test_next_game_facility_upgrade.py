@@ -38,30 +38,33 @@ def test_facility_upgrade_requires_company_level_and_improves_output_without_mor
             assert facility.level == 1
 
             company.level = 2
-            upgraded = await NextGameService.upgrade_facility(session, 810101, "renewables")
-            assert upgraded["facility"]["level"] == 2
-            assert upgraded["upgrade_cost"] == 2_500
-            assert upgraded["output_multiplier"] == 1.25
+            upgraded = await NextGameService.upgrade_facility(session, 810101, "renewables", now=started)
+            assert upgraded["facility"]["level"] == 1
+            assert upgraded["facility"]["upgrade_target_level"] == 2
+            assert upgraded["upgrade_cost"] == 150
+            assert upgraded["duration_seconds"] == 3
+            assert upgraded["output_multiplier"] == 1.0
 
             result = await NextGameService.settle_company(
                 session, 810101, now=started + timedelta(minutes=5)
             )
             assert result["cycles_completed"] == 1
+            assert facility.level == 2
             energy = await session.scalar(select(NatNextGameInventory).where(
                 NatNextGameInventory.company_id == company.id,
                 NatNextGameInventory.item_id == "energy",
             ))
-            assert energy.quantity == pytest.approx(11.25)
+            assert energy.quantity == pytest.approx(9.36)
             ledger = list((await session.scalars(select(NatNextGameLedger).where(
                 NatNextGameLedger.company_id == company.id
             ))).all())
             upgrade = next(row for row in ledger if row.action == "FACILITY_UPGRADE")
             operation = next(row for row in ledger if row.action == "OPERATING_COST")
-            assert upgrade.cash_company_delta == -2_500
-            assert upgrade.cash_treasury_delta == 2_500
+            assert upgrade.cash_company_delta == -150
+            assert upgrade.cash_treasury_delta == 150
             assert operation.cash_company_delta == -25
 
-            facility.level = 10
+            facility.level = 50
             company.level = 60
             with pytest.raises(ValueError, match="максимального уровня"):
                 await NextGameService.upgrade_facility(session, 810101, "renewables")

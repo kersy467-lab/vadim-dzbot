@@ -50,7 +50,9 @@ export function createNextGameAPI(request) {
     cancelNextGameBondListing: (id) => request(`/api/natbirzha/next-game/bonds/listings/${id}`, { method: 'DELETE' }),
     getNextGameProgression: () => request('/api/natbirzha/next-game/progression'),
     upgradeNextGamePVC: () => request('/api/natbirzha/next-game/progression/pvc-upgrade', { method: 'POST', body: JSON.stringify({}) }),
-    rebirthNextGameCompany: (confirm) => request('/api/natbirzha/next-game/progression/rebirth', { method: 'POST', body: JSON.stringify({ confirm: Boolean(confirm) }) }),
+    assignNextGameManager: (manager_id, branch_id) => request('/api/natbirzha/next-game/progression/manager/assign', {
+      method: 'POST', body: JSON.stringify({ manager_id: Number(manager_id), branch_id: branch_id || null }),
+    }),
     fuseNextGameFactories: (source_ids) => request('/api/natbirzha/next-game/progression/fuse', { method: 'POST', body: JSON.stringify({ source_ids }) }),
     dissolveNextGameFactories: (merger_id) => request('/api/natbirzha/next-game/progression/dissolve', { method: 'POST', body: JSON.stringify({ merger_id: Number(merger_id) }) }),
     createNextGameCompany: (name) => request('/api/natbirzha/next-game/company', {

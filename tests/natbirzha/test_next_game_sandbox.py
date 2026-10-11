@@ -77,6 +77,7 @@ def test_admin_sandbox_choices_are_persistent_isolated_and_not_respecable():
             assert legacy.level == old_level and legacy.cash == old_cash
             assert await NextGameService.snapshot(session, 551002) == {
                 'company': None, 'corporations': get_next_game_catalog(),
+                'progression_map': None,
             }
             with pytest.raises(ValueError, match='уже выбрана'):
                 await NextGameService.select_sector(session, 551001, 'energy')

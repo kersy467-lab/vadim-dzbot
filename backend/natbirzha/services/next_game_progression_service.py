@@ -1,4 +1,4 @@
-"""Paid PVC progression, mastery and financially complete civilian rebirth."""
+"""PVC progression and mastery for the continuous NATBIRZHA 2.0 economy."""
 from sqlalchemy import delete, select
 from backend.natbirzha.models.next_game import NatNextGameFacility, NatNextGameInventory
 from backend.natbirzha.models.next_game_community import NatNextGameProfile, NatNextGameHelpRequest
@@ -14,7 +14,7 @@ MAX_PVC_LEVEL = 50
 
 
 def mastery_rank(company):
-    # Production caps company.level at 60. XP continues to accrue beyond it.
+    # Continuous progression keeps company.level uncapped; rank is displayed separately.
     return max(0, (int(company.xp or 0) - 59000) // 1000)
 
 
@@ -52,28 +52,16 @@ class NextGameProgressionService:
         from backend.natbirzha.services.next_game_fusion_service import NextGameFusionService
         company = await NextGameService._owned_company(session, owner_tg_id)
         profile = await session.get(NatNextGameProfile, company.id)
-        rebirths, pvc_level, pvc = ((profile.rebirths, profile.pvc_level, profile.pvc_balance)
-                                  if profile else (0, 0, 0))
-        from backend.natbirzha.services.next_game_service.common import _utcnow
-        financial = await repayment_quote(session, company, _utcnow())
-        reasons = await blockers(session, company.id)
-        if financial["shortfall"] > 0:
-            reasons.append(f"Для погашения долгов не хватает {financial['shortfall']:,.2f} cash")
-        terminal = await cls.terminal_ready(session, company)
-        if not terminal:
-            reasons.insert(0, "Пройдите маршрут до последней эпохи и постройте её предприятие")
-        if rebirths >= MAX_REBIRTHS:
-            reasons.append("Достигнут предел: 10 перерождений")
+        pvc_level, pvc = ((profile.pvc_level, profile.pvc_balance)
+                          if profile else (0, 0))
         rank = mastery_rank(company)
         return {
-            "company_id": company.id, "rebirths": rebirths, "max_rebirths": MAX_REBIRTHS,
+            "company_id": company.id,
             "pvc_balance": pvc, "pvc_level": pvc_level, "max_pvc_level": MAX_PVC_LEVEL,
             "pvc_upgrade_price": pvc_upgrade_price(pvc_level) if pvc_level < MAX_PVC_LEVEL else None,
             "pvc_bonus_pct": pvc_level * 5, "mastery_rank": rank, "mastery_bonus_pct": rank,
             "mastery_unlock_level": 60, "mastery_next_rank_xp": 60000 + rank * 1000,
             "production_multiplier": round(await cls.production_bonus(session, company), 6),
-            "rebirth_ready": not reasons, "rebirth_blockers": reasons, "rebirth_financials": financial,
-            "rebirth_policy": "Деньги и товары передаются резерву; вклады закрываются, долги погашаются. Чужие акции и кредитные требования переходят резервному банку. Своё IPO и акции инвесторов сохраняются. PVC сохраняется. Новый старт 10000 из конечной казны.",
             "fusion": await NextGameFusionService.snapshot(session, company.id),
         }
 

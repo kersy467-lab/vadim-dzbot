@@ -1,10 +1,10 @@
-import { NatAPI } from '../api.js?v=20261011_v2_consolidation_v1';
+import { NatAPI } from '../api.js?v=20261011_continuous_progression_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { esc, bindAction, icon } from './next_game_common.js?v=20261011_v2_consolidation_v1';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261011_v2_consolidation_v1';
-import { renderOverview } from './next_game_overview.js?v=20261011_v2_consolidation_v1';
-import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261011_v2_consolidation_v1';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261011_v2_consolidation_v1';
+import { esc, bindAction, icon } from './next_game_common.js?v=20261011_continuous_progression_v1';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261011_continuous_progression_v1';
+import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
+import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261011_continuous_progression_v1';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261011_continuous_progression_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
@@ -131,7 +131,7 @@ async function mountActive(session) {
         const { renderNextGameBonds } = await import('./next_game_bonds.js?v=20261010_shell_v2');
         await renderNextGameBonds(target, state, showToast, refresh);
       } else if (view === 'progression') {
-        const { renderNextGameProgression } = await import('./next_game_progression.js?v=20261010_shell_v2');
+        const { renderNextGameProgression } = await import('./next_game_progression.js?v=20261011_continuous_progression_v1');
         await renderNextGameProgression(target, state, showToast, refresh);
       } else if (view === 'liquidation') {
         const { renderNextGameLiquidation } = await import('./next_game_liquidation.js?v=20261010_shell_v2');

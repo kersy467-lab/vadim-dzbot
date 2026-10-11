@@ -23,8 +23,8 @@ class NatNextGameCompany(Base):
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     sector_id: Mapped[str | None] = mapped_column(String(48), nullable=True)
     branch_path: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
-    level: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
-    xp: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    level: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1", nullable=False)
+    xp: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
     cash: Mapped[float] = mapped_column(Float, default=10_000.0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -61,6 +61,9 @@ class NatNextGameFacility(Base):
     )
     branch_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    upgrade_target_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    upgrade_finishes_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    upgrade_reserved_cash: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     next_cycle_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 

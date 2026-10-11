@@ -146,7 +146,8 @@ def test_next_game_endpoints_are_admin_only_and_save_a_separate_preview():
                 )
                 assert upgrade.status_code == upgrade_replay.status_code == 200
                 assert upgrade.json() == upgrade_replay.json()
-                assert upgrade.json()['facility']['level'] == 2
+                assert upgrade.json()['facility']['level'] == 1
+                assert upgrade.json()['facility']['upgrade_target_level'] == 2
                 trade_body = {'item_id': 'energy', 'side': 'BUY', 'quantity': 10}
                 headers = {'Idempotency-Key': 'next-game-energy-1'}
                 bought = client.post(
@@ -269,7 +270,7 @@ def test_next_game_endpoints_are_admin_only_and_save_a_separate_preview():
                     payment_replay.status_code, payment_replay.text,
                 )
                 assert payment.json() == payment_replay.json()
-                assert payment.json()['payment']['fee'] == 9.5
+                assert payment.json()['payment']['fee'] == 10.0
                 assert client.get('/api/natbirzha/next-game/map').json()['banking']['payments'][0]['amount'] == 1_000
                 loan_headers = {'Idempotency-Key': 'next-game-corporate-loan-1'}
                 business_loan = client.post(

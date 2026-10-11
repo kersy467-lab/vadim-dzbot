@@ -13,7 +13,8 @@ async def auto_upgrade_company(session, service, company, current):
         return
     settings.last_auto_upgrade_at = current
     facilities = (await session.scalars(select(NatNextGameFacility).where(
-        NatNextGameFacility.company_id == company.id, NatNextGameFacility.level < 9)
+        NatNextGameFacility.company_id == company.id, NatNextGameFacility.level < 9,
+        NatNextGameFacility.upgrade_target_level.is_(None))
         .order_by(NatNextGameFacility.id))).all()
     for facility in facilities:
         if int(company.level) < facility.level + 1:
@@ -21,4 +22,6 @@ async def auto_upgrade_company(session, service, company, current):
         from backend.natbirzha.services.next_game_service.common import facility_upgrade_cost
         if company.cash < facility_upgrade_cost(facility.level):
             continue
-        await service.upgrade_facility(session, company.owner_tg_id, facility.branch_id)
+        await service.upgrade_facility(
+            session, company.owner_tg_id, facility.branch_id, now=current,
+        )

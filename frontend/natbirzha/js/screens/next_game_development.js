@@ -1,4 +1,4 @@
-import { esc, number, pathEntries, findBranch, bindAction } from './next_game_common.js?v=20261011_v2_consolidation_v1';
+import { esc, number, pathEntries, findBranch, bindAction } from './next_game_common.js?v=20261011_continuous_progression_v1';
 
 function recipeSummary(branch) {
   const recipe = branch.factory || {};
@@ -12,12 +12,52 @@ function renderFork(state, route) {
   const hasFacility = (state.facilities || []).some((facility) => facility.branch_id === current.branch.id)
     || (state.consumed_branch_ids || []).includes(current.branch.id);
   const choices = (current.branch.next_branch_ids || []).map((id) => findBranch(state.corporations, id)).filter(Boolean);
-  if (!choices.length) return `<section class="next-game-panel next-game-development-final"><span class="next-game-eyebrow">МАРШРУТ ЗАВЕРШЁН</span><h2>Открыт финальный этап</h2><button type="button" data-next-view="progression" class="next-game-secondary">Посмотреть перерождение</button></section>`;
+  if (!choices.length) return `<section class="next-game-panel next-game-development-final"><span class="next-game-eyebrow">РУБЕЖ ОСВОЕН</span><h2>Доступные направления пройдены</h2><p>Компания продолжает развиваться: улучшайте заводы, управляйте командой и наращивайте мастерство. Сброса прогресса нет.</p></section>`;
   return `<section class="next-game-panel next-game-checkpoint"><div class="next-game-development-heading"><div><span class="next-game-eyebrow">СЛЕДУЮЩИЙ ШАГ</span><h2>Выбери направление</h2></div><span class="next-game-route-level">${choices.length} варианта</span></div><div class="next-game-fork">${choices.map(({ sector, branch }, index) => {
     const level = Math.max(route.length + 1, Number(branch.requirements?.company_level || 1));
     const available = hasFacility && Number(state.company.level) >= level;
     return `<article class="next-game-development-choice"><span class="next-game-choice-number">${String(index + 1).padStart(2, '0')}</span><div><span class="next-game-eyebrow">${esc(sector.name)} · УРОВЕНЬ ${level}</span><h3>${esc(branch.name)}</h3><p>${recipeSummary(branch)}</p><small>Строительство ${number(branch.factory.build_cost, 0)} cash · цикл ${number(branch.factory.operating_cost, 0)} cash</small></div><button type="button" data-next-branch="${esc(branch.id)}" class="next-game-primary" ${available ? '' : 'disabled'}>${available ? 'Открыть' : !hasFacility ? 'Сначала построй текущий завод' : 'Ещё рано'}</button><button type="button" data-next-inspect="${esc(branch.id)}" class="next-game-text-button">Рецепт</button></article>`;
   }).join('')}</div></section>`;
+}
+
+function renderTerritoryMap(state, options) {
+  const map = state.progression_map;
+  if (!map) return '';
+  const requirement = map.unlock_requirement || {};
+  if (!map.revealed) {
+    const level = Number(requirement.current_level || 0);
+    const target = Number(requirement.facility_level || 8);
+    return `<section class="next-game-panel next-game-territory-locked"><div class="next-game-development-heading"><div><span class="next-game-eyebrow">НОВАЯ ЦЕЛЬ</span><h2>Карта территорий</h2></div><span class="next-game-territory-lock">Откроется на уровне ${target}</span></div><p>${esc(requirement.message || `Улучшите первый завод до уровня ${target}, чтобы открыть карту территорий.`)}</p><div class="next-game-territory-progress" role="progressbar" aria-label="Открытие карты территорий" aria-valuenow="${Math.min(100, Math.round(level / target * 100))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.min(100, Math.round(level / target * 100))}%"></span></div><small>Первый завод · ${number(level, 0)} / ${target} ур.</small></section>`;
+  }
+  const sectors = map.sectors || [];
+  const branchIndex = new Map(sectors.flatMap((row) => row.territories || [])
+    .flatMap((row) => row.facilities || []).map((branch) => [branch.id, branch]));
+  const sectorId = options.territorySectorId || map.active_sector_id || map.sector_id;
+  const sector = sectors.find((row) => row.id === sectorId) || sectors[0];
+  if (!sector) return '';
+  const territories = sector.territories || [];
+  const completed = territories.filter((row) => row.state === 'visited').length;
+  const current = territories.find((row) => row.state === 'current');
+  const regions = territories.map((territory) => {
+    const facilities = territory.facilities || [];
+    const markers = facilities.map((branch) => {
+      const stateLabel = branch.state === 'built' ? `Завод · ур. ${number(branch.facility_level, 0)}`
+        : branch.state === 'merged' ? 'В составе комплекса'
+          : branch.state === 'opened' ? 'Открыт в маршруте'
+          : branch.state === 'available' ? 'Следующее направление' : 'Пока закрыт';
+      const action = branch.state === 'available'
+        ? `<button type="button" data-next-branch="${esc(branch.id)}" class="next-game-territory-action">Открыть</button>`
+        : branch.state === 'opened' && !branch.facility_level
+          ? '<button type="button" data-next-view="factories" class="next-game-territory-action">Построить</button>' : '';
+      const successors = ['built', 'merged', 'available', 'opened'].includes(branch.state)
+        ? (branch.next_branch_ids || []).map((id) => branchIndex.get(id)?.name).filter(Boolean) : [];
+      const connection = successors.length
+        ? `<span class="next-game-territory-connection">Дальше → ${successors.map((name) => esc(name)).join(' · ')}</span>` : '';
+      return `<article class="next-game-territory-facility is-${esc(branch.state)}"><button type="button" data-next-inspect="${esc(branch.id)}" class="next-game-territory-inspect"><b>${esc(branch.name)}</b><span>${esc(branch.outputs || branch.facility_name)}</span></button><small>${stateLabel}</small>${action}${connection}</article>`;
+    }).join('');
+    return `<li class="next-game-territory is-${esc(territory.state)}"><span class="next-game-territory-number">${String(territory.tier).padStart(2, '0')}</span><div class="next-game-territory-content"><div class="next-game-territory-heading"><div><span class="next-game-eyebrow">ТЕРРИТОРИЯ ${territory.tier}</span><h3>${esc(territory.name)}</h3></div><span class="next-game-territory-state">${territory.state === 'current' ? 'СЕЙЧАС' : territory.state === 'visited' ? 'ПРОЙДЕНО' : territory.state === 'available' ? 'ДОСТУПНО' : 'ЗАКРЫТО'}</span></div><div class="next-game-territory-facilities">${markers || '<small>Предприятия этого этапа появятся после перехода.</small>'}</div></div></li>`;
+  }).join('');
+  return `<section class="next-game-panel next-game-territory-map"><div class="next-game-development-heading"><div><span class="next-game-eyebrow">КАРТА РАЗВИТИЯ · ${number(completed, 0)} / ${number(territories.length, 0)} ТЕРРИТОРИЙ</span><h2>Карта территорий</h2></div><label class="next-game-territory-sector">Отрасль<select data-next-territory-sector>${sectors.map((row) => `<option value="${esc(row.id)}" ${row.id === sector.id ? 'selected' : ''}>${esc(row.name)}</option>`).join('')}</select></label></div><p class="next-game-territory-current">${current ? `Текущий рубеж: <b>${esc(current.name)}</b>. Открытые территории и заводы сохраняются.` : 'Выберите доступное направление, чтобы открыть первый рубеж.'}</p><ol class="next-game-territory-list">${regions}</ol></section>`;
 }
 
 function renderBranchDetail(state, id) {
@@ -50,7 +90,7 @@ export function renderDevelopment(state, options = {}) {
     ? `<section class="next-game-panel"><span class="next-game-eyebrow">ПЕРВОЕ РЕШЕНИЕ</span><h2>Выбери отрасль</h2><div class="next-game-sector-list">${(state.corporations || []).map((item) => `<button type="button" data-sector="${esc(item.id)}" class="next-game-sector"><b>${esc(item.name)}</b><span>${item.branches?.length || 0} предприятий</span></button>`).join('')}</div></section>`
     : !route.length ? `<section class="next-game-panel"><span class="next-game-eyebrow">СТАРТОВОЕ ПРОИЗВОДСТВО · ${esc(sector?.name || '')}</span><h2>С чего начнём?</h2><div class="next-game-fork">${(sector?.branches || []).filter((branch) => branch.is_starting_branch).map((branch) => `<article class="next-game-development-choice"><div><h3>${esc(branch.name)}</h3><p>${recipeSummary(branch)}</p><small>Строительство ${number(branch.factory.build_cost, 0)} cash</small></div><button type="button" data-branch="${esc(branch.id)}" class="next-game-primary">Выбрать</button><button type="button" data-next-inspect="${esc(branch.id)}" class="next-game-text-button">Рецепт</button></article>`).join('')}</div></section>` : '';
   const routeMarkup = route.length ? `<section class="next-game-panel next-game-development-route"><div class="next-game-development-heading"><div><span class="next-game-eyebrow">ВАША ЦЕПОЧКА</span><h2>${route.length} этапа развития</h2></div><span class="next-game-route-level">Уровень ${number(state.company.level, 0)}</span></div><ol class="next-game-graph-route">${route.map(({ branch }, index) => `<li class="next-game-development-step ${index === route.length - 1 ? 'is-current' : 'is-complete'}"><span class="next-game-choice-number">${String(index + 1).padStart(2, '0')}</span><div><span class="next-game-eyebrow">${esc(branch.epoch_name || `ЭТАП ${index + 1}`)}</span><h3>${esc(branch.name)}</h3><small>${owned.has(branch.id) ? 'Завод построен' : `Постройка ${number(branch.factory.build_cost, 0)} cash`} · ${esc(branch.factory.output_name)}</small></div><button type="button" data-next-inspect="${esc(branch.id)}" class="next-game-text-button">Состав</button>${!owned.has(branch.id) ? '<button type="button" data-next-view="factories" class="next-game-secondary">К заводам</button>' : ''}</li>`).join('')}</ol></section>${renderFork(state, route)}` : '';
-  return `<section class="next-game-development"><header class="next-game-development-banner"><span class="next-game-eyebrow">СТРАТЕГИЯ КОМПАНИИ</span><h2>Развитие</h2><p>Выбирай отрасль, строй цепочку предприятий и открывай новые направления.</p></header>${initial}${routeMarkup}${options.inspected ? renderBranchDetail(state, options.inspected) : ''}${renderCatalog(state, options)}</section>`;
+  return `<section class="next-game-development"><header class="next-game-development-banner"><span class="next-game-eyebrow">СТРАТЕГИЯ КОМПАНИИ</span><h2>Развитие</h2><p>Выбирай специализацию, осваивай территории и развивай заводы без сброса прогресса.</p></header>${initial}${routeMarkup}${renderTerritoryMap(state, options)}${options.inspected ? renderBranchDetail(state, options.inspected) : ''}${renderCatalog(state, options)}</section>`;
 }
 
 export function bindDevelopment(container, state, options, api, showToast, refresh, redraw) {
@@ -59,6 +99,10 @@ export function bindDevelopment(container, state, options, api, showToast, refre
   bindAction(container, '[data-next-branch]', (button) => api.advanceNextGameBranch(button.dataset.nextBranch), refresh, showToast, 'Новое направление добавлено в маршрут');
   container.querySelector('[data-next-catalog-disclosure]')?.addEventListener('toggle', (event) => {
     options.catalogOpen = event.currentTarget.open;
+  });
+  container.querySelector('[data-next-territory-sector]')?.addEventListener('change', (event) => {
+    options.territorySectorId = event.currentTarget.value;
+    redraw();
   });
   container.querySelectorAll('[data-next-inspect]').forEach((button) => button.addEventListener('click', () => {
     options.inspected = button.dataset.nextInspect;

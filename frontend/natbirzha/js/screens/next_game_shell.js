@@ -1,4 +1,4 @@
-import { esc, number, icon } from './next_game_common.js?v=20261011_v2_consolidation_v1';
+import { esc, number, icon } from './next_game_common.js?v=20261011_continuous_progression_v1';
 
 export const mainTabs = [
   ['overview', 'Обзор'], ['map', 'Развитие'], ['factories', 'Заводы'],
@@ -34,7 +34,6 @@ export function renderHeader(stateOrCompany, isCreator = false) {
   const sector = (state.corporations || []).find((row) => row.id === company.sector_id);
   const sectorName = sector?.name || company.sector_name || 'Отрасль не выбрана';
   const level = Math.max(1, Number(company.level) || 1);
-  const rebirths = Math.max(0, Number(state.settings?.rebirths ?? company.rebirths) || 0);
   const masteryRank = level >= 60 ? Math.max(0, Math.floor(((Number(company.xp) || 0) - 59000) / 1000)) : null;
   const rawXpToNext = company.xp_to_next_level ?? Math.max(0, 1000 - ((Number(company.xp) || 0) % 1000));
   const xpToNext = Math.max(0, Number(rawXpToNext) || 0);
@@ -65,8 +64,7 @@ export function renderHeader(stateOrCompany, isCreator = false) {
         <div class="next-game-company-cash"><span>Баланс</span><b>${number(company.cash)}</b><small>cash</small></div>
       </div>
       <div class="next-game-company-stats">
-        <span><small>Уровень</small><b>${number(level, 0)} <em>/ 60</em></b></span>
-        <span><small>Перерождение</small><b>${number(rebirths, 0)} <em>/ 10</em></b></span>
+        <span><small>Уровень компании</small><b>${number(level, 0)}</b></span>
         ${masteryRank == null ? '' : `<span><small>Мастерство</small><b>${number(masteryRank, 0)} <em>ранг</em></b></span>`}
       </div>
       <div class="next-game-company-progress" role="progressbar" aria-label="Прогресс уровня компании" aria-valuenow="${levelProgress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${levelProgress}%"></span></div>
@@ -83,7 +81,7 @@ export function renderShell(stateOrCompany, activeView = 'overview', isCreator =
 
 export function renderMore(isAdmin = false) {
   const groups = [
-    ['0.1', 'Развитие', [['progression', 'Бонусы компании', 'Мастерство, PVC и перерождение'], ['operations', 'Инфраструктура', 'Склад, земля и сотрудники']]],
+    ['0.1', 'Развитие', [['progression', 'Бонусы компании', 'Мастерство, PVC и объединение'], ['operations', 'Инфраструктура', 'Склад, земля и сотрудники']]],
     ['0.2', 'Финансы', [['bank', 'Банк', 'Счета, кредиты и депозиты'], ['capital', 'Инвестиции', 'Акции компаний и IPO'], ['bonds', 'Облигации', 'Купоны и вторичный рынок'], ['civic', 'Заказы и налоги', 'Городской спрос и расчёты']]],
     ['0.3', 'Партнёрство', [['contracts', 'Поставки', 'Договоры между компаниями'], ['projects', 'Совместные заводы', 'Общий вклад и выпуск'], ['liquidation', 'Продажа предприятий', 'Активы банкротов']]],
     ['0.4', 'Сообщество', [['competition', 'Рейтинг', 'Результаты компаний'], ['help', 'Помощь', 'Поддержка компаний любого уровня']]],

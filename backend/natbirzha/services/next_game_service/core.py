@@ -12,7 +12,7 @@ from backend.natbirzha.next_game_catalog import find_next_game_branch, find_next
 from .common import (
     MAX_FACILITY_LEVEL, STARTING_COMPANY_CASH,
     TREASURY_START_CASH, TREASURY_START_STOCK, _utcnow,
-    facility_output_multiplier, facility_upgrade_cost,
+    facility_output_multiplier, facility_upgrade_cost, facility_upgrade_duration,
 )
 
 class NextGameCoreMixin:
@@ -178,6 +178,7 @@ class NextGameCoreMixin:
     @classmethod
     async def upgrade_facility(
         cls, session: AsyncSession, owner_tg_id: int, branch_id: str,
+        *, now: datetime | None = None,
     ) -> dict[str, Any]:
         await cls._lock_treasury_for_sqlite(session)
         company = await cls._owned_company(session, owner_tg_id)
@@ -189,6 +190,8 @@ class NextGameCoreMixin:
         )
         if facility is None:
             raise ValueError("Сначала построй завод этого этапа")
+        if facility.upgrade_target_level is not None:
+            raise ValueError("Улучшение этого завода уже идёт")
         current_level = int(facility.level)
         if current_level >= MAX_FACILITY_LEVEL:
             raise ValueError("Завод уже достиг максимального уровня")
@@ -199,21 +202,29 @@ class NextGameCoreMixin:
         if float(company.cash) + 1e-9 < cost:
             raise ValueError(f"Для улучшения нужно {cost:,.0f} cash")
         treasury = await cls._treasury(session)
+        started_at = now or _utcnow()
+        finishes_at = started_at + timedelta(seconds=facility_upgrade_duration(current_level))
         company.cash = round(float(company.cash) - cost, 8)
         treasury.cash = round(float(treasury.cash) + cost, 8)
-        facility.level = required_level
+        facility.upgrade_target_level = required_level
+        facility.upgrade_finishes_at = finishes_at
+        facility.upgrade_reserved_cash = cost
         session.add(cls._ledger(
             company.id, "FACILITY_UPGRADE", -cost, cost,
             metadata={"branch_id": branch_id, "from_level": current_level,
-                      "to_level": required_level},
+                      "to_level": required_level, "finishes_at": finishes_at.isoformat()},
         ))
         await session.flush()
         return {
             "success": True,
             "upgrade_cost": cost,
-            "output_multiplier": facility_output_multiplier(required_level),
+            "duration_seconds": facility_upgrade_duration(current_level),
+            "finishes_at": finishes_at.isoformat(),
+            "output_multiplier": facility_output_multiplier(current_level),
             "facility": {"id": facility.id, "branch_id": facility.branch_id,
-                         "level": facility.level},
+                         "level": facility.level,
+                         "upgrade_target_level": facility.upgrade_target_level,
+                         "upgrade_finishes_at": facility.upgrade_finishes_at.isoformat()},
             "company": cls.snapshot_company(company),
         }
 

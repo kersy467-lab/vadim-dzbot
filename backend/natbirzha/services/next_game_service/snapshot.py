@@ -11,10 +11,13 @@ from backend.natbirzha.models.next_game import (
 from backend.natbirzha.next_game_catalog import (
     find_next_game_branch, get_next_game_catalog, get_next_game_items,
 )
+from backend.natbirzha.services.next_game_manager_service import (
+    apply_manager_discount, ensure_manager_awards, manager_payload,
+)
 from .common import (
     BUY_MARKUP, SELL_MARKDOWN, MAX_BANK_LOAN, MAX_FACILITY_LEVEL,
     XP_PER_LEVEL, _utcnow, facility_output_multiplier,
-    facility_recipe_at_level, facility_upgrade_cost,
+    facility_recipe_at_level, facility_upgrade_cost, facility_upgrade_duration,
 )
 
 class NextGameSnapshotMixin:
@@ -43,7 +46,7 @@ class NextGameSnapshotMixin:
             select(NatNextGameCompany).where(NatNextGameCompany.owner_tg_id == owner_tg_id)
         )
         if company is None:
-            return {"company": None, "corporations": get_next_game_catalog()}
+            return {"company": None, "corporations": get_next_game_catalog(), "progression_map": None}
         await cls.settle_company(session, owner_tg_id, now=now)
         company = await cls._owned_company(session, owner_tg_id)
         treasury = await cls._treasury(session)
@@ -63,7 +66,30 @@ class NextGameSnapshotMixin:
             select(NatNextGameFacility).where(NatNextGameFacility.company_id == company.id)
             .order_by(NatNextGameFacility.id)
         )).all())
+        from backend.natbirzha.models.next_game_progression import NatNextGameMerger
+        mergers = (await session.scalars(select(NatNextGameMerger).where(
+            NatNextGameMerger.company_id == company.id,
+            NatNextGameMerger.status == "ACTIVE",
+        ))).all()
+        consumed_branch_ids = sorted({
+            source["branch_id"] for merger in mergers for source in merger.sources_json
+        })
+        catalog = get_next_game_catalog()
+        progression_map = None
+        if company.sector_id:
+            from backend.natbirzha.next_game_map import build_progression_map
+            progression_map = build_progression_map(
+                company.sector_id, catalog,
+                branch_path=company.branch_path,
+                facility_levels={row.branch_id: int(row.level) for row in facilities},
+                company_level=company.level,
+                consumed_branch_ids=consumed_branch_ids,
+            )
         facility_rows = []
+        managers = await ensure_manager_awards(session, company)
+        managers_by_facility = {
+            row.facility_id: row for row in managers if row.facility_id is not None
+        }
         current = now or _utcnow()
         from backend.natbirzha.services.next_game_progression_service import NextGameProgressionService
         from backend.natbirzha.services.next_game_operations_effects import (
@@ -79,10 +105,6 @@ class NextGameSnapshotMixin:
                 NatNextGameMarketOrder.company_id == company.id,
                 NatNextGameMarketOrder.side == "SELL", NatNextGameMarketOrder.status == "OPEN")
             .group_by(NatNextGameMarketOrder.item_id))).all())
-        from backend.natbirzha.models.next_game_progression import NatNextGameMerger
-        mergers = (await session.scalars(select(NatNextGameMerger).where(
-            NatNextGameMerger.company_id == company.id, NatNextGameMerger.status == "ACTIVE"))).all()
-        consumed_branch_ids = sorted({source["branch_id"] for merger in mergers for source in merger.sources_json})
         merger_recipes = {merger.branch_id: merger.recipe_json for merger in mergers}
         market_ids: set[str] = set()
         for facility in facilities:
@@ -93,6 +115,10 @@ class NextGameSnapshotMixin:
             recipe = facility_recipe_at_level(base_recipe, facility.level)
             recipe["output_quantity"] = round(recipe["output_quantity"] * bonus, 4)
             recipe = await factory_recipe(session, company, facility, recipe, now=current)
+            manager = managers_by_facility.get(facility.id)
+            manager_discount = float(manager.discount_pct) / 100 if manager else 0.0
+            apply_manager_discount(recipe, manager_discount)
+            recipe["manager_discount_pct"] = int(manager.discount_pct) if manager else 0
             blocked_reason = None
             if company.cash < recipe["operating_cost"]:
                 blocked_reason = "Недостаточно cash на расходы цикла"
@@ -112,10 +138,27 @@ class NextGameSnapshotMixin:
                 "output_multiplier": facility_output_multiplier(facility.level) * bonus,
                 "upgrade_cost": (
                     facility_upgrade_cost(facility.level)
-                    if int(facility.level) < MAX_FACILITY_LEVEL else None
+                    if int(facility.level) < MAX_FACILITY_LEVEL
+                    and facility.upgrade_target_level is None else None
                 ),
                 "upgrade_level": int(facility.level) + 1,
+                "upgrade_duration_seconds": (
+                    facility_upgrade_duration(facility.level)
+                    if int(facility.level) < MAX_FACILITY_LEVEL
+                    and facility.upgrade_target_level is None else None
+                ),
                 "required_company_level": int(facility.level) + 1,
+                "upgrade_target_level": facility.upgrade_target_level,
+                "upgrade_finishes_at": (
+                    facility.upgrade_finishes_at.isoformat()
+                    if facility.upgrade_finishes_at else None
+                ),
+                "upgrade_seconds_remaining": (
+                    max(0, int((facility.upgrade_finishes_at - current).total_seconds()))
+                    if facility.upgrade_finishes_at else None
+                ),
+                "upgrade_reserved_cash": round(float(facility.upgrade_reserved_cash or 0), 2),
+                "manager": manager_payload(manager, facility.branch_id) if manager else None,
                 "status": "blocked" if blocked_reason else "active",
                 "blocked_reason": blocked_reason,
                 "seconds_to_cycle": max(0, int((facility.next_cycle_at - current).total_seconds())),
@@ -201,8 +244,16 @@ class NextGameSnapshotMixin:
             "company": cls.snapshot_company(company),
             "settings": {"auto_upgrade": settings.auto_upgrade, "rebirths": settings.rebirths,
                          "pvc_balance": settings.pvc_balance, "pvc_level": settings.pvc_level},
-            "corporations": get_next_game_catalog(),
+            "corporations": catalog,
+            "progression_map": progression_map,
             "facilities": facility_rows,
+            "managers": [
+                manager_payload(
+                    manager,
+                    next((row.branch_id for row in facilities if row.id == manager.facility_id), None),
+                )
+                for manager in managers
+            ],
             "consumed_branch_ids": consumed_branch_ids,
             "capacity": {"warehouse_capacity": warehouse_limit,
                          "production_slots": await production_slots(session, company.id),

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.natbirzha.models.next_game import NatNextGameCompany, NatNextGameFacility, NatNextGameInventory
 from backend.natbirzha.next_game_catalog import find_next_game_branch, get_next_game_items
 from .common import (
-    MAX_CATCH_UP_CYCLES, XP_PER_CYCLE, XP_PER_LEVEL,
+    MAX_CATCH_UP_CYCLES, XP_PER_CYCLE, XP_PER_LEVEL, XP_PER_FACILITY_UPGRADE,
     MAX_INVENTORY_PER_ITEM, _utcnow, facility_recipe_at_level,
 )
 
@@ -36,18 +36,25 @@ class NextGameProductionMixin:
             if not branch:
                 continue
             base_recipe = await NextGameFusionService.facility_recipe(session, facility, branch["factory"])
-            level_recipe = facility_recipe_at_level(base_recipe, facility.level)
-            interval = int(level_recipe["cycle_seconds"])
+            interval = int(base_recipe["cycle_seconds"])
             if current < facility.next_cycle_at:
+                cls._finish_upgrade_if_due(company, facility, current, facility.next_cycle_at)
                 continue
             due = min(MAX_CATCH_UP_CYCLES, 1 + floor(
                 (current - facility.next_cycle_at).total_seconds() / interval
             ))
             for _ in range(due):
+                cls._finish_upgrade_if_due(company, facility, current, facility.next_cycle_at)
+                level_recipe = facility_recipe_at_level(base_recipe, facility.level)
                 event_bonus = await event_multiplier(session, company, now=facility.next_cycle_at)
                 cycle_recipe = {**level_recipe,
                     "output_quantity": round(level_recipe["output_quantity"] * bonus * event_bonus, 4)}
                 recipe = await factory_recipe(session, company, facility, cycle_recipe, now=facility.next_cycle_at)
+                from backend.natbirzha.services.next_game_manager_service import (
+                    apply_manager_discount, manager_discount,
+                )
+                discount = await manager_discount(session, facility.id)
+                apply_manager_discount(recipe, discount)
                 reason = await cls._cycle_block_reason(session, company, recipe)
                 if reason:
                     blocked.append({"facility_id": str(facility.id), "reason": reason})
@@ -101,12 +108,28 @@ class NextGameProductionMixin:
                 completed += 1
                 await complete_cycle(session, facility)
                 company.xp = int(company.xp) + XP_PER_CYCLE
-                company.level = min(60, 1 + int(company.xp) // XP_PER_LEVEL)
+                company.level = max(int(company.level), 1 + int(company.xp) // XP_PER_LEVEL)
                 facility.next_cycle_at += timedelta(seconds=interval)
+            cls._finish_upgrade_if_due(company, facility, current, facility.next_cycle_at)
         from backend.natbirzha.services.next_game_auto_upgrade_service import auto_upgrade_company
         await auto_upgrade_company(session, cls, company, current)
+        from backend.natbirzha.services.next_game_manager_service import ensure_manager_awards
+        await ensure_manager_awards(session, company)
         await session.flush()
         return {"cycles_completed": completed, "blocked": blocked}
+
+    @staticmethod
+    def _finish_upgrade_if_due(company, facility, now, next_cycle_at) -> None:
+        target = facility.upgrade_target_level
+        finishes_at = facility.upgrade_finishes_at
+        if target is None or finishes_at is None or now < finishes_at or next_cycle_at < finishes_at:
+            return
+        facility.level = int(target)
+        facility.upgrade_target_level = None
+        facility.upgrade_finishes_at = None
+        facility.upgrade_reserved_cash = 0.0
+        company.xp = int(company.xp) + XP_PER_FACILITY_UPGRADE
+        company.level = max(int(company.level), 1 + int(company.xp) // XP_PER_LEVEL)
 
     @classmethod
     async def _cycle_block_reason(

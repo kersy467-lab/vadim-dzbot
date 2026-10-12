@@ -13,6 +13,10 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
 }[char]));
 
 export async function renderCreator(container, showToast, options = {}) {
+  if (options.initialTab && !options.initialTabApplied) {
+    activeTab = options.initialTab;
+    options = { ...options, initialTabApplied: true };
+  }
   container.innerHTML = `
     <div class="creator-screen space-y-4 max-w-md mx-auto p-4 pb-24 text-slate-100">
       <div class="flex items-center justify-between">

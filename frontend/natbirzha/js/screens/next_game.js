@@ -135,10 +135,20 @@ async function mountActive(session) {
         target.innerHTML = `<section class="next-game-legacy-view"><header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>0.6 · ВОЙНА</span></div><div class="next-game-view-title"><span>${icon('war', 23)}</span><div><h2>Военные действия</h2><small>Армия, границы, альянсы и турниры</small></div></div></header><div data-next-legacy-war></div></section>`;
         const { renderMilitary } = await import('./military.js?v=20261011_v2_consolidation_v1');
         await renderMilitary(target.querySelector('[data-next-legacy-war]'), showToast);
-      } else if (view === 'legacy-admin') {
-        target.innerHTML = `<section class="next-game-legacy-view"><header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>0.5 · УПРАВЛЕНИЕ</span></div><div class="next-game-view-title"><span>⌂</span><div><h2>Панель основной игры</h2><small>Старые государственные инструменты и управление игроками</small></div></div></header><div data-next-legacy-admin></div></section>`;
-        const { renderCreator } = await import('./creator.js?v=20261011_v2_consolidation_v1');
-        await renderCreator(target.querySelector('[data-next-legacy-admin]'), showToast, { onExit: () => state.navigateNextGame?.('more') });
+      } else if (['legacy-admin', 'legacy-moderation', 'legacy-sabotages', 'legacy-bonds'].includes(view)) {
+        const legacyTabs = {
+          'legacy-moderation': { tab: 'market', title: 'Модерация рынка' },
+          'legacy-sabotages': { tab: 'sabotages', title: 'Саботажи' },
+          'legacy-bonds': { tab: 'bonds', title: 'Гособлигации' },
+        };
+        const shortcut = legacyTabs[view];
+        const title = shortcut ? `Панель основной игры · ${shortcut.title}` : 'Панель основной игры';
+        target.innerHTML = `<section class="next-game-legacy-view"><header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="admin" class="next-game-back">← Управление 2.0</button><span>ИНСТРУМЕНТЫ · 1.5</span></div><div class="next-game-view-title"><span>${icon(shortcut?.tab === 'market' ? 'market' : shortcut?.tab === 'bonds' ? 'bonds' : shortcut?.tab === 'sabotages' ? 'war' : 'admin')}</span><div><h2>${title}</h2><small>Действия здесь относятся только к основной игре 1.5</small></div></div></header><div data-next-legacy-admin></div></section>`;
+        const { renderCreator } = await import('./creator.js?v=20261012_admin_tools_v1');
+        await renderCreator(target.querySelector('[data-next-legacy-admin]'), showToast, {
+          ...(shortcut ? { initialTab: shortcut.tab } : {}),
+          onExit: () => state.navigateNextGame?.('admin'),
+        });
       } else if (view === 'market') {
         const { renderNextGameMarket } = await import('./next_game_market.js?v=20261010_visual_recovery_v3');
         await renderNextGameMarket(target, state, showToast, refresh);
@@ -166,7 +176,7 @@ async function mountActive(session) {
         const { renderNextGameContracts } = await import('./next_game_contracts.js?v=20261010_shell_v2');
         await renderNextGameContracts(target, state, showToast, refresh);
       } else if (view === 'admin') {
-        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_admin_amount_step_v1');
+        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_admin_tools_v1');
         await renderNextGameAdmin(target, state, showToast, refresh);
       } else throw new Error('Раздел не найден');
       if (version !== session.version || entries.get(container) !== session) return;

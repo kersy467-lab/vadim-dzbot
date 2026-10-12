@@ -1,9 +1,9 @@
 import { NatAPI } from '../api.js?v=20261011_continuous_progression_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { esc, bindAction, icon } from './next_game_common.js?v=20261011_continuous_progression_v1';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261011_continuous_progression_v1';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_theme_admin_mobile_v1';
 import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
-import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261011_continuous_progression_v1';
+import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_theme_admin_mobile_v1';
 import { renderFactories, bindFactories } from './next_game_factories.js?v=20261011_continuous_progression_v1';
 
 const entries = new WeakMap();
@@ -76,6 +76,28 @@ async function renderFinance(content, session, view, refresh) {
   }
 }
 
+function refreshSessionState(session) {
+  if (session.refreshPromise) return session.refreshPromise;
+  const { container, state, showToast } = session;
+  const task = NatAPI.getNextGameMap('overview').then((snapshot) => {
+    if (entries.get(container) !== session) return null;
+    if (snapshot.recovery?.requires_ack) {
+      void renderNextGame(container, showToast);
+      return null;
+    }
+    Object.assign(state, snapshot);
+    session.updatedAt = Date.now();
+    session.loaded.clear();
+    const header = container.querySelector('.next-game-header');
+    if (header) header.outerHTML = renderHeader(state, currentCreatorAccess());
+    return snapshot;
+  }).finally(() => {
+    if (session.refreshPromise === task) session.refreshPromise = null;
+  });
+  session.refreshPromise = task;
+  return task;
+}
+
 async function mountActive(session) {
   const version = ++session.version;
   const { container, state, showToast } = session;
@@ -88,14 +110,8 @@ async function mountActive(session) {
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
   const refresh = async () => {
-    const snapshot = await NatAPI.getNextGameMap('overview');
-    if (snapshot.recovery?.requires_ack) return renderNextGame(container, showToast);
-    Object.assign(state, snapshot);
-    session.updatedAt = Date.now();
-    session.loaded.clear();
-    const header = container.querySelector('.next-game-header');
-    if (header) header.outerHTML = renderHeader(state, currentCreatorAccess());
-    await mountActive(session);
+    await refreshSessionState(session);
+    if (entries.get(container) === session) await mountActive(session);
   };
   const redraw = () => mountActive(session);
   try {
@@ -150,7 +166,7 @@ async function mountActive(session) {
         const { renderNextGameContracts } = await import('./next_game_contracts.js?v=20261010_shell_v2');
         await renderNextGameContracts(target, state, showToast, refresh);
       } else if (view === 'admin') {
-        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261010_shell_v2');
+        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_theme_admin_mobile_v1');
         await renderNextGameAdmin(target, state, showToast, refresh);
       } else throw new Error('Раздел не найден');
       if (version !== session.version || entries.get(container) !== session) return;
@@ -166,27 +182,25 @@ async function mountActive(session) {
 function startSession(container, state, showToast) {
   const previous = entries.get(container);
   if (previous) retireSession(previous);
-  const session = { container, state, showToast, view: activeNextGameView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now() };
+  const session = { container, state, showToast, view: activeNextGameView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now(), refreshPromise: null };
   entries.set(container, session);
   session.releaseScreenCleanup = registerScreenCleanup(() => retireSession(session));
   const navigate = (view) => {
     if (view === 'projects' || view === 'contracts') state.partnershipView = view === 'projects' ? 'projects' : 'supply';
     session.view = view;
     activeNextGameView = view;
-    if (Date.now() - session.updatedAt > 30000) {
-      const version = ++session.version;
-      NatAPI.getNextGameMap('overview').then((snapshot) => {
-        if (entries.get(container) !== session || version !== session.version) return;
-        if (snapshot.recovery?.requires_ack) return renderNextGame(container, showToast);
-        Object.assign(state, snapshot); session.updatedAt = Date.now(); session.loaded.clear();
-        const header = container.querySelector('.next-game-header');
-        if (header) header.outerHTML = renderHeader(state, currentCreatorAccess());
-        return mountActive(session);
+    const needsOverviewSnapshot = ['overview', 'map', 'factories'].includes(view);
+    const shouldRefresh = needsOverviewSnapshot && Date.now() - session.updatedAt > 30000;
+    void mountActive(session);
+    if (shouldRefresh) {
+      void refreshSessionState(session).then(() => {
+        if (entries.get(container) === session && ['overview', 'map', 'factories'].includes(session.view)) {
+          return mountActive(session);
+        }
       }).catch((error) => {
-        if (entries.get(container) !== session || version !== session.version) return;
-        showToast(error.message, 'error'); mountActive(session);
+        if (entries.get(container) === session) showToast(error.message, 'error');
       });
-    } else mountActive(session);
+    }
   };
   state.navigateNextGame = navigate;
   session.navigate = navigate;
@@ -195,7 +209,7 @@ function startSession(container, state, showToast) {
     const button = event.target.closest('[data-next-view], [data-next-legacy], [data-next-admin]');
     if (!button || button.disabled) return;
     if (button.hasAttribute('data-next-legacy')) window.NatApp?.navigateTo('overview');
-    else if (button.hasAttribute('data-next-admin')) navigate('legacy-admin');
+    else if (button.hasAttribute('data-next-admin')) navigate('admin');
     else navigate(button.dataset.nextView);
   });
   container.querySelector('.next-game-screen').addEventListener('next-game-navigate', (event) => {

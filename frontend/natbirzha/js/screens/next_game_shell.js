@@ -41,7 +41,7 @@ export function renderHeader(stateOrCompany, isCreator = false) {
   const masteryProgress = masteryRank == null ? 0 : Math.max(0, ((Number(company.xp) - 59000 - masteryRank * 1000) / 10));
   const tag = companyTicker(company);
   const stateButton = isCreator
-    ? `<button type="button" class="next-game-admin-link" data-next-admin>${icon('state', 17)}<span>Панель государства</span></button>`
+    ? `<button type="button" class="next-game-admin-link" data-next-admin>${icon('admin', 17)}<span>Управление 2.0</span></button>`
     : '';
 
   return `<header class="next-game-header" aria-label="Компания и игровой мир">

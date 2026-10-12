@@ -1,10 +1,10 @@
 :root {
   color-scheme: light;
-  --lux-canvas: #f7f7f1;
-  --lux-surface: #fffefa;
-  --lux-surface-soft: #eef3ec;
-  --lux-sage: #e4ece2;
-  --lux-sage-strong: #cbdacb;
+  --lux-canvas: #f5f0e5;
+  --lux-surface: #fffdf7;
+  --lux-surface-soft: #eae2d3;
+  --lux-sage: #e2e8db;
+  --lux-sage-strong: #c8d4c4;
   --lux-emerald: #17664f;
   --lux-emerald-deep: #124b3c;
   --lux-champagne: #b69458;

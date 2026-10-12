@@ -18,19 +18,19 @@ html[data-theme="midnight"] {
 
 html[data-theme="pearl"] {
   color-scheme: light;
-  --lux-canvas: #f2f5f7;
-  --lux-surface: #ffffff;
-  --lux-surface-soft: #e8eff4;
-  --lux-sage: #e3edf2;
-  --lux-sage-strong: #c2d3df;
-  --lux-emerald: #356b83;
-  --lux-emerald-deep: #24495d;
-  --lux-champagne: #9b8256;
-  --lux-ink: #263740;
-  --lux-muted: #5e7079;
-  --lux-border: #d0dce2;
-  --lux-focus: #356b83;
-  --lux-shadow: 0 8px 26px rgba(35, 61, 75, .08);
+  --lux-canvas: #ece9e0;
+  --lux-surface: #fcfbf7;
+  --lux-surface-soft: #dfddd4;
+  --lux-sage: #deddd4;
+  --lux-sage-strong: #c4c3b8;
+  --lux-emerald: #58666d;
+  --lux-emerald-deep: #39464c;
+  --lux-champagne: #907848;
+  --lux-ink: #29343a;
+  --lux-muted: #59666c;
+  --lux-border: #c7c7bf;
+  --lux-focus: #58666d;
+  --lux-shadow: 0 8px 26px rgba(51, 57, 58, .08);
 }
 
 html[data-theme="midnight"] body,
@@ -169,27 +169,27 @@ html[data-theme="midnight"] .next-game-launcher {
 html[data-theme="midnight"] .tycoon-rate-positive { color:#a9e9c6 !important; }
 
 html[data-theme="rose"] {
-  color-scheme: light; --lux-canvas:#fbf2f4; --lux-surface:#fffafd; --lux-surface-soft:#f5e8ec;
-  --lux-sage:#f2e0e6; --lux-sage-strong:#dcbfca; --lux-emerald:#914460; --lux-emerald-deep:#673047;
-  --lux-champagne:#815b36; --lux-ink:#38262d; --lux-muted:#70565e; --lux-border:#d9c3cb; --lux-focus:#914460;
+  color-scheme: light; --lux-canvas:#f7e8ed; --lux-surface:#fff9fb; --lux-surface-soft:#f0dce4;
+  --lux-sage:#ead3dc; --lux-sage-strong:#d5b1c0; --lux-emerald:#8f3d5c; --lux-emerald-deep:#643046;
+  --lux-champagne:#815b36; --lux-ink:#38262d; --lux-muted:#6c4e59; --lux-border:#d6b5c2; --lux-focus:#8f3d5c;
   --lux-shadow:0 8px 26px rgba(95,48,66,.08);
 }
 html[data-theme="wood"] {
-  color-scheme: light; --lux-canvas:#f7f0e5; --lux-surface:#fffaf2; --lux-surface-soft:#eee1d0;
-  --lux-sage:#f0dfca; --lux-sage-strong:#d9c0a3; --lux-emerald:#7b5136; --lux-emerald-deep:#543824;
-  --lux-champagne:#80522b; --lux-ink:#38291f; --lux-muted:#6d5746; --lux-border:#d8c5b0; --lux-focus:#7b5136;
+  color-scheme: light; --lux-canvas:#efe2d0; --lux-surface:#fff8ed; --lux-surface-soft:#e4d0b5;
+  --lux-sage:#eedcc2; --lux-sage-strong:#d2b18a; --lux-emerald:#775037; --lux-emerald-deep:#4f3221;
+  --lux-champagne:#80522b; --lux-ink:#38291f; --lux-muted:#654d3b; --lux-border:#ceb398; --lux-focus:#775037;
   --lux-shadow:0 8px 26px rgba(76,50,31,.09);
 }
 html[data-theme="botanical"] {
-  color-scheme: light; --lux-canvas:#f0f5ed; --lux-surface:#fcfff9; --lux-surface-soft:#e5efe0;
-  --lux-sage:#dae8d3; --lux-sage-strong:#bfd2b8; --lux-emerald:#37684c; --lux-emerald-deep:#254936;
-  --lux-champagne:#785d2f; --lux-ink:#29382e; --lux-muted:#526657; --lux-border:#c7d7c3; --lux-focus:#37684c;
+  color-scheme: light; --lux-canvas:#e4eee1; --lux-surface:#f8fff5; --lux-surface-soft:#d2e3cd;
+  --lux-sage:#d2e3ca; --lux-sage-strong:#adc7a5; --lux-emerald:#315d42; --lux-emerald-deep:#1f422f;
+  --lux-champagne:#785d2f; --lux-ink:#26372b; --lux-muted:#4d6152; --lux-border:#b6ccb4; --lux-focus:#315d42;
   --lux-shadow:0 8px 26px rgba(38,70,48,.08);
 }
 html[data-theme="mountain"] {
-  color-scheme: light; --lux-canvas:#eff4f7; --lux-surface:#fbfdff; --lux-surface-soft:#e5edf2;
-  --lux-sage:#dae6ec; --lux-sage-strong:#bdced7; --lux-emerald:#3b647a; --lux-emerald-deep:#28495a;
-  --lux-champagne:#7a5c32; --lux-ink:#263640; --lux-muted:#536773; --lux-border:#c6d4dc; --lux-focus:#3b647a;
+  color-scheme: light; --lux-canvas:#e2edf3; --lux-surface:#f7fcff; --lux-surface-soft:#cfdee8;
+  --lux-sage:#d1e1e8; --lux-sage-strong:#aac3d0; --lux-emerald:#365f75; --lux-emerald-deep:#234454;
+  --lux-champagne:#7a5c32; --lux-ink:#263640; --lux-muted:#4e6370; --lux-border:#b4c8d2; --lux-focus:#365f75;
   --lux-shadow:0 8px 26px rgba(37,61,75,.08);
 }
 

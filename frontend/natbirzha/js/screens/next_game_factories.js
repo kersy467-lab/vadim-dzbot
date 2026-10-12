@@ -1,4 +1,5 @@
 import { esc, number, pathEntries, bindAction } from './next_game_common.js?v=20261011_continuous_progression_v1';
+import { renderFactoryMap, bindFactoryMap, centerFactoryMapNode } from './next_game_factory_map.js?v=20261012_factory_map_v1';
 
 export function estimateAutonomy(recipe, state) {
   const items = new Map((state.market || state.inventory || []).map((item) => [item.item_id, item]));
@@ -40,8 +41,9 @@ function inputMarkup(recipe, items) {
 }
 
 function facilityCard({ branch, sector, index, facility, state, items, consumed }) {
+  const searchText = `${sector.name} ${branch.name} ${branch.factory?.facility_name || ''} ${branch.factory?.output_name || ''}`.toLocaleLowerCase('ru-RU');
   if (!facility && consumed.has(branch.id)) {
-    return `<article class="next-game-factory-card is-merged"><div><span class="next-game-eyebrow">ЭТАП ${index + 1}</span><h3>${esc(branch.name)}</h3><p>Входит в объединённый комплекс.</p></div><button type="button" data-next-view="progression" class="next-game-secondary">Открыть объединение</button></article>`;
+    return `<article class="next-game-factory-card is-merged" data-factory-search-text="${esc(searchText)}"><div><span class="next-game-eyebrow">ЭТАП ${index + 1}</span><h3>${esc(branch.name)}</h3><p>Входит в объединённый комплекс.</p></div><button type="button" data-next-view="progression" class="next-game-secondary">Открыть объединение</button></article>`;
   }
 
   const recipe = facility?.recipe || branch.factory || {};
@@ -67,7 +69,7 @@ function facilityCard({ branch, sector, index, facility, state, items, consumed 
       : `<button type="button" data-next-build="${esc(branch.id)}" class="next-game-primary" ${canBuild ? '' : 'disabled'}>Построить · ${number(buildCost, 0)} cash</button>${canBuild ? '' : `<small>Не хватает ${number(buildCost - Number(state.company.cash || 0), 0)} cash.</small>`}`;
   const autonomy = facility ? autonomyLabel(estimateAutonomy(recipe, state)) : 'Пока не построен';
 
-  return `<article class="next-game-factory-card ${blocked ? 'is-blocked' : facility ? 'is-working' : 'is-idle'}">
+  return `<article class="next-game-factory-card ${blocked ? 'is-blocked' : facility ? 'is-working' : 'is-idle'}" data-factory-search-text="${esc(searchText)}">
     <div class="next-game-factory-card-head"><span class="next-game-factory-mark" aria-hidden="true">${index + 1}</span><div class="next-game-factory-title"><span class="next-game-eyebrow">ЭТАП ${index + 1} · ${esc(sector.name)}</span><h3>${esc(recipe.facility_name || branch.name)}</h3><p>${esc(branch.name)}</p></div><span class="next-game-status ${blocked ? 'is-blocked' : facility ? '' : 'is-idle'}">${status}</span></div>
     <div class="next-game-factory-output"><span>Выпуск за цикл</span><b>${output}</b><small>Каждые ${minutes} мин.</small></div>
     <div class="next-game-factory-details"><div><span>Уровень</span><b>${facility ? number(facility.level, 0) : '—'}</b></div><div><span>Автономность</span><b>${esc(autonomy)}</b></div><div><span>Расход</span><b>${number(recipe.operating_cost, 0)} cash/цикл</b></div></div>
@@ -115,7 +117,7 @@ function renderManagers(state) {
     + summary + '</section>';
 }
 
-export function renderFactories(state) {
+export function renderFactories(state, options = {}) {
   const route = pathEntries(state);
   if (!route.length) {
     return '<section class="next-game-panel"><span class="next-game-eyebrow">ПРОИЗВОДСТВО</span><h2>Заводы компании</h2><p>Сначала выбери первое направление развития.</p><button type="button" data-next-view="map" class="next-game-primary">Открыть развитие</button></section>';
@@ -129,17 +131,66 @@ export function renderFactories(state) {
   })).join('');
   const working = [...facilities.values()].filter((facility) => facility.status === 'active').length;
   const stopped = [...facilities.values()].filter((facility) => facility.status === 'blocked').length;
+  const waiting = route.filter(({ branch }) => !facilities.has(branch.id) && !consumed.has(branch.id)).length;
+  options.mode = options.mode === 'list' ? 'list' : 'map';
+  const selected = route.find(({ branch }) => branch.id === options.selectedBranchId) || route.at(-1);
+  options.selectedBranchId = selected.branch.id;
+  const selectedIndex = route.indexOf(selected);
+  const selectedCard = facilityCard({
+    ...selected, index: selectedIndex, facility: facilities.get(selected.branch.id), state, items, consumed,
+  });
+  const modeButton = (mode, label) => `<button type="button" data-factory-mode="${mode}" aria-pressed="${options.mode === mode}">${label}</button>`;
+  const view = options.mode === 'map'
+    ? `<div class="next-game-factory-map-tools"><p>Перетаскивай схему; масштабируй щипком, колёсиком или кнопками.</p><div class="next-game-factory-map-zoom"><button type="button" data-factory-zoom-out aria-label="Отдалить карту">−</button><span data-factory-zoom-level>100%</span><button type="button" data-factory-zoom-in aria-label="Приблизить карту">+</button><button type="button" data-factory-map-fit>Сбросить вид</button></div></div>${renderFactoryMap(route, facilities, consumed, options.selectedBranchId)}<section class="next-game-factory-selected" data-factory-selected><div class="next-game-factory-selected-title"><span class="next-game-eyebrow">ВЫБРАННЫЙ ЗАВОД · ЭТАП ${selectedIndex + 1}</span><b>${esc(selected.branch.factory?.facility_name || selected.branch.name)}</b></div>${selectedCard}</section>`
+    : `<div class="next-game-facility-list" data-factory-list>${cards}</div>`;
 
   return `<section class="next-game-factory-page">
     <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Циклы идут автоматически. Улучшение занимает время, а до завершения завод продолжает работать на прежнем уровне.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div><button type="button" data-next-view="operations" class="next-game-secondary next-game-factory-operations">Склад, сотрудники и транспорт</button></header>
-    ${renderManagers(state)}
     <label class="next-game-auto-setting"><input type="checkbox" data-next-auto-upgrade ${state.settings?.auto_upgrade ? 'checked' : ''}><span><b>Автоулучшение до 9 уровня</b><small>Покупает доступное улучшение, когда хватает cash и уровня компании.</small></span></label>
-    <div class="next-game-facility-list">${cards}</div>
+    <section class="next-game-factory-explorer"><div class="next-game-factory-explorer-top"><div><span class="next-game-eyebrow">ПЛАН ПРОИЗВОДСТВА</span><b>Открыто ${route.length} этапов · ${working} работают · ${stopped} остановлены · ${waiting} ожидают постройки</b></div><div class="next-game-factory-view-switch" role="group" aria-label="Вид заводов">${modeButton('map', 'Карта')}${modeButton('list', 'Список')}</div></div><label class="next-game-factory-search"><span>Найти завод</span><input type="search" data-factory-search value="${esc(options.query || '')}" placeholder="Название или продукция"></label>${view}<p class="next-game-factory-list-empty" data-factory-empty hidden>Заводы по этому запросу не найдены.</p></section>
+    ${renderManagers(state)}
     ${inventoryMarkup(items)}
   </section>`;
 }
 
-export function bindFactories(container, state, api, showToast, refresh) {
+export function bindFactories(container, state, api, showToast, refresh, options = {}, redraw = () => {}) {
+  container.querySelectorAll('[data-factory-mode]').forEach((button) => button.addEventListener('click', () => {
+    options.mode = button.dataset.factoryMode;
+    redraw();
+  }));
+  if (options.mode === 'map') bindFactoryMap(container, options);
+  const applySearch = (query) => {
+    const normalized = String(query || '').trim().toLocaleLowerCase('ru-RU');
+    const rows = [...container.querySelectorAll('[data-factory-search-text]')];
+    rows.forEach((row) => {
+      row.hidden = Boolean(normalized && !row.dataset.factorySearchText?.includes(normalized));
+    });
+    if (normalized && options.mode === 'map') {
+      const match = container.querySelector('[data-factory-select]:not([hidden])');
+      if (match) {
+        options.selectedBranchId = match.dataset.factorySelect;
+        centerFactoryMapNode(container, options, match);
+      }
+    }
+    const empty = container.querySelector('[data-factory-empty]');
+    if (empty) empty.hidden = !normalized || !rows.every((row) => row.hidden);
+  };
+  const search = container.querySelector('[data-factory-search]');
+  if (search) {
+    search.addEventListener('input', () => {
+      options.query = search.value;
+      applySearch(search.value);
+    });
+    applySearch(search.value);
+  }
+  container.querySelectorAll('[data-factory-select]').forEach((button) => button.addEventListener('click', async () => {
+    if (Date.now() < Number(options.suppressFactoryMapClickUntil || 0)) return;
+    options.selectedBranchId = button.dataset.factorySelect;
+    await redraw();
+    requestAnimationFrame(() => container.querySelector('[data-factory-selected]')?.scrollIntoView({
+      block: 'nearest', behavior: 'smooth',
+    }));
+  }));
   const openMarketItem = (itemId) => {
     const market = state.marketBrowser ||= { view: 'home', category: 'needed', query: '' };
     market.view = 'item';

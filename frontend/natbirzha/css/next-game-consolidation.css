@@ -120,6 +120,59 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
 .next-game-factory-action { display: grid; gap: .2rem; }
 .next-game-factory-action .next-game-primary { width: 100%; }
 .next-game-factory-operations { width: 100%; }
+
+.next-game-factory-explorer { display: grid; gap: .6rem; min-width: 0; }
+.next-game-factory-explorer-top { display: flex; align-items: center; justify-content: space-between; gap: .65rem; }
+.next-game-factory-explorer-top > div:first-child { display: grid; gap: .16rem; min-width: 0; }
+.next-game-factory-explorer-top > div:first-child > b { color: var(--ng-ink); font-size: .68rem; }
+.next-game-factory-view-switch { display: inline-flex; flex: 0 0 auto; padding: .2rem; border: 1px solid var(--ng-border); border-radius: .8rem; background: var(--ng-soft); }
+.next-game-factory-view-switch button { min-height: 2.15rem; padding: .35rem .65rem; border-radius: .62rem; color: var(--ng-muted); font-size: .68rem; font-weight: 800; }
+.next-game-factory-view-switch button[aria-pressed="true"] { color: var(--ng-on-accent); background: var(--ng-accent); }
+.next-game-factory-search { display: grid; gap: .25rem; color: var(--ng-muted); font-size: .64rem; font-weight: 750; }
+.next-game-factory-search input { width: 100%; min-height: 2.55rem; margin: 0; padding: .55rem .7rem; border: 1px solid var(--ng-border); border-radius: .75rem; color: var(--ng-ink); background: var(--ng-surface); font-size: .75rem; }
+.next-game-factory-map-tools { display: flex; align-items: center; justify-content: space-between; gap: .45rem; }
+.next-game-factory-map-tools p { color: var(--ng-muted); font-size: .62rem; line-height: 1.35; }
+.next-game-factory-map-zoom { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .2rem; }
+.next-game-factory-map-zoom button { min-width: 2rem; min-height: 2rem; padding: .25rem .45rem; border: 1px solid var(--ng-border); border-radius: .6rem; color: var(--ng-ink); background: var(--ng-surface); font-size: .75rem; font-weight: 800; }
+.next-game-factory-map-zoom [data-factory-map-fit] { font-size: .6rem; }
+.next-game-factory-map-zoom span { min-width: 2.35rem; color: var(--ng-muted); text-align: center; font-size: .58rem; font-variant-numeric: tabular-nums; }
+.next-game-factory-map-viewport { position: relative; width: 100%; height: min(58vh, 460px); min-height: 290px; overflow: hidden; border: 1px solid var(--ng-border); border-radius: 1rem; background-color: var(--ng-soft); background-image: radial-gradient(color-mix(in srgb, var(--ng-accent) 16%, transparent) 1px, transparent 1px); background-size: 18px 18px; touch-action: none; cursor: grab; }
+.next-game-factory-map-viewport:active { cursor: grabbing; }
+.next-game-factory-map-world { position: absolute; inset: 0 auto auto 0; transform-origin: top left; will-change: transform; }
+.next-game-factory-map-links { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.next-game-factory-map-links path { fill: none; stroke: color-mix(in srgb, var(--ng-accent) 54%, var(--ng-border)); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 2 8; }
+.next-game-factory-map-position { position: absolute; z-index: 1; width: 204px; height: 120px; }
+.next-game-factory-map-node { display: grid; width: 100%; height: 100%; grid-template-rows: auto minmax(0,1fr) auto; gap: .26rem; padding: .52rem .62rem; overflow: hidden; border: 1px solid var(--ng-border); border-inline-start: 4px solid var(--ng-accent); border-radius: .9rem; color: var(--ng-ink); background: var(--ng-surface); box-shadow: 0 6px 16px color-mix(in srgb, var(--ng-ink) 9%, transparent); text-align: left; }
+.next-game-factory-map-node.is-working { border-inline-start-color: var(--ng-success); }
+.next-game-factory-map-node.is-blocked { border-inline-start-color: var(--ng-error); }
+.next-game-factory-map-node.is-idle { border-inline-start-color: var(--ng-highlight); }
+.next-game-factory-map-node.is-merged { border-inline-start-color: var(--ng-muted); }
+.next-game-factory-map-node.is-selected { outline: 2px solid var(--ng-accent); outline-offset: 2px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--ng-accent) 13%, transparent); }
+.next-game-factory-map-node-top { display: flex; align-items: center; justify-content: space-between; gap: .35rem; }
+.next-game-factory-map-number { display: inline-flex; align-items: center; gap: .25rem; color: var(--ng-accent); font-size: .6rem; font-weight: 900; }
+.next-game-factory-map-number svg { flex: 0 0 auto; }
+.next-game-factory-map-state { max-width: 70%; padding: .16rem .36rem; overflow: hidden; border-radius: 999px; color: var(--ng-muted); background: var(--ng-soft); font-size: .55rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.next-game-factory-map-node.is-working .next-game-factory-map-state { color: var(--ng-success); background: var(--ng-success-bg); }
+.next-game-factory-map-node.is-blocked .next-game-factory-map-state { color: var(--ng-error); background: var(--ng-error-bg); }
+.next-game-factory-map-node b { align-self: center; overflow: hidden; color: var(--ng-ink); font-size: .76rem; line-height: 1.25; text-overflow: ellipsis; }
+.next-game-factory-map-node small { overflow: hidden; color: var(--ng-muted); font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
+.next-game-factory-selected { display: grid; gap: .4rem; padding: .65rem; border: 1px solid var(--ng-border); border-radius: 1rem; background: var(--ng-soft); }
+.next-game-factory-selected-title { display: grid; gap: .15rem; padding-inline: .15rem; }
+.next-game-factory-selected-title b { color: var(--ng-ink); font-size: .78rem; }
+.next-game-factory-selected .next-game-factory-card { grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: start; background: var(--ng-surface); }
+.next-game-factory-selected .next-game-factory-card-head,
+.next-game-factory-selected .next-game-factory-inputs,
+.next-game-factory-selected .next-game-factory-no-inputs,
+.next-game-factory-selected .next-game-blocked-reason,
+.next-game-factory-selected .next-game-factory-action,
+.next-game-factory-selected .next-game-factory-card > small,
+.next-game-factory-selected .next-game-factory-card > .next-game-secondary { grid-column: 1 / -1; }
+.next-game-factory-selected .next-game-factory-output { grid-column: 1; }
+.next-game-factory-selected .next-game-factory-details { grid-column: 2; grid-template-columns: minmax(0,1fr); }
+.next-game-factory-selected .next-game-factory-details > div { grid-template-columns: minmax(0,1fr) auto; align-items: baseline; }
+.next-game-factory-selected .next-game-factory-card.is-merged { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+[data-factory-search-text][hidden] { display: none !important; }
+.next-game-factory-list-empty { padding: .9rem; border: 1px dashed var(--ng-border); border-radius: .8rem; color: var(--ng-muted); text-align: center; font-size: .7rem; }
 .next-game-legacy-view { display: grid; gap: .8rem; min-width: 0; }
 .next-game-legacy-view .next-game-view-heading { margin-bottom: 0; }
 .next-game-management-locked { padding: .6rem; color: var(--ng-muted); font-size: .7rem; }
@@ -137,6 +190,11 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
    utility colors to the active palette and keep its cards inside the phone. */
 #screen-container .next-game-screen .next-game-legacy-view {
   min-width: 0; max-width: 100%; overflow-x: clip;
+}
+@media (max-width: 420px) {
+  .next-game-factory-explorer-top { align-items: flex-start; flex-direction: column; }
+  .next-game-factory-map-tools { align-items: flex-start; flex-direction: column; }
+  .next-game-factory-map-zoom { align-self: flex-end; }
 }
 #screen-container .next-game-screen .next-game-legacy-view .glass-card,
 #screen-container .next-game-screen .next-game-legacy-view [class*="bg-white"],

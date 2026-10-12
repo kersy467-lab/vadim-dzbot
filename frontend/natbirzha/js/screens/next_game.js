@@ -4,7 +4,7 @@ import { esc, bindAction, icon } from './next_game_common.js?v=20261011_continuo
 import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_theme_admin_mobile_v1';
 import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_route_continuation_v1';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_market_flow_v1';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_factory_map_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
@@ -120,8 +120,8 @@ async function mountActive(session) {
       content.innerHTML = renderDevelopment(state, session.development);
       bindDevelopment(content, state, session.development, NatAPI, showToast, refresh, redraw);
     } else if (view === 'factories') {
-      content.innerHTML = renderFactories(state);
-      bindFactories(content, state, NatAPI, showToast, refresh);
+      content.innerHTML = renderFactories(state, session.factories);
+      bindFactories(content, state, NatAPI, showToast, refresh, session.factories, redraw);
     } else if (view === 'more') content.innerHTML = renderMore(currentCreatorAccess());
     else {
       if (['admin', 'legacy-admin'].includes(view) && !currentCreatorAccess()) {
@@ -192,7 +192,7 @@ async function mountActive(session) {
 function startSession(container, state, showToast) {
   const previous = entries.get(container);
   if (previous) retireSession(previous);
-  const session = { container, state, showToast, view: activeNextGameView, loaded: new Set(), version: 0, development: {}, updatedAt: Date.now(), refreshPromise: null };
+  const session = { container, state, showToast, view: activeNextGameView, loaded: new Set(), version: 0, development: {}, factories: { mode: 'map' }, updatedAt: Date.now(), refreshPromise: null };
   entries.set(container, session);
   session.releaseScreenCleanup = registerScreenCleanup(() => retireSession(session));
   const navigate = (view) => {

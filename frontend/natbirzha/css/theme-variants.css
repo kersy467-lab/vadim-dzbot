@@ -1,17 +1,17 @@
 /* Alternate palettes share the luxury layout and only replace design tokens. */
 html[data-theme="midnight"] {
   color-scheme: dark;
-  --lux-canvas: #111923;
-  --lux-surface: #1b2938;
-  --lux-surface-soft: #283b4e;
-  --lux-sage: #293f51;
-  --lux-sage-strong: #3b586c;
-  --lux-emerald: #338a97;
-  --lux-emerald-deep: #1d6270;
+  --lux-canvas: #111525;
+  --lux-surface: #1c2036;
+  --lux-surface-soft: #2b3150;
+  --lux-sage: #303650;
+  --lux-sage-strong: #464d6d;
+  --lux-emerald: #8f83c8;
+  --lux-emerald-deep: #62579d;
   --lux-champagne: #e8cb7d;
   --lux-ink: #f3f6f7;
-  --lux-muted: #bac7d0;
-  --lux-border: #40586a;
+  --lux-muted: #c5c6d4;
+  --lux-border: #505672;
   --lux-focus: #e8cb7d;
   --lux-shadow: 0 8px 26px rgba(0, 0, 0, .24);
 }
@@ -36,7 +36,7 @@ html[data-theme="pearl"] {
 html[data-theme="midnight"] body,
 html[data-theme="midnight"] body > header,
 html[data-theme="midnight"] #bottom-nav {
-  background-color: rgba(17, 25, 35, .97) !important;
+  background-color: rgba(17, 21, 37, .97) !important;
   color: var(--lux-ink) !important;
   border-color: var(--lux-border) !important;
 }
@@ -187,10 +187,10 @@ html[data-theme="botanical"] {
   --lux-shadow:0 8px 26px rgba(35,73,43,.12);
 }
 html[data-theme="mountain"] {
-  color-scheme: light; --lux-canvas:#e2edf3; --lux-surface:#f7fcff; --lux-surface-soft:#cfdee8;
-  --lux-sage:#d1e1e8; --lux-sage-strong:#aac3d0; --lux-emerald:#365f75; --lux-emerald-deep:#234454;
-  --lux-champagne:#7a5c32; --lux-ink:#263640; --lux-muted:#4e6370; --lux-border:#b4c8d2; --lux-focus:#365f75;
-  --lux-shadow:0 8px 26px rgba(37,61,75,.08);
+  color-scheme: light; --lux-canvas:#d9eeeb; --lux-surface:#f7fffd; --lux-surface-soft:#c7e3df;
+  --lux-sage:#cce6e1; --lux-sage-strong:#a6d0c9; --lux-emerald:#246f70; --lux-emerald-deep:#174e54;
+  --lux-champagne:#80633b; --lux-ink:#1f3638; --lux-muted:#466366; --lux-border:#a9cbc7; --lux-focus:#246f70;
+  --lux-shadow:0 8px 26px rgba(30,75,75,.09);
 }
 
 html[data-theme="midnight"] #screen-container [class*="text-emerald-"],

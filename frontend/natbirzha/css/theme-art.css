@@ -1,42 +1,62 @@
-/* Theme-specific illustration accents. The source WebP art has a low-alpha background. */
-html[data-theme="rose"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="rose"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
-  background-image: url("/static/natbirzha/assets/theme-art-rose.webp") !important;
-  background-repeat: no-repeat !important;
-  background-position: right .2rem top .1rem !important;
+/* Individually illustrated theme atlases: each motif gets its own place. */
+html[data-theme="rose"] {
+  --theme-art-1: url("/static/natbirzha/assets/theme-art-rose.webp");
+  --theme-art-2: url("/static/natbirzha/assets/theme-art-rose-02.webp");
+  --theme-art-3: url("/static/natbirzha/assets/theme-art-rose-03.webp");
+  --theme-art-4: url("/static/natbirzha/assets/theme-art-rose-04.webp");
 }
-html[data-theme="wood"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="wood"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
-  background-image: url("/static/natbirzha/assets/theme-art-wood.webp") !important;
-  background-repeat: no-repeat !important;
-  background-position: right .2rem top .1rem !important;
+html[data-theme="wood"] {
+  --theme-art-1: url("/static/natbirzha/assets/theme-art-wood.webp");
+  --theme-art-2: url("/static/natbirzha/assets/theme-art-wood-02.webp");
+  --theme-art-3: url("/static/natbirzha/assets/theme-art-wood-03.webp");
+  --theme-art-4: url("/static/natbirzha/assets/theme-art-wood-04.webp");
 }
-html[data-theme="botanical"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="botanical"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
-  background-image: url("/static/natbirzha/assets/theme-art-botanical.webp") !important;
-  background-repeat: no-repeat !important;
-  background-position: right .2rem top .1rem !important;
+html[data-theme="botanical"] {
+  --theme-art-1: url("/static/natbirzha/assets/theme-art-botanical.webp");
+  --theme-art-2: url("/static/natbirzha/assets/theme-art-botanical-02.webp");
+  --theme-art-3: url("/static/natbirzha/assets/theme-art-botanical-03.webp");
+  --theme-art-4: url("/static/natbirzha/assets/theme-art-botanical-04.webp");
 }
-html[data-theme="midnight"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="midnight"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
-  background-image: url("/static/natbirzha/assets/theme-art-midnight.webp") !important;
-  background-repeat: no-repeat !important;
-  background-position: right .2rem top .1rem !important;
+html[data-theme="midnight"] {
+  --theme-art-1: url("/static/natbirzha/assets/theme-art-midnight.webp");
+  --theme-art-2: url("/static/natbirzha/assets/theme-art-cosmic-02.webp");
+  --theme-art-3: url("/static/natbirzha/assets/theme-art-cosmic-03.webp");
+  --theme-art-4: url("/static/natbirzha/assets/theme-art-cosmic-04.webp");
+}
+html[data-theme="mountain"] {
+  --theme-art-1: url("/static/natbirzha/assets/theme-art-marine-01.webp");
+  --theme-art-2: url("/static/natbirzha/assets/theme-art-marine-02.webp");
+  --theme-art-3: url("/static/natbirzha/assets/theme-art-marine-03.webp");
+  --theme-art-4: url("/static/natbirzha/assets/theme-art-marine-04.webp");
 }
 
-/* Large illustrations add atmosphere to panels; small versions ornament actions. */
-html[data-theme="rose"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="wood"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="botanical"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
-html[data-theme="midnight"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel) {
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel) {
+  background-image: var(--theme-art-1) !important;
+  background-repeat: no-repeat !important;
   background-size: 6.5rem 6.5rem !important;
+  background-position: right .2rem top .1rem !important;
+}
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel):nth-child(4n + 2) {
+  background-image: var(--theme-art-2) !important;
+  background-position: left .2rem bottom .1rem !important;
+}
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel):nth-child(4n + 3) {
+  background-image: var(--theme-art-3) !important;
+  background-position: right .2rem bottom .1rem !important;
+}
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel):nth-child(4n) {
+  background-image: var(--theme-art-4) !important;
+  background-position: left .2rem top .1rem !important;
 }
 
-html[data-theme="rose"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]),
-html[data-theme="wood"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]),
-html[data-theme="botanical"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]),
-html[data-theme="midnight"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+/* Action buttons get smaller matching illustrations, with rotating motifs. */
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+  background-image: var(--theme-art-1) !important;
+  background-repeat: no-repeat !important;
   background-size: 2.15rem 2.15rem !important;
   background-position: right .15rem center !important;
   padding-right: 2.35rem !important;
 }
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]):nth-of-type(4n + 2) { background-image: var(--theme-art-2) !important; }
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]):nth-of-type(4n + 3) { background-image: var(--theme-art-3) !important; }
+:is(html[data-theme="rose"],html[data-theme="wood"],html[data-theme="botanical"],html[data-theme="midnight"],html[data-theme="mountain"]) #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]):nth-of-type(4n) { background-image: var(--theme-art-4) !important; }

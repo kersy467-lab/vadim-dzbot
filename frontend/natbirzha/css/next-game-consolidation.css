@@ -4,8 +4,8 @@ html[data-theme="pearl"] .next-game-screen { --ng-hero-a:#39474c; --ng-hero-b:#7
 html[data-theme="rose"] .next-game-screen { --ng-success:#315d43; --ng-success-bg:#e6f2e8; --ng-error:#87344b; --ng-error-bg:#f9e8ed; --ng-hero-a:#653249; --ng-hero-b:#a44f70; --ng-hero-ink:#fffafd; --ng-gold:#f0cf91; }
 html[data-theme="wood"] .next-game-screen { --ng-success:#345b3d; --ng-success-bg:#e7f0e2; --ng-error:#873b2b; --ng-error-bg:#f8e9df; --ng-hero-a:#513725; --ng-hero-b:#8b603c; --ng-hero-ink:#fffaf2; --ng-gold:#e8c180; }
 html[data-theme="botanical"] .next-game-screen { --ng-success:#205b36; --ng-success-bg:#e2efdb; --ng-error:#843b2e; --ng-error-bg:#f7e9e3; --ng-hero-a:#173f29; --ng-hero-b:#53804b; --ng-hero-ink:#fcfff9; --ng-gold:#e2c47c; }
-html[data-theme="mountain"] .next-game-screen { --ng-success:#28584b; --ng-success-bg:#e2efea; --ng-error:#873b2e; --ng-error-bg:#f8e9e3; --ng-hero-a:#294757; --ng-hero-b:#4d7b91; --ng-hero-ink:#fbfdff; --ng-gold:#e3c783; }
-html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111923; --ng-surface:#1b2938; --ng-soft:#283b4e; --ng-border:#40586a; --ng-hero-a:#142234; --ng-hero-b:#315f76; --ng-hero-ink:#f3f6f7; --ng-gold:#e8cb7d; }
+html[data-theme="mountain"] .next-game-screen { --ng-success:#28584b; --ng-success-bg:#e2efea; --ng-error:#873b2e; --ng-error-bg:#f8e9e3; --ng-hero-a:#164e55; --ng-hero-b:#3f938d; --ng-hero-ink:#f8fffd; --ng-gold:#e3c783; }
+html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111525; --ng-surface:#1c2036; --ng-soft:#2b3150; --ng-border:#505672; --ng-hero-a:#171932; --ng-hero-b:#48436f; --ng-hero-ink:#f7f5ff; --ng-gold:#ead58f; }
 .next-game-screen :is(.next-market-tile [data-market-icon], .next-market-panel-icon, .next-game-more-icon[data-service-icon]) {
   color: var(--ng-accent) !important; background: color-mix(in srgb, var(--ng-accent) 12%, var(--ng-surface)) !important;
 }

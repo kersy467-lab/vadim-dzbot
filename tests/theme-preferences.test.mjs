@@ -22,10 +22,12 @@ function contrastRatio(first, second) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-test('seven distinct themes are available and ivory sage remains the default', () => {
+test('seven themes are available, keep their saved ids, and ivory sage remains the default', () => {
   assert.equal(DEFAULT_THEME, 'ivory');
   assert.deepEqual(THEMES.map(({ id }) => id), ['ivory', 'midnight', 'pearl', 'rose', 'wood', 'botanical', 'mountain']);
   assert.ok(THEMES.every(({ label }) => typeof label === 'string' && label.length > 0));
+  assert.equal(THEMES.find(({ id }) => id === 'midnight').label, 'Космическая ночь');
+  assert.equal(THEMES.find(({ id }) => id === 'mountain').label, 'Морское побережье');
 });
 
 test('theme preference normalizes invalid values and survives a reload', () => {
@@ -89,15 +91,15 @@ test('all themes have palette tokens and the dark theme keeps readable high-cont
   }
 });
 
-test('ornamental themes load original art into the game surfaces and buttons', async () => {
+test('ornamental themes rotate distinct illustrations across cards and action buttons', async () => {
   const [variants, consolidation, index, art] = await Promise.all([
     readFile(new URL('../frontend/natbirzha/css/theme-variants.css', import.meta.url), 'utf8'),
     readFile(new URL('../frontend/natbirzha/css/next-game-consolidation.css', import.meta.url), 'utf8'),
     readFile(new URL('../frontend/natbirzha/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../frontend/natbirzha/css/theme-art.css', import.meta.url), 'utf8'),
   ]);
-  assert.match(index, /theme-variants\.css\?v=20261012_theme_art_v1/);
-  assert.match(index, /theme-art\.css\?v=20261012_theme_art_v1/);
+  assert.match(index, /theme-variants\.css\?v=20261012_theme_art_variety_v2/);
+  assert.match(index, /theme-art\.css\?v=20261012_theme_art_variety_v2/);
   for (const id of ['rose', 'wood', 'botanical', 'midnight']) {
     assert.match(art, new RegExp(`theme-art-${id}\\.webp`));
     const block = variants.match(new RegExp(`html\\[data-theme="${id}"\\] \\{([^}]*)\\}`))?.[1] || '';
@@ -107,10 +109,20 @@ test('ornamental themes load original art into the game surfaces and buttons', a
   assert.match(art, /next-game-primary/);
   assert.match(art, /next-game-secondary/);
   assert.match(art, /background-position: right \.2rem top \.1rem/);
-  const motifs = await Promise.all(['rose', 'wood', 'botanical', 'midnight'].map((id) =>
-    readFile(new URL(`../frontend/natbirzha/assets/theme-art-${id}.webp`, import.meta.url))));
+  assert.match(art, /background-position: left \.2rem bottom \.1rem/);
+  assert.match(art, /background-image: var\(--theme-art-2\)/);
+  assert.match(art, /theme-art-marine-04\.webp/);
+  const motifFiles = [
+    'theme-art-rose.webp', 'theme-art-rose-02.webp', 'theme-art-rose-03.webp', 'theme-art-rose-04.webp',
+    'theme-art-wood.webp', 'theme-art-wood-02.webp', 'theme-art-wood-03.webp', 'theme-art-wood-04.webp',
+    'theme-art-botanical.webp', 'theme-art-botanical-02.webp', 'theme-art-botanical-03.webp', 'theme-art-botanical-04.webp',
+    'theme-art-midnight.webp', 'theme-art-cosmic-02.webp', 'theme-art-cosmic-03.webp', 'theme-art-cosmic-04.webp',
+    'theme-art-marine-01.webp', 'theme-art-marine-02.webp', 'theme-art-marine-03.webp', 'theme-art-marine-04.webp',
+  ];
+  const motifs = await Promise.all(motifFiles.map((filename) =>
+    readFile(new URL(`../frontend/natbirzha/assets/${filename}`, import.meta.url))));
   assert.ok(motifs.every((asset) => asset.length > 20_000));
-  assert.match(consolidation, /--ng-hero-a:#142234/);
+  assert.match(consolidation, /--ng-hero-a:#171932/);
 });
 
 test('theme picker updates the palette immediately and persists the selection', () => {

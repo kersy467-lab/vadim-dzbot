@@ -13,7 +13,7 @@
   font-size: .9rem;
   line-height: 1.55;
 }
-html[data-theme="midnight"] .next-game-screen { --ng-hero-a: #13241e; --ng-hero-b: #24513d; --ng-hero-ink: #f7f5ec; --ng-gold: #e4c875; }
+html[data-theme="midnight"] .next-game-screen { --ng-hero-a: #171932; --ng-hero-b: #48436f; --ng-hero-ink: #f7f5ff; --ng-gold: #ead58f; }
 html[data-theme="pearl"] .next-game-screen { --ng-hero-a: #1f4659; --ng-hero-b: #36748a; --ng-hero-ink: #f8fbfc; --ng-gold: #e4cb91; }
 .next-game-screen :is(h1,h2,h3,h4) { letter-spacing: -.025em; }
 .next-game-screen h2 { font-size: 1.12rem; font-weight: 850; }

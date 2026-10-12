@@ -9,9 +9,9 @@
   font-size: .82rem; line-height: 1.5; overflow-wrap: anywhere;
 }
 html[data-theme="midnight"] .next-game-screen {
-  --ng-canvas: #111c1b; --ng-surface: #1b2b29; --ng-soft: #243a35;
-  --ng-ink: #eff6ee; --ng-muted: #b9ccc1; --ng-border: #486154;
-  --ng-accent: #e0c27e; --ng-on-accent: #18261e; --ng-highlight: #e0c27e;
+  --ng-canvas: #111525; --ng-surface: #1c2036; --ng-soft: #2b3150;
+  --ng-ink: #f3f6f7; --ng-muted: #c5c6d4; --ng-border: #505672;
+  --ng-accent: #b6a9f0; --ng-on-accent: #171932; --ng-highlight: #ead58f;
   --ng-error: #ffd5cc; --ng-error-bg: #512f2b; --ng-success: #c9f4dc; --ng-success-bg: #254b39;
 }
 html[data-theme="pearl"] .next-game-screen {

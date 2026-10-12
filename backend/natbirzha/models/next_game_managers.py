@@ -28,6 +28,8 @@ class NatNextGameManager(Base):
     reward_level: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     rarity: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Legacy schema field retained because deployed databases constrain this
+    # column to 2/4/6/8. It is storage-only: manager strength comes from rarity.
     discount_pct: Mapped[int] = mapped_column(Integer, nullable=False)
     # Milestone staff are guaranteed; case staff are collectible hires.
     # reward_level remains the per-company unique key for both sources, while

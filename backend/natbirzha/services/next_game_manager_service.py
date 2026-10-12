@@ -1,4 +1,4 @@
-"""Guaranteed manager milestones and one-factory operating-cost bonuses."""
+"""Guaranteed manager milestones and one-factory production bonuses."""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,13 +14,23 @@ MANAGER_REWARDS = (
     (45, "Lucas Morgan", "legendary", 8),
 )
 
+PRODUCTION_BONUS_BY_RARITY = {
+    "common": 8,
+    "rare": 9,
+    "epic": 10,
+    "legendary": 10,
+}
+
 
 async def ensure_manager_awards(session: AsyncSession, company: NatNextGameCompany):
     """Backfill each reached milestone once, including for older V2 accounts."""
     rows = list((await session.scalars(select(NatNextGameManager).where(
         NatNextGameManager.company_id == company.id,
     ).order_by(NatNextGameManager.reward_level))).all())
-    reward_by_level = {level: (name, rarity, discount) for level, name, rarity, discount in MANAGER_REWARDS}
+    reward_by_level = {
+        level: (name, rarity, legacy_storage_code)
+        for level, name, rarity, legacy_storage_code in MANAGER_REWARDS
+    }
     existing = {
         row.reward_level for row in rows
         if row.source == "milestone"
@@ -32,11 +42,12 @@ async def ensure_manager_awards(session: AsyncSession, company: NatNextGameCompa
         if reward:
             row.name = reward[0]
             row.level = int(row.reward_level)
-    for level, name, rarity, discount in MANAGER_REWARDS:
+    for level, name, rarity, legacy_storage_code in MANAGER_REWARDS:
         if int(company.level) >= level and level not in existing:
             row = NatNextGameManager(
                 company_id=company.id, reward_level=level, name=name,
-                rarity=rarity, discount_pct=discount, source="milestone", level=level,
+                rarity=rarity, discount_pct=legacy_storage_code,
+                source="milestone", level=level,
             )
             session.add(row)
             rows.append(row)
@@ -45,22 +56,31 @@ async def ensure_manager_awards(session: AsyncSession, company: NatNextGameCompa
     return rows
 
 
-async def manager_discount(session: AsyncSession, facility_id: int) -> float:
-    discount = await session.scalar(select(NatNextGameManager.discount_pct).where(
+async def manager_output_bonus_pct(session: AsyncSession, facility_id: int) -> int:
+    rarity = await session.scalar(select(NatNextGameManager.rarity).where(
         NatNextGameManager.facility_id == facility_id,
     ))
-    return max(0.0, min(0.08, float(discount or 0) / 100))
+    return PRODUCTION_BONUS_BY_RARITY.get(str(rarity or ""), 0)
 
 
-def apply_manager_discount(recipe: dict, discount: float) -> dict:
-    """Discount only cash cost and keep derived cash-profit estimates consistent."""
-    before = float(recipe.get("operating_cost", 0))
-    after = round(before * (1 - max(0.0, min(0.08, float(discount)))), 8)
-    recipe["operating_cost"] = after
+def apply_manager_output_bonus(recipe: dict, bonus_pct: float) -> dict:
+    """Increase product output only; inputs and operating cash costs stay fixed."""
+    before = max(0.0, float(recipe.get("output_quantity", 0)))
+    bonus = max(0.0, min(10.0, float(bonus_pct))) / 100
+    after = round(before * (1 + bonus), 4)
+    additional_output = after - before
+    recipe["output_quantity"] = after
+    if "net_output_quantity" in recipe:
+        recipe["net_output_quantity"] = round(float(recipe["net_output_quantity"]) + additional_output, 4)
+    recipe["manager_production_bonus_pct"] = int(round(bonus * 100))
     economics = recipe.get("economics")
-    if isinstance(economics, dict) and before > after:
-        saved = before - after
-        profit = float(economics.get("npc_profit", 0)) + saved
+    if isinstance(economics, dict) and before > 0 and additional_output > 0:
+        revenue_before = float(economics.get("npc_revenue", 0))
+        unit_price = revenue_before / before
+        added_revenue = additional_output * unit_price
+        if "npc_revenue" in economics:
+            economics["npc_revenue"] = round(revenue_before + added_revenue, 2)
+        profit = float(economics.get("npc_profit", 0)) + added_revenue
         hours = max(1e-9, float(recipe.get("cycle_seconds", 3600)) / 3600)
         economics["npc_profit"] = round(profit, 2)
         economics["profit_per_hour"] = round(profit / hours, 2)
@@ -108,12 +128,14 @@ def manager_payload(manager: NatNextGameManager, branch_id: str | None = None) -
     return {
         "id": manager.id, "name": manager.name, "rarity": manager.rarity,
         "source": manager.source, "level": int(manager.level),
-        "reward_level": manager.reward_level, "discount_pct": manager.discount_pct,
+        "reward_level": manager.reward_level,
+        "production_bonus_pct": PRODUCTION_BONUS_BY_RARITY.get(manager.rarity, 0),
         "facility_id": manager.facility_id, "branch_id": branch_id,
     }
 
 
 __all__ = [
-    "MANAGER_REWARDS", "ensure_manager_awards", "manager_discount", "apply_manager_discount",
+    "MANAGER_REWARDS", "PRODUCTION_BONUS_BY_RARITY", "ensure_manager_awards",
+    "manager_output_bonus_pct", "apply_manager_output_bonus",
     "assign_manager", "manager_payload",
 ]

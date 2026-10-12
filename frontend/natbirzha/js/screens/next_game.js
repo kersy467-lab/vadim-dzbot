@@ -4,7 +4,7 @@ import { esc, bindAction, icon } from './next_game_common.js?v=20261012_employee
 import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_player_guide_v1';
 import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_route_continuation_v1';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_release_readiness_v1';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_theme_art_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
@@ -166,10 +166,10 @@ async function mountActive(session) {
         const { renderNextGameOperations } = await import('./next_game_operations.js?v=20261012_market_flow_v1');
         await renderNextGameOperations(target, state, showToast, refresh);
       } else if (view === 'employees') {
-        const { renderNextGameEmployees } = await import('./next_game_employees.js?v=20261012_employee_cases_v1');
+        const { renderNextGameEmployees } = await import('./next_game_employees.js?v=20261012_theme_art_v1');
         await renderNextGameEmployees(target, showToast, NatAPI);
       } else if (view === 'guide') {
-        const { renderNextGameGuide } = await import('./next_game_guide.js?v=20261012_player_guide_v1');
+        const { renderNextGameGuide } = await import('./next_game_guide.js?v=20261012_theme_art_v1');
         renderNextGameGuide(target);
       } else if (view === 'civic') {
         const { renderNextGameCivic } = await import('./next_game_civic.js?v=20261010_shell_v2');

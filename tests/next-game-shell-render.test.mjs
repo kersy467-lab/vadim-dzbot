@@ -183,7 +183,7 @@ test('autonomy respects cash and limiting input with visible shortages and build
   assert.match(renderFactories(state), /Купить недостающее сырьё/);
 });
 
-test('continuous upgrades show server timer and managers only affect cash expenses', async () => {
+test('continuous upgrades show server timer and managers only boost factory output', async () => {
   const { readFile } = await import('node:fs/promises');
   const api = await readFile(new URL('../frontend/natbirzha/js/next_game_api.js', import.meta.url), 'utf8');
   const state = fixture();
@@ -192,15 +192,16 @@ test('continuous upgrades show server timer and managers only affect cash expens
     upgrade_seconds_remaining: 22, upgrade_reserved_cash: 450,
     recipe: { ...state.corporations[0].branches[0].factory, operating_cost: 19.6 }, status: 'active' });
   state.managers = [{ id: 9, name: 'Amelia Brooks', rarity: 'common', source: 'milestone', level: 5, reward_level: 5,
-    discount_pct: 2, facility_id: 1, branch_id: 'b0' }];
+    production_bonus_pct: 8, facility_id: 1, branch_id: 'b0' }];
   const markup = renderFactories(state);
   assert.match(markup, /Улучшение до 4 уровня/);
   assert.match(markup, /Осталось около 22 сек/);
   assert.match(markup, /Списано и учтено в казне: 450 cash/);
   assert.doesNotMatch(markup, /data-next-upgrade="b0"/);
   assert.match(markup, /Amelia Brooks/);
-  assert.match(markup, /2%/);
-  assert.match(markup, /только cash-расходы/);
+  assert.match(markup, /8%/);
+  assert.match(markup, /повышает выпуск/);
+  assert.doesNotMatch(markup, /Снижает только cash-расходы/);
   assert.match(api, /assignNextGameManager[\s\S]*manager\/assign/);
   assert.match(markup, /data-next-manager-assign="9"/);
 });
@@ -231,6 +232,6 @@ test('More routes mount legacy war and the complete old administration panel ins
   }
   assert.match(admin, /next-game-more-copy/);
   assert.match(styles, /next-game-more-tile \{ grid-template-columns: 2\.2rem minmax\(0, 1fr\) 1\.35rem/);
-  assert.match(app, /screen_loader\.js\?v=20261012_player_guide_v1/);
-  assert.match(html, /app\.js\?v=20261012_player_guide_v1/);
+  assert.match(app, /screen_loader\.js\?v=20261012_theme_art_v1/);
+  assert.match(html, /app\.js\?v=20261012_theme_art_v1/);
 });

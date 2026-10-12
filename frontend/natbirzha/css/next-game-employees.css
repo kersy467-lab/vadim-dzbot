@@ -59,8 +59,8 @@
 .ng-employee-rarity { color: #758175; font-size: .65rem; font-weight: 800; }
 .ng-employee-card h3 { margin: 0; color: #2e4033; font-size: .94rem; font-weight: 850; }
 .ng-employee-source { margin: 0; color: #879087; font-size: .62rem; }
-.ng-employee-discount { display: flex; align-items: baseline; gap: .45rem; margin-top: .2rem; }
-.ng-employee-discount b { color: #28744e; font-size: .9rem; }
+.ng-employee-output-bonus { display: flex; align-items: baseline; gap: .45rem; margin-top: .2rem; }
+.ng-employee-output-bonus b { color: #28744e; font-size: .9rem; }
 .ng-employee-discount span,
 .ng-employee-assignment,
 .ng-employee-protected { color: #6f7b70; font-size: .65rem; }

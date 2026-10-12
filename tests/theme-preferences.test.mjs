@@ -89,6 +89,30 @@ test('all themes have palette tokens and the dark theme keeps readable high-cont
   }
 });
 
+test('ornamental themes load original art into the game surfaces and buttons', async () => {
+  const [variants, consolidation, index, art] = await Promise.all([
+    readFile(new URL('../frontend/natbirzha/css/theme-variants.css', import.meta.url), 'utf8'),
+    readFile(new URL('../frontend/natbirzha/css/next-game-consolidation.css', import.meta.url), 'utf8'),
+    readFile(new URL('../frontend/natbirzha/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../frontend/natbirzha/css/theme-art.css', import.meta.url), 'utf8'),
+  ]);
+  assert.match(index, /theme-variants\.css\?v=20261012_theme_art_v1/);
+  assert.match(index, /theme-art\.css\?v=20261012_theme_art_v1/);
+  for (const id of ['rose', 'wood', 'botanical', 'midnight']) {
+    assert.match(art, new RegExp(`theme-art-${id}\\.webp`));
+    const block = variants.match(new RegExp(`html\\[data-theme="${id}"\\] \\{([^}]*)\\}`))?.[1] || '';
+    assert.match(block, /--lux-canvas:/);
+    assert.match(block, /--lux-emerald:/);
+  }
+  assert.match(art, /next-game-primary/);
+  assert.match(art, /next-game-secondary/);
+  assert.match(art, /background-position: right \.2rem top \.1rem/);
+  const motifs = await Promise.all(['rose', 'wood', 'botanical', 'midnight'].map((id) =>
+    readFile(new URL(`../frontend/natbirzha/assets/theme-art-${id}.webp`, import.meta.url))));
+  assert.ok(motifs.every((asset) => asset.length > 20_000));
+  assert.match(consolidation, /--ng-hero-a:#142234/);
+});
+
 test('theme picker updates the palette immediately and persists the selection', () => {
   const values = new Map();
   const storage = {

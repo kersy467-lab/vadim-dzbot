@@ -15,6 +15,8 @@ test('More contains a guide tile and the guide offers direct navigation to core 
   assert.equal(STEPS.length, 4);
   assert.equal(FAQ.length, 3);
   assert.match(container.innerHTML, /aria-label="Схема игрового цикла"/);
+  assert.match(container.innerHTML, /повышает выпуск назначенного завода на 8–10%/);
+  assert.doesNotMatch(container.innerHTML, /менеджер уменьшает расход cash/);
   assert.equal((container.innerHTML.match(/<svg /g) || []).length, 10);
 });
 
@@ -27,9 +29,9 @@ test('guide stylesheet and lazy route are included in the cached mini app entry 
     readFile(new URL('../frontend/natbirzha/css/next-game-guide.css', import.meta.url), 'utf8'),
   ]);
   assert.match(html, /next-game-guide\.css\?v=20261012_player_guide_v1/);
-  assert.match(html, /app\.js\?v=20261012_player_guide_v1/);
-  assert.match(app, /screen_loader\.js\?v=20261012_player_guide_v1/);
-  assert.match(loader, /next_game\.js\?v=20261012_player_guide_v1/);
-  assert.match(entry, /next_game_guide\.js\?v=20261012_player_guide_v1/);
+  assert.match(html, /app\.js\?v=20261012_theme_art_v1/);
+  assert.match(app, /screen_loader\.js\?v=20261012_theme_art_v1/);
+  assert.match(loader, /next_game\.js\?v=20261012_theme_art_v1/);
+  assert.match(entry, /next_game_guide\.js\?v=20261012_theme_art_v1/);
   assert.match(css, /prefers-reduced-motion|ng-guide-flow/);
 });

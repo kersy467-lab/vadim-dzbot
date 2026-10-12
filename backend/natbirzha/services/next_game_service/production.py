@@ -51,10 +51,10 @@ class NextGameProductionMixin:
                     "output_quantity": round(level_recipe["output_quantity"] * bonus * event_bonus, 4)}
                 recipe = await factory_recipe(session, company, facility, cycle_recipe, now=facility.next_cycle_at)
                 from backend.natbirzha.services.next_game_manager_service import (
-                    apply_manager_discount, manager_discount,
+                    apply_manager_output_bonus, manager_output_bonus_pct,
                 )
-                discount = await manager_discount(session, facility.id)
-                apply_manager_discount(recipe, discount)
+                manager_bonus_pct = await manager_output_bonus_pct(session, facility.id)
+                apply_manager_output_bonus(recipe, manager_bonus_pct)
                 reason = await cls._cycle_block_reason(session, company, recipe)
                 if reason:
                     blocked.append({"facility_id": str(facility.id), "reason": reason})

@@ -1,18 +1,18 @@
 /* Alternate palettes share the luxury layout and only replace design tokens. */
 html[data-theme="midnight"] {
   color-scheme: dark;
-  --lux-canvas: #111a16;
-  --lux-surface: #1b2923;
-  --lux-surface-soft: #24372e;
-  --lux-sage: #2a4035;
-  --lux-sage-strong: #3b5949;
-  --lux-emerald: #27684d;
-  --lux-emerald-deep: #103e2e;
-  --lux-champagne: #e0c27e;
-  --lux-ink: #f1f5ef;
-  --lux-muted: #b4c1b8;
-  --lux-border: #3c5146;
-  --lux-focus: #e0c27e;
+  --lux-canvas: #111923;
+  --lux-surface: #1b2938;
+  --lux-surface-soft: #283b4e;
+  --lux-sage: #293f51;
+  --lux-sage-strong: #3b586c;
+  --lux-emerald: #338a97;
+  --lux-emerald-deep: #1d6270;
+  --lux-champagne: #e8cb7d;
+  --lux-ink: #f3f6f7;
+  --lux-muted: #bac7d0;
+  --lux-border: #40586a;
+  --lux-focus: #e8cb7d;
   --lux-shadow: 0 8px 26px rgba(0, 0, 0, .24);
 }
 
@@ -36,7 +36,7 @@ html[data-theme="pearl"] {
 html[data-theme="midnight"] body,
 html[data-theme="midnight"] body > header,
 html[data-theme="midnight"] #bottom-nav {
-  background-color: rgba(17, 26, 22, .97) !important;
+  background-color: rgba(17, 25, 35, .97) !important;
   color: var(--lux-ink) !important;
   border-color: var(--lux-border) !important;
 }
@@ -181,10 +181,10 @@ html[data-theme="wood"] {
   --lux-shadow:0 8px 26px rgba(76,50,31,.09);
 }
 html[data-theme="botanical"] {
-  color-scheme: light; --lux-canvas:#e4eee1; --lux-surface:#f8fff5; --lux-surface-soft:#d2e3cd;
-  --lux-sage:#d2e3ca; --lux-sage-strong:#adc7a5; --lux-emerald:#315d42; --lux-emerald-deep:#1f422f;
-  --lux-champagne:#785d2f; --lux-ink:#26372b; --lux-muted:#4d6152; --lux-border:#b6ccb4; --lux-focus:#315d42;
-  --lux-shadow:0 8px 26px rgba(38,70,48,.08);
+  color-scheme: light; --lux-canvas:#dce9d5; --lux-surface:#fbfff5; --lux-surface-soft:#c9ddbd;
+  --lux-sage:#c9ddbd; --lux-sage-strong:#a8c894; --lux-emerald:#24613a; --lux-emerald-deep:#173f29;
+  --lux-champagne:#8a682e; --lux-ink:#23352a; --lux-muted:#455d4a; --lux-border:#a9c29f; --lux-focus:#24613a;
+  --lux-shadow:0 8px 26px rgba(35,73,43,.12);
 }
 html[data-theme="mountain"] {
   color-scheme: light; --lux-canvas:#e2edf3; --lux-surface:#f7fcff; --lux-surface-soft:#cfdee8;

@@ -1,0 +1,42 @@
+/* Theme-specific illustration accents. The source WebP art has a low-alpha background. */
+html[data-theme="rose"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="rose"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+  background-image: url("/static/natbirzha/assets/theme-art-rose.webp") !important;
+  background-repeat: no-repeat !important;
+  background-position: right .2rem top .1rem !important;
+}
+html[data-theme="wood"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="wood"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+  background-image: url("/static/natbirzha/assets/theme-art-wood.webp") !important;
+  background-repeat: no-repeat !important;
+  background-position: right .2rem top .1rem !important;
+}
+html[data-theme="botanical"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="botanical"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+  background-image: url("/static/natbirzha/assets/theme-art-botanical.webp") !important;
+  background-repeat: no-repeat !important;
+  background-position: right .2rem top .1rem !important;
+}
+html[data-theme="midnight"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="midnight"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+  background-image: url("/static/natbirzha/assets/theme-art-midnight.webp") !important;
+  background-repeat: no-repeat !important;
+  background-position: right .2rem top .1rem !important;
+}
+
+/* Large illustrations add atmosphere to panels; small versions ornament actions. */
+html[data-theme="rose"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="wood"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="botanical"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel),
+html[data-theme="midnight"] #screen-container :is(.glass-card,.tycoon-stat,.tycoon-business-card,.broker-chart-card,.next-game-screen .next-game-panel) {
+  background-size: 6.5rem 6.5rem !important;
+}
+
+html[data-theme="rose"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]),
+html[data-theme="wood"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]),
+html[data-theme="botanical"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]),
+html[data-theme="midnight"] #screen-container :is(.next-game-screen button.next-game-primary,.next-game-screen button.next-game-secondary,button[class*="bg-emerald-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-rose-"]) {
+  background-size: 2.15rem 2.15rem !important;
+  background-position: right .15rem center !important;
+  padding-right: 2.35rem !important;
+}

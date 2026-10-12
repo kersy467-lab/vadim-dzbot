@@ -42,7 +42,7 @@ export function renderEmployeeCard(employee) {
   return `<article class="ng-employee-card ${RARITY_CLASSES[rarity] || RARITY_CLASSES.common}" data-employee-card="${Number(employee.id)}">
     <div class="ng-employee-card-top"><span class="ng-employee-level">УР. ${formatNumber(employee.level, 0)}</span><span class="ng-employee-rarity">${esc(RARITY_LABELS[rarity] || rarity)}</span></div>
     <h3>${esc(employee.name)}</h3><p class="ng-employee-source">${source}</p>
-    <div class="ng-employee-discount"><b>−${formatNumber(employee.discount_pct, 0)}%</b><span>к расходам cash за цикл</span></div>
+    <div class="ng-employee-output-bonus"><b>+${formatNumber(employee.production_bonus_pct, 0)}%</b><span>к выпуску завода за цикл</span></div>
     ${assignment}<div class="ng-employee-card-actions">${removal}</div>
   </article>`;
 }
@@ -52,15 +52,15 @@ export function renderEmployeeInventory(data = {}) {
   const employees = data.employees || [];
   const cards = employees.map(renderEmployeeCard).join('');
   const odds = (caseInfo.odds || []).map((row) => `<li class="ng-employee-odds-row ${RARITY_CLASSES[row.rarity] || ''}">
-    <span><b>${esc(RARITY_LABELS[row.rarity] || row.rarity)}</b><small>уровни ${formatNumber(row.level_min)}–${formatNumber(row.level_max)} · −${formatNumber(row.discount_pct)}% к расходам</small></span>
+    <span><b>${esc(RARITY_LABELS[row.rarity] || row.rarity)}</b><small>уровни ${formatNumber(row.level_min)}–${formatNumber(row.level_max)} · +${formatNumber(row.production_bonus_pct)}% к выпуску</small></span>
     <strong>${oddsPercent(row.probability)}</strong>
   </li>`).join('');
   const affordable = Number(data.pvc_balance || 0) >= Number(caseInfo.price_pvc || 25);
   return `<section class="next-game-view-heading ng-employee-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Ещё</button><span>КОМАНДА · NATBIRZHA 2.0</span></div><div class="next-game-view-title"><span aria-hidden="true">♙</span><div><h2>Сотрудники</h2><small>Коллекция специалистов и кейсы за PVC</small></div></div></section>
-  <section class="next-game-panel ng-employee-case-panel"><div class="ng-employee-case-copy"><span class="ng-employee-eyebrow">КЕЙС СПЕЦИАЛИСТОВ</span><h3>Открой нового сотрудника</h3><p>Назначьте сотрудника на завод в разделе «Заводы». Его скидка уменьшает только расходы cash за цикл.</p><div class="ng-employee-wallet">Баланс <b data-employee-wallet>${formatNumber(data.pvc_balance, 2)} PVC</b></div></div>
+  <section class="next-game-panel ng-employee-case-panel"><div class="ng-employee-case-copy"><span class="ng-employee-eyebrow">КЕЙС СПЕЦИАЛИСТОВ</span><h3>Открой нового сотрудника</h3><p>Назначьте сотрудника на завод: он повысит выпуск на 8–10% за цикл. Расход cash и потребление сырья не меняются.</p><div class="ng-employee-wallet">Баланс <b data-employee-wallet>${formatNumber(data.pvc_balance, 2)} PVC</b></div></div>
     <div class="ng-employee-case-action"><div class="ng-employee-case-art" data-case-reveal aria-live="polite"><span class="ng-employee-case-vault" data-case-motion aria-hidden="true"><i class="ng-employee-case-lid"></i><i class="ng-employee-case-body"><b></b></i></span><small data-case-caption>Содержимое откроется после оплаты</small></div><button type="button" class="next-game-primary ng-employee-open" data-employee-case-open ${affordable ? '' : 'disabled'}>Открыть за ${formatNumber(caseInfo.price_pvc)} PVC</button><p class="ng-employee-case-error" data-case-error role="status" hidden></p></div>
   </section>
-  <section class="next-game-panel ng-employee-odds-panel"><div class="ng-employee-section-heading"><div><span class="ng-employee-eyebrow">ЧЕСТНЫЕ ШАНСЫ</span><h3>Вероятность и бонус</h3></div><b>${formatNumber(caseInfo.price_pvc)} PVC / кейс</b></div><p>Шансы указаны для каждого открытия. Редкость определяет уровень и скидку сотрудника.</p><ul class="ng-employee-odds">${odds || '<li>Нет данных о шансах кейса</li>'}</ul></section>
+  <section class="next-game-panel ng-employee-odds-panel"><div class="ng-employee-section-heading"><div><span class="ng-employee-eyebrow">ЧЕСТНЫЕ ШАНСЫ</span><h3>Вероятность и бонус</h3></div><b>${formatNumber(caseInfo.price_pvc)} PVC / кейс</b></div><p>Шансы указаны для каждого открытия. Редкость определяет уровень и бонус к выпуску.</p><ul class="ng-employee-odds">${odds || '<li>Нет данных о шансах кейса</li>'}</ul></section>
   <section class="next-game-panel ng-employee-inventory-panel"><div class="ng-employee-section-heading"><div><span class="ng-employee-eyebrow">ВАША КОМАНДА</span><h3>Инвентарь сотрудников</h3></div><b data-employee-count>${employees.length} шт.</b></div><p>Гарантированные сотрудники выдаются на уровнях компании 5, 15, 30 и 45. Их нельзя удалить.</p><div class="ng-employee-grid" data-employee-list>${cards || '<p class="ng-employee-empty">Сотрудники появятся после достижения уровня или открытия кейса.</p>'}</div></section>`;
 }
 

@@ -22,10 +22,10 @@ from backend.natbirzha.services.next_game_service import NextGameService
 
 CASE_PRICE_PVC = 25
 CASE_DROP_ODDS = (
-    {"rarity": "common", "probability": 0.70, "level_min": 1, "level_max": 10, "discount_pct": 2},
-    {"rarity": "rare", "probability": 0.22, "level_min": 11, "level_max": 20, "discount_pct": 4},
-    {"rarity": "epic", "probability": 0.07, "level_min": 21, "level_max": 30, "discount_pct": 6},
-    {"rarity": "legendary", "probability": 0.01, "level_min": 31, "level_max": 50, "discount_pct": 8},
+    {"rarity": "common", "probability": 0.70, "level_min": 1, "level_max": 10, "production_bonus_pct": 8, "storage_code": 2},
+    {"rarity": "rare", "probability": 0.22, "level_min": 11, "level_max": 20, "production_bonus_pct": 9, "storage_code": 4},
+    {"rarity": "epic", "probability": 0.07, "level_min": 21, "level_max": 30, "production_bonus_pct": 10, "storage_code": 6},
+    {"rarity": "legendary", "probability": 0.01, "level_min": 31, "level_max": 50, "production_bonus_pct": 10, "storage_code": 8},
 )
 
 _FIRST_NAMES = (
@@ -56,7 +56,8 @@ def _draw_case_employee() -> dict[str, Any]:
 def _case_catalog() -> dict[str, Any]:
     return {
         "price_pvc": CASE_PRICE_PVC,
-        "odds": [dict(row) for row in CASE_DROP_ODDS],
+        "odds": [{key: value for key, value in row.items() if key != "storage_code"}
+                 for row in CASE_DROP_ODDS],
     }
 
 
@@ -122,7 +123,9 @@ class NextGameEmployeeService:
             reward_level=reward_sequence,
             name=employee_roll["name"],
             rarity=employee_roll["rarity"],
-            discount_pct=int(odds["discount_pct"]),
+            # Keep the historic numeric values in the existing checked column;
+            # live production power is derived from rarity and exposed as a bonus.
+            discount_pct=int(odds["storage_code"]),
             source="case",
             level=level,
         )

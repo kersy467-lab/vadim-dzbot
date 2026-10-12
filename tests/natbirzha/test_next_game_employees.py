@@ -16,8 +16,8 @@ from backend.natbirzha.models.next_game_community import NatNextGameProfile
 from backend.natbirzha.services.next_game_service import NextGameService
 from backend.natbirzha.services.next_game_community_service import profile
 from backend.natbirzha.services.next_game_manager_service import (
-    MANAGER_REWARDS, apply_manager_discount, assign_manager, ensure_manager_awards,
-    manager_discount,
+    MANAGER_REWARDS, apply_manager_output_bonus, assign_manager,
+    ensure_manager_awards, manager_output_bonus_pct,
 )
 from backend.natbirzha.services.next_game_employee_service import (
     CASE_PRICE_PVC, CASE_DROP_ODDS, NextGameEmployeeService,
@@ -36,15 +36,15 @@ async def _database():
     return engine, sessions
 
 
-def test_case_catalog_discloses_price_rarity_level_ranges_and_cash_discounts():
+def test_case_catalog_discloses_price_rarity_level_ranges_and_output_bonuses():
     assert CASE_PRICE_PVC == 25
     assert sum(row["probability"] for row in CASE_DROP_ODDS) == pytest.approx(1)
-    assert [(row["rarity"], row["probability"], row["level_min"], row["level_max"], row["discount_pct"])
+    assert [(row["rarity"], row["probability"], row["level_min"], row["level_max"], row["production_bonus_pct"])
             for row in CASE_DROP_ODDS] == [
-        ("common", .70, 1, 10, 2),
-        ("rare", .22, 11, 20, 4),
-        ("epic", .07, 21, 30, 6),
-        ("legendary", .01, 31, 50, 8),
+        ("common", .70, 1, 10, 8),
+        ("rare", .22, 11, 20, 9),
+        ("epic", .07, 21, 30, 10),
+        ("legendary", .01, 31, 50, 10),
     ]
 
 
@@ -84,7 +84,7 @@ def test_case_open_debits_profile_and_writes_employee_and_pvc_ledger_atomically(
                 assert first["employee"]["name"] == "Avery Quinn"
                 assert first["employee"]["level"] == 42
                 assert first["employee"]["rarity"] == "legendary"
-                assert first["employee"]["discount_pct"] == 8
+                assert first["employee"]["production_bonus_pct"] == 10
                 await session.refresh(wallet)
                 assert wallet.pvc_balance == 75
                 assert await session.scalar(select(func.count(NatNextGameManager.id)).where(
@@ -137,7 +137,7 @@ def test_case_open_rejects_insufficient_pvc_without_partial_employee_or_ledger(m
     asyncio.run(check())
 
 
-def test_case_employee_assigns_to_factory_affects_cycle_cash_only_and_cannot_be_deleted(monkeypatch):
+def test_manager_bonus_only_increases_output_and_never_changes_inputs_or_cash_cost(monkeypatch):
     async def check():
         import backend.natbirzha.services.next_game_employee_service as employee_service
 
@@ -163,13 +163,24 @@ def test_case_employee_assigns_to_factory_affects_cycle_cash_only_and_cannot_be_
                 employee_id = employee["employee"]["id"]
                 await assign_manager(session, 991103, employee_id, "renewables")
 
-                discount = await manager_discount(session, facility.id)
-                recipe = {"operating_cost": 100, "cycle_seconds": 3600,
-                          "economics": {"npc_profit": 20}}
-                discounted = apply_manager_discount(recipe, discount)
-                assert discount == pytest.approx(.06)
-                assert discounted["operating_cost"] == pytest.approx(94)
-                assert discounted["economics"]["npc_profit"] == pytest.approx(26)
+                bonus_pct = await manager_output_bonus_pct(session, facility.id)
+                recipe = {
+                    "output_quantity": 100,
+                    "net_output_quantity": 98,
+                    "operating_cost": 100,
+                    "inputs": {"ore": 2},
+                    "cycle_seconds": 3600,
+                    "economics": {"npc_revenue": 80, "npc_profit": 20, "profit_per_hour": 20},
+                }
+                adjusted = apply_manager_output_bonus(recipe, bonus_pct)
+                assert bonus_pct == 10
+                assert adjusted["output_quantity"] == pytest.approx(110)
+                assert adjusted["net_output_quantity"] == pytest.approx(108)
+                assert adjusted["inputs"] == {"ore": 2}
+                assert adjusted["operating_cost"] == pytest.approx(100)
+                assert adjusted["economics"]["npc_revenue"] == pytest.approx(88)
+                assert adjusted["economics"]["npc_profit"] == pytest.approx(28)
+                assert adjusted["economics"]["profit_per_hour"] == pytest.approx(28)
 
                 with pytest.raises(ValueError, match="назначенного"):
                     await NextGameEmployeeService.delete_employee(session, 991103, employee_id)
@@ -229,7 +240,7 @@ def test_case_employee_can_be_deleted_when_unassigned_but_milestone_staff_are_pr
                 assert normalized.id == old_award.id
                 assert normalized.name == "Amelia Brooks"
                 assert normalized.facility_id == facility.id
-                assert normalized.discount_pct == 2
+                assert await manager_output_bonus_pct(session, facility.id) == 8
                 with pytest.raises(ValueError) as error:
                     await NextGameEmployeeService.delete_employee(session, 991104, guaranteed.id)
                 assert "Гарантированных" in str(error.value)

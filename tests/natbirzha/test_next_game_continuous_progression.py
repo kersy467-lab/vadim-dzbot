@@ -16,7 +16,7 @@ from backend.natbirzha.next_game_catalog import get_next_game_catalog
 from backend.natbirzha.next_game_map import build_progression_map
 from backend.natbirzha.services.next_game_service import NextGameService
 from backend.natbirzha.services.next_game_manager_service import (
-    assign_manager, ensure_manager_awards, manager_discount,
+    assign_manager, ensure_manager_awards, manager_output_bonus_pct,
 )
 from backend.natbirzha.services.next_game_service.common import (
     facility_output_multiplier, facility_upgrade_cost, facility_upgrade_duration,
@@ -247,13 +247,13 @@ def test_manager_milestones_are_guaranteed_and_move_between_owned_factories():
             manager = managers[0]
             await assign_manager(session, 661403, manager.id, "renewables")
             assert manager.facility_id == first_facility.id
-            assert await manager_discount(session, first_facility.id) == pytest.approx(.02)
+            assert await manager_output_bonus_pct(session, first_facility.id) == 8
 
             moved = await assign_manager(session, 661403, manager.id, "thermal")
             assert moved["manager"]["branch_id"] == "thermal"
             assert manager.facility_id == second.id
-            assert await manager_discount(session, first_facility.id) == 0
-            assert await manager_discount(session, second.id) == pytest.approx(.02)
+            assert await manager_output_bonus_pct(session, first_facility.id) == 0
+            assert await manager_output_bonus_pct(session, second.id) == 8
             with pytest.raises(ValueError):
                 await assign_manager(session, 661403, manager.id, "not-owned")
 
@@ -265,7 +265,7 @@ def test_manager_milestones_are_guaranteed_and_move_between_owned_factories():
     asyncio.run(check())
 
 
-def test_company_levels_continue_after_sixty_and_manager_only_reduces_cash_cost():
+def test_company_levels_continue_after_sixty_and_manager_only_increases_output():
     async def check():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -295,8 +295,8 @@ def test_company_levels_continue_after_sixty_and_manager_only_reduces_cash_cost(
                 NatNextGameLedger.company_id == company.id,
                 NatNextGameLedger.action == "OPERATING_COST",
             ))).all())
-            assert output == pytest.approx(9)
-            assert ledger[-1].cash_company_delta == pytest.approx(-24.5)
+            assert output == pytest.approx(9.72)
+            assert ledger[-1].cash_company_delta == pytest.approx(-25)
             assert facility.level == 1
         await engine.dispose()
 

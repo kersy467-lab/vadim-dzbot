@@ -99,12 +99,13 @@ function renderManagers(state) {
     }).join('');
     return '<article class="next-game-manager-card is-' + esc(manager.rarity) + '">'
       + '<div class="next-game-manager-card-heading"><span class="next-game-manager-seal">'
-      + number(manager.discount_pct, 0) + '%</span><div><b>' + esc(manager.name)
+      + number(manager.production_bonus_pct, 0) + '%</span><div><b>' + esc(manager.name)
       + '</b><small>' + esc(rarities[manager.rarity] || manager.rarity) + ' · '
       + (manager.source === 'case'
         ? 'сотрудник ур. ' + number(manager.level, 0)
         : 'награда за ' + number(manager.reward_level, 0) + ' уровень') + '</small></div></div>'
-      + '<p>Снижает только cash-расходы цикла. Ресурсы и выпуск не меняются.</p>'
+      + '<p>Увеличивает выпуск на ' + number(manager.production_bonus_pct, 0)
+      + '% за цикл. Расход cash и сырьё не растут.</p>'
       + '<label>Завод<select data-next-manager-select><option value="">Не назначен</option>'
       + choices + '</select></label><button type="button" data-next-manager-assign="'
       + manager.id + '" class="next-game-secondary">Сохранить назначение</button></article>';
@@ -119,7 +120,7 @@ function renderManagers(state) {
     + '<span class="next-game-eyebrow">КОМАНДА И СПЕЦИАЛИСТЫ</span><b>Менеджеры заводов</b></span>'
     + '<span class="next-game-manager-summary-meta"><span class="next-game-manager-count">'
     + managers.length + ' ' + countWord + '</span><span class="next-game-manager-toggle" aria-hidden="true"></span></span></summary>'
-    + '<div class="next-game-manager-content"><p>Назначьте специалиста на завод. Скидка меняет только денежные расходы.</p>'
+    + '<div class="next-game-manager-content"><p>Назначьте специалиста на завод: он повышает выпуск на 8–10% без роста расходов и потребления сырья.</p>'
     + summary + '</div></details>';
 }
 

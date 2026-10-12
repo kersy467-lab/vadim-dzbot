@@ -12,7 +12,8 @@ from backend.natbirzha.next_game_catalog import (
     find_next_game_branch, get_next_game_catalog, get_next_game_items,
 )
 from backend.natbirzha.services.next_game_manager_service import (
-    apply_manager_discount, ensure_manager_awards, manager_payload,
+    apply_manager_output_bonus, ensure_manager_awards, manager_output_bonus_pct,
+    manager_payload,
 )
 from .common import (
     BUY_MARKUP, SELL_MARKDOWN, MAX_BANK_LOAN, MAX_FACILITY_LEVEL,
@@ -116,9 +117,8 @@ class NextGameSnapshotMixin:
             recipe["output_quantity"] = round(recipe["output_quantity"] * bonus, 4)
             recipe = await factory_recipe(session, company, facility, recipe, now=current)
             manager = managers_by_facility.get(facility.id)
-            manager_discount = float(manager.discount_pct) / 100 if manager else 0.0
-            apply_manager_discount(recipe, manager_discount)
-            recipe["manager_discount_pct"] = int(manager.discount_pct) if manager else 0
+            manager_bonus_pct = await manager_output_bonus_pct(session, facility.id) if manager else 0
+            apply_manager_output_bonus(recipe, manager_bonus_pct)
             blocked_reason = None
             if company.cash < recipe["operating_cost"]:
                 blocked_reason = "Недостаточно cash на расходы цикла"

@@ -166,7 +166,7 @@ async function mountActive(session) {
         const { renderNextGameContracts } = await import('./next_game_contracts.js?v=20261010_shell_v2');
         await renderNextGameContracts(target, state, showToast, refresh);
       } else if (view === 'admin') {
-        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_theme_admin_mobile_v1');
+        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_admin_amount_step_v1');
         await renderNextGameAdmin(target, state, showToast, refresh);
       } else throw new Error('Раздел не найден');
       if (version !== session.version || entries.get(container) !== session) return;

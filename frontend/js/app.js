@@ -178,9 +178,9 @@ async function loadUserData() {
     window.currentUser = me;
     applyFlagBVisibility(Boolean(me && me.flag_b));
     if (window.GAMES && typeof window.GAMES.updateTesterStatus === "function") {
-      // ADMIN_ID is an effective server-side tester grant even when the
-      // legacy users row has not yet been migrated to role="admin".
-      window.GAMES.updateTesterStatus(Boolean(me && (me.is_tester || me.role === "admin")));
+      // Legacy grant check: me.is_tester || me.role === "admin"
+      // natarGRP RPG is restricted to admins only:
+      window.GAMES.updateTesterStatus(Boolean(me && me.role === "admin"));
     }
     if (me && me.full_name) {
       const roleTag = me.role === "admin" ? " • 👑 Админ" : "";

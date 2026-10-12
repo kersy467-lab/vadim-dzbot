@@ -14,13 +14,12 @@
   async function checkTesterStatus() {
     try {
       const p = new URLSearchParams(window.location.search);
-      if (p.has("tester")) isTesterUser = p.get("tester") === "1" || p.get("tester") === "true";
-      else if (p.get("role") === "tester" || localStorage.getItem("is_tester") === "1") isTesterUser = true;
-      try { localStorage.setItem("is_tester", isTesterUser ? "1" : "0"); } catch (e) {}
+      if (p.has("admin")) isTesterUser = p.get("admin") === "1" || p.get("admin") === "true";
+      else if (p.get("role") === "admin") isTesterUser = true;
     } catch (e) {}
 
-    if (window.currentUser && typeof window.currentUser.is_tester !== "undefined") {
-      isTesterUser = Boolean(window.currentUser.is_tester || window.currentUser.role === "admin");
+    if (window.currentUser && typeof window.currentUser.role !== "undefined") {
+      isTesterUser = Boolean(window.currentUser.role === "admin");
       isCurrencyEnabled = Boolean(window.currentUser.currency_ecosystem_enabled);
       userCoins = Number(window.currentUser.coins || 0);
       testerChecked = true;
@@ -32,25 +31,23 @@
       const me = (apiObj && typeof apiObj.getMe === "function") ? await apiObj.getMe() : null;
       if (me) {
         window.currentUser = me;
-        isTesterUser = Boolean(me.is_tester || me.role === "admin");
+        isTesterUser = Boolean(me.role === "admin");
         isCurrencyEnabled = Boolean(me.currency_ecosystem_enabled);
         userCoins = Number(me.coins || 0);
-        try { localStorage.setItem("is_tester", isTesterUser ? "1" : "0"); } catch (e) {}
       }
     } catch (e) {}
     testerChecked = true;
     return isTesterUser;
   }
 
-  function updateTesterStatus(isTester) {
-    const wasTester = isTesterUser;
-    isTesterUser = Boolean(isTester);
+  function updateTesterStatus(isAdmin) {
+    const wasAdmin = isTesterUser;
+    isTesterUser = Boolean(isAdmin);
     testerChecked = true;
-    try { localStorage.setItem("is_tester", isTesterUser ? "1" : "0"); } catch (e) {}
     if (isTesterUser && (currentGame === "2048" || !currentGame)) currentGame = "rpg";
     else if (!isTesterUser && currentGame === "rpg") currentGame = "2048";
     const container = document.getElementById("pane-games");
-    if (container && (wasTester !== isTesterUser || (isTesterUser && currentGame === "rpg"))) renderGames();
+    if (container && (wasAdmin !== isTesterUser || (isTesterUser && currentGame === "rpg"))) renderGames();
   }
 
   async function initGames() {
@@ -226,7 +223,7 @@
         return `<div class="p-8 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
           <div class="text-4xl">🔒</div>
           <h3 class="text-base font-bold text-slate-900 dark:text-white">Игра в разработке</h3>
-          <p class="text-xs text-slate-500 max-w-xs mx-auto">RPG игра natarGRP на данный момент доступна только для тестировщиков.</p>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto">RPG игра natarGRP на данный момент доступна только для администраторов.</p>
         </div>`;
       }
       return `<div id="rpg-root"></div>`;

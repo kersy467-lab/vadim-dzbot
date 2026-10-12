@@ -882,7 +882,6 @@
     const isAdmin = Boolean(
       p?.is_admin ||
       curUser?.role === "admin" ||
-      curUser?.is_tester ||
       (curUser?.tg_id && adminIds.includes(String(curUser.tg_id))) ||
       (tgUser?.id && adminIds.includes(String(tgUser.id))) ||
       (p?.tg_id && adminIds.includes(String(p.tg_id))) ||

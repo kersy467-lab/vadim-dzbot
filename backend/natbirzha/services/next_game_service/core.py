@@ -8,7 +8,10 @@ from backend.natbirzha.models.next_game import (
     NatNextGameCompany, NatNextGameFacility, NatNextGameLedger,
     NatNextGameTreasury,
 )
-from backend.natbirzha.next_game_catalog import find_next_game_branch, find_next_game_sector, get_next_game_items
+from backend.natbirzha.next_game_catalog import (
+    find_next_game_branch, find_next_game_sector, get_next_game_items,
+    next_route_branch_ids,
+)
 from .common import (
     MAX_FACILITY_LEVEL, STARTING_COMPANY_CASH,
     TREASURY_START_CASH, TREASURY_START_STOCK, _utcnow,
@@ -108,8 +111,7 @@ class NextGameCoreMixin:
         required_level = max(len(path) + 1, int(target.get("requirements", {}).get("company_level", 1)))
         if int(company.level) < required_level:
             raise ValueError(f"Для следующей развилки нужен уровень компании {required_level}")
-        previous = find_next_game_branch(path[-1])
-        if previous is None or branch_id not in previous["next_branch_ids"]:
+        if branch_id not in next_route_branch_ids(path):
             raise ValueError("Эта ветка не открывается из текущего маршрута")
         if branch_id in path:
             raise ValueError("Эта ветка уже есть в маршруте")

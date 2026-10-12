@@ -2,6 +2,8 @@
 
 from collections import defaultdict
 
+from backend.natbirzha.next_game_catalog import next_route_branch_ids
+
 
 TERRITORY_NAMES = {
     "resources": (
@@ -83,7 +85,7 @@ def build_progression_map(
     if current_branch_id and (
         int(facility_levels.get(current_branch_id, 0)) > 0 or current_branch_id in consumed
     ):
-        next_ids.update(branches[current_branch_id].get("next_branch_ids", []))
+        next_ids.update(next_route_branch_ids(path, catalog))
 
     first_id = path[0] if path and path[0] in branches else None
     revealed = bool(first_id and int(facility_levels.get(first_id, 0)) >= 8)

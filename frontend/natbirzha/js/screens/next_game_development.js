@@ -11,8 +11,20 @@ function renderFork(state, route) {
   if (!current) return '';
   const hasFacility = (state.facilities || []).some((facility) => facility.branch_id === current.branch.id)
     || (state.consumed_branch_ids || []).includes(current.branch.id);
-  const choices = (current.branch.next_branch_ids || []).map((id) => findBranch(state.corporations, id)).filter(Boolean);
-  if (!choices.length) return `<section class="next-game-panel next-game-development-final"><span class="next-game-eyebrow">РУБЕЖ ОСВОЕН</span><h2>Доступные направления пройдены</h2><p>Компания продолжает развиваться: улучшайте заводы, управляйте командой и наращивайте мастерство. Сброса прогресса нет.</p></section>`;
+  const progression = state.progression_map?.current_branch_id === current.branch.id
+    ? state.progression_map : null;
+  const mappedChoices = (progression?.next_branches || [])
+    .map(({ id }) => findBranch(state.corporations, id)).filter(Boolean);
+  const choices = (hasFacility && progression
+    ? mappedChoices
+    : (current.branch.next_branch_ids || []).map((id) => findBranch(state.corporations, id)).filter(Boolean))
+    .filter(({ branch }) => !route.some((entry) => entry.branch.id === branch.id));
+  if (!choices.length) {
+    return hasFacility
+      ? `<section class="next-game-panel next-game-development-final"><span class="next-game-eyebrow">РУБЕЖ ОСВОЕН</span><h2>Доступные направления пройдены</h2><p>Компания продолжает развиваться: улучшайте заводы, управляйте командой и наращивайте мастерство. Сброса прогресса нет.</p></section>`
+      : `<section class="next-game-panel next-game-development-final"><span class="next-game-eyebrow">СЛЕДУЮЩИЙ ШАГ</span><h2>Сначала построй текущий завод</h2><p>После строительства откроются доступные направления развития.</p><button type="button" data-next-view="factories" class="next-game-primary">Открыть заводы</button></section>`;
+  }
+  const isEarlierFork = choices.some(({ branch }) => !(current.branch.next_branch_ids || []).includes(branch.id));
   const options = choices.map(({ sector, branch }, index) => {
     const level = Math.max(route.length + 1, Number(branch.requirements?.company_level || 1));
     const available = hasFacility && Number(state.company.level) >= level;
@@ -25,13 +37,14 @@ function renderFork(state, route) {
   const hasAvailable = options.some((option) => option.available);
   const choiceLabel = choices.length === 1 ? 'вариант'
     : choices.length < 5 ? 'варианта' : 'вариантов';
-  const hint = recommended
+  const routeHint = isEarlierFork ? 'Продолжение по невыбранной ветке ближайшей развилки. ' : '';
+  const hint = routeHint + (recommended
     ? `Рекомендуем ${esc(recommended.branch.name)}: у неё выше расчётная прибыль NPC среди доступных направлений.`
     : !hasFacility
       ? 'Сначала построй текущий завод. После этого откроются следующие направления.'
       : hasAvailable
         ? 'Все направления открыты. Сравни прибыль и состав сырья перед выбором.'
-        : `Для перехода подними уровень компании до ${nextLevel}.`;
+        : `Для перехода подними уровень компании до ${nextLevel}.`);
   return `<section class="next-game-panel next-game-checkpoint"><div class="next-game-development-heading"><div><span class="next-game-eyebrow">СЛЕДУЮЩИЙ ШАГ</span><h2>Выбери направление</h2></div><span class="next-game-route-level">${choices.length} ${choiceLabel}</span></div><p class="next-game-development-tip">${hint}</p><div class="next-game-fork">${options.map(({ sector, branch, index, level, available, profit }) => {
     const isRecommended = branch.id === recommended?.branch.id;
     return `<article class="next-game-development-choice ${isRecommended ? 'is-recommended' : ''}"><span class="next-game-choice-number">${String(index + 1).padStart(2, '0')}</span><div><span class="next-game-eyebrow">${esc(sector.name)} · УРОВЕНЬ ${level}</span><h3>${esc(branch.name)}${isRecommended ? '<span class="next-game-recommendation">Рекомендуем</span>' : ''}</h3><p>${recipeSummary(branch)}</p><small>Строительство ${number(branch.factory.build_cost, 0)} cash · расчётная прибыль NPC ${number(profit, 0)} cash/ч</small></div><button type="button" data-next-branch="${esc(branch.id)}" class="next-game-primary" ${available ? '' : 'disabled'}>${available ? 'Открыть' : !hasFacility ? 'Сначала построй текущий завод' : 'Ещё рано'}</button><button type="button" data-next-inspect="${esc(branch.id)}" class="next-game-text-button">Рецепт</button></article>`;

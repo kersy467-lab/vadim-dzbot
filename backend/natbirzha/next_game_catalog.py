@@ -160,6 +160,38 @@ def find_next_game_branch(branch_id: str) -> dict[str, Any] | None:
                  if row["id"] == branch_id), None)
 
 
+def next_route_branch_ids(branch_path, catalog=None) -> tuple[str, ...]:
+    """Return direct successors, or reopen the nearest unchosen route fork.
+
+    A saved path is a single choice through a branching production graph. When
+    its last node is terminal, the company can continue through an unused sibling
+    of the closest earlier fork instead of being stranded at a false end state.
+    """
+    path = list(branch_path or [])
+    if not path:
+        return ()
+    branches = ({
+        branch["id"]: branch
+        for sector in catalog
+        for branch in sector["branches"]
+    } if catalog is not None else NEXT_BRANCH_IDS)
+    valid_ids = set(branches)
+    visited = set(path)
+    for branch_id in reversed(path):
+        branch = branches.get(branch_id)
+        if branch is None:
+            continue
+        successors = branch.get("next_branch_ids", ()) if isinstance(branch, dict) else branch
+        unvisited = tuple(
+            target_id for target_id in successors
+            if target_id in valid_ids and target_id not in visited
+        )
+        if unvisited:
+            return unvisited
+    return ()
+
+
 __all__ = ["CORPORATIONS", "CUSTOM_ITEMS", "NEXT_BRANCH_IDS", "NEXT_GAME_BASE_PRICES",
            "RECIPES", "START_BRANCH_IDS", "find_next_game_branch", "find_next_game_sector",
+           "next_route_branch_ids",
            "get_next_game_catalog", "get_next_game_items"]

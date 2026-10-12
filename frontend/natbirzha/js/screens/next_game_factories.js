@@ -32,7 +32,10 @@ function inputMarkup(recipe, items) {
     const fallback = recipe.input_items?.find((row) => row.item_id === id);
     const stock = Number(item?.quantity || 0);
     const missing = Math.max(0, Number(quantity) - stock);
-    return `<li><span>${esc(item?.name || fallback?.name || id)}</span><b>${number(quantity, 3)} ${esc(item?.unit || fallback?.unit || '')}</b><small>На складе ${number(stock, 3)}${missing ? ` · нужно ещё ${number(missing, 3)}` : ''}</small></li>`;
+    const name = item?.name || fallback?.name || id;
+    const unit = item?.unit || fallback?.unit || '';
+    const resourceIcon = globalThis.window?.NatIcons?.icon?.(`item:${id}`, 22) || '';
+    return `<li><button type="button" class="next-game-factory-input" data-next-material="${esc(id)}" aria-label="Открыть биржу: ${esc(name)}"><span class="next-game-factory-input-icon" aria-hidden="true">${resourceIcon}</span><span class="next-game-factory-input-name">${esc(name)}</span><b>${number(quantity, 3)} ${esc(unit)}</b><small>На складе ${number(stock, 3)}${missing ? ` · нужно ещё ${number(missing, 3)}` : ''}</small><span class="next-game-factory-input-arrow" aria-hidden="true">›</span></button></li>`;
   }).join('');
 }
 
@@ -47,6 +50,8 @@ function facilityCard({ branch, sector, index, facility, state, items, consumed 
   const output = `${number(recipe.output_quantity, 3)} ${esc(recipe.output_unit || '')} ${esc(recipe.output_name || branch.outputs || '')}`;
   const minutes = Math.max(1, Math.ceil(Number(recipe.cycle_seconds || 60) / 60));
   const inputs = inputMarkup(recipe, items);
+  const firstMissingInput = Object.entries(recipe.inputs || {}).find(([id, quantity]) =>
+    Number(items.get(id)?.quantity || 0) + 1e-9 < Number(quantity))?.[0];
   const buildCost = Number(recipe.build_cost || 0);
   const canBuild = Number(state.company.cash || 0) >= buildCost;
   const canUpgrade = facility && facility.upgrade_cost != null
@@ -67,7 +72,7 @@ function facilityCard({ branch, sector, index, facility, state, items, consumed 
     <div class="next-game-factory-output"><span>Выпуск за цикл</span><b>${output}</b><small>Каждые ${minutes} мин.</small></div>
     <div class="next-game-factory-details"><div><span>Уровень</span><b>${facility ? number(facility.level, 0) : '—'}</b></div><div><span>Автономность</span><b>${esc(autonomy)}</b></div><div><span>Расход</span><b>${number(recipe.operating_cost, 0)} cash/цикл</b></div></div>
     ${inputs ? `<details class="next-game-factory-inputs"><summary>Сырьё на цикл <span>${Object.keys(recipe.inputs || {}).length}</span></summary><ul>${inputs}</ul></details>` : '<p class="next-game-factory-no-inputs">Сырьё не требуется</p>'}
-    ${facility?.blocked_reason ? `<p class="next-game-blocked-reason">Не хватает: ${esc(facility.blocked_reason)}</p><button type="button" data-next-view="market" class="next-game-secondary">Пополнить склад</button>` : ''}
+    ${facility?.blocked_reason ? `<p class="next-game-blocked-reason">Не хватает: ${esc(facility.blocked_reason)}</p><button type="button" ${firstMissingInput ? `data-next-material="${esc(firstMissingInput)}"` : 'data-next-view="market"'} class="next-game-secondary">${firstMissingInput ? 'Купить недостающее сырьё' : 'Открыть биржу'}</button>` : ''}
     <div class="next-game-factory-action">${upgrade}</div>
   </article>`;
 }
@@ -126,16 +131,26 @@ export function renderFactories(state) {
   const stopped = [...facilities.values()].filter((facility) => facility.status === 'blocked').length;
 
   return `<section class="next-game-factory-page">
-    <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Циклы идут автоматически. Улучшение занимает время, а до завершения завод продолжает работать на прежнем уровне.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div></header>
+    <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Циклы идут автоматически. Улучшение занимает время, а до завершения завод продолжает работать на прежнем уровне.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div><button type="button" data-next-view="operations" class="next-game-secondary next-game-factory-operations">Склад, сотрудники и транспорт</button></header>
     ${renderManagers(state)}
     <label class="next-game-auto-setting"><input type="checkbox" data-next-auto-upgrade ${state.settings?.auto_upgrade ? 'checked' : ''}><span><b>Автоулучшение до 9 уровня</b><small>Покупает доступное улучшение, когда хватает cash и уровня компании.</small></span></label>
     <div class="next-game-facility-list">${cards}</div>
     ${inventoryMarkup(items)}
-    <button type="button" data-next-view="operations" class="next-game-secondary next-game-factory-operations">Склад, сотрудники и транспорт</button>
   </section>`;
 }
 
 export function bindFactories(container, state, api, showToast, refresh) {
+  const openMarketItem = (itemId) => {
+    const market = state.marketBrowser ||= { view: 'home', category: 'needed', query: '' };
+    market.view = 'item';
+    market.itemId = itemId;
+    market.category = 'needed';
+    market.query = '';
+    state.navigateNextGame?.('market');
+  };
+  container.querySelectorAll('[data-next-material]').forEach((button) => {
+    button.addEventListener('click', () => openMarketItem(button.dataset.nextMaterial));
+  });
   bindAction(container, '[data-next-build]', (button) => api.buildNextGameFacility(button.dataset.nextBuild), refresh, showToast, 'Завод построен');
   bindAction(container, '[data-next-upgrade]', (button) => api.upgradeNextGameFacility(button.dataset.nextUpgrade), refresh, showToast, 'Завод улучшен');
   container.querySelectorAll('[data-next-manager-assign]').forEach((button) => {

@@ -1,4 +1,4 @@
-import { getNextGameItemArtwork } from './next_game_item_art.mjs?v=20261010_next_game_item_art_v1';
+import { getNextGameItemArtwork } from './next_game_item_art.mjs?v=20261012_semantic_item_icons_v1';
 
 const PALETTES = {
   energy: ['#f2c14e', '#976600', '#fff0a8'],

@@ -44,6 +44,18 @@ export const NEXT_GAME_ITEM_ART = Object.freeze({
 
 export const NEXT_GAME_ITEM_IDS = Object.freeze(Object.keys(NEXT_GAME_ITEM_ART));
 
+const ARTWORK_ALIASES = Object.freeze({
+  payment_operation: 'payment_services',
+  payment_operations: 'payment_services',
+  credit_service: 'credit_services',
+  investment_placement: 'investment_services',
+  investment_placements: 'investment_services',
+  leasing_service: 'leasing_services',
+  deposit_service: 'custody_services',
+  deposit_services: 'custody_services',
+});
+
 export function getNextGameItemArtwork(itemId) {
-  return NEXT_GAME_ITEM_ART[String(itemId || '').toLowerCase()] || null;
+  const id = String(itemId || '').toLowerCase();
+  return NEXT_GAME_ITEM_ART[ARTWORK_ALIASES[id] || id] || null;
 }

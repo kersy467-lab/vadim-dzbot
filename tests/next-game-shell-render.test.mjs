@@ -11,6 +11,7 @@ function fixture(count = 35) {
     is_starting_branch: index === 0, next_branch_ids: index === 0 ? ['b1', 'b2'] : [],
     factory: { facility_name: `Завод ${index}`, build_cost: 200, operating_cost: 20,
       output_name: 'Сталь', output_unit: 'т', output_quantity: 2, cycle_seconds: 600,
+      economics: { profit_per_hour: 100 - index },
       inputs: { ore: 5 }, input_items: [{ item_id: 'ore', name: 'Руда', quantity: 5, unit: 'т' }] },
   }));
   return { company: { id: 1, name: '<script>', cash: 100, level: 1, xp_to_next_level: 800,
@@ -104,19 +105,24 @@ test('company header restores identity, sector, progression and creator-only sta
   assert.doesNotMatch(renderHeader(state, false), /data-next-admin/);
 });
 
-test('development displays connected route, two gated choices and bounded catalog', () => {
+test('development displays the connected route and two gated choices without a distracting catalog', () => {
   const state = fixture(1000);
   const markup = renderDevelopment(state);
   assert.match(markup, /next-game-graph-route/);
   assert.equal((markup.match(/data-next-branch=/g) || []).length, 2);
-  assert.equal((markup.match(/class="next-game-catalog-node/g) || []).length, 12);
-  assert.match(markup, /1–12 из 1000/);
+  assert.doesNotMatch(markup, /Посмотреть отрасли и заводы|next-game-catalog-node/);
   assert.match(markup, /data-next-branch="b1"[^>]+disabled/);
   state.company.level = 2;
   state.facilities.push({ branch_id: 'b0' });
-  assert.doesNotMatch(renderDevelopment(state), /data-next-branch="b1"[^>]+disabled/);
-  assert.match(renderDevelopment(state, { page: 1 }), /13–24 из 1000/);
+  const readyMarkup = renderDevelopment(state);
+  assert.doesNotMatch(readyMarkup, /data-next-branch="b1"[^>]+disabled/);
+  assert.match(readyMarkup, /Рекомендуем/);
   assert.match(renderDevelopment(state, { query: 'Направление 999', inspected: 'b999' }), /Ресурсы на цикл/);
+
+  state.company.branch_path = ['b0', 'b1', 'b2'];
+  const longerRoute = renderDevelopment(state);
+  assert.match(longerRoute, /Пройденные этапы · 2/);
+  assert.match(longerRoute, /<details class="next-game-route-history">/);
 });
 
 test('development shows territory progress when unlocked and never offers rebirth', () => {
@@ -139,6 +145,9 @@ test('development shows territory progress when unlocked and never offers rebirt
       { id: 'region-1', tier: 1, name: 'Промышленная долина', state: 'current', facilities: [
         { id: 'b0', name: 'Рудный завод', outputs: 'Руда', state: 'built', facility_level: 8, required_company_level: 1 },
       ] },
+      { id: 'region-2', tier: 2, name: 'Закрытая долина', state: 'locked', facilities: [
+        { id: 'b1', name: 'Новый завод', outputs: 'Сталь', state: 'locked', facility_level: 0, required_company_level: 2 },
+      ] },
     ] }],
     territories: [{ id: 'region-1', tier: 1, name: 'Промышленная долина', state: 'current', facilities: [
       { id: 'b0', name: 'Рудный завод', outputs: 'Руда', state: 'built', facility_level: 8, required_company_level: 1 },
@@ -149,6 +158,8 @@ test('development shows territory progress when unlocked and never offers rebirt
   assert.match(markup, /Карта территорий/);
   assert.match(markup, /Промышленная долина/);
   assert.match(markup, /Рудный завод/);
+  assert.match(markup, /Закрытые территории · 1/);
+  assert.match(markup, /<details class="next-game-territory-archive">/);
   assert.doesNotMatch(markup, /Перерождение|data-rebirth-start|переродиться/iu);
 });
 
@@ -166,7 +177,8 @@ test('autonomy respects cash and limiting input with visible shortages and build
   assert.doesNotMatch(markup, /data-next-build="b0"[^>]+disabled/);
   state.facilities.push({ branch_id: 'b0', recipe, status: 'blocked', level: 1, blocked_reason: 'Руда' });
   assert.match(renderFactories(state), /Запасов не хватает на один цикл/);
-  assert.match(renderFactories(state), /Пополнить склад/);
+  assert.match(renderFactories(state), /class="next-game-factory-input" data-next-material="ore"/);
+  assert.match(renderFactories(state), /Купить недостающее сырьё/);
 });
 
 test('continuous upgrades show server timer and managers only affect cash expenses', async () => {
@@ -203,12 +215,19 @@ test('overview uses remaining XP and offers the correct first production action'
 test('More routes mount legacy war and the complete old administration panel inside V2', async () => {
   const { readFile } = await import('node:fs/promises');
   const entry = await readFile(new URL('../frontend/natbirzha/js/screens/next_game.js', import.meta.url), 'utf8');
+  const admin = await readFile(new URL('../frontend/natbirzha/js/screens/next_game_admin.js', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../frontend/natbirzha/css/next-game-consolidation.css', import.meta.url), 'utf8');
   const app = await readFile(new URL('../frontend/natbirzha/js/app.js', import.meta.url), 'utf8');
   const html = await readFile(new URL('../frontend/natbirzha/index.html', import.meta.url), 'utf8');
   assert.match(entry, /renderMilitary/);
   assert.match(entry, /renderCreator/);
   assert.match(entry, /legacy-admin/);
   assert.match(entry, /view === 'war'/);
-  assert.match(app, /screen_loader\.js\?v=20261011_continuous_progression_v1/);
-  assert.match(html, /app\.js\?v=20261011_continuous_progression_v1/);
+  for (const tool of ['legacy-moderation', 'legacy-sabotages', 'legacy-bonds', 'legacy-admin']) {
+    assert.match(admin, new RegExp(`data-next-admin-tool="${tool}"`));
+  }
+  assert.match(admin, /next-game-more-copy/);
+  assert.match(styles, /next-game-more-tile \{ grid-template-columns: 2\.2rem minmax\(0, 1fr\) 1\.35rem/);
+  assert.match(app, /screen_loader\.js\?v=20261012_market_flow_v1/);
+  assert.match(html, /app\.js\?v=20261012_market_flow_v1/);
 });

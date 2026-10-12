@@ -38,29 +38,30 @@ class NextGameCatalogDepthTests(unittest.TestCase):
                 visit(key)
         self.assertEqual(visited, set(self.rows))
 
-    def test_seven_new_epochs_have_real_unselected_alternatives(self):
+    def test_legacy_industry_routes_and_long_specialization_chains_remain(self):
+        self.assertIn("ferrous", NEXT_BRANCH_IDS["ore_mining"])
+        self.assertIn("construction_materials", NEXT_BRANCH_IDS["ore_mining"])
         new_keys = {row[0] for nodes in SECTOR_NODES.values() for row in nodes}
         for key in new_keys:
             row = self.rows[key]
             choices = row["next_branch_ids"]
-            if row["tier"] == 9:
+            if row["terminal"]:
                 self.assertEqual(choices, [])
-                self.assertTrue(row["terminal"])
             else:
                 self.assertEqual(len(set(choices)), 2)
-                self.assertTrue(all(self.rows[target]["tier"] == row["tier"] + 1 for target in choices))
                 first, second = (self.rows[target] for target in choices)
                 self.assertNotEqual(first["factory"]["inputs"], second["factory"]["inputs"])
+
+        def longest_route(key, memo):
+            if key not in memo:
+                memo[key] = 1 + max((longest_route(target, memo)
+                                     for target in NEXT_BRANCH_IDS[key]), default=0)
+            return memo[key]
+
+        memo = {}
         for starts in START_BRANCH_IDS.values():
             for start in starts:
-                route = [start]
-                route.append(next(key for key in NEXT_BRANCH_IDS[start] if key in new_keys))
-                while NEXT_BRANCH_IDS[route[-1]]:
-                    choices = set(NEXT_BRANCH_IDS[route[-1]]) - set(route)
-                    self.assertEqual(len(choices), 2)
-                    route.append(sorted(choices)[0])
-                self.assertEqual(len(route), 8)
-                self.assertEqual(len(route), len(set(route)))
+                self.assertGreaterEqual(longest_route(start, memo), 10)
 
     def test_civilian_supply_covers_every_item_and_recipe_input(self):
         items = get_next_game_items()

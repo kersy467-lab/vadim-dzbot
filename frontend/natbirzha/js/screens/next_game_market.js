@@ -1,21 +1,24 @@
 import { NatAPI } from '../api.js?v=20261010_active_production_v1';
-import { renderCommodityCatalog } from './market_commodities.js?v=20261009_item_art_v2';
-import { esc, renderNextMarketItem } from './next_game_market_item.js?v=20261010_visual_recovery_v3';
+import { renderCommodityCatalog } from './market_commodities.js?v=20261012_market_flow_v1';
+import { esc, renderNextMarketItem } from './next_game_market_item.js?v=20261012_market_flow_v1';
 
 const requests = new WeakMap();
 
-export async function loadSelectedMarketItem(container, itemId, load, render, onError) {
+export async function loadSelectedMarketItem(container, itemId, load, render, onError, { preserveContent = false } = {}) {
   const token = {};
   const mounted = container.isConnected;
   requests.set(container, token);
-  container.innerHTML = '<div data-next-market-loading class="p-4 text-xs text-slate-500">Загружаем стакан…</div>';
+  if (preserveContent) container.querySelector('.next-market')?.setAttribute('aria-busy', 'true');
+  else container.innerHTML = '<div data-next-market-loading class="p-4 text-xs text-slate-500">Загружаем стакан…</div>';
   const marker = container.querySelector('[data-next-market-loading]');
   try {
     const data = await load(itemId);
-    if (requests.get(container) !== token || container.querySelector('[data-next-market-loading]') !== marker || (mounted && !marker?.isConnected)) return;
+    if (requests.get(container) !== token || (mounted && !container.isConnected)
+      || (!preserveContent && container.querySelector('[data-next-market-loading]') !== marker)) return;
     render(data);
   } catch (error) {
-    if (requests.get(container) !== token || container.querySelector('[data-next-market-loading]') !== marker || (mounted && !marker?.isConnected)) return;
+    if (requests.get(container) !== token || (mounted && !container.isConnected)
+      || (!preserveContent && container.querySelector('[data-next-market-loading]') !== marker)) return;
     onError(error);
   }
 }
@@ -59,14 +62,14 @@ export async function renderNextGameMarket(container, state, showToast, refresh)
     container.querySelector('[data-market-home]')?.addEventListener('click', home);
     container.querySelector('[data-market-retry]')?.addEventListener('click', retry);
   }
-  async function selectItem(itemId) {
+  async function selectItem(itemId, { preserveContent = false } = {}) {
     market.view = 'item';
     market.itemId = itemId;
     await loadSelectedMarketItem(container, itemId, (id) => api.getNextGameMarketItem(id),
       (data) => renderNextMarketItem(container, data, {
-        api, onBack: catalog, reload: () => selectItem(itemId), showToast,
+        api, onBack: catalog, reload: () => selectItem(itemId, { preserveContent: true }), showToast,
         refresh: async () => { market.catalog = null; await refresh?.(); },
-      }), (error) => showError(error, () => selectItem(itemId)));
+      }), (error) => showError(error, () => selectItem(itemId)), { preserveContent });
   }
   if (market.view === 'catalog') return catalog();
   if (market.view === 'item' && market.itemId) return selectItem(market.itemId);

@@ -50,6 +50,22 @@ def _branch_index(catalog):
     }
 
 
+def _territory_positions(sector):
+    """Map the forward route to territories; starter choices and final alternatives share a stage."""
+    branches = sector["branches"]
+    starting = [branch for branch in branches if branch.get("is_starting_branch")]
+    remaining = [branch for branch in branches if not branch.get("is_starting_branch")]
+    remaining.sort(key=lambda branch: (int(branch.get("tier", 1)), branches.index(branch)))
+    positions = {branch["id"]: 1 for branch in starting}
+    final_tier = max(1, len(remaining) - 1)
+    positions.update({
+        branch["id"]: min(index + 2, final_tier)
+        for index, branch in enumerate(remaining)
+    })
+    ordered = {branch["id"]: branch for branch in starting + remaining}
+    return positions, ordered, final_tier
+
+
 def build_progression_map(
     sector_id, catalog, *, branch_path, facility_levels, company_level,
     consumed_branch_ids=(),
@@ -75,8 +91,9 @@ def build_progression_map(
     map_sectors = []
     for sector in catalog:
         grouped = defaultdict(list)
+        position_by_branch, branch_by_id, territory_count = _territory_positions(sector)
         for branch in sector["branches"]:
-            tier = min(9, max(1, int(branch.get("tier", 1))))
+            tier = position_by_branch[branch["id"]]
             state = (
                 "merged" if branch["id"] in consumed
                 else "built" if int(facility_levels.get(branch["id"], 0)) > 0
@@ -99,7 +116,7 @@ def build_progression_map(
             })
 
         territories = []
-        for tier, name in enumerate(TERRITORY_NAMES[sector["id"]], start=1):
+        for tier in range(1, territory_count + 1):
             facilities = grouped.get(tier, [])
             reached_positions = [route_positions[row["id"]] for row in facilities
                                  if row["id"] in route_positions]
@@ -107,6 +124,11 @@ def build_progression_map(
             available = any(row["state"] == "available" for row in facilities)
             state = "current" if is_current else (
                 "visited" if reached_positions else "available" if available else "locked"
+            )
+            names = TERRITORY_NAMES[sector["id"]]
+            name = names[tier - 1] if tier <= len(names) else (
+                f"Производственный округ: {branch_by_id[facilities[0]['id']]['name']}"
+                if facilities else f"Новый производственный округ {tier}"
             )
             territories.append({
                 "id": f"{sector['id']}-territory-{tier}", "tier": tier,
@@ -124,7 +146,7 @@ def build_progression_map(
         "active_sector_id": active_sector_id,
         "current_branch_id": current_branch_id,
         "next_branches": [branches[branch_id] for branch_id in sorted(next_ids) if branch_id in branches],
-        "territory_count": 9, "sectors": map_sectors,
+        "territory_count": len(active_sector["territories"]), "sectors": map_sectors,
         "territories": active_sector["territories"],
         "unlock_requirement": {
             "branch_id": first_id, "facility_level": 8,

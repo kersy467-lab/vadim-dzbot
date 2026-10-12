@@ -1,5 +1,5 @@
 import { renderMarketChart } from '../market_chart.js?v=20260926_local_update_v1';
-import { getItemInfo } from '../items.js?v=20261010_item_art_v2';
+import { getItemInfo } from '../items.js?v=20261012_semantic_item_icons_v1';
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -44,10 +44,12 @@ export function renderNextMarketItem(container, data, options) {
         <div class="grid grid-cols-2 gap-2"><button name="side" value="SELL" class="next-market-action next-market-sell">Сдать NPC</button>
           <button name="side" value="BUY" class="next-market-action next-market-buy">Купить у NPC</button></div></form>
     </section>
-    <section class="next-market-panel next-market-book-panel"><div class="next-market-panel-heading next-market-panel-heading-split"><span><small>РЫНОЧНАЯ ЦЕНА</small><h3>Биржевой стакан</h3></span>
-      <button type="button" data-book-refresh class="next-market-refresh">Обновить</button></div>
+    <section class="next-market-panel next-market-chart-panel"><div class="next-market-panel-heading"><span><small>ДИНАМИКА РЫНКА</small><h3>История цены</h3></span></div>
       ${renderMarketChart(history, { label: `Сделки: ${item.name}`, height: 140 })}
       <p class="next-market-reference-price"><span>Последняя сделка между компаниями</span><b>${reference}</b></p>
+    </section>
+    <section class="next-market-panel next-market-book-panel"><div class="next-market-panel-heading next-market-panel-heading-split"><span><small>РЫНОЧНАЯ ЦЕНА</small><h3>Биржевой стакан</h3></span>
+      <button type="button" data-book-refresh class="next-market-refresh">Обновить</button></div>
       <div class="next-market-book-grid"><div class="next-market-book-side is-ask"><h4>Продажа <small>ASK</small></h4>${bookRows(data.asks || [], item.unit, 'ask')}</div>
         <div class="next-market-book-side is-bid"><h4>Покупка <small>BID</small></h4>${bookRows(data.bids || [], item.unit, 'bid')}</div></div>
     </section>
@@ -65,7 +67,7 @@ export function renderNextMarketItem(container, data, options) {
       ${closed.length ? `<details><summary class="text-xs cursor-pointer">История моих ордеров (${closed.length})</summary>${closed.slice(0, 20).map((row) => `<p class="text-xs py-1">${row.side === 'BUY' ? 'Покупка' : 'Продажа'} ${number(row.quantity, 4)} @ ${number(row.limit_price, 4)} · ${row.status === 'FILLED' ? 'Исполнен' : 'Отменён'}</p>`).join('')}</details>` : ''}
     </section>
     <section class="next-market-panel next-market-history-panel"><div class="next-market-panel-heading"><span class="next-market-panel-icon next-market-icon-history">${window.NatIcons?.icon?.('clock', 20) || ''}</span><span><small>ИСТОРИЯ РЫНКА</small><h3>Последние сделки</h3></span></div>
-      ${history.length ? history.slice(-20).reverse().map((row) => `<div class="flex justify-between text-xs"><span>${esc(new Date(row.timestamp).toLocaleString('ru-RU'))}</span><b>${number(row.quantity, 4)} @ ${number(row.price, 4)}</b></div>`).join('') : '<p class="text-xs text-slate-500">Сделок между компаниями пока нет.</p>'}
+      ${history.length ? `<details><summary class="text-xs cursor-pointer">Показать последние сделки (${Math.min(history.length, 20)})</summary>${history.slice(-20).reverse().map((row) => `<div class="flex justify-between text-xs"><span>${esc(new Date(row.timestamp).toLocaleString('ru-RU'))}</span><b>${number(row.quantity, 4)} @ ${number(row.price, 4)}</b></div>`).join('')}</details>` : '<p class="text-xs text-slate-500">Сделок между компаниями пока нет.</p>'}
     </section>
   </div>`;
   container.querySelector('.market-back')?.addEventListener('click', onBack);
@@ -79,12 +81,14 @@ export function renderNextMarketItem(container, data, options) {
       await action();
       showToast('Операция выполнена', 'success');
       await refresh?.();
-      if (surface.isConnected) await reload();
+      if (surface.isConnected && container.querySelector('.next-market') === surface) await reload();
     } catch (error) {
       showToast(error.message || 'Не удалось выполнить операцию', 'error');
     } finally {
-      surface.dataset.busy = '0';
-      surface.querySelectorAll('button, input').forEach((element) => { element.disabled = false; });
+      if (surface.isConnected) {
+        surface.dataset.busy = '0';
+        surface.querySelectorAll('button, input').forEach((element) => { element.disabled = false; });
+      }
     }
   }
   container.querySelector('[data-npc-form]')?.addEventListener('submit', (event) => {

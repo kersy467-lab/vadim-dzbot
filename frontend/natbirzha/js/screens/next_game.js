@@ -3,8 +3,8 @@ import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_
 import { esc, bindAction, icon } from './next_game_common.js?v=20261011_continuous_progression_v1';
 import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_theme_admin_mobile_v1';
 import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
-import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_theme_admin_mobile_v1';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261011_continuous_progression_v1';
+import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_market_flow_v1';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_market_flow_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
@@ -150,8 +150,8 @@ async function mountActive(session) {
           onExit: () => state.navigateNextGame?.('admin'),
         });
       } else if (view === 'market') {
-        const { renderNextGameMarket } = await import('./next_game_market.js?v=20261010_visual_recovery_v3');
-        await renderNextGameMarket(target, state, showToast, refresh);
+        const { renderNextGameMarket } = await import('./next_game_market.js?v=20261012_market_flow_v1');
+        await renderNextGameMarket(target, state, showToast, () => refreshSessionState(session));
       } else if (['bank', 'capital', 'competition'].includes(view)) await renderFinance(target, session, view, refresh);
       else if (view === 'bonds') {
         const { renderNextGameBonds } = await import('./next_game_bonds.js?v=20261010_shell_v2');
@@ -163,7 +163,7 @@ async function mountActive(session) {
         const { renderNextGameLiquidation } = await import('./next_game_liquidation.js?v=20261010_shell_v2');
         await renderNextGameLiquidation(target, state, showToast, refresh);
       } else if (view === 'operations') {
-        const { renderNextGameOperations } = await import('./next_game_operations.js?v=20261010_shell_v2');
+        const { renderNextGameOperations } = await import('./next_game_operations.js?v=20261012_market_flow_v1');
         await renderNextGameOperations(target, state, showToast, refresh);
       } else if (view === 'civic') {
         const { renderNextGameCivic } = await import('./next_game_civic.js?v=20261010_shell_v2');
@@ -176,7 +176,7 @@ async function mountActive(session) {
         const { renderNextGameContracts } = await import('./next_game_contracts.js?v=20261010_shell_v2');
         await renderNextGameContracts(target, state, showToast, refresh);
       } else if (view === 'admin') {
-        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_admin_tools_v1');
+        const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_market_flow_v1');
         await renderNextGameAdmin(target, state, showToast, refresh);
       } else throw new Error('Раздел не найден');
       if (version !== session.version || entries.get(container) !== session) return;
@@ -197,6 +197,10 @@ function startSession(container, state, showToast) {
   session.releaseScreenCleanup = registerScreenCleanup(() => retireSession(session));
   const navigate = (view) => {
     if (view === 'projects' || view === 'contracts') state.partnershipView = view === 'projects' ? 'projects' : 'supply';
+    if (session.view === 'market' && view !== 'market' && state.marketBrowser?.view === 'item') {
+      state.marketBrowser.view = 'home';
+      delete state.marketBrowser.itemId;
+    }
     session.view = view;
     activeNextGameView = view;
     const needsOverviewSnapshot = ['overview', 'map', 'factories'].includes(view);

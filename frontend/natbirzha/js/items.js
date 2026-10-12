@@ -1,4 +1,4 @@
-import { NEXT_GAME_ITEM_IDS } from './next_game_item_art.mjs?v=20261010_next_game_item_art_v1';
+import { NEXT_GAME_ITEM_IDS } from './next_game_item_art.mjs?v=20261012_semantic_item_icons_v1';
 
 /**
  * Natbirzha - Canonical Items Registry and Localization Dictionary
@@ -137,6 +137,14 @@ const ITEM_ALIASES = {
   rations: 'food',
   cognac: 'aged_spirits',
   brandy: 'aged_spirits',
+  payment_operation: 'payment_services',
+  payment_operations: 'payment_services',
+  credit_service: 'credit_services',
+  investment_placement: 'investment_services',
+  investment_placements: 'investment_services',
+  leasing_service: 'leasing_services',
+  deposit_service: 'custody_services',
+  deposit_services: 'custody_services',
 };
 
 const NEXT_GAME_ITEM_ID_SET = new Set(NEXT_GAME_ITEM_IDS);
@@ -162,5 +170,5 @@ export function getItemInfo(itemId) {
   const item = ITEMS[key];
   return item
     ? { ...item, icon: `item:${key}` }
-    : { name: 'Неизвестный ресурс', icon: NEXT_GAME_ITEM_ID_SET.has(key) ? `item:${key}` : 'resource', unit: 'шт.' };
+    : { name: 'Неизвестный ресурс', icon: NEXT_GAME_ITEM_ID_SET.has(ITEM_ALIASES[key] || key) ? `item:${ITEM_ALIASES[key] || key}` : 'resource', unit: 'шт.' };
 }

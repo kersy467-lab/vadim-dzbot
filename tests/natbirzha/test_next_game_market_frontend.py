@@ -39,6 +39,27 @@ assert.deepEqual(visible, ['coal']);
 """)
 
 
+def test_market_item_refresh_keeps_the_existing_screen_until_fresh_data_arrives():
+    run_node(r"""
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source = fs.readFileSync('frontend/natbirzha/js/screens/next_game_market.js', 'utf8').replace(/^import .*;\r?\n/gm, '');
+const prefix = 'const NatAPI = {}; const esc = (x) => x; const renderNextMarketItem = () => {}; const renderCommodityCatalog = () => {};';
+const {loadSelectedMarketItem} = await import('data:text/javascript;base64,' + Buffer.from(prefix + source).toString('base64'));
+let busy = null, resolve;
+const surface = {setAttribute(name, value){ if(name === 'aria-busy') busy = value; }};
+const container = {isConnected:true, innerHTML:'current item stays visible', querySelector(selector){ return selector === '.next-market' ? surface : null; }};
+let rendered = false;
+const pending = loadSelectedMarketItem(container, 'water', () => new Promise(done => resolve = done), () => rendered = true,
+  assert.fail, {preserveContent:true});
+assert.equal(container.innerHTML, 'current item stays visible');
+assert.equal(busy, 'true');
+resolve({item:{id:'water'}});
+await pending;
+assert.equal(rendered, true);
+""")
+
+
 def test_item_forms_route_only_to_isolated_api_and_advance_lock_hides_cancel():
     run_node(r"""
 import assert from 'node:assert/strict';
@@ -61,6 +82,7 @@ renderNextMarketItem(container, {
   user_orders:[{id:11,side:'SELL',status:'OPEN',remaining_quantity:10,limit_price:8,advance_locked:true,advance_paid:80,outstanding_amount:80}],
 }, {api:{tradeNextGameMarket:async(...args)=>calls.push(['npc',...args]),createNextGameLimitOrder:async(...args)=>calls.push(['order',...args]),cancelNextGameOrder:async(...args)=>calls.push(['cancel',...args])},
   onBack(){},showToast(){},refresh:async()=>refreshes++,reload:async()=>reloads++});
+assert.ok(container.innerHTML.indexOf('data-npc-form') < container.innerHTML.indexOf('next-market-chart-panel'));
 assert.ok(!container.innerHTML.includes('data-cancel-order="11"'));
 assert.ok(container.innerHTML.includes('Энергия&lt;script&gt;'));
 const flush = async()=>{await new Promise(r=>setImmediate(r));};

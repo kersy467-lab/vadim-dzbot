@@ -1,9 +1,9 @@
 import { NatAPI, setNavigationAbortSignal, clearStaleInitData } from './api.js?v=20261010_active_production_v1';
 import { store } from './state.js?v=20260926_local_update_v1';
 import { updateMaintenanceBanner } from './maintenance.js?v=20260926_local_update_v1';
-import { loadScreen, preloadScreen } from './screen_loader.js?v=20261012_admin_tools_v1';
+import { loadScreen, preloadScreen } from './screen_loader.js?v=20261012_market_flow_v1';
 import { disposeCurrentScreen } from './screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { installIconHydration, uiIcon } from './icons.mjs?v=20261010_semantic_icons_v4';
+import { installIconHydration, uiIcon } from './icons.mjs?v=20261012_semantic_item_icons_v1';
 import { startBankruptcyMonitor } from './bankruptcy_gate.js?v=20261009_boot_perf_v1';
 
 installIconHydration();

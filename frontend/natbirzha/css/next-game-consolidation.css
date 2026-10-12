@@ -40,7 +40,10 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
   padding: .75rem; border: 1px solid var(--ng-border); border-radius: .95rem; background: var(--ng-surface);
 }
 .next-game-development-choice > div { display: grid; gap: .18rem; min-width: 0; }
-.next-game-development-choice h3 { font-size: .84rem; }
+.next-game-development-choice h3 { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; font-size: .84rem; }
+.next-game-recommendation { display: inline-flex; align-items: center; padding: .18rem .4rem; border-radius: 999px; color: var(--ng-on-accent); background: var(--ng-accent); font-size: .56rem; font-weight: 850; line-height: 1.35; }
+.next-game-development-choice.is-recommended { border-color: color-mix(in srgb, var(--ng-accent) 48%, var(--ng-border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ng-accent) 14%, transparent); }
+.next-game-development-tip { padding: .55rem .7rem; border-radius: .75rem; color: var(--ng-ink); background: var(--ng-soft); font-size: .68rem; line-height: 1.45; }
 .next-game-development-choice p { font-size: .7rem; }
 .next-game-development-choice small { color: var(--ng-muted); font-size: .63rem; }
 .next-game-choice-number {
@@ -56,6 +59,10 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
 .next-game-development-step h3 { font-size: .78rem; }
 .next-game-development-step small { color: var(--ng-muted); font-size: .62rem; }
 .next-game-development-step > button { grid-column: 2; justify-self: start; }
+.next-game-route-history,.next-game-territory-archive { overflow: hidden; border: 1px solid var(--ng-border); border-radius: .8rem; background: var(--ng-soft); }
+.next-game-route-history > summary,.next-game-territory-archive > summary { padding: .65rem .75rem; color: var(--ng-accent); font-size: .68rem; font-weight: 850; cursor: pointer; }
+.next-game-route-history[open] > summary,.next-game-territory-archive[open] > summary { border-bottom: 1px solid var(--ng-border); }
+.next-game-route-history .next-game-graph-route,.next-game-territory-archive .next-game-territory-list { padding: .55rem; }
 .next-game-development-catalog { overflow: hidden; border: 1px solid var(--ng-border); border-radius: 1rem; background: var(--ng-surface); }
 .next-game-development-catalog > summary { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 3.6rem; padding: .7rem .85rem; color: var(--ng-ink); background: var(--ng-soft); cursor: pointer; list-style: none; }
 .next-game-development-catalog > summary::-webkit-details-marker { display: none; }
@@ -100,6 +107,15 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
 .next-game-factory-inputs ul,.next-game-inventory { display: grid; gap: .3rem; margin: 0; padding: .1rem .5rem .5rem; list-style: none; }
 .next-game-factory-inputs li,.next-game-inventory li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .15rem .45rem; padding: .45rem .55rem; border-radius: .6rem; background: var(--ng-soft); font-size: .66rem; }
 .next-game-factory-inputs li small { grid-column: 1 / -1; font-size: .59rem; }
+.next-game-factory-inputs li { display: block; padding: 0; overflow: hidden; }
+.next-game-factory-input { display: grid; width: 100%; grid-template-columns: 1.55rem minmax(0,1fr) auto 1.1rem; align-items: center; gap: .15rem .4rem; padding: .45rem .55rem; color: var(--ng-ink); text-align: left; }
+.next-game-factory-input:active { background: color-mix(in srgb, var(--ng-accent) 8%, var(--ng-soft)); }
+.next-game-factory-input-icon { display: grid; grid-row: 1 / span 2; place-items: center; }
+.next-game-factory-input-icon svg { width: 1.4rem; height: 1.4rem; }
+.next-game-factory-input-name { min-width: 0; overflow-wrap: anywhere; font-weight: 750; }
+.next-game-factory-input b { color: var(--ng-ink); white-space: nowrap; font-size: .63rem; }
+.next-game-factory-input small { grid-column: 2 / 4; color: var(--ng-muted); font-size: .58rem; }
+.next-game-factory-input-arrow { grid-column: 4; grid-row: 1 / span 2; justify-self: end; color: var(--ng-accent); font-size: 1.2rem; }
 .next-game-factory-no-inputs,.next-game-factory-max { color: var(--ng-muted); font-size: .64rem; }
 .next-game-factory-action { display: grid; gap: .2rem; }
 .next-game-factory-action .next-game-primary { width: 100%; }
@@ -107,6 +123,15 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
 .next-game-legacy-view { display: grid; gap: .8rem; min-width: 0; }
 .next-game-legacy-view .next-game-view-heading { margin-bottom: 0; }
 .next-game-management-locked { padding: .6rem; color: var(--ng-muted); font-size: .7rem; }
+
+/* Keep admin shortcuts aligned with the service directory cards. */
+.next-game-screen .next-game-more-tile { grid-template-columns: 2.2rem minmax(0, 1fr) 1.35rem; align-items: center; min-width: 0; min-height: 5.4rem; }
+.next-game-screen .next-game-more-icon { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: .7rem; color: var(--ng-accent); background: color-mix(in srgb, var(--ng-accent) 12%, var(--ng-surface)); }
+.next-game-screen .next-game-more-icon svg { width: 1.35rem; height: 1.35rem; }
+.next-game-screen .next-game-more-copy { display: grid; gap: .2rem; min-width: 0; }
+.next-game-screen .next-game-more-copy b { color: var(--ng-ink); }
+.next-game-screen .next-game-more-copy small { overflow-wrap: anywhere; color: var(--ng-muted); font-size: .68rem; line-height: 1.35; }
+.next-game-screen .next-game-more-arrow { display: grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 50%; color: var(--ng-accent); background: var(--ng-soft); font-size: 1.1rem; }
 
 /* The legacy war module runs inside the 2.0 shell, so translate its old
    utility colors to the active palette and keep its cards inside the phone. */
@@ -157,6 +182,7 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
 .next-game-territory-progress { height: .5rem; margin: .75rem 0 .35rem; overflow: hidden; border-radius: 99px; background: var(--ng-soft); }
 .next-game-territory-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--ng-accent),var(--ng-highlight)); }
 .next-game-territory-list { display: grid; gap: .55rem; margin: .8rem 0 0; padding: 0; list-style: none; }
+.next-game-territory-empty { padding: .65rem; color: var(--ng-muted); font-size: .68rem; }
 .next-game-territory { display: grid; grid-template-columns: 2.1rem minmax(0,1fr); align-items: start; gap: .55rem; padding: .65rem; border: 1px solid var(--ng-border); border-radius: .9rem; background: var(--ng-surface); }
 .next-game-territory.is-current { border-color: var(--ng-highlight); box-shadow: 0 0 0 2px color-mix(in srgb,var(--ng-highlight) 12%,transparent); }
 .next-game-territory.is-visited { border-inline-start: 3px solid var(--ng-success); }

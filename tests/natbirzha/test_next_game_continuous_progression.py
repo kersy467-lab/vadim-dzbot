@@ -25,13 +25,14 @@ from backend.natbirzha.api.next_game_progression_routes import rebirth_disabled
 from backend.natbirzha.next_game_continuous_migration import migrate_next_game_continuous_progression
 
 
-def test_each_industry_maps_its_existing_facilities_to_nine_territories():
+def test_each_industry_maps_its_existing_facilities_to_its_long_route():
     catalog = get_next_game_catalog()
     for sector in catalog:
         view = build_progression_map(
             sector["id"], catalog, branch_path=[], facility_levels={}, company_level=1,
         )
-        assert len(view["territories"]) == 9
+        start_count = sum(branch["is_starting_branch"] for branch in sector["branches"])
+        assert len(view["territories"]) == len(sector["branches"]) - start_count - 1
         mapped_ids = {
             branch["id"]
             for territory in view["territories"]
@@ -156,7 +157,8 @@ def test_company_snapshot_includes_the_persistent_industry_map():
             facility.level = 8
             snapshot = await NextGameService.snapshot(session, 661401, now=now)
             assert snapshot["progression_map"]["revealed"] is True
-            assert len(snapshot["progression_map"]["territories"]) == 9
+            sector = next(row for row in get_next_game_catalog() if row["id"] == "energy")
+            assert len(snapshot["progression_map"]["territories"]) == len(sector["branches"]) - 4
             assert snapshot["progression_map"]["current_branch_id"] == "renewables"
         await engine.dispose()
 

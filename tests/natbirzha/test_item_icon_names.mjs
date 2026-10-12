@@ -27,6 +27,9 @@ test('new NATBIRZHA 2.0 services keep item identity for colored market artwork',
   ]) {
     assert.equal(getItemInfo(itemId).icon, `item:${itemId}`, itemId);
   }
+  assert.equal(getItemIconName('payment_operation'), 'item:payment_services');
+  assert.equal(getItemInfo('credit_service').icon, 'item:credit_services');
+  assert.equal(getItemInfo('deposit_service').icon, 'item:custody_services');
 });
 
 test('new energy and financial services have distinct semantic colors and artwork', () => {

@@ -1,4 +1,4 @@
-import { getItemInfo } from '../items.js?v=20261010_item_art_v2';
+import { getItemInfo } from '../items.js?v=20261012_semantic_item_icons_v1';
 
 export function getCompanyInputIds(businesses, factories, recipes) {
   const inputs = new Set();
@@ -92,9 +92,12 @@ export function renderCommodityCatalog(container, options) {
       ? items.filter((item) => needed.has(item.id))
       : items;
   const query = String(state.query || '').trim().toLocaleLowerCase('ru-RU');
-  const visibleItems = state.category === 'search' && query
+  const filteredItems = state.category === 'search' && query
     ? sourceItems.filter((item) => `${item.name} ${item.id}`.toLocaleLowerCase('ru-RU').includes(query))
     : sourceItems;
+  const pageSize = 20;
+  const page = Math.max(0, Number(state.page) || 0);
+  const visibleItems = filteredItems.slice(0, (page + 1) * pageSize);
   const liquidityRows = rankLiquidityRows(options.liquidityData?.items);
   const liquidityContent = state.liquidityLoading
     ? '<div class="glass-card rounded-xl p-4 text-center text-xs text-slate-500">Загружаем оборот рынка…</div>'
@@ -151,7 +154,7 @@ export function renderCommodityCatalog(container, options) {
     </div>
     ${state.category === 'liquidity' ? `<div class="space-y-2"><p class="text-[10px] text-slate-500">${escapeMarketText(options.liquidityDescription || 'Оплаченный оборот товаров за скользящие 24 часа · снимок каждые 30 минут')}${liquidityUpdatedAt ? ` · обновлено ${escapeMarketText(liquidityUpdatedAt)}` : ''}</p>${liquidityContent}</div>` : ''}
     ${state.category === 'search' ? `<label class="block"><span class="sr-only">Поиск материала</span><input id="commodity-search" type="search" value="${escapeMarketText(state.query || '')}" placeholder="Название или код материала" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white" /></label>` : ''}
-    ${state.category === 'liquidity' ? '' : `<div class="space-y-1.5">${rows || `<div class="glass-card rounded-xl p-4 text-center text-xs text-slate-500">${emptyText}</div>`}</div>`}
+    ${state.category === 'liquidity' ? '' : `<div class="space-y-1.5">${rows || `<div class="glass-card rounded-xl p-4 text-center text-xs text-slate-500">${emptyText}</div>`}</div>${visibleItems.length < filteredItems.length ? `<button type="button" data-market-more class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-xs font-bold">Показать ещё · ${Math.min(pageSize, filteredItems.length - visibleItems.length)} из ${filteredItems.length - visibleItems.length}</button>` : `<p class="text-center text-[10px] text-slate-500">Показано ${filteredItems.length} материалов</p>`}`}
   </div>`;
 
   container.querySelector('.market-back')?.addEventListener('click', onBack);
@@ -160,6 +163,7 @@ export function renderCommodityCatalog(container, options) {
       const wasLiquidity = state.category === 'liquidity';
       state.category = button.dataset.category;
       state.query = '';
+      state.page = 0;
       options.onCategoryChange?.(state.category);
       renderCommodityCatalog(container, options);
       if (state.category === 'needed' && !state.companyInputsLoaded && !state.companyInputsLoading) {
@@ -184,6 +188,7 @@ export function renderCommodityCatalog(container, options) {
   container.querySelector('#commodity-search')?.addEventListener('input', (event) => {
     const cursor = event.target.selectionStart;
     state.query = event.target.value;
+    state.page = 0;
     renderCommodityCatalog(container, options);
     const nextInput = container.querySelector('#commodity-search');
     nextInput?.focus();
@@ -191,6 +196,12 @@ export function renderCommodityCatalog(container, options) {
   });
   container.querySelectorAll('[data-commodity-item]').forEach((button) => {
     button.addEventListener('click', () => onSelect(button.dataset.commodityItem));
+  });
+  container.querySelector('[data-market-more]')?.addEventListener('click', () => {
+    state.page = page + 1;
+    const scrollTop = window.scrollY;
+    renderCommodityCatalog(container, options);
+    window.scrollTo(0, scrollTop);
   });
 
   if (state.category === 'liquidity') {

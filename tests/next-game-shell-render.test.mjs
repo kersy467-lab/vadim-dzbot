@@ -49,6 +49,7 @@ test('every service tile in More has a mounted screen and an API-backed section'
   const api = await readFile(new URL('../frontend/natbirzha/js/next_game_api.js', import.meta.url), 'utf8');
   const legacyApi = await readFile(new URL('../frontend/natbirzha/js/api.js', import.meta.url), 'utf8');
   const services = {
+    guide: ['next_game_guide.js', null],
     progression: ['next_game_progression.js', '/progression'],
     operations: ['next_game_operations.js', '/operations/actions'],
     bank: ['next_game_bank.js', '/bank/loan'],
@@ -66,12 +67,12 @@ test('every service tile in More has a mounted screen and an API-backed section'
     'legacy-admin': ['creator.js', '/api/natbirzha/creator/audit-log'],
   };
 
-  assert.equal(new Set(targets).size, 15);
+  assert.equal(new Set(targets).size, 16);
   for (const target of targets) {
     const service = services[target];
     assert.ok(service, `service tile has no screen/API mapping: ${target}`);
     assert.ok(entry.includes(service[0]), `service tile has no screen module: ${target}`);
-    assert.ok((api + legacyApi).includes(service[1]), `service tile has no backend API: ${target}`);
+    if (service[1]) assert.ok((api + legacyApi).includes(service[1]), `service tile has no backend API: ${target}`);
   }
 });
 
@@ -230,6 +231,6 @@ test('More routes mount legacy war and the complete old administration panel ins
   }
   assert.match(admin, /next-game-more-copy/);
   assert.match(styles, /next-game-more-tile \{ grid-template-columns: 2\.2rem minmax\(0, 1fr\) 1\.35rem/);
-  assert.match(app, /screen_loader\.js\?v=20261012_employee_cases_v1/);
-  assert.match(html, /app\.js\?v=20261012_employee_cases_v1/);
+  assert.match(app, /screen_loader\.js\?v=20261012_player_guide_v1/);
+  assert.match(html, /app\.js\?v=20261012_player_guide_v1/);
 });

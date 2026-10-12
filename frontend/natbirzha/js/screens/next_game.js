@@ -1,7 +1,7 @@
 import { NatAPI } from '../api.js?v=20261012_employee_cases_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
 import { esc, bindAction, icon } from './next_game_common.js?v=20261012_employee_cases_v1';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_employee_cases_v1';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_player_guide_v1';
 import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_route_continuation_v1';
 import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_release_readiness_v1';
@@ -168,6 +168,9 @@ async function mountActive(session) {
       } else if (view === 'employees') {
         const { renderNextGameEmployees } = await import('./next_game_employees.js?v=20261012_employee_cases_v1');
         await renderNextGameEmployees(target, showToast, NatAPI);
+      } else if (view === 'guide') {
+        const { renderNextGameGuide } = await import('./next_game_guide.js?v=20261012_player_guide_v1');
+        renderNextGameGuide(target);
       } else if (view === 'civic') {
         const { renderNextGameCivic } = await import('./next_game_civic.js?v=20261010_shell_v2');
         await renderNextGameCivic(target, state, showToast, refresh);

@@ -1,0 +1,35 @@
+.ng-guide-heading { margin-bottom: .65rem; }
+.ng-guide-hero { display: grid; gap: .85rem; overflow: hidden; background: linear-gradient(145deg, var(--ng-surface), var(--ng-soft)); }
+.ng-guide-hero h3 { margin: .22rem 0; color: var(--ng-ink); font-size: 1.1rem; }
+.ng-guide-hero p { max-width: 34rem; margin: .25rem 0 0; color: var(--ng-muted); font-size: .75rem; line-height: 1.5; }
+.ng-guide-flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; margin: 0; padding: .65rem; list-style: none; border: 1px solid var(--ng-border); border-radius: .95rem; background: color-mix(in srgb, var(--ng-surface) 90%, transparent); }
+.ng-guide-flow-step { position: relative; display: grid; justify-items: center; align-content: start; gap: .24rem; min-width: 0; text-align: center; }
+.ng-guide-flow-icon { display: grid; place-items: center; width: 2.35rem; height: 2.35rem; border: 1px solid var(--ng-border); border-radius: .78rem; color: var(--ng-accent); background: var(--ng-soft); }
+.ng-guide-flow-step b { color: var(--ng-ink); font-size: .63rem; }
+.ng-guide-flow-step small { color: var(--ng-muted); font-size: .55rem; line-height: 1.3; overflow-wrap: anywhere; }
+.ng-guide-flow-arrow { position: absolute; top: .58rem; right: -.34rem; z-index: 1; color: var(--ng-highlight); font-size: 1.2rem; font-weight: 900; }
+.ng-guide-steps,.ng-guide-tips { display: grid; gap: .55rem; }
+.ng-guide-section-title h3 { margin: .12rem 0 0; color: var(--ng-ink); font-size: .95rem; }
+.ng-guide-step { display: grid; grid-template-columns: 1.7rem 2rem minmax(0, 1fr); align-items: start; gap: .55rem; padding: .65rem; border: 1px solid var(--ng-border); border-radius: .85rem; background: var(--ng-surface); }
+.ng-guide-step-number,.ng-guide-step-icon { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: .58rem; color: var(--ng-accent); background: var(--ng-soft); font-size: .68rem; font-weight: 900; }
+.ng-guide-step-icon { width: 2rem; height: 2rem; }
+.ng-guide-step h3 { margin: .05rem 0 .17rem; color: var(--ng-ink); font-size: .77rem; }
+.ng-guide-step p,.ng-guide-faq p { margin: 0; color: var(--ng-muted); font-size: .68rem; line-height: 1.45; }
+.ng-guide-shortcuts { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .1rem; }
+.ng-guide-shortcuts button { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.2rem; padding: .45rem .65rem; border: 1px solid var(--ng-border); border-radius: 999px; color: var(--ng-accent); background: var(--ng-soft); font-size: .64rem; font-weight: 800; }
+.ng-guide-shortcuts span { font-size: .85rem; }
+.ng-guide-faq { display: grid; gap: .4rem; }
+.ng-guide-faq details { overflow: hidden; border: 1px solid var(--ng-border); border-radius: .78rem; background: var(--ng-surface); }
+.ng-guide-faq summary { padding: .68rem .75rem; color: var(--ng-ink); font-size: .7rem; font-weight: 800; cursor: pointer; }
+.ng-guide-faq details[open] summary { border-bottom: 1px solid var(--ng-border); background: var(--ng-soft); }
+.ng-guide-faq p { padding: .65rem .75rem; }
+@media (min-width: 620px) {
+  .ng-guide-hero { grid-template-columns: minmax(0, .8fr) minmax(22rem, 1.2fr); align-items: center; }
+  .ng-guide-flow { padding: .7rem .4rem; }
+}
+@media (max-width: 360px) {
+  .ng-guide-flow { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .12rem; padding: .45rem .25rem; }
+  .ng-guide-flow-icon { width: 1.95rem; height: 1.95rem; }
+  .ng-guide-flow-step small { font-size: .49rem; }
+  .ng-guide-step { grid-template-columns: 1.4rem 1.7rem minmax(0, 1fr); gap: .38rem; }
+}

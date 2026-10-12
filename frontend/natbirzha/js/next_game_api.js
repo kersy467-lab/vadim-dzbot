@@ -49,6 +49,14 @@ export function createNextGameAPI(request) {
     buyNextGameBondListing: (id, units) => request(`/api/natbirzha/next-game/bonds/listings/${id}/buy`, { method: 'POST', body: JSON.stringify({ units: Number(units) }) }),
     cancelNextGameBondListing: (id) => request(`/api/natbirzha/next-game/bonds/listings/${id}`, { method: 'DELETE' }),
     getNextGameProgression: () => request('/api/natbirzha/next-game/progression'),
+    getNextGameEmployees: () => request('/api/natbirzha/next-game/employees'),
+    openNextGameEmployeeCase: () => request('/api/natbirzha/next-game/employees/cases/open', {
+      method: 'POST', body: JSON.stringify({}),
+    }),
+    deleteNextGameEmployee: (employee_id) => request(
+      `/api/natbirzha/next-game/employees/${parseInt(employee_id, 10)}`,
+      { method: 'DELETE' },
+    ),
     upgradeNextGamePVC: () => request('/api/natbirzha/next-game/progression/pvc-upgrade', { method: 'POST', body: JSON.stringify({}) }),
     assignNextGameManager: (manager_id, branch_id) => request('/api/natbirzha/next-game/progression/manager/assign', {
       method: 'POST', body: JSON.stringify({ manager_id: Number(manager_id), branch_id: branch_id || null }),

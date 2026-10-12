@@ -43,7 +43,7 @@ const SECTIONS = [
   ['hospital', 'Госпиталь'],
 ];
 
-export async function renderMilitary(container, showToast) {
+export async function renderMilitary(container, showToast, { includePvcShop = true } = {}) {
   let activeSection = 'army';
   let army = {};
   let pveTargets = [];
@@ -58,6 +58,7 @@ export async function renderMilitary(container, showToast) {
   const pendingWarData = new Map();
   let sectionLoading = false;
   let sectionError = '';
+  const visibleSections = includePvcShop ? SECTIONS : SECTIONS.filter(([id]) => id !== 'premium');
 
   function loadWarDataOnce(key, loader, force = false) {
     if (!force && loadedWarData.has(key)) return Promise.resolve();
@@ -277,7 +278,7 @@ export async function renderMilitary(container, showToast) {
       : sectionError
         ? `<div class="glass-card rounded-2xl p-5 text-xs text-rose-400 text-center">${esc(sectionError)}<button id="retry-war-section" class="mt-3 block mx-auto rounded-xl bg-indigo-600 px-4 py-2 text-white">Повторить</button></div>`
         : section();
-    container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${SECTIONS.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${content}</div>`;
+    container.innerHTML = `<div class="space-y-4 max-w-md mx-auto p-4 pb-24"><div><h2 class="text-xl font-black">Война</h2><p class="text-xs text-slate-500">Армия, корпоративные границы и турнирное PvP</p></div><div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">${visibleSections.map(([id, title]) => `<button class="war-section-btn px-3 py-2 rounded-xl whitespace-nowrap text-xs font-bold ${id === activeSection ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}" data-section="${id}">${title}</button>`).join('')}</div>${content}</div>`;
     container.querySelector('#retry-war-section')?.addEventListener('click', () => void activateSection(activeSection, true));
     if (activeSection === 'premium' && premiumData?.industry?.upgrade?.available) {
       const industry = premiumData.industry.upgrade;

@@ -30,7 +30,7 @@ test('five bottom destinations and grouped finance services use accessible vecto
   assert.match(shell, /&lt;script&gt;/);
   assert.doesNotMatch(shell, /military|upgrades|data-next-view="bank"/);
   const more = renderMore(true);
-  for (const view of ['bank', 'capital', 'competition', 'help', 'contracts', 'admin']) {
+  for (const view of ['bank', 'capital', 'competition', 'help', 'contracts', 'admin', 'employees']) {
     assert.match(more, new RegExp(`data-next-view="${view}"`));
   }
   for (const section of ['0.1', '0.2', '0.3', '0.4', '0.5', '0.6']) {
@@ -60,12 +60,13 @@ test('every service tile in More has a mounted screen and an API-backed section'
     liquidation: ['next_game_liquidation.js', '/liquidation'],
     competition: ['next_game_competition.js', '/competition'],
     help: ['next_game_support.js', '/support'],
+    employees: ['next_game_employees.js', '/employees/cases/open'],
     admin: ['next_game_admin.js', '/admin/operations'],
     war: ['military.js', '/api/natbirzha/military/status'],
     'legacy-admin': ['creator.js', '/api/natbirzha/creator/audit-log'],
   };
 
-  assert.equal(new Set(targets).size, 14);
+  assert.equal(new Set(targets).size, 15);
   for (const target of targets) {
     const service = services[target];
     assert.ok(service, `service tile has no screen/API mapping: ${target}`);
@@ -189,14 +190,14 @@ test('continuous upgrades show server timer and managers only affect cash expens
   state.facilities.push({ branch_id: 'b0', level: 3, upgrade_target_level: 4,
     upgrade_seconds_remaining: 22, upgrade_reserved_cash: 450,
     recipe: { ...state.corporations[0].branches[0].factory, operating_cost: 19.6 }, status: 'active' });
-  state.managers = [{ id: 9, name: 'Анна Белова', rarity: 'common', reward_level: 5,
+  state.managers = [{ id: 9, name: 'Amelia Brooks', rarity: 'common', source: 'milestone', level: 5, reward_level: 5,
     discount_pct: 2, facility_id: 1, branch_id: 'b0' }];
   const markup = renderFactories(state);
   assert.match(markup, /Улучшение до 4 уровня/);
   assert.match(markup, /Осталось около 22 сек/);
   assert.match(markup, /Списано и учтено в казне: 450 cash/);
   assert.doesNotMatch(markup, /data-next-upgrade="b0"/);
-  assert.match(markup, /Анна Белова/);
+  assert.match(markup, /Amelia Brooks/);
   assert.match(markup, /2%/);
   assert.match(markup, /только cash-расходы/);
   assert.match(api, /assignNextGameManager[\s\S]*manager\/assign/);
@@ -223,11 +224,12 @@ test('More routes mount legacy war and the complete old administration panel ins
   assert.match(entry, /renderCreator/);
   assert.match(entry, /legacy-admin/);
   assert.match(entry, /view === 'war'/);
+  assert.match(entry, /includePvcShop: false/);
   for (const tool of ['legacy-moderation', 'legacy-sabotages', 'legacy-bonds', 'legacy-admin']) {
     assert.match(admin, new RegExp(`data-next-admin-tool="${tool}"`));
   }
   assert.match(admin, /next-game-more-copy/);
   assert.match(styles, /next-game-more-tile \{ grid-template-columns: 2\.2rem minmax\(0, 1fr\) 1\.35rem/);
-  assert.match(app, /screen_loader\.js\?v=20261012_market_flow_v1/);
-  assert.match(html, /app\.js\?v=20261012_market_flow_v1/);
+  assert.match(app, /screen_loader\.js\?v=20261012_employee_cases_v1/);
+  assert.match(html, /app\.js\?v=20261012_employee_cases_v1/);
 });

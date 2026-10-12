@@ -4,6 +4,7 @@ const assert = require('assert');
 require('./natbirzha/test_tycoon_frontend_contract.js');
 require('./natbirzha/test_creator_bond_bankruptcy_frontend.js');
 require('./natbirzha/test_bankruptcy_overlay_frontend.js');
+require('./natbirzha/test_military_pvc_context.js');
 
 console.log('=== [Natbirzha Test 1/5] Testing index.html markup & theme sync ===');
 const natHtml = fs.readFileSync(path.join(__dirname, '../frontend/natbirzha/index.html'), 'utf-8');

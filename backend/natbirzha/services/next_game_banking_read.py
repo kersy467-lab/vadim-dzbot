@@ -23,14 +23,14 @@ class NextGameBankingReadMixin:
             if bank.sector_id != "bank":
                 continue
             facilities = await cls._service_facilities(session, bank.id)
-            if facilities:
-                providers.append({
-                    "bank_company_id": bank.id,
-                    "bank_name": bank.name,
-                    "fee_bps": cls._fee_bps(facilities),
-                    "fee_percent": round(cls._fee_bps(facilities) / 100, 2),
-                    "branches": [row.branch_id for row in facilities],
-                })
+            fee_bps = cls._fee_bps(facilities)
+            providers.append({
+                "bank_company_id": bank.id,
+                "bank_name": bank.name,
+                "fee_bps": fee_bps,
+                "fee_percent": round(fee_bps / 100, 2),
+                "branches": [row.branch_id for row in facilities],
+            })
         accounts = list((await session.scalars(
             select(NatNextGameBankAccount).where(
                 NatNextGameBankAccount.customer_company_id == company.id,

@@ -23,6 +23,7 @@ const paths = {
   bonds: '<path d="M4 7h16M4 12h16M4 17h16M7 4v16m10-16v16"/>',
   civic: '<path d="M4 20h16M6 16V8l6-4 6 4v8M9 20v-5h6v5M9 10h.01M15 10h.01"/>',
   operations: '<path d="M4 7h16M4 12h16M4 17h16M7 4v6m10-1v6m-7-1v6"/>',
+  employees: '<circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A4.5 4.5 0 0 1 8 14h2a4.5 4.5 0 0 1 4.5 4.5V20M16 5.5a3 3 0 0 1 0 5.8m2.5 2.8A4.5 4.5 0 0 1 22 18.5V20"/>',
   progression: '<path d="M4 19h16M6 16l4-4 3 2 6-7M15 7h4v4"/>',
   projects: '<path d="M3 21h18M5 21V8l7-5 7 5v13M8 12h2m4 0h2M8 16h2m4 0h2"/>',
   liquidation: '<path d="M4 4h16v16H4zM8 8h8m-8 4h8m-8 4h5"/>',

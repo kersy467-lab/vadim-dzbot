@@ -62,13 +62,11 @@ class NextGameBankingService(NextGameBankingReadMixin):
         if bank is None:
             raise ValueError("Компания банка не найдена")
         facilities = await cls._service_facilities(session, bank.id)
-        if not facilities:
-            raise ValueError("Банк ещё не построил завод обслуживания счетов")
         return bank, facilities
 
     @staticmethod
     def _fee_bps(facilities: list[NatNextGameFacility]) -> int:
-        best_level = max(int(row.level) for row in facilities)
+        best_level = max((int(row.level) for row in facilities), default=1)
         return max(MIN_FEE_BPS, BASE_FEE_BPS - max(0, best_level - 1) * 5)
 
     @classmethod

@@ -83,6 +83,9 @@ function renderManagers(state) {
   const managers = state.managers || [];
   const facilities = state.facilities || [];
   const rarities = { common: 'обычный', rare: 'редкий', epic: 'эпический', legendary: 'легендарный' };
+  const countWord = managers.length === 1 ? 'специалист'
+    : managers.length % 10 >= 2 && managers.length % 10 <= 4
+      && (managers.length % 100 < 12 || managers.length % 100 > 14) ? 'специалиста' : 'специалистов';
   const occupied = new Map(managers.filter((row) => row.branch_id).map((row) => [row.branch_id, row.id]));
   const cards = managers.map((manager) => {
     const choices = facilities.map((facility) => {
@@ -97,8 +100,10 @@ function renderManagers(state) {
     return '<article class="next-game-manager-card is-' + esc(manager.rarity) + '">'
       + '<div class="next-game-manager-card-heading"><span class="next-game-manager-seal">'
       + number(manager.discount_pct, 0) + '%</span><div><b>' + esc(manager.name)
-      + '</b><small>' + esc(rarities[manager.rarity] || manager.rarity) + ' · награда за '
-      + number(manager.reward_level, 0) + ' уровень</small></div></div>'
+      + '</b><small>' + esc(rarities[manager.rarity] || manager.rarity) + ' · '
+      + (manager.source === 'case'
+        ? 'сотрудник ур. ' + number(manager.level, 0)
+        : 'награда за ' + number(manager.reward_level, 0) + ' уровень') + '</small></div></div>'
       + '<p>Снижает только cash-расходы цикла. Ресурсы и выпуск не меняются.</p>'
       + '<label>Завод<select data-next-manager-select><option value="">Не назначен</option>'
       + choices + '</select></label><button type="button" data-next-manager-assign="'
@@ -109,12 +114,13 @@ function renderManagers(state) {
     : '<p>Менеджеры гарантированно открываются на уровнях 5, 15, 30 и 45. Ближайший специалист: '
       + ([5, 15, 30, 45].find((level) => level > Number(state.company?.level || 1))
         || 'все награды получены') + '.</p>';
-  return '<section class="next-game-panel next-game-manager-panel">'
-    + '<div class="next-game-development-heading"><div><span class="next-game-eyebrow">'
-    + 'КОМАНДА И СПЕЦИАЛИСТЫ</span><h3>Менеджеры заводов</h3></div>'
-    + '<span class="next-game-manager-count">' + managers.length + ' / 4</span></div>'
-    + '<p>Назначьте одного специалиста на свободный завод. Скидка меняет только денежные расходы.</p>'
-    + summary + '</section>';
+  return '<details class="next-game-panel next-game-manager-panel">'
+    + '<summary class="next-game-manager-summary"><span class="next-game-manager-summary-title">'
+    + '<span class="next-game-eyebrow">КОМАНДА И СПЕЦИАЛИСТЫ</span><b>Менеджеры заводов</b></span>'
+    + '<span class="next-game-manager-summary-meta"><span class="next-game-manager-count">'
+    + managers.length + ' ' + countWord + '</span><span class="next-game-manager-toggle" aria-hidden="true"></span></span></summary>'
+    + '<div class="next-game-manager-content"><p>Назначьте специалиста на завод. Скидка меняет только денежные расходы.</p>'
+    + summary + '</div></details>';
 }
 
 export function renderFactories(state, options = {}) {
@@ -145,7 +151,7 @@ export function renderFactories(state, options = {}) {
     : `<div class="next-game-facility-list" data-factory-list>${cards}</div>`;
 
   return `<section class="next-game-factory-page">
-    <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Циклы идут автоматически. Улучшение занимает время, а до завершения завод продолжает работать на прежнем уровне.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div><button type="button" data-next-view="operations" class="next-game-secondary next-game-factory-operations">Склад, сотрудники и транспорт</button></header>
+    <header class="next-game-factory-intro"><span class="next-game-eyebrow">ПРОИЗВОДСТВЕННЫЙ ЦЕХ</span><h2>Заводы и склад</h2><p>Циклы идут автоматически. Улучшение занимает время, а до завершения завод продолжает работать на прежнем уровне.</p><div class="next-game-factory-counts"><span><b>${working}</b> работают</span><span><b>${stopped}</b> требуют ресурсов</span><span><b>${route.length}</b> этапа открыто</span></div></header>
     <label class="next-game-auto-setting"><input type="checkbox" data-next-auto-upgrade ${state.settings?.auto_upgrade ? 'checked' : ''}><span><b>Автоулучшение до 9 уровня</b><small>Покупает доступное улучшение, когда хватает cash и уровня компании.</small></span></label>
     <section class="next-game-factory-explorer"><div class="next-game-factory-explorer-top"><div><span class="next-game-eyebrow">ПЛАН ПРОИЗВОДСТВА</span><b>Открыто ${route.length} этапов · ${working} работают · ${stopped} остановлены · ${waiting} ожидают постройки</b></div><div class="next-game-factory-view-switch" role="group" aria-label="Вид заводов">${modeButton('map', 'Карта')}${modeButton('list', 'Список')}</div></div><label class="next-game-factory-search"><span>Найти завод</span><input type="search" data-factory-search value="${esc(options.query || '')}" placeholder="Название или продукция"></label>${view}<p class="next-game-factory-list-empty" data-factory-empty hidden>Заводы по этому запросу не найдены.</p></section>
     ${renderManagers(state)}

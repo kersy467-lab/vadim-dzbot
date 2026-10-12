@@ -896,6 +896,7 @@ async def main():
         "tests/test_database_session_config.py",
         "tests/natbirzha/test_offline_factory_catchup.py",
         "tests/natbirzha/test_admin_cash_and_npc_margin.py",
+        "tests/natbirzha/test_next_game_employees.py",
         "tests/natbirzha/test_market_orderbook_regressions.py",
         "tests/test_natbirzha_broadcast.py",
         "tests/natbirzha/test_p2_models.py",

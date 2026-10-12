@@ -29,6 +29,13 @@ class NatNextGameManager(Base):
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     rarity: Mapped[str] = mapped_column(String(16), nullable=False)
     discount_pct: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Milestone staff are guaranteed; case staff are collectible hires.
+    # reward_level remains the per-company unique key for both sources, while
+    # level is the employee's visible level and may repeat for case drops.
+    source: Mapped[str] = mapped_column(
+        String(16), default="milestone", server_default="milestone", nullable=False,
+    )
+    level: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
     facility_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("nat_next_game_facilities.id", ondelete="SET NULL"),
         nullable=True,

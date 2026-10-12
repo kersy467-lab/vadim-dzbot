@@ -79,6 +79,67 @@ def test_bank_accounts_enable_fee_charging_company_payments_once():
     asyncio.run(check())
 
 
+def test_bank_can_offer_accounts_and_earn_payment_fees_without_facilities():
+    async def check():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            await NextGameService.create_company(session, 815_001, "Банк без заводов")
+            await NextGameService.select_sector(session, 815_001, "bank")
+            bank = await session.scalar(select(NatNextGameCompany).where(
+                NatNextGameCompany.owner_tg_id == 815_001
+            ))
+            await NextGameService.create_company(session, 815_002, "Плательщик без завода")
+            await NextGameService.create_company(session, 815_003, "Получатель без завода")
+            payer = await session.scalar(select(NatNextGameCompany).where(
+                NatNextGameCompany.owner_tg_id == 815_002
+            ))
+            payee = await session.scalar(select(NatNextGameCompany).where(
+                NatNextGameCompany.owner_tg_id == 815_003
+            ))
+            bank_id, payee_id = bank.id, payee.id
+            payer.cash = 2_000
+
+            customer_snapshot = await NextGameService.snapshot(session, 815_002)
+            assert customer_snapshot["banking"]["providers"] == [{
+                "bank_company_id": bank_id,
+                "bank_name": "Банк без заводов",
+                "fee_bps": 100,
+                "fee_percent": 1,
+                "branches": [],
+            }]
+
+            await NextGameBankingService.open_account(session, 815_002, bank_id)
+            await NextGameBankingService.open_account(session, 815_003, bank_id)
+            payment = await NextGameBankingService.transfer(
+                session, 815_002, bank_id, payee_id, 1_000,
+                idempotency_key="new-bank-payment-1",
+            )
+            assert payment["payment"]["fee"] == 10
+            replay = await NextGameBankingService.transfer(
+                session, 815_002, bank_id, payee_id, 1_000,
+                idempotency_key="new-bank-payment-1",
+            )
+            assert replay == payment
+            await session.commit()
+
+            await session.refresh(bank)
+            await session.refresh(payer)
+            await session.refresh(payee)
+            assert float(bank.cash) == 10_010
+            assert float(payer.cash) == 990
+            assert float(payee.cash) == 11_000
+            records = list((await session.scalars(select(NatNextGameBankPayment))).all())
+            assert len(records) == 1
+
+        await engine.dispose()
+
+    asyncio.run(check())
+
+
 def test_payment_requires_two_accounts_and_sufficient_cash():
     async def check():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")

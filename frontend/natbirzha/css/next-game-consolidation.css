@@ -171,6 +171,31 @@ html[data-theme="midnight"] .next-game-screen { --ng-canvas:#111a16; --ng-surfac
 .next-game-factory-selected .next-game-factory-details { grid-column: 2; grid-template-columns: minmax(0,1fr); }
 .next-game-factory-selected .next-game-factory-details > div { grid-template-columns: minmax(0,1fr) auto; align-items: baseline; }
 .next-game-factory-selected .next-game-factory-card.is-merged { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+
+/* Contract tabs contain plain labels, not the icon/text/arrow cards used elsewhere. */
+.next-game-partnership-tabs > button { display: flex; align-items: center; justify-content: center; min-width: 0; width: 100%; text-align: center; white-space: normal; overflow-wrap: normal; word-break: normal; }
+
+/* Keep the factory management panel collapsed until the player opens it. */
+.next-game-manager-panel { padding: 0; overflow: hidden; }
+.next-game-manager-summary { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 3.8rem; padding: .7rem .85rem; cursor: pointer; list-style: none; }
+.next-game-manager-summary::-webkit-details-marker { display: none; }
+.next-game-manager-summary-title { display: grid; gap: .15rem; min-width: 0; }
+.next-game-manager-summary-title b { color: var(--ng-ink); font-size: .86rem; }
+.next-game-manager-summary-meta { display: inline-flex; align-items: center; gap: .45rem; flex: 0 0 auto; }
+.next-game-manager-toggle { display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; color: var(--ng-accent); background: var(--ng-soft); }
+.next-game-manager-toggle::before { content: '+'; font-size: 1.1rem; line-height: 1; }
+.next-game-manager-panel[open] .next-game-manager-toggle::before { content: '−'; }
+.next-game-manager-content { display: grid; gap: .5rem; padding: 0 .85rem .85rem; }
+.next-game-manager-content > p { margin: 0; color: var(--ng-muted); font-size: .68rem; }
+
+@media (max-width: 40rem) {
+  .next-game-factory-selected .next-game-factory-card { grid-template-columns: minmax(0,1fr); }
+  .next-game-factory-selected .next-game-factory-output,
+  .next-game-factory-selected .next-game-factory-details { grid-column: 1 / -1; }
+  .next-game-factory-selected .next-game-factory-details { grid-template-columns: minmax(0,1fr); }
+  .next-game-factory-selected .next-game-factory-details > div { grid-template-columns: minmax(6rem,.7fr) minmax(0,1.3fr); align-items: start; }
+  .next-game-factory-selected .next-game-factory-details b { overflow-wrap: break-word; word-break: normal; }
+}
 [data-factory-search-text][hidden] { display: none !important; }
 .next-game-factory-list-empty { padding: .9rem; border: 1px dashed var(--ng-border); border-radius: .8rem; color: var(--ng-muted); text-align: center; font-size: .7rem; }
 .next-game-legacy-view { display: grid; gap: .8rem; min-width: 0; }

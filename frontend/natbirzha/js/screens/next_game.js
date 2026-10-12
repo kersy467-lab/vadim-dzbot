@@ -1,10 +1,10 @@
-import { NatAPI } from '../api.js?v=20261011_continuous_progression_v1';
+import { NatAPI } from '../api.js?v=20261012_employee_cases_v1';
 import { registerScreenCleanup } from '../screen_lifecycle.js?v=20260928_mobile_perf_v1';
-import { esc, bindAction, icon } from './next_game_common.js?v=20261011_continuous_progression_v1';
-import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_theme_admin_mobile_v1';
+import { esc, bindAction, icon } from './next_game_common.js?v=20261012_employee_cases_v1';
+import { renderShell, renderHeader, renderMore, renderSubview } from './next_game_shell.js?v=20261012_employee_cases_v1';
 import { renderOverview } from './next_game_overview.js?v=20261011_continuous_progression_v1';
 import { renderDevelopment, bindDevelopment } from './next_game_development.js?v=20261012_route_continuation_v1';
-import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_factory_map_v1';
+import { renderFactories, bindFactories } from './next_game_factories.js?v=20261012_release_readiness_v1';
 
 const entries = new WeakMap();
 const initialRequests = new WeakMap();
@@ -134,7 +134,7 @@ async function mountActive(session) {
       if (view === 'war') {
         target.innerHTML = `<section class="next-game-legacy-view"><header class="next-game-view-heading"><div class="next-game-view-heading-top"><button type="button" data-next-view="more" class="next-game-back">← Все сервисы</button><span>0.6 · ВОЙНА</span></div><div class="next-game-view-title"><span>${icon('war', 23)}</span><div><h2>Военные действия</h2><small>Армия, границы, альянсы и турниры</small></div></div></header><div data-next-legacy-war></div></section>`;
         const { renderMilitary } = await import('./military.js?v=20261011_v2_consolidation_v1');
-        await renderMilitary(target.querySelector('[data-next-legacy-war]'), showToast);
+        await renderMilitary(target.querySelector('[data-next-legacy-war]'), showToast, { includePvcShop: false });
       } else if (['legacy-admin', 'legacy-moderation', 'legacy-sabotages', 'legacy-bonds'].includes(view)) {
         const legacyTabs = {
           'legacy-moderation': { tab: 'market', title: 'Модерация рынка' },
@@ -165,6 +165,9 @@ async function mountActive(session) {
       } else if (view === 'operations') {
         const { renderNextGameOperations } = await import('./next_game_operations.js?v=20261012_market_flow_v1');
         await renderNextGameOperations(target, state, showToast, refresh);
+      } else if (view === 'employees') {
+        const { renderNextGameEmployees } = await import('./next_game_employees.js?v=20261012_employee_cases_v1');
+        await renderNextGameEmployees(target, showToast, NatAPI);
       } else if (view === 'civic') {
         const { renderNextGameCivic } = await import('./next_game_civic.js?v=20261010_shell_v2');
         await renderNextGameCivic(target, state, showToast, refresh);
@@ -173,7 +176,7 @@ async function mountActive(session) {
         const { renderNextGameSupport } = await import('./next_game_support.js?v=20261010_shell_v2');
         await renderNextGameSupport(target, state, showToast, refresh);
       } else if (view === 'contracts' || view === 'projects') {
-        const { renderNextGameContracts } = await import('./next_game_contracts.js?v=20261010_shell_v2');
+        const { renderNextGameContracts } = await import('./next_game_contracts.js?v=20261012_release_readiness_v1');
         await renderNextGameContracts(target, state, showToast, refresh);
       } else if (view === 'admin') {
         const { renderNextGameAdmin } = await import('./next_game_admin.js?v=20261012_market_flow_v1');

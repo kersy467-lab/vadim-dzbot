@@ -13,7 +13,7 @@ test('admin launcher opens a lazy next-game screen without replacing legacy tab 
     read('../frontend/natbirzha/js/next_game_api.js'),
   ]);
   assert.match(html, /id="next-game-nav-btn"/);
-  assert.match(html, /\/static\/natbirzha\/js\/app\.js\?v=20261010_experience_v1/);
+  assert.match(html, /\/static\/natbirzha\/js\/app\.js\?v=20261012_employee_cases_v1/);
   assert.match(app, /next-game-nav-btn/);
   assert.match(app, /is-next-game/);
   assert.match(app, /renderTab !== 'next-game'/);
@@ -48,7 +48,7 @@ test('modular 2.0 screen preserves saved routes, factory actions and lazy econom
   assert.match(factories, /data-next-upgrade/);
   assert.match(screen, /getNextGameMap\('overview'\)/);
   assert.match(screen, /version !== session.version/);
-  for (const module of ['market', 'bank', 'capital', 'bonds', 'contracts', 'progression', 'operations', 'civic']) assert.ok(screen.includes(`next_game_${module}.js`));
+  for (const module of ['market', 'bank', 'capital', 'bonds', 'contracts', 'progression', 'operations', 'employees', 'civic']) assert.ok(screen.includes(`next_game_${module}.js`));
   assert.match(shell, /НАТБИРЖА/);
   assert.match(shell, /Экономический мир 2\.0/);
   assert.match(shell, /Инвестиции/);

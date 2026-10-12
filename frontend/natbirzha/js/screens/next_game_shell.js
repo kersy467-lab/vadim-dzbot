@@ -1,4 +1,4 @@
-import { esc, number, icon } from './next_game_common.js?v=20261011_continuous_progression_v1';
+import { esc, number, icon } from './next_game_common.js?v=20261012_employee_cases_v1';
 
 export const mainTabs = [
   ['overview', 'Обзор'], ['map', 'Развитие'], ['factories', 'Заводы'],
@@ -81,7 +81,7 @@ export function renderShell(stateOrCompany, activeView = 'overview', isCreator =
 
 export function renderMore(isAdmin = false) {
   const groups = [
-    ['0.1', 'Развитие', [['progression', 'Бонусы компании', 'Мастерство, PVC и объединение'], ['operations', 'Инфраструктура', 'Склад, земля и сотрудники']]],
+    ['0.1', 'Развитие', [['progression', 'Бонусы компании', 'Мастерство, PVC и объединение'], ['operations', 'Инфраструктура', 'Склад, земля и сотрудники'], ['employees', 'Сотрудники', 'Коллекция, назначения и PVC-кейсы']]],
     ['0.2', 'Финансы', [['bank', 'Банк', 'Счета, кредиты и депозиты'], ['capital', 'Инвестиции', 'Акции компаний и IPO'], ['bonds', 'Облигации', 'Купоны и вторичный рынок'], ['civic', 'Заказы и налоги', 'Городской спрос и расчёты']]],
     ['0.3', 'Партнёрство', [['contracts', 'Поставки', 'Договоры между компаниями'], ['projects', 'Совместные заводы', 'Общий вклад и выпуск'], ['liquidation', 'Продажа предприятий', 'Активы банкротов']]],
     ['0.4', 'Сообщество', [['competition', 'Рейтинг', 'Результаты компаний'], ['help', 'Помощь', 'Поддержка компаний любого уровня']]],
